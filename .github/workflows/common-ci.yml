@@ -1,0 +1,35 @@
+name: Common CI
+
+on:
+  push:
+    paths:
+      - commitlint.config.js
+      - package.json
+      - package-lock.json
+      - .github/workflows/common-ci.yml
+  pull_request:
+    paths:
+      - commitlint.config.js
+      - package.json
+      - package-lock.json
+      - .github/workflows/common-ci.yml
+
+concurrency:
+  group: common-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  commitlint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Lint commit messages
+        uses: wagoid/commitlint-github-action@v6
