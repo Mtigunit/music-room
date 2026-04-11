@@ -10,8 +10,8 @@ export class AppController {
     return this.appService.getHello();
   }
 
-  @Get('db-test')
-  async testDbQuery() {
-    return this.appService.testDbQuery();
-  }
+  // @Get('db-test')
+  // async testDbQuery() {
+  //   return this.appService.testDbQuery();
+  // }
 }

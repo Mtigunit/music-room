@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { AppRepository } from './app.repository';
 import { AuthModule } from './auth/auth.module';
 import { EventsModule } from './events/events.module';
 import { PlaylistsModule } from './playlists/playlists.module';
@@ -22,6 +23,6 @@ import { RedisModule } from './redis/redis.module';
     RedisModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, AppRepository],
 })
 export class AppModule {}

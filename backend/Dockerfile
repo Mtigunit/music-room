@@ -1,5 +1,7 @@
+NODE_VERSION=20.19-alpine
+
 # ── Build stage ──────────────────────────────────────
-FROM node:20-alpine AS builder
+FROM node:${NODE_VERSION} AS builder
 
 WORKDIR /app
 
@@ -10,7 +12,7 @@ COPY . .
 RUN npx prisma generate && npm run build && npm prune --omit=dev
 
 # ── Production stage ─────────────────────────────────
-FROM node:20-alpine
+FROM node:${NODE_VERSION}
 
 WORKDIR /app
 

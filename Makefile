@@ -103,11 +103,11 @@ mobile-lockfile:
 	@printf "%b\n" "$(COLOR_SUCCESS)Done: lockfile verification completed.$(COLOR_RESET)"
 
 # ========================
-# BACKEND (SAFE PLACEHOLDER)
+# BACKEND
 # ========================
 
 .PHONY: backend
-backend:
+backend: docker-up
 	@if [ -f $(BACKEND_DIR)/package.json ]; then \
 		cd $(BACKEND_DIR) && npm run start:dev; \
 	else \
@@ -141,6 +141,35 @@ backend-format:
 		printf "%b\\n" "$(COLOR_WARN)No backend format$(COLOR_RESET)"; \
 	fi
 	@printf "%b\n" "$(COLOR_SUCCESS)Done: backend format check completed.$(COLOR_RESET)"
+
+# ========================
+# DOCKER COMPOSE (ROOT)
+# ========================
+
+.PHONY: docker-build
+docker-build:
+	docker compose -f docker-compose.yml build
+	@printf "%b\n" "$(COLOR_SUCCESS)Done: docker-compose build completed.$(COLOR_RESET)"
+
+.PHONY: docker-up
+docker-up:
+	docker compose -f docker-compose.yml up -d
+	@printf "%b\n" "$(COLOR_SUCCESS)Done: docker-compose up completed.$(COLOR_RESET)"
+
+.PHONY: docker-down
+docker-down:
+	docker compose -f docker-compose.yml down
+	@printf "%b\n" "$(COLOR_SUCCESS)Done: docker-compose down completed.$(COLOR_RESET)"
+
+.PHONY: docker-logs
+docker-logs:
+	docker compose -f docker-compose.yml logs -f
+	@printf "%b\n" "$(COLOR_SUCCESS)Done: docker-compose logs streaming.$(COLOR_RESET)"
+
+.PHONY: docker-backend-logs
+docker-backend-logs:
+	docker compose -f docker-compose.yml logs -f backend
+	@printf "%b\n" "$(COLOR_SUCCESS)Done: backend logs (docker-compose) streaming.$(COLOR_RESET)"
 
 # ========================
 # GLOBAL TASKS
