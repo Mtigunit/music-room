@@ -1,0 +1,32 @@
+pre-commit:
+  parallel: true
+  jobs:
+    - name: mobile analyze
+      glob: "mobile/**"
+      run: cd mobile && flutter analyze
+
+    - name: backend checks placeholder
+      glob: "backend/**"
+      run: cd backend && echo "Backend checks will be added later"
+
+pre-push:
+  parallel: true
+  jobs:
+    - name: prevent push to main
+      run: sh scripts/prevent-push-to-main.sh "$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)"
+
+    - name: branch name check
+      run: sh scripts/check-branch-name.sh "$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)"
+
+    - name: mobile test
+      glob: "mobile/**"
+      run: cd mobile && flutter test
+
+    - name: backend checks placeholder
+      glob: "backend/**"
+      run: cd backend && echo "Backend checks will be added later"
+
+commit-msg:
+  commands:
+    commitlint:
+      run: npx commitlint --edit {1}

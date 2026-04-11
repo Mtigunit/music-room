@@ -1,0 +1,180 @@
+name: Mobile CI
+
+on:
+  pull_request:
+    paths:
+      - mobile/**
+      - .github/workflows/mobile-ci.yml
+
+concurrency:
+  group: mobile-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.41.2
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Check formatting
+        run: dart format --output=none --set-exit-if-changed .
+
+  analyze:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.41.2
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Analyze
+        run: flutter analyze
+
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.41.2
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Run tests
+        run: flutter test
+
+  lockfile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.41.2
+          cache: true
+
+      - name: Verify lockfile is present
+        run: test -f pubspec.lock
+
+      - name: Verify lockfile is in sync
+        run: |
+          flutter pub get --enforce-lockfile
+          git diff --exit-code -- pubspec.lock
+
+  pr-summary:
+    if: ${{ always() }}
+    needs: [format, analyze, test, lockfile]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Post mobile CI summary comment
+        uses: actions/github-script@v7
+        env:
+          FORMAT_RESULT: ${{ needs.format.result }}
+          ANALYZE_RESULT: ${{ needs.analyze.result }}
+          TEST_RESULT: ${{ needs.test.result }}
+          LOCKFILE_RESULT: ${{ needs.lockfile.result }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        with:
+          script: |
+            const marker = '<!-- ci-mobile-summary -->';
+            const jobs = [
+              ['Format', process.env.FORMAT_RESULT],
+              ['Analyze', process.env.ANALYZE_RESULT],
+              ['Test', process.env.TEST_RESULT],
+              ['Lockfile', process.env.LOCKFILE_RESULT],
+            ];
+
+            const icon = (result) => {
+              if (result === 'success') return '✅';
+              if (result === 'failure') return '❌';
+              if (result === 'cancelled') return '⚪';
+              return '⏭️';
+            };
+
+            const failed = jobs.filter(([, result]) => result !== 'success');
+            const heading = failed.length === 0
+              ? '### Mobile CI passed'
+              : `### Mobile CI failed (${failed.map(([name]) => name).join(', ')})`;
+
+            const lines = jobs.map(([name, result]) => `- ${icon(result)} ${name}: ${result}`);
+            const body = [
+              marker,
+              heading,
+              ...lines,
+              '',
+              `[View workflow run](${process.env.RUN_URL})`,
+            ].join('\n');
+
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              per_page: 100,
+            });
+
+            const existing = comments.find((comment) =>
+              comment.user.type === 'Bot' && comment.body && comment.body.includes(marker)
+            );
+
+            if (existing) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: existing.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }

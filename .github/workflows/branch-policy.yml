@@ -1,0 +1,22 @@
+name: Branch Policy
+
+on:
+  pull_request:
+
+concurrency:
+  group: branch-policy-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  branch-policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check branch name
+        run: sh scripts/check-branch-name.sh "${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
