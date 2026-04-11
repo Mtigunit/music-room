@@ -19,7 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Prevent pushes to main
+      - name: Detect direct pushes to main
         if: ${{ github.event_name == 'push' }}
         run: sh scripts/prevent-push-to-main.sh "${GITHUB_REF_NAME}"
 
