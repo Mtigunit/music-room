@@ -24,4 +24,5 @@ jobs:
         run: sh scripts/prevent-push-to-main.sh "${GITHUB_REF_NAME}"
 
       - name: Check branch name
+        if: ${{ github.event_name == 'pull_request' }}
         run: sh scripts/check-branch-name.sh "${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
