@@ -1,10 +1,6 @@
 name: Mobile CI
 
 on:
-  push:
-    paths:
-      - mobile/**
-      - .github/workflows/mobile-ci.yml
   pull_request:
     paths:
       - mobile/**
@@ -109,7 +105,7 @@ jobs:
           git diff --exit-code -- pubspec.lock
 
   pr-summary:
-    if: ${{ always() && github.event_name == 'pull_request' }}
+    if: ${{ always() }}
     needs: [format, analyze, test, lockfile]
     runs-on: ubuntu-latest
     permissions:

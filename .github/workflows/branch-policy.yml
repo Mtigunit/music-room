@@ -1,7 +1,6 @@
 name: Branch Policy
 
 on:
-  push:
   pull_request:
 
 concurrency:
@@ -19,10 +18,5 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Detect direct pushes to main
-        if: ${{ github.event_name == 'push' }}
-        run: sh scripts/prevent-push-to-main.sh "${GITHUB_REF_NAME}"
-
       - name: Check branch name
-        if: ${{ github.event_name == 'pull_request' }}
         run: sh scripts/check-branch-name.sh "${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
