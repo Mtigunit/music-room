@@ -1,0 +1,27 @@
+name: Branch Policy
+
+on:
+  push:
+  pull_request:
+
+concurrency:
+  group: branch-policy-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  branch-policy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prevent pushes to main
+        if: ${{ github.event_name == 'push' }}
+        run: sh scripts/prevent-push-to-main.sh "${GITHUB_REF_NAME}"
+
+      - name: Check branch name
+        run: sh scripts/check-branch-name.sh "${GITHUB_HEAD_REF:-${GITHUB_REF_NAME}}"
