@@ -2,6 +2,8 @@ name: Backend CI
 
 on:
   push:
+    branches:
+      - main
     paths:
       - backend/**
       - .github/workflows/backend-ci.yml
@@ -36,8 +38,12 @@ jobs:
           cache: npm
           cache-dependency-path: backend/package-lock.json
 
+
       - name: Install dependencies
         run: npm ci
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
 
       - name: Run lint
         run: npm run lint
