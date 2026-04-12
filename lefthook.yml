@@ -11,7 +11,7 @@ pre-commit:
 
     - name: backend format
       glob: "backend/**"
-      run: cd backend && npm run format
+      run: cd backend && npm run format:check
 
 pre-push:
   parallel: true
