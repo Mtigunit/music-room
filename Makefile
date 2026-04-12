@@ -140,7 +140,7 @@ backend-format:
 	else \
 		printf "%b\\n" "$(COLOR_WARN)No backend format$(COLOR_RESET)"; \
 	fi
-	@printf "%b\n" "$(COLOR_SUCCESS)Done: backend format check completed.$(COLOR_RESET)"
+	@printf "%b\n" "$(COLOR_SUCCESS)Done: backend formatting completed.$(COLOR_RESET)"
 
 # ========================
 # DOCKER COMPOSE (ROOT)
