@@ -1,13 +1,13 @@
 services:
-  # api:
+  # backend:
   #   build:
   #     context: ./backend
   #     dockerfile: Dockerfile
-  #   container_name: music_room_api
+  #   container_name: music_room_backend
   #   env_file:
   #     - ./backend/.env
   #   ports:
-  #     - "${API_PORT:-3000}:3000"
+  #     - "${BACKEND_PORT:-3000}:3000"
   #   depends_on:
   #     - postgres
   #     - redis
