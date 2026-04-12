@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     // TypeScript 6.x: rootDir is deprecated but still required for some project layouts. Remove when TS6 fully supports auto rootDir.
-    "rootDir": "./src",
+    "rootDir": ".",
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "resolvePackageJsonExports": true,
