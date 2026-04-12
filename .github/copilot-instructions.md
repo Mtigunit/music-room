@@ -9,15 +9,23 @@ You are an expert Full-Stack Developer assisting with the "Music Room" project. 
 - **Mobile:** Flutter, Dart.
 - **AI Boundary:** Do NOT generate core algorithmic logic, WebSocket concurrency handling, or Redis distributed locking mechanisms unless explicitly asked. Focus on scaffolding, UI, and documentation.
 
-## 2. Backend Rules (NestJS & Prisma)
-
 When working in the `/backend` directory, you must enforce a strict N-Tier architecture.
+
+- **Logging:** Never use `console.log` or `console.error` in providers or services. Always use the NestJS `Logger` (e.g., `new Logger(MyService.name)`) for all logging to ensure consistent log routing and formatting.
 
 - **TypeScript Strictness:** Never use the `any` type. Always define explicit interfaces or Data Transfer Objects (DTOs).
 - **The Repository Pattern:** \* `PrismaService` must NEVER be injected into a `.service.ts` file.
   - All database queries must be isolated inside dedicated `.repository.ts` files.
 - **Controllers:** Controllers must only handle HTTP routing, payload validation, and passing data to the Service. They must not contain business logic.
-- **Swagger:** Automatically append `@nestjs/swagger` decorators (e.g., `@ApiTags`, `@ApiOperation`, `@ApiResponse`, `@ApiProperty`) to all new Controllers and DTOs.
+- **Swagger:** Always add `@nestjs/swagger` decorators to every new Controller and DTO:
+  - Use `@ApiTags` at the class level for all controllers.
+  - Use `@ApiOperation`, `@ApiResponse`, and other endpoint-level decorators for every route method.
+  - Use `@ApiProperty` on every property in DTOs.
+  - Ensure the generated Swagger docs fully reflect all routes and DTO schemas.
+
+- **Validation:** Always use `class-validator` decorators (e.g., `@IsString`, `@IsInt`, etc.) on all DTO properties for input validation.
+  - Do NOT use DTOs for primitive route parameters (e.g., `:id`). Instead, use NestJS pipes like `@Param('id', ParseIntPipe)` for type conversion and validation of primitives.
+  - Only use DTOs for validating request bodies, not for validating route/query primitives.
 - **Testing:** Do not generate `.repository.spec.ts` files. Only generate unit tests for Services and Controllers.
 
 ## 3. Frontend Rules (Flutter)
