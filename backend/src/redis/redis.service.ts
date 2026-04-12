@@ -31,8 +31,18 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     );
   }
 
-  onModuleDestroy() {
-    this.redisClient.disconnect();
+  async onModuleDestroy() {
+    if (this.redisClient) {
+      try {
+        await this.redisClient.quit(); // Graceful shutdown, flushes pending commands
+        this.logger.log('Redis connection closed gracefully');
+      } catch (err) {
+        this.logger.warn(
+          'Error during Redis shutdown',
+          err instanceof Error ? err.message : String(err),
+        );
+      }
+    }
   }
 
   // Expose the client so you can use it in other services
