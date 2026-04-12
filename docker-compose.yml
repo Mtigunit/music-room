@@ -34,7 +34,7 @@ services:
       - "${REDIS_PORT:-6379}:6379"
 
   pgadmin:
-    image: dpage/pgadmin4:latest
+    image: dpage/pgadmin4:8.14
     container_name: music_room_pgadmin
     env_file:
       - ./backend/.env
