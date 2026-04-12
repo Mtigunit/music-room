@@ -1,0 +1,49 @@
+// backend/prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id             String         @id @default(uuid())
+  email          String         @unique
+  passwordHash   String?        // Nullable for OAuth users
+  authProvider   String         @default("local") // local, google, facebook
+  publicInfo     Json?
+  privateInfo    Json?
+  preferences    Json?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  // Relations
+  events         Event[]        @relation("HostEvents")
+  playlistItems  PlaylistItem[]
+}
+
+model Event {
+  id          String         @id @default(uuid())
+  name        String
+  hostId      String
+  visibility  String         @default("public") // public or private
+  type        String         // vote, playlist, control
+  createdAt   DateTime       @default(now())
+
+  host        User           @relation("HostEvents", fields: [hostId], references: [id])
+  playlist    PlaylistItem[]
+}
+
+model PlaylistItem {
+  id          String   @id @default(uuid())
+  eventId     String
+  addedById   String
+  trackId     String   // ID from external API (Spotify/Apple)
+  orderIndex  Int
+  voteCount   Int      @default(0)
+
+  event       Event    @relation(fields: [eventId], references: [id])
+  addedBy     User     @relation(fields: [addedById], references: [id])
+}

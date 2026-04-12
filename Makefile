@@ -103,11 +103,11 @@ mobile-lockfile:
 	@printf "%b\n" "$(COLOR_SUCCESS)Done: lockfile verification completed.$(COLOR_RESET)"
 
 # ========================
-# BACKEND (SAFE PLACEHOLDER)
+# BACKEND
 # ========================
 
 .PHONY: backend
-backend:
+backend: docker-up
 	@if [ -f $(BACKEND_DIR)/package.json ]; then \
 		cd $(BACKEND_DIR) && npm run start:dev; \
 	else \
@@ -140,7 +140,48 @@ backend-format:
 	else \
 		printf "%b\\n" "$(COLOR_WARN)No backend format$(COLOR_RESET)"; \
 	fi
-	@printf "%b\n" "$(COLOR_SUCCESS)Done: backend format check completed.$(COLOR_RESET)"
+	@printf "%b\n" "$(COLOR_SUCCESS)Done: backend formatting completed.$(COLOR_RESET)"
+
+# ========================
+# DOCKER COMPOSE (ROOT)
+# ========================
+
+.PHONY: docker-build
+docker-build:
+	docker compose -f docker-compose.yml build
+	@printf "%b\n" "$(COLOR_SUCCESS)Done: docker-compose build completed.$(COLOR_RESET)"
+
+.PHONY: docker-up
+docker-up: ensure-backend-env
+	docker compose -f docker-compose.yml up -d
+	@printf "%b\n" "$(COLOR_SUCCESS)Done: docker-compose up completed.$(COLOR_RESET)"
+
+.PHONY: docker-down
+docker-down:
+	docker compose -f docker-compose.yml down
+	@printf "%b\n" "$(COLOR_SUCCESS)Done: docker-compose down completed.$(COLOR_RESET)"
+
+.PHONY: docker-logs
+docker-logs:
+	docker compose -f docker-compose.yml logs -f
+	@printf "%b\n" "$(COLOR_SUCCESS)Done: docker-compose logs streaming.$(COLOR_RESET)"
+
+.PHONY: docker-backend-logs
+docker-backend-logs:
+	docker compose -f docker-compose.yml logs -f backend
+	@printf "%b\n" "$(COLOR_SUCCESS)Done: backend logs (docker-compose) streaming.$(COLOR_RESET)"
+
+# Ensure backend/.env exists (copy from .env.example if missing)
+.PHONY: ensure-backend-env
+ensure-backend-env:
+	@if [ ! -f backend/.env ]; then \
+		if [ -f backend/.env.example ]; then \
+			cp backend/.env.example backend/.env; \
+			printf "%b\n" "$(COLOR_INFO)Created backend/.env from .env.example.$(COLOR_RESET)"; \
+		else \
+			printf "%b\n" "$(COLOR_WARN)backend/.env and .env.example are missing!$(COLOR_RESET)"; \
+		fi; \
+	fi
 
 # ========================
 # GLOBAL TASKS

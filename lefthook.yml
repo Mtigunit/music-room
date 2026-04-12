@@ -5,9 +5,13 @@ pre-commit:
       glob: "mobile/**"
       run: cd mobile && flutter analyze
 
-    - name: backend checks placeholder
+    - name: backend lint
       glob: "backend/**"
-      run: cd backend && echo "Backend checks will be added later"
+      run: cd backend && npm run lint
+
+    - name: backend format
+      glob: "backend/**"
+      run: cd backend && npm run format:check
 
 pre-push:
   parallel: true
@@ -22,9 +26,9 @@ pre-push:
       glob: "mobile/**"
       run: cd mobile && flutter test
 
-    - name: backend checks placeholder
+    - name: backend lint
       glob: "backend/**"
-      run: cd backend && echo "Backend checks will be added later"
+      run: cd backend && npm run lint
 
 commit-msg:
   commands:
