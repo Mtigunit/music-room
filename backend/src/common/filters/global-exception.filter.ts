@@ -4,6 +4,7 @@ import {
   ExceptionFilter,
   HttpException,
   HttpStatus,
+  Logger,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import { Prisma } from '@prisma/client';
@@ -15,6 +16,7 @@ type ValidationErrorItem = {
 
 @Catch()
 export class GlobalExceptionFilter implements ExceptionFilter {
+  private readonly logger = new Logger(GlobalExceptionFilter.name);
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
@@ -99,7 +101,27 @@ export class GlobalExceptionFilter implements ExceptionFilter {
     }
 
     // Catch-all: log and return generic 500
-    console.error('Unhandled exception', exception);
+    // Type guard to extract name/message safely without 'any'
+    let exceptionName: string | undefined = undefined;
+    let exceptionMessage: string | undefined = undefined;
+    if (typeof exception === 'object' && exception !== null) {
+      if (
+        'name' in exception &&
+        typeof (exception as { name: unknown }).name === 'string'
+      ) {
+        exceptionName = (exception as { name: string }).name;
+      }
+      if (
+        'message' in exception &&
+        typeof (exception as { message: unknown }).message === 'string'
+      ) {
+        exceptionMessage = (exception as { message: string }).message;
+      }
+    }
+    this.logger.error('Unhandled exception occurred', {
+      name: exceptionName,
+      message: exceptionMessage,
+    });
 
     return {
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
