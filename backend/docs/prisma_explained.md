@@ -135,18 +135,19 @@ Let's break this down:
 export class PrismaModule {}
 ```
 
-#### In any other service (e.g., `AuthService`):
+
+#### In any other service (e.g., `AuthService`), following the repository pattern:
+
 ```typescript
+// auth.repository.ts
 @Injectable()
-export class AuthService {
-  // NestJS automatically injects the PrismaService singleton
-  constructor(private prisma: PrismaService) {}
+export class AuthRepository {
+  constructor(private readonly prisma: PrismaService) {}
 
   async findUser(email: string) {
-    // Full type safety + autocomplete here
     return this.prisma.user.findUnique({
       where: { email },
-      include: { events: true },  // joins the events relation
+      include: { events: true },
     });
   }
 
@@ -154,10 +155,24 @@ export class AuthService {
     return this.prisma.user.create({ data });
   }
 }
+
+// auth.service.ts
+@Injectable()
+export class AuthService {
+  constructor(private readonly authRepository: AuthRepository) {}
+
+  async findUser(email: string) {
+    return this.authRepository.findUser(email);
+  }
+
+  async createUser(data: { email: string; passwordHash: string }) {
+    return this.authRepository.createUser(data);
+  }
+}
 ```
 
 > [!TIP]
-> You never import `PrismaClient` directly in your services — always inject `PrismaService`. This gives you a single shared connection pool across the entire app.
+> You never import `PrismaClient` or inject `PrismaService` directly in your services — always inject your own repository class. This enforces separation of concerns and keeps all database logic isolated from business logic.
 
 ---
 
@@ -173,7 +188,7 @@ Here's the full lifecycle from schema change to running code:
 | 4. Use in code | Inject `PrismaService` | Query your DB with full type safety |
 
 > [!IMPORTANT]
-> You haven't run **step 3** yet. `prisma generate` only creates the TypeScript types — it does NOT create the actual tables in PostgreSQL. You'll need `npx prisma migrate dev --name init` once your DB is running (via `docker compose up postgres`).
+> If you haven't run **step 3** locally yet, `prisma generate` only creates the TypeScript types — it does NOT create the actual tables in PostgreSQL. You'll need `npx prisma migrate dev --name init` once your DB is running (via `docker compose up postgres`).
 
 $env:DATABASE_URL="postgresql://admin:rootpassword@localhost:5432/music_room?schema=public"; npx prisma migrate status
 
