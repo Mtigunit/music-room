@@ -20,7 +20,14 @@ music-room/
 - npm 10+
 - Flutter SDK (stable)
 - Docker + Docker Compose
-- GNU Make
+
+
+## Features
+
+- **Swagger API Docs**: Auto-generated OpenAPI docs available at [http://localhost:3000/api/docs](http://localhost:3000/api/docs) when the backend is running. All endpoints, DTOs, and error responses are documented.
+- **Global Validation**: All incoming requests are validated using class-validator decorators on DTOs. Invalid requests receive a 400 response with details.
+- **Global Exception Handling**: Consistent error responses and logging for all unhandled exceptions, including database and validation errors.
+- **Prisma ORM**: Type-safe database access and migrations. See backend/docs/prisma_explained.md for a full workflow.
 
 ## Quick Start
 
@@ -49,7 +56,13 @@ make backend
 make mobile
 ```
 
-## Common Commands
+
+## Backend Workflow
+
+- Edit your database schema in `backend/prisma/schema.prisma`.
+- Run `npx prisma generate` to update the Prisma client after schema changes.
+- Run `npx prisma migrate dev --name <desc>` to create and apply DB migrations.
+- Start the backend and access Swagger docs at `/api/docs`.
 
 Run from repository root.
 
@@ -90,6 +103,7 @@ make docker-logs
 make docker-backend-logs
 ```
 
+
 Note: in the current compose file, the API service is commented out, while `postgres`, `redis`, and `pgadmin` are active.
 
 ## CI
@@ -113,10 +127,10 @@ Lefthook is configured in `lefthook.yml`.
 ## Environment
 
 Backend environment variables are expected in `backend/.env`.
-
 Use `backend/.env.example` as the starting template.
 
-## Notes
+---
 
-- Keep backend data access inside repository classes (`*.repository.ts`) instead of injecting `PrismaService` directly into `*.service.ts`.
-- Prefer Make targets over manual commands to keep local workflow consistent with CI.
+## See Also
+
+- [backend/docs/prisma_explained.md](backend/docs/prisma_explained.md) — Prisma, DB, and repository pattern explained
