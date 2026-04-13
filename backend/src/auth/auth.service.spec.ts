@@ -18,7 +18,6 @@ const mockUser: User = {
   username: 'testuser',
   passwordHash: '$2b$10$hashedpassword',
   isEmailVerified: false,
-  emailVerificationToken: null,
   passwordResetToken: null,
   passwordResetExpires: null,
   googleId: null,
