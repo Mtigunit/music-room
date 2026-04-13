@@ -10,7 +10,7 @@ import { UsersService } from '../users/users.service';
 import type { RegisterDto } from './dto/register.dto';
 import type { LoginDto } from './dto/login.dto';
 import type { JwtPayload } from './interfaces/jwt-payload.interface';
-import { User } from '@prisma/client';
+import type { User } from '@prisma/client';
 
 const BCRYPT_SALT_ROUNDS = 10;
 
