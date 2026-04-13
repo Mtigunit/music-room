@@ -22,6 +22,7 @@ export class UserRepository {
     email: string;
     username: string;
     passwordHash: string;
+    isEmailVerified?: boolean;
   }): Promise<User> {
     return this.prisma.user.create({ data });
   }

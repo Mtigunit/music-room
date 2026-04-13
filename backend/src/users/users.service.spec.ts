@@ -123,6 +123,7 @@ describe('UsersService', () => {
         'test@example.com',
         'testuser',
         '$2b$10$hashed',
+        true,
       );
 
       expect(result).toEqual(mockUser);
@@ -130,6 +131,7 @@ describe('UsersService', () => {
         email: 'test@example.com',
         username: 'testuser',
         passwordHash: '$2b$10$hashed',
+        isEmailVerified: true,
       });
     });
   });

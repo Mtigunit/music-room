@@ -57,6 +57,7 @@ export class AuthService {
       dto.email,
       dto.username,
       passwordHash,
+      true,
     );
 
     return this.generateToken(user.id, user.email);

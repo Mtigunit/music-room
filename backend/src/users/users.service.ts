@@ -22,7 +22,13 @@ export class UsersService {
     email: string,
     username: string,
     passwordHash: string,
+    isEmailVerified?: boolean,
   ): Promise<User> {
-    return this.userRepository.create({ email, username, passwordHash });
+    return this.userRepository.create({
+      email,
+      username,
+      passwordHash,
+      isEmailVerified,
+    });
   }
 }

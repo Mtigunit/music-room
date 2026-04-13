@@ -111,6 +111,7 @@ describe('AuthService', () => {
         registerDto.email,
         registerDto.username,
         '$2b$10$hashed',
+        true,
       );
     });
 
