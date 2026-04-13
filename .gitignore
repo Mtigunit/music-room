@@ -83,3 +83,8 @@ Thumbs.db
 *.tgz
 *.bak
 *.tmp
+
+# lock files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
