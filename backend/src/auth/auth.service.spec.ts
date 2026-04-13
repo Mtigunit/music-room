@@ -183,7 +183,7 @@ describe('AuthService', () => {
 
   describe('login', () => {
     const loginDto = {
-      email: 'test@example.com',
+      identifier: 'test@example.com',
       password: 'password123',
     };
 
@@ -194,7 +194,9 @@ describe('AuthService', () => {
       const result = await authService.login(loginDto);
 
       expect(result).toEqual({ access_token: 'signed-jwt-token' });
-      expect(usersService.findByEmail).toHaveBeenCalledWith(loginDto.email);
+      expect(usersService.findByEmail).toHaveBeenCalledWith(
+        loginDto.identifier,
+      );
       expect(bcrypt.compare).toHaveBeenCalledWith(
         loginDto.password,
         mockUser.passwordHash,
@@ -207,7 +209,7 @@ describe('AuthService', () => {
 
     it('should login and return an access token for valid credentials (username)', async () => {
       const usernameLoginDto = {
-        email: 'testuser',
+        identifier: 'testuser',
         password: 'password123',
       };
       usersService.findByUsername.mockResolvedValue(mockUser);

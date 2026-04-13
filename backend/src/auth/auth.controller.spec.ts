@@ -114,7 +114,7 @@ describe('AuthController', () => {
 
   describe('login', () => {
     const loginDto = {
-      email: 'test@example.com',
+      identifier: 'test@example.com',
       password: 'password123',
     };
 

@@ -65,10 +65,10 @@ export class AuthService {
   async login(dto: LoginDto): Promise<{ access_token: string }> {
     let user: User | null;
 
-    if (dto.email.includes('@')) {
-      user = await this.usersService.findByEmail(dto.email);
+    if (dto.identifier.includes('@')) {
+      user = await this.usersService.findByEmail(dto.identifier);
     } else {
-      user = await this.usersService.findByUsername(dto.email);
+      user = await this.usersService.findByUsername(dto.identifier);
     }
 
     if (!user || !user.passwordHash) {
