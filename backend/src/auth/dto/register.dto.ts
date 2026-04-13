@@ -33,4 +33,8 @@ export class RegisterDto {
     message: 'password must contain at least one lowercase letter, one uppercase letter, one number, and one special character',
   })
   password!: string;
+
+  @ApiProperty({ description: 'Token received from /auth/verify-otp' })
+  @IsString()
+  emailVerificationToken!: string;
 }

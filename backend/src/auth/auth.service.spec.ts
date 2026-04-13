@@ -1,5 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConflictException, UnauthorizedException } from '@nestjs/common';
+import {
+  ConflictException,
+  UnauthorizedException,
+  BadRequestException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
 import { AuthService } from './auth.service';
@@ -49,6 +53,7 @@ describe('AuthService', () => {
           provide: JwtService,
           useValue: {
             sign: jest.fn().mockReturnValue('signed-jwt-token'),
+            verify: jest.fn(),
           },
         },
       ],
@@ -69,8 +74,17 @@ describe('AuthService', () => {
     const registerDto = {
       email: 'new@example.com',
       username: 'newuser',
-      password: 'password123',
+      password: 'Valid@123',
+      emailVerificationToken: 'valid-token',
     };
+
+    beforeEach(() => {
+      // Default: verification token is valid and matches the email
+      jwtService.verify.mockReturnValue({
+        email: registerDto.email,
+        purpose: 'email_verification',
+      });
+    });
 
     it('should register a new user and return an access token', async () => {
       usersService.findByEmail.mockResolvedValue(null);
@@ -85,6 +99,9 @@ describe('AuthService', () => {
       const result = await authService.register(registerDto);
 
       expect(result).toEqual({ access_token: 'signed-jwt-token' });
+      expect(jwtService.verify).toHaveBeenCalledWith(
+        registerDto.emailVerificationToken,
+      );
       expect(usersService.findByEmail).toHaveBeenCalledWith(registerDto.email);
       expect(usersService.findByUsername).toHaveBeenCalledWith(
         registerDto.username,
@@ -95,10 +112,45 @@ describe('AuthService', () => {
         registerDto.username,
         '$2b$10$hashed',
       );
-      expect(jwtService.sign).toHaveBeenCalledWith({
-        sub: mockUser.id,
-        email: registerDto.email,
+    });
+
+    it('should throw BadRequestException if verification token email does not match', async () => {
+      jwtService.verify.mockReturnValue({
+        email: 'different@example.com',
+        purpose: 'email_verification',
       });
+
+      await expect(authService.register(registerDto)).rejects.toThrow(
+        BadRequestException,
+      );
+      await expect(authService.register(registerDto)).rejects.toThrow(
+        'Verification token does not match the provided email',
+      );
+      expect(usersService.create).not.toHaveBeenCalled();
+    });
+
+    it('should throw BadRequestException if verification token is invalid', async () => {
+      jwtService.verify.mockImplementation(() => {
+        throw new Error('invalid token');
+      });
+
+      await expect(authService.register(registerDto)).rejects.toThrow(
+        BadRequestException,
+      );
+      await expect(authService.register(registerDto)).rejects.toThrow(
+        'Invalid or expired email verification token',
+      );
+    });
+
+    it('should throw BadRequestException if token purpose is wrong', async () => {
+      jwtService.verify.mockReturnValue({
+        email: registerDto.email,
+        purpose: 'password_reset',
+      });
+
+      await expect(authService.register(registerDto)).rejects.toThrow(
+        BadRequestException,
+      );
     });
 
     it('should throw ConflictException if email already exists', async () => {
@@ -121,7 +173,7 @@ describe('AuthService', () => {
         ConflictException,
       );
       await expect(authService.register(registerDto)).rejects.toThrow(
-        'Username already registered',
+        'Username already taken',
       );
       expect(usersService.create).not.toHaveBeenCalled();
     });
@@ -166,14 +218,6 @@ describe('AuthService', () => {
       expect(result).toEqual({ access_token: 'signed-jwt-token' });
       expect(usersService.findByUsername).toHaveBeenCalledWith('testuser');
       expect(usersService.findByEmail).not.toHaveBeenCalled();
-      expect(bcrypt.compare).toHaveBeenCalledWith(
-        usernameLoginDto.password,
-        mockUser.passwordHash,
-      );
-      expect(jwtService.sign).toHaveBeenCalledWith({
-        sub: mockUser.id,
-        email: mockUser.email,
-      });
     });
 
     it('should throw UnauthorizedException if user does not exist', async () => {

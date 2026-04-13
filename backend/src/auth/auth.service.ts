@@ -2,6 +2,7 @@ import {
   Injectable,
   ConflictException,
   UnauthorizedException,
+  BadRequestException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -11,6 +12,11 @@ import type { LoginDto } from './dto/login.dto';
 import type { JwtPayload } from './interfaces/jwt-payload.interface';
 
 const BCRYPT_SALT_ROUNDS = 10;
+
+interface EmailVerificationPayload {
+  email: string;
+  purpose: string;
+}
 
 @Injectable()
 export class AuthService {
@@ -22,16 +28,29 @@ export class AuthService {
   async register(
     dto: RegisterDto,
   ): Promise<{ access_token: string }> {
+    // Verify the email verification token
+    const verifiedEmail = this.verifyEmailToken(dto.emailVerificationToken);
+
+    if (verifiedEmail !== dto.email) {
+      throw new BadRequestException(
+        'Verification token does not match the provided email',
+      );
+    }
+
+    // Check for duplicate email (race condition safety)
     const existingUser = await this.usersService.findByEmail(dto.email);
 
     if (existingUser) {
       throw new ConflictException('Email already registered');
     }
 
-    const existingUsername = await this.usersService.findByUsername(dto.username);
+    // Check for duplicate username
+    const existingUsername = await this.usersService.findByUsername(
+      dto.username,
+    );
 
     if (existingUsername) {
-      throw new ConflictException('Username already registered');
+      throw new ConflictException('Username already taken');
     }
 
     const passwordHash = await bcrypt.hash(dto.password, BCRYPT_SALT_ROUNDS);
@@ -44,10 +63,9 @@ export class AuthService {
     return this.generateToken(user.id, user.email);
   }
 
-  async login(
-    dto: LoginDto,
-  ): Promise<{ access_token: string }> {
+  async login(dto: LoginDto): Promise<{ access_token: string }> {
     let user;
+
     if (dto.email.includes('@')) {
       user = await this.usersService.findByEmail(dto.email);
     } else {
@@ -68,6 +86,22 @@ export class AuthService {
     }
 
     return this.generateToken(user.id, user.email);
+  }
+
+  private verifyEmailToken(token: string): string {
+    try {
+      const payload = this.jwtService.verify<EmailVerificationPayload>(token);
+
+      if (payload.purpose !== 'email_verification') {
+        throw new BadRequestException('Invalid verification token');
+      }
+
+      return payload.email;
+    } catch {
+      throw new BadRequestException(
+        'Invalid or expired email verification token',
+      );
+    }
   }
 
   private generateToken(

@@ -7,6 +7,7 @@ function createDto(partial: Partial<RegisterDto>): RegisterDto {
     email: 'valid@example.com',
     username: 'valid_user',
     password: 'Valid@123',
+    emailVerificationToken: 'valid-token',
     ...partial,
   });
 }
