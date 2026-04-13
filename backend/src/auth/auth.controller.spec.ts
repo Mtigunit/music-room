@@ -31,8 +31,8 @@ describe('AuthController', () => {
     }).compile();
 
     controller = module.get<AuthController>(AuthController);
-    authService = module.get(AuthService) as jest.Mocked<AuthService>;
-    otpService = module.get(OtpService) as jest.Mocked<OtpService>;
+    authService = module.get(AuthService);
+    otpService = module.get(OtpService);
   });
 
   afterEach(() => {

@@ -29,9 +29,13 @@ export class RegisterDto {
   @ApiProperty({ example: 'Abdel@1234', minLength: 8 })
   @IsString()
   @MinLength(8)
-  @Matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/, {
-    message: 'password must contain at least one lowercase letter, one uppercase letter, one number, and one special character',
-  })
+  @Matches(
+    /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/,
+    {
+      message:
+        'password must contain at least one lowercase letter, one uppercase letter, one number, and one special character',
+    },
+  )
   password!: string;
 
   @ApiProperty({ description: 'Token received from /auth/verify-otp' })

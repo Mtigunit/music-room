@@ -18,10 +18,7 @@ async function expectValid(partial: Partial<RegisterDto>) {
   expect(errors).toHaveLength(0);
 }
 
-async function expectInvalid(
-  partial: Partial<RegisterDto>,
-  property: string,
-) {
+async function expectInvalid(partial: Partial<RegisterDto>, property: string) {
   const dto = createDto(partial);
   const errors = await validate(dto);
   const match = errors.find((e) => e.property === property);

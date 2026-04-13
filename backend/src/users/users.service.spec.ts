@@ -43,7 +43,7 @@ describe('UsersService', () => {
     }).compile();
 
     service = module.get<UsersService>(UsersService);
-    repository = module.get(UserRepository) as jest.Mocked<UserRepository>;
+    repository = module.get(UserRepository);
   });
 
   afterEach(() => {

@@ -1,8 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  BadRequestException,
-  ConflictException,
-} from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { OtpService } from './otp.service';
 import { RedisService } from '../redis/redis.service';
@@ -77,9 +74,9 @@ describe('OtpService', () => {
     }).compile();
 
     otpService = module.get<OtpService>(OtpService);
-    mailService = module.get(MailService) as jest.Mocked<MailService>;
-    usersService = module.get(UsersService) as jest.Mocked<UsersService>;
-    jwtService = module.get(JwtService) as jest.Mocked<JwtService>;
+    mailService = module.get(MailService);
+    usersService = module.get(UsersService);
+    jwtService = module.get(JwtService);
   });
 
   afterEach(() => {

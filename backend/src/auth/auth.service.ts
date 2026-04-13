@@ -25,9 +25,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  async register(
-    dto: RegisterDto,
-  ): Promise<{ access_token: string }> {
+  async register(dto: RegisterDto): Promise<{ access_token: string }> {
     // Verify the email verification token
     const verifiedEmail = this.verifyEmailToken(dto.emailVerificationToken);
 
