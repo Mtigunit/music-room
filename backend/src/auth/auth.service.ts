@@ -47,7 +47,12 @@ export class AuthService {
   async login(
     dto: LoginDto,
   ): Promise<{ access_token: string }> {
-    const user = await this.usersService.findByEmail(dto.email);
+    let user;
+    if (dto.email.includes('@')) {
+      user = await this.usersService.findByEmail(dto.email);
+    } else {
+      user = await this.usersService.findByUsername(dto.email);
+    }
 
     if (!user || !user.passwordHash) {
       throw new UnauthorizedException('Invalid credentials');
