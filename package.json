@@ -17,7 +17,8 @@
     "test:watch": "npm run test:watch -w backend",
     "test:cov": "npm run test:cov -w backend",
     "test:debug": "npm run test:debug -w backend",
-    "test:e2e": "npm run test:e2e -w backend"
+    "test:e2e": "npm run test:e2e -w backend",
+    "prepare": "lefthook install"
   },
   "repository": {
     "type": "git",
@@ -36,6 +37,7 @@
   ],
   "devDependencies": {
     "@commitlint/cli": "^20.5.0",
-    "@commitlint/config-conventional": "^20.5.0"
+    "@commitlint/config-conventional": "^20.5.0",
+    "lefthook": "^2.1.5"
   }
 }
