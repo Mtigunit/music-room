@@ -1,0 +1,4 @@
+enum SocketEvent {
+  connected,
+  disconnected,
+}
