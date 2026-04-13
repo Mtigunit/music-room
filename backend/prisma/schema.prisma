@@ -8,42 +8,152 @@ datasource db {
   provider = "postgresql"
 }
 
+// ------------------------------------------------------
+// 1. USER MANAGEMENT & SOCIAL
+// ------------------------------------------------------
 model User {
-  id             String         @id @default(uuid())
-  email          String         @unique
-  passwordHash   String?        // Nullable for OAuth users
-  authProvider   String         @default("local") // local, google, facebook
-  publicInfo     Json?
-  privateInfo    Json?
-  preferences    Json?
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  id                     String    @id @default(uuid())
+  email                  String    @unique
+  username               String    @unique
 
-  // Relations
-  events         Event[]        @relation("HostEvents")
-  playlistItems  PlaylistItem[]
+  // Local Authentication
+  passwordHash           String?   // Nullable because OAuth users won't have one initially
+  isEmailVerified        Boolean   @default(false)
+  emailVerificationToken String?   @unique
+
+  // Password Reset Flow
+  passwordResetToken     String?   @unique
+  passwordResetExpires   DateTime?
+
+  // Social Account Linking (Allows a user to have a password AND linked social accounts)
+  googleId               String?   @unique
+  facebookId             String?   @unique
+
+  // Profile Data (Stored as JSON for flexibility, as required by the subject)
+  publicInfo             Json?     @default("{}")
+  friendInfo             Json?     @default("{}")
+  privateInfo            Json?     @default("{}")
+  preferences            Json?     @default("{}")
+
+  createdAt              DateTime  @default(now())
+  updatedAt              DateTime  @updatedAt
+
+  // Relationships
+  hostedEvents           Event[]   @relation("EventHost")
+  addedTracks            PlaylistItem[]
+  votes                  Vote[]
+  delegations            ControlDelegation[] @relation("Delegatee")
+
+  friendshipsInitiated   Friendship[] @relation("UserOne")
+  friendshipsReceived    Friendship[] @relation("UserTwo")
 }
 
+model Friendship {
+  id        String   @id @default(uuid())
+  userOneId String
+  userTwoId String
+  status    String   @default("pending") // "pending", "accepted", "blocked"
+  createdAt DateTime @default(now())
+
+  userOne   User     @relation("UserOne", fields: [userOneId], references: [id], onDelete: Cascade)
+  userTwo   User     @relation("UserTwo", fields: [userTwoId], references: [id], onDelete: Cascade)
+
+  @@unique([userOneId, userTwoId])
+}
+
+// ------------------------------------------------------
+// 2. CORE SERVICES: EVENTS & TRACKS
+// ------------------------------------------------------
 model Event {
-  id          String         @id @default(uuid())
+  id          String   @id @default(uuid())
   name        String
   hostId      String
-  visibility  String         @default("public") // public or private
-  type        String         // vote, playlist, control
-  createdAt   DateTime       @default(now())
+  visibility  String   @default("public") // "public" or "private"
+  serviceType String   // "vote", "playlist", "control"
+  status      String   @default("active") // "active", "ended"
+  createdAt   DateTime @default(now())
 
-  host        User           @relation("HostEvents", fields: [hostId], references: [id])
+  host        User     @relation("EventHost", fields: [hostId], references: [id])
   playlist    PlaylistItem[]
+  policies    LicensePolicy[]
+  delegations ControlDelegation[]
+}
+
+model Track {
+  id             String   @id @default(uuid())
+  externalApiId  String   @unique // ID from Spotify/Apple Music
+  title          String
+  artist         String
+  durationMs     Int
+  coverArtUrl    String?
+
+  playlistItems  PlaylistItem[]
 }
 
 model PlaylistItem {
   id          String   @id @default(uuid())
   eventId     String
+  trackId     String
   addedById   String
-  trackId     String   // ID from external API (Spotify/Apple)
-  orderIndex  Int
-  voteCount   Int      @default(0)
+  orderIndex  Int      // Crucial for the Playlist Editor drag-and-drop
+  voteScore   Int      @default(0) // Denormalized counter for fast reads
+  createdAt   DateTime @default(now())
 
-  event       Event    @relation(fields: [eventId], references: [id])
+  event       Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  track       Track    @relation(fields: [trackId], references: [id])
   addedBy     User     @relation(fields: [addedById], references: [id])
+  votes       Vote[]
+
+  @@unique([eventId, trackId]) // Prevent duplicate tracks in the same event queue
+}
+
+// ------------------------------------------------------
+// 3. CONCURRENCY & PERMISSIONS (THE HEAVY LIFTING)
+// ------------------------------------------------------
+model Vote {
+  id             String   @id @default(uuid())
+  playlistItemId String
+  userId         String
+  voteValue      Int      // 1 for upvote, -1 for downvote
+  createdAt      DateTime @default(now())
+
+  playlistItem   PlaylistItem @relation(fields: [playlistItemId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([playlistItemId, userId]) // Enforce one vote per user per track
+}
+
+model LicensePolicy {
+  id          String   @id @default(uuid())
+  eventId     String
+  policyType  String   // "geofence", "time_window", "invite_only"
+  config      Json     // Stores coordinates, time ranges, or allowed user IDs
+
+  event       Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+}
+
+model ControlDelegation {
+  id          String   @id @default(uuid())
+  eventId     String
+  delegateeId String
+  deviceId    String   // Device-specific license
+  grantedAt   DateTime @default(now())
+
+  event       Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  delegatee   User     @relation("Delegatee", fields: [delegateeId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, delegateeId, deviceId])
+}
+
+// ------------------------------------------------------
+// 4. NON-FUNCTIONAL REQUIREMENTS
+// ------------------------------------------------------
+model AuditLog {
+  id           String   @id @default(uuid())
+  userId       String?  // Nullable if action was pre-authentication
+  action       String   // e.g., "USER_LOGIN", "VOTE_CAST", "TRACK_MOVED"
+  platform     String   // "iOS", "Android", "Web"
+  deviceModel  String
+  appVersion   String
+  timestamp    DateTime @default(now())
 }
