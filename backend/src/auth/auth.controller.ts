@@ -1,72 +1,82 @@
 import {
   Controller,
-  Get,
   Post,
+  Get,
   Body,
-  Patch,
-  Param,
-  Delete,
-  ParseIntPipe,
+  UseGuards,
+  Request,
 } from '@nestjs/common';
 import {
   ApiTags,
   ApiOperation,
   ApiResponse,
-  ApiParam,
-  ApiBody,
+  ApiBearerAuth,
 } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
-import { CreateAuthDto } from './dto/create-auth.dto';
-import { UpdateAuthDto } from './dto/update-auth.dto';
+import { OtpService } from '../otp/otp.service';
+import { RegisterDto } from './dto/register.dto';
+import { LoginDto } from './dto/login.dto';
+import { SendOtpDto } from './dto/send-otp.dto';
+import { VerifyOtpDto } from './dto/verify-otp.dto';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
+
+interface AuthenticatedRequest {
+  user: { id: string; email: string };
+}
 
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly otpService: OtpService,
+  ) {}
 
-  @Post()
-  @ApiOperation({ summary: 'Create a new auth record' })
-  @ApiBody({ type: CreateAuthDto })
-  @ApiResponse({ status: 201, description: 'Auth record created.' })
-  create(@Body() createAuthDto: CreateAuthDto) {
-    return this.authService.create(createAuthDto);
+  @Post('send-otp')
+  @ApiOperation({ summary: 'Send OTP verification code to email' })
+  @ApiResponse({ status: 201, description: 'OTP sent successfully.' })
+  @ApiResponse({ status: 409, description: 'Email already registered.' })
+  @ApiResponse({ status: 400, description: 'Rate limit exceeded.' })
+  async sendOtp(@Body() dto: SendOtpDto) {
+    await this.otpService.sendOtp(dto.email);
+    return { message: 'OTP sent successfully' };
   }
 
-  @Get()
-  @ApiOperation({ summary: 'Get all auth records' })
-  @ApiResponse({ status: 200, description: 'List of auth records.' })
-  findAll() {
-    return this.authService.findAll();
+  @Post('verify-otp')
+  @ApiOperation({ summary: 'Verify OTP code and receive verification token' })
+  @ApiResponse({
+    status: 201,
+    description: 'OTP verified. Returns emailVerificationToken.',
+  })
+  @ApiResponse({ status: 400, description: 'Invalid or expired OTP.' })
+  async verifyOtp(@Body() dto: VerifyOtpDto) {
+    return this.otpService.verifyOtp(dto.email, dto.code);
   }
 
-  @Get(':id')
-  @ApiOperation({ summary: 'Get an auth record by ID' })
-  @ApiParam({ name: 'id', type: Number })
-  @ApiResponse({ status: 200, description: 'Auth record found.' })
-  @ApiResponse({ status: 404, description: 'Auth record not found.' })
-  findOne(@Param('id', ParseIntPipe) id: number) {
-    return this.authService.findOne(id);
+  @Post('register')
+  @ApiOperation({ summary: 'Register a new user with verified email' })
+  @ApiResponse({ status: 201, description: 'User registered successfully.' })
+  @ApiResponse({ status: 400, description: 'Invalid verification token.' })
+  @ApiResponse({ status: 409, description: 'Email or username already taken.' })
+  async register(@Body() dto: RegisterDto) {
+    return this.authService.register(dto);
   }
 
-  @Patch(':id')
-  @ApiOperation({ summary: 'Update an auth record by ID' })
-  @ApiParam({ name: 'id', type: Number })
-  @ApiBody({ type: UpdateAuthDto })
-  @ApiResponse({ status: 200, description: 'Auth record updated.' })
-  @ApiResponse({ status: 404, description: 'Auth record not found.' })
-  update(
-    @Param('id', ParseIntPipe) id: number,
-    @Body() updateAuthDto: UpdateAuthDto,
-  ) {
-    return this.authService.update(id, updateAuthDto);
+  @Post('login')
+  @ApiOperation({ summary: 'Login with email/username and password' })
+  @ApiResponse({ status: 201, description: 'Login successful.' })
+  @ApiResponse({ status: 401, description: 'Invalid credentials.' })
+  async login(@Body() dto: LoginDto) {
+    return this.authService.login(dto);
   }
 
-  @Delete(':id')
-  @ApiOperation({ summary: 'Delete an auth record by ID' })
-  @ApiParam({ name: 'id', type: Number })
-  @ApiResponse({ status: 200, description: 'Auth record deleted.' })
-  @ApiResponse({ status: 404, description: 'Auth record not found.' })
-  remove(@Param('id', ParseIntPipe) id: number) {
-    return this.authService.remove(id);
+  @Get('profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get the authenticated user profile' })
+  @ApiResponse({ status: 200, description: 'User profile returned.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  getProfile(@Request() req: AuthenticatedRequest) {
+    return req.user;
   }
 }

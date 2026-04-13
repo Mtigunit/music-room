@@ -17,10 +17,10 @@ pre-push:
   parallel: true
   jobs:
     - name: prevent push to main
-      run: sh scripts/prevent-push-to-main.sh "$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)"
+      run: sh scripts/prevent-push-to-main.sh
 
     - name: branch name check
-      run: sh scripts/check-branch-name.sh "$(git symbolic-ref --quiet --short HEAD 2>/dev/null || true)"
+      run: sh scripts/check-branch-name.sh
 
     - name: mobile test
       glob: "mobile/**"

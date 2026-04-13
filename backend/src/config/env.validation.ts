@@ -1,6 +1,7 @@
 import { plainToInstance } from 'class-transformer';
 import {
   IsEnum,
+  IsNotEmpty,
   IsNumber,
   IsString,
   Max,
@@ -19,6 +20,7 @@ export class EnvironmentVariables {
   NODE_ENV: Environment = Environment.Development;
 
   @IsString()
+  @IsNotEmpty()
   DATABASE_URL!: string;
 
   @IsNumber()
@@ -27,6 +29,7 @@ export class EnvironmentVariables {
   API_PORT: number = 3000;
 
   @IsString()
+  @IsNotEmpty()
   POSTGRES_HOST!: string;
 
   @IsNumber()
@@ -35,21 +38,29 @@ export class EnvironmentVariables {
   POSTGRES_PORT: number = 5432;
 
   @IsString()
+  @IsNotEmpty()
   POSTGRES_USER!: string;
 
   @IsString()
+  @IsNotEmpty()
   POSTGRES_PASSWORD!: string;
 
   @IsString()
+  @IsNotEmpty()
   POSTGRES_DB!: string;
 
   @IsString()
+  @IsNotEmpty()
   REDIS_HOST!: string;
 
   @IsNumber()
   @Min(1)
   @Max(65535)
   REDIS_PORT: number = 6379;
+
+  @IsString()
+  @IsNotEmpty()
+  JWT_SECRET!: string;
 }
 
 export function validate(config: Record<string, unknown>) {
