@@ -24,7 +24,7 @@ pre-push:
 
     - name: mobile test
       glob: "mobile/**"
-      run: cd mobile && flutter test
+      run: cd mobile && if find test -type f -name "*_test.dart" | grep -q .; then flutter test; else echo "No Flutter tests found in mobile/test. Skipping mobile test."; fi
 
     - name: backend lint
       glob: "backend/**"
