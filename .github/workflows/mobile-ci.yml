@@ -1,6 +1,12 @@
 name: Mobile CI
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - mobile/**
+      - .github/workflows/mobile-ci.yml
   pull_request:
     paths:
       - mobile/**
@@ -78,7 +84,12 @@ jobs:
         run: flutter pub get --enforce-lockfile
 
       - name: Run tests
-        run: flutter test
+        run: |
+          if find test -type f -name "*_test.dart" | grep -q .; then
+            flutter test
+          else
+            echo "No Flutter tests found in mobile/test. Skipping tests."
+          fi
 
   lockfile:
     runs-on: ubuntu-latest
@@ -105,7 +116,7 @@ jobs:
           git diff --exit-code -- pubspec.lock
 
   pr-summary:
-    if: ${{ always() }}
+    if: ${{ always() && github.event_name == 'pull_request' }}
     needs: [format, analyze, test, lockfile]
     runs-on: ubuntu-latest
     permissions:

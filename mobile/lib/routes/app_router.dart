@@ -1,0 +1,60 @@
+import 'package:flutter/material.dart';
+
+import 'package:music_room/features/auth/presentation/pages/auth_page.dart';
+import 'package:music_room/features/home/presentation/pages/home_page.dart';
+import 'package:music_room/features/music_control/presentation/pages/music_control_page.dart';
+import 'package:music_room/features/music_vote/presentation/pages/music_vote_page.dart';
+import 'package:music_room/features/playlist/presentation/pages/playlist_page.dart';
+import 'package:music_room/features/profile/presentation/pages/profile_page.dart';
+import 'package:music_room/routes/route_names.dart';
+
+class AppRouter {
+  static const String initialRoute = RouteNames.home;
+
+  static Route<dynamic> onGenerateRoute(RouteSettings settings) {
+    final routeName = settings.name ?? RouteNames.home;
+
+    final page = _pageForRoute(routeName);
+
+    return MaterialPageRoute<void>(
+      builder: (_) => page,
+      settings: settings,
+    );
+  }
+
+  static Widget _unknownRoutePage(String routeName) {
+    return Scaffold(
+      body: Center(
+        child: Text('Route not found: $routeName'),
+      ),
+    );
+  }
+
+  static Widget _pageForRoute(String routeName) {
+    if (routeName == RouteNames.home) {
+      return const HomePage();
+    }
+
+    if (routeName == RouteNames.auth) {
+      return const AuthPage();
+    }
+
+    if (routeName == RouteNames.musicVote) {
+      return const MusicVotePage();
+    }
+
+    if (routeName == RouteNames.playlist) {
+      return const PlaylistPage();
+    }
+
+    if (routeName == RouteNames.musicControl) {
+      return const MusicControlPage();
+    }
+
+    if (routeName == RouteNames.profile) {
+      return const ProfilePage();
+    }
+
+    return _unknownRoutePage(routeName);
+  }
+}
