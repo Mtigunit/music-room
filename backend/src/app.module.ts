@@ -10,6 +10,8 @@ import { PlaylistsModule } from './playlists/playlists.module';
 import { validate } from './config/env.validation';
 import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
+import { WebsocketsModule } from './websockets/websockets.module';
+import { VotesModule } from './votes/votes.module';
 
 @Module({
   imports: [
@@ -23,6 +25,8 @@ import { RedisModule } from './redis/redis.module';
     PlaylistsModule,
     PrismaModule,
     RedisModule,
+    WebsocketsModule,
+    VotesModule,
   ],
   controllers: [AppController],
   providers: [AppService, AppRepository],

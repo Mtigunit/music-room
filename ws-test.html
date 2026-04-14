@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Music Room - WebSocket Vote Test</title>
+  <style>
+    body { font-family: -apple-system, sans-serif; max-width: 600px; margin: 2rem auto; padding: 1rem; background: #fdfdfd; }
+    .card { background: white; padding: 1.5rem; border-radius: 8px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); margin-bottom: 1rem; }
+    h2 { margin-top: 0; }
+    .row { display: flex; gap: 0.5rem; margin-bottom: 1rem; align-items: center; }
+    input { padding: 0.5rem; border: 1px solid #ccc; border-radius: 4px; flex: 1; }
+    button { padding: 0.5rem 1rem; border: none; background: #007bff; color: white; border-radius: 4px; cursor: pointer; }
+    button:hover { background: #0056b3; }
+    button:disabled { background: #ccc; cursor: not-allowed; }
+    #log { background: #1e1e1e; color: #00ff00; padding: 1rem; border-radius: 4px; height: 250px; overflow-y: auto; font-family: monospace; font-size: 0.85rem;}
+    .vote-btn { background: #ff4757; }
+    .vote-btn.up { background: #2ed573; }
+  </style>
+</head>
+<body>
+
+  <div class="card">
+    <h2>1. Connect to WebSocket</h2>
+    <div class="row">
+      <input type="text" id="userId" placeholder="Enter User ID (e.g. user-1)" value="user-1" />
+      <button id="connectBtn" onclick="connect()">Connect</button>
+      <button id="disconnectBtn" onclick="disconnect()" disabled>Disconnect</button>
+    </div>
+    <small>Status: <strong id="status" style="color: red;">Disconnected</strong></small>
+  </div>
+
+  <div class="card">
+    <h2>2. Voting System</h2>
+    <div class="row">
+      <input type="text" id="roomId" placeholder="Room ID" value="room-123" />
+      <input type="text" id="trackId" placeholder="Track ID" value="track-999" />
+    </div>
+    <div class="row">
+      <button class="vote-btn up" id="upvoteBtn" onclick="castVote('up')" disabled>👍 Upvote</button>
+      <button class="vote-btn" id="downvoteBtn" onclick="castVote('down')" disabled>👎 Downvote</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Real-time Logs</h2>
+    <div id="log"></div>
+  </div>
+
+  <script>
+    let ws = null;
+
+    function logMessage(msg, isOut = false) {
+      const logArea = document.getElementById('log');
+      const time = new Date().toLocaleTimeString();
+      const prefix = isOut ? '>>> SENT: ' : '<<< RECV: ';
+      logArea.innerHTML += `<div><span style="color: #aaa">[${time}]</span> ${prefix} ${msg}</div>`;
+      logArea.scrollTop = logArea.scrollHeight;
+    }
+
+    function updateUI(connected) {
+      document.getElementById('status').innerText = connected ? 'Connected' : 'Disconnected';
+      document.getElementById('status').style.color = connected ? 'green' : 'red';
+      document.getElementById('connectBtn').disabled = connected;
+      document.getElementById('disconnectBtn').disabled = !connected;
+      document.getElementById('upvoteBtn').disabled = !connected;
+      document.getElementById('downvoteBtn').disabled = !connected;
+    }
+
+    function connect() {
+      const userId = document.getElementById('userId').value;
+      if (!userId) return alert('Enter a User ID first');
+
+      // Connect to the NestJS Generic WebSocket running on localhost:3000
+      ws = new WebSocket(`ws://localhost:3000/ws?userId=${userId}`);
+
+      ws.onopen = () => {
+        updateUI(true);
+        logMessage('<span style="color: yellow">Connected to WebSocket</span>');
+        
+        // Auto-join the room visually
+        const room = document.getElementById('roomId').value;
+        logMessage(`Joined room: ${room}`);
+      };
+
+      ws.onmessage = (event) => {
+        logMessage(event.data);
+      };
+
+      ws.onclose = () => {
+        updateUI(false);
+        logMessage('<span style="color: red">Disconnected from WebSocket</span>');
+      };
+
+      ws.onerror = (error) => {
+        logMessage('<span style="color: red">WebSocket Error observed (Check console)</span>');
+      };
+    }
+
+    function disconnect() {
+      if (ws) ws.close();
+    }
+
+    function castVote(type) {
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+
+      const roomId = document.getElementById('roomId').value;
+      const trackId = document.getElementById('trackId').value;
+
+      const payload = {
+        event: 'vote:cast',
+        roomId: roomId,
+        payload: {
+          trackId: trackId,
+          type: type
+        }
+      };
+
+      const strPayload = JSON.stringify(payload);
+      ws.send(strPayload);
+      logMessage(strPayload, true);
+    }
+  </script>
+</body>
+</html>

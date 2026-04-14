@@ -4,9 +4,11 @@ import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { ValidationPipe } from '@nestjs/common';
+import { WsAdapter } from '@nestjs/platform-ws';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.useWebSocketAdapter(new WsAdapter(app));
   const configService = app.get(ConfigService);
 
   app.useGlobalFilters(new GlobalExceptionFilter());
