@@ -42,6 +42,54 @@ export class RedisIoAdapter extends IoAdapter {
     this.logger.log('Socket.io Redis adapter connected');
   }
 
+  async disconnectFromRedis(): Promise<void> {
+    const pubClient = this.pubClient;
+    const subClient = this.subClient;
+
+    this.adapterConstructor = undefined;
+    this.pubClient = undefined;
+    this.subClient = undefined;
+
+    const shutdownClient = async (
+      client: RedisClientType | undefined,
+      name: 'pub' | 'sub',
+    ): Promise<void> => {
+      if (!client) {
+        return;
+      }
+
+      try {
+        if (client.isOpen) {
+          await client.quit();
+        } else {
+          await client.disconnect();
+        }
+      } catch (error: unknown) {
+        const message =
+          error instanceof Error ? error.message : 'Unknown Redis error';
+        const stack = error instanceof Error ? error.stack : undefined;
+
+        this.logger.error(
+          `Socket.io Redis ${name} client shutdown error: ${message}`,
+          stack,
+        );
+
+        try {
+          await client.disconnect();
+        } catch {
+          // ignore best-effort disconnect errors
+        }
+      }
+    };
+
+    await Promise.all([
+      shutdownClient(pubClient, 'pub'),
+      shutdownClient(subClient, 'sub'),
+    ]);
+
+    this.logger.log('Socket.io Redis adapter disconnected');
+  }
+
   override createIOServer(port: number, options?: ServerOptions): Server {
     const server = super.createIOServer(port, options) as Server;
 
