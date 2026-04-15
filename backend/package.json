@@ -20,7 +20,8 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "ws:smoke": "node scripts/ws-smoke-test.js"
+    "ws:smoke": "node scripts/ws-smoke-test.js",
+    "ws:multi": "node scripts/ws-multi-instance-test.js"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",

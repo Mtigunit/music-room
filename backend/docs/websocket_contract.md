@@ -98,3 +98,19 @@ There is a small Node smoke test client:
 - `backend/scripts/ws-smoke-test.js`
 - Run from `backend/`: `npm run ws:smoke`
 - Requires `WS_TOKEN` to be set for authenticated handshake.
+
+### Multi-instance (Redis adapter) smoke test
+
+To validate the Redis pub/sub adapter, you must run **two backend instances** connected to the **same Redis** (different ports), then run:
+
+- `backend/scripts/ws-multi-instance-test.js`
+- Run from `backend/`: `npm run ws:multi`
+
+Environment variables:
+
+- `WS_TOKEN` (required)
+- `WS_HOST_A` (default: `http://localhost:3000`)
+- `WS_HOST_B` (default: `http://localhost:3001`)
+- `WS_PATH` (default: `/ws`)
+- `WS_ROOM`, `WS_TRACK`, `WS_VOTE`
+- `WS_TIMEOUT_MS` (default: `8000`)
