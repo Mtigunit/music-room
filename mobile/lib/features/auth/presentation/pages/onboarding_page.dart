@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
-import '../../../../core/widgets/primary_button.dart';
-import '../../../../core/widgets/feature_chip.dart';
-import '../../../../core/widgets/page_indicator.dart';
+import 'package:music_room/core/widgets/primary_button.dart';
+import 'package:music_room/core/widgets/feature_chip.dart';
+import 'package:music_room/core/widgets/page_indicator.dart';
 import 'package:music_room/features/auth/presentation/widgets/onboarding_slide.dart';
+import 'package:music_room/routes/route_names.dart';
 
 class OnboardingPage extends StatefulWidget {
   const OnboardingPage({super.key});
@@ -38,6 +39,8 @@ class _OnboardingPageState extends State<OnboardingPage> {
     } else {
       // Reached the end of onboarding
       debugPrint("Navigate to Login");
+      if (!mounted) return;
+      Navigator.of(context).pushReplacementNamed(RouteNames.auth);
     }
   }
 
@@ -69,21 +72,27 @@ class _OnboardingPageState extends State<OnboardingPage> {
             Text(
               'Music Room',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                    color: colorScheme.onSurface,
-                  ),
+                fontWeight: FontWeight.bold,
+                color: colorScheme.onSurface,
+              ),
             ),
           ],
         ),
         actions: [
           Padding(
-            padding: const EdgeInsets.only(right: 16.0), // Total ~24px with default action padding
+            padding: const EdgeInsets.only(
+              right: 16.0,
+            ), // Total ~24px with default action padding
             child: TextButton(
               onPressed: _onSkip,
               child: Text(
                 'Skip',
                 style: TextStyle(
-                  color: Theme.of(context).textTheme.bodyLarge?.color?.withOpacity(0.4) ?? Colors.grey,
+                  color:
+                      Theme.of(
+                        context,
+                      ).textTheme.bodyLarge?.color?.withOpacity(0.4) ??
+                      Colors.grey,
                   fontWeight: FontWeight.w600,
                   fontSize: 16.0,
                 ),
@@ -110,31 +119,61 @@ class _OnboardingPageState extends State<OnboardingPage> {
                     OnboardingSlide(
                       imagePath: 'assets/images/step1.png',
                       title: 'Control the Music Together',
-                      subtitle: 'Everyone in the room gets a voice. Vote, queue, and vibe together in real time.',
-                      indicator: PageIndicator(currentIndex: _currentPage, pageCount: 3),
+                      subtitle:
+                          'Everyone in the room gets a voice. Vote, queue, and vibe together in real time.',
+                      indicator: PageIndicator(
+                        currentIndex: _currentPage,
+                        pageCount: 3,
+                      ),
                       chips: const [
-                        FeatureChip(label: 'Shared Queue', icon: Icons.people_outline),
-                        FeatureChip(label: 'Real-Time Sync', icon: Icons.wifi_tethering),
+                        FeatureChip(
+                          label: 'Shared Queue',
+                          icon: Icons.people_outline,
+                        ),
+                        FeatureChip(
+                          label: 'Real-Time Sync',
+                          icon: Icons.wifi_tethering,
+                        ),
                       ],
                     ),
                     OnboardingSlide(
                       imagePath: 'assets/images/step2.png',
                       title: 'Vote & Play in Real-Time',
-                      subtitle: 'The crowd decides what plays next. Watch the playlist shift live as votes roll in.',
-                      indicator: PageIndicator(currentIndex: _currentPage, pageCount: 3),
+                      subtitle:
+                          'The crowd decides what plays next. Watch the playlist shift live as votes roll in.',
+                      indicator: PageIndicator(
+                        currentIndex: _currentPage,
+                        pageCount: 3,
+                      ),
                       chips: const [
-                        FeatureChip(label: 'Upvote Tracks', icon: Icons.thumb_up_outlined),
-                        FeatureChip(label: 'Live Rankings', icon: Icons.bar_chart),
+                        FeatureChip(
+                          label: 'Upvote Tracks',
+                          icon: Icons.thumb_up_outlined,
+                        ),
+                        FeatureChip(
+                          label: 'Live Rankings',
+                          icon: Icons.bar_chart,
+                        ),
                       ],
                     ),
                     OnboardingSlide(
                       imagePath: 'assets/images/step3.png',
                       title: 'Create Your Music Room',
-                      subtitle: 'Host a room for any occasion — parties, study sessions, or just vibing with friends.',
-                      indicator: PageIndicator(currentIndex: _currentPage, pageCount: 3),
+                      subtitle:
+                          'Host a room for any occasion — parties, study sessions, or just vibing with friends.',
+                      indicator: PageIndicator(
+                        currentIndex: _currentPage,
+                        pageCount: 3,
+                      ),
                       chips: const [
-                        FeatureChip(label: 'Private Rooms', icon: Icons.lock_outline),
-                        FeatureChip(label: 'Invite Friends', icon: Icons.person_add_outlined),
+                        FeatureChip(
+                          label: 'Private Rooms',
+                          icon: Icons.lock_outline,
+                        ),
+                        FeatureChip(
+                          label: 'Invite Friends',
+                          icon: Icons.person_add_outlined,
+                        ),
                       ],
                     ),
                   ],

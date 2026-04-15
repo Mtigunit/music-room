@@ -8,11 +8,11 @@ class App extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return  MaterialApp(
+    return MaterialApp(
       initialRoute: AppRouter.initialRoute,
       onGenerateRoute: AppRouter.onGenerateRoute,
-      theme: AppTheme.lightTheme(), 
-      darkTheme: AppTheme.darkTheme(), 
+      theme: AppTheme.lightTheme(),
+      darkTheme: AppTheme.darkTheme(),
       themeMode: ThemeMode.system,
     );
   }

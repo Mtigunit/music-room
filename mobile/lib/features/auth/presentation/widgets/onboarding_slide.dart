@@ -32,32 +32,32 @@ class OnboardingSlide extends StatelessWidget {
             ),
           ),
         ),
-          const SizedBox(height: 24.0),
-          indicator,
-          const SizedBox(height: 24.0),
-          Text(
-            title,
-            style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                  fontWeight: FontWeight.w800,
-                  color: Theme.of(context).colorScheme.onSurface,
-                  height: 1.1,
-                ),
+        const SizedBox(height: 24.0),
+        indicator,
+        const SizedBox(height: 24.0),
+        Text(
+          title,
+          style: Theme.of(context).textTheme.displaySmall?.copyWith(
+            fontWeight: FontWeight.w800,
+            color: Theme.of(context).colorScheme.onSurface,
+            height: 1.1,
           ),
-          const SizedBox(height: 16.0),
-          Text(
-            subtitle,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
-                  height: 1.5,
-                ),
+        ),
+        const SizedBox(height: 16.0),
+        Text(
+          subtitle,
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+            height: 1.5,
           ),
-          const SizedBox(height: 24.0),
-          Wrap(
-            spacing: 8.0,
-            runSpacing: 8.0,
-            children: chips,
-          ),
-        ],
+        ),
+        const SizedBox(height: 24.0),
+        Wrap(
+          spacing: 8.0,
+          runSpacing: 8.0,
+          children: chips,
+        ),
+      ],
     );
   }
 }
