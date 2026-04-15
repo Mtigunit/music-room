@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 class OnboardingSlide extends StatelessWidget {
-
   const OnboardingSlide({
     required this.imagePath,
     required this.title,
@@ -29,11 +28,16 @@ class OnboardingSlide extends StatelessWidget {
                   constraints.maxHeight.isFinite && constraints.maxHeight > 0
                   ? (constraints.maxHeight * devicePixelRatio).round()
                   : null;
+              final cacheWidth =
+                  constraints.maxWidth.isFinite && constraints.maxWidth > 0
+                  ? (constraints.maxWidth * devicePixelRatio).round()
+                  : null;
               return ClipRRect(
                 borderRadius: BorderRadius.circular(16),
                 child: Image.asset(
                   imagePath,
                   cacheHeight: cacheHeight,
+                  cacheWidth: cacheWidth,
                   width: double.infinity,
                   fit: BoxFit.cover,
                 ),

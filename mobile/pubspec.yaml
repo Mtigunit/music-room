@@ -90,6 +90,9 @@ flutter:
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
 
+# Workaround for CI server dependency constraint mismatch.
+# These overrides mask SDK/package incompatibilities locally to match 
+# the locked testing environment on the server.
 dependency_overrides:
   matcher: 0.12.18
   test_api: 0.7.9

@@ -123,7 +123,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                   },
                   children: [
                     OnboardingSlide(
-                      imagePath: 'assets/images/step1.png',
+                      imagePath: 'assets/images/step1.webp',
                       title: 'Control the Music Together',
                       subtitle:
                           'Everyone in the room gets a voice. Vote, queue, '
@@ -143,7 +143,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                       ],
                     ),
                     OnboardingSlide(
-                      imagePath: 'assets/images/step2.png',
+                      imagePath: 'assets/images/step2.webp',
                       title: 'Vote & Play in Real-Time',
                       subtitle:
                           'The crowd decides what plays next. '
@@ -163,7 +163,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                       ],
                     ),
                     OnboardingSlide(
-                      imagePath: 'assets/images/step3.png',
+                      imagePath: 'assets/images/step3.webp',
                       title: 'Create Your Music Room',
                       subtitle:
                           'Host a room for any occasion — parties, '

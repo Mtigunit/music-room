@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
 class PageIndicator extends StatelessWidget {
-
   const PageIndicator({
-    required this.currentIndex, super.key,
+    required this.currentIndex,
+    super.key,
     this.pageCount = 3,
   });
   final int currentIndex;

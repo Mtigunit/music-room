@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 
 class FeatureChip extends StatelessWidget {
-
   const FeatureChip({
-    required this.label, required this.icon, super.key,
+    required this.label,
+    required this.icon,
+    super.key,
   });
   final String label;
   final IconData icon;
