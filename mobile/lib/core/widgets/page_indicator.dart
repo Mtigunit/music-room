@@ -21,7 +21,7 @@ class PageIndicator extends StatelessWidget {
 
         return AnimatedContainer(
           duration: const Duration(milliseconds: 300),
-          margin: const EdgeInsets.only(right: 6.0),
+          margin: EdgeInsets.only(right: index < pageCount - 1 ? 6.0 : 0.0),
           width: isActive ? 24.0 : 6.0,
           height: 6.0,
           decoration: BoxDecoration(

@@ -52,7 +52,6 @@ dev_dependencies:
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
-
 # The following section is specific to Flutter packages.
 flutter:
 
@@ -90,6 +89,7 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
-  dependency_overrides:
+
+dependency_overrides:
   matcher: 0.12.18
   test_api: 0.7.9

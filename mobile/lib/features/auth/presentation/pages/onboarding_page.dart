@@ -15,6 +15,8 @@ class OnboardingPage extends StatefulWidget {
 class _OnboardingPageState extends State<OnboardingPage> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
+  static const int pageCount = 3;
+  final int lastIndex = pageCount - 1;
 
   @override
   void dispose() {
@@ -24,21 +26,20 @@ class _OnboardingPageState extends State<OnboardingPage> {
 
   void _onSkip() {
     _pageController.animateToPage(
-      2,
+      lastIndex,
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
     );
   }
 
   void _onNext() {
-    if (_currentPage < 2) {
+    if (_currentPage < lastIndex) {
       _pageController.nextPage(
         duration: const Duration(milliseconds: 300),
         curve: Curves.easeInOut,
       );
     } else {
       // Reached the end of onboarding
-      debugPrint("Navigate to Login");
       if (!mounted) return;
       Navigator.of(context).pushReplacementNamed(RouteNames.auth);
     }
@@ -123,7 +124,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                           'Everyone in the room gets a voice. Vote, queue, and vibe together in real time.',
                       indicator: PageIndicator(
                         currentIndex: _currentPage,
-                        pageCount: 3,
+                        pageCount: pageCount,
                       ),
                       chips: const [
                         FeatureChip(
@@ -143,7 +144,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                           'The crowd decides what plays next. Watch the playlist shift live as votes roll in.',
                       indicator: PageIndicator(
                         currentIndex: _currentPage,
-                        pageCount: 3,
+                        pageCount: pageCount,
                       ),
                       chips: const [
                         FeatureChip(
@@ -163,7 +164,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                           'Host a room for any occasion — parties, study sessions, or just vibing with friends.',
                       indicator: PageIndicator(
                         currentIndex: _currentPage,
-                        pageCount: 3,
+                        pageCount: pageCount,
                       ),
                       chips: const [
                         FeatureChip(
@@ -182,7 +183,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
               Padding(
                 padding: const EdgeInsets.only(bottom: 24.0, top: 16.0),
                 child: PrimaryButton(
-                  text: _currentPage < 2 ? 'Continue' : 'Get Started',
+                  text: _currentPage < lastIndex ? 'Continue' : 'Get Started',
                   icon: Icons.arrow_forward,
                   onPressed: _onNext,
                 ),

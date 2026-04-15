@@ -22,14 +22,23 @@ class OnboardingSlide extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Expanded(
-          child: ClipRRect(
-            borderRadius: BorderRadius.circular(16.0),
-            child: Image.asset(
-              imagePath,
-              cacheHeight: 800,
-              width: double.infinity,
-              fit: BoxFit.cover,
-            ),
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final devicePixelRatio = MediaQuery.of(context).devicePixelRatio;
+              final cacheHeight =
+                  constraints.maxHeight.isFinite && constraints.maxHeight > 0
+                  ? (constraints.maxHeight * devicePixelRatio).round()
+                  : null;
+              return ClipRRect(
+                borderRadius: BorderRadius.circular(16.0),
+                child: Image.asset(
+                  imagePath,
+                  cacheHeight: cacheHeight,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                ),
+              );
+            },
           ),
         ),
         const SizedBox(height: 24.0),
