@@ -30,15 +30,18 @@ export class TrackVotesGateway {
       transform: true,
     }),
   )
-  handleTrackVote(
+  async handleTrackVote(
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: TrackVoteMessageDto,
-  ): TrackVoteResultDto {
-    const result = this.trackVotesService.recordVote(payload);
+  ): Promise<TrackVoteResultDto> {
+    const data = client.data as { user?: { id: string } };
+    const userId = data.user?.id || 'anonymous';
+
+    const result = await this.trackVotesService.recordVote(payload, userId);
     this.server.to(payload.roomId).emit('track:vote:updated', result);
 
     this.logger.log(
-      `Vote recorded: client=${client.id} room=${payload.roomId} track=${payload.trackId} vote=${payload.vote}`,
+      `Vote recorded: client=${client.id} userId=${userId} room=${payload.roomId} track=${payload.trackId} vote=${payload.vote}`,
     );
 
     return result;

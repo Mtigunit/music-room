@@ -12,7 +12,7 @@ export class TrackVoteMessageDto {
   @MinLength(1)
   trackId!: string;
 
-  @ApiProperty({ enum: ['up', 'down'], example: 'up' })
-  @IsIn(['up', 'down'])
-  vote!: 'up' | 'down';
+  @ApiProperty({ enum: ['up', 'down', 'none'], example: 'up' })
+  @IsIn(['up', 'down', 'none'])
+  vote!: 'up' | 'down' | 'none';
 }
