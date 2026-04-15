@@ -35,7 +35,6 @@ class AppTheme {
       colorScheme: const ColorScheme.light(
         primary: primaryColor,
         secondary: _lightSurface,
-        surface: _lightBackground,
       ),
 
       textTheme: const TextTheme(
@@ -93,7 +92,6 @@ class AppTheme {
       colorScheme: const ColorScheme.dark(
         primary: primaryColor,
         secondary: _darkSurface,
-        surface: _darkBackground,
       ),
 
       textTheme: const TextTheme(

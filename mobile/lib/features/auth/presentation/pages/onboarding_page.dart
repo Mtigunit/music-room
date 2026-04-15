@@ -1,7 +1,8 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:music_room/core/widgets/primary_button.dart';
 import 'package:music_room/core/widgets/feature_chip.dart';
 import 'package:music_room/core/widgets/page_indicator.dart';
+import 'package:music_room/core/widgets/primary_button.dart';
 import 'package:music_room/features/auth/presentation/widgets/onboarding_slide.dart';
 import 'package:music_room/routes/route_names.dart';
 
@@ -25,23 +26,27 @@ class _OnboardingPageState extends State<OnboardingPage> {
   }
 
   void _onSkip() {
-    _pageController.animateToPage(
-      lastIndex,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
+    unawaited(
+      _pageController.animateToPage(
+        lastIndex,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      ),
     );
   }
 
   void _onNext() {
     if (_currentPage < lastIndex) {
-      _pageController.nextPage(
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
+      unawaited(
+        _pageController.nextPage(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        ),
       );
     } else {
       // Reached the end of onboarding
       if (!mounted) return;
-      Navigator.of(context).pushReplacementNamed(RouteNames.auth);
+      unawaited(Navigator.of(context).pushReplacementNamed(RouteNames.auth));
     }
   }
 
@@ -54,22 +59,22 @@ class _OnboardingPageState extends State<OnboardingPage> {
         automaticallyImplyLeading: false,
         elevation: 0,
         backgroundColor: Colors.transparent,
-        titleSpacing: 24.0,
+        titleSpacing: 24,
         title: Row(
           children: [
             Container(
-              padding: const EdgeInsets.all(6.0),
+              padding: const EdgeInsets.all(6),
               decoration: BoxDecoration(
                 color: colorScheme.primary,
-                borderRadius: BorderRadius.circular(8.0),
+                borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(
                 Icons.music_note,
                 color: colorScheme.onPrimary,
-                size: 20.0,
+                size: 20,
               ),
             ),
-            const SizedBox(width: 8.0),
+            const SizedBox(width: 8),
             Text(
               'Music Room',
               style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -82,7 +87,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
         actions: [
           Padding(
             padding: const EdgeInsets.only(
-              right: 16.0,
+              right: 16,
             ), // Total ~24px with default action padding
             child: TextButton(
               onPressed: _onSkip,
@@ -92,10 +97,10 @@ class _OnboardingPageState extends State<OnboardingPage> {
                   color:
                       Theme.of(
                         context,
-                      ).textTheme.bodyLarge?.color?.withOpacity(0.4) ??
+                      ).textTheme.bodyLarge?.color?.withValues(alpha: 0.4) ??
                       Colors.grey,
                   fontWeight: FontWeight.w600,
-                  fontSize: 16.0,
+                  fontSize: 16,
                 ),
               ),
             ),
@@ -104,10 +109,10 @@ class _OnboardingPageState extends State<OnboardingPage> {
       ),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
+          padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Column(
             children: [
-              const SizedBox(height: 16.0),
+              const SizedBox(height: 16),
               Expanded(
                 child: PageView(
                   controller: _pageController,
@@ -121,10 +126,10 @@ class _OnboardingPageState extends State<OnboardingPage> {
                       imagePath: 'assets/images/step1.png',
                       title: 'Control the Music Together',
                       subtitle:
-                          'Everyone in the room gets a voice. Vote, queue, and vibe together in real time.',
+                          'Everyone in the room gets a voice. Vote, queue, '
+                          'and vibe together in real time.',
                       indicator: PageIndicator(
                         currentIndex: _currentPage,
-                        pageCount: pageCount,
                       ),
                       chips: const [
                         FeatureChip(
@@ -141,10 +146,10 @@ class _OnboardingPageState extends State<OnboardingPage> {
                       imagePath: 'assets/images/step2.png',
                       title: 'Vote & Play in Real-Time',
                       subtitle:
-                          'The crowd decides what plays next. Watch the playlist shift live as votes roll in.',
+                          'The crowd decides what plays next. '
+                          'Watch the playlist shift live as votes roll in.',
                       indicator: PageIndicator(
                         currentIndex: _currentPage,
-                        pageCount: pageCount,
                       ),
                       chips: const [
                         FeatureChip(
@@ -161,10 +166,10 @@ class _OnboardingPageState extends State<OnboardingPage> {
                       imagePath: 'assets/images/step3.png',
                       title: 'Create Your Music Room',
                       subtitle:
-                          'Host a room for any occasion — parties, study sessions, or just vibing with friends.',
+                          'Host a room for any occasion — parties, '
+                          'study sessions, or just vibing with friends.',
                       indicator: PageIndicator(
                         currentIndex: _currentPage,
-                        pageCount: pageCount,
                       ),
                       chips: const [
                         FeatureChip(
@@ -181,7 +186,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.only(bottom: 24.0, top: 16.0),
+                padding: const EdgeInsets.only(bottom: 24, top: 16),
                 child: PrimaryButton(
                   text: _currentPage < lastIndex ? 'Continue' : 'Get Started',
                   icon: Icons.arrow_forward,

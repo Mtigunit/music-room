@@ -1,16 +1,14 @@
 import 'package:flutter/material.dart';
 
 class PrimaryButton extends StatelessWidget {
+
+  const PrimaryButton({
+    required this.text, required this.onPressed, super.key,
+    this.icon,
+  });
   final String text;
   final VoidCallback onPressed;
   final IconData? icon;
-
-  const PrimaryButton({
-    super.key,
-    required this.text,
-    required this.onPressed,
-    this.icon,
-  });
 
   @override
   Widget build(BuildContext context) {
@@ -18,13 +16,13 @@ class PrimaryButton extends StatelessWidget {
 
     return SizedBox(
       width: double.infinity,
-      height: 56.0,
+      height: 56,
       child: ElevatedButton(
         style: ElevatedButton.styleFrom(
           backgroundColor: colorScheme.primary,
           foregroundColor: colorScheme.onPrimary,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16.0),
+            borderRadius: BorderRadius.circular(16),
           ),
         ),
         onPressed: onPressed,
@@ -33,7 +31,7 @@ class PrimaryButton extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Text(text),
-                  const SizedBox(width: 8.0),
+                  const SizedBox(width: 8),
                   Icon(icon),
                 ],
               )
