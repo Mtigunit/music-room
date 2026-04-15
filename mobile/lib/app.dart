@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-
+import 'package:music_room/core/theme/app_theme.dart';
 import 'package:music_room/routes/app_router.dart';
 
 class App extends StatelessWidget {
@@ -7,9 +7,11 @@ class App extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
+    return MaterialApp(
       initialRoute: AppRouter.initialRoute,
       onGenerateRoute: AppRouter.onGenerateRoute,
+      theme: AppTheme.lightTheme(),
+      darkTheme: AppTheme.darkTheme(),
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:music_room/features/auth/presentation/pages/auth_page.dart';
+import 'package:music_room/features/auth/presentation/pages/onboarding_page.dart';
 import 'package:music_room/features/home/presentation/pages/home_page.dart';
 import 'package:music_room/features/music_control/presentation/pages/music_control_page.dart';
 import 'package:music_room/features/music_vote/presentation/pages/music_vote_page.dart';
@@ -9,7 +10,7 @@ import 'package:music_room/features/profile/presentation/pages/profile_page.dart
 import 'package:music_room/routes/route_names.dart';
 
 class AppRouter {
-  static const String initialRoute = RouteNames.home;
+  static const String initialRoute = RouteNames.onboarding;
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     final routeName = settings.name ?? RouteNames.home;
@@ -31,6 +32,10 @@ class AppRouter {
   }
 
   static Widget _pageForRoute(String routeName) {
+    if (routeName == RouteNames.onboarding) {
+      return const OnboardingPage();
+    }
+
     if (routeName == RouteNames.home) {
       return const HomePage();
     }
