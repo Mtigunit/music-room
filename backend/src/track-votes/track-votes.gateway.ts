@@ -1,0 +1,46 @@
+import {
+  ConnectedSocket,
+  MessageBody,
+  SubscribeMessage,
+  WebSocketGateway,
+  WebSocketServer,
+} from '@nestjs/websockets';
+import { Logger, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
+import { Server, Socket } from 'socket.io';
+import { TrackVotesService } from './track-votes.service';
+import { TrackVoteMessageDto } from './dto/track-vote-message.dto';
+import { TrackVoteResultDto } from './dto/track-vote-result.dto';
+import { WsAuthGuard } from '../websockets/guards/ws-auth.guard';
+
+@WebSocketGateway({ path: '/ws', cors: true })
+@UseGuards(WsAuthGuard)
+export class TrackVotesGateway {
+  @WebSocketServer()
+  server!: Server;
+
+  private readonly logger = new Logger(TrackVotesGateway.name);
+
+  constructor(private readonly trackVotesService: TrackVotesService) {}
+
+  @SubscribeMessage('track:vote')
+  @UsePipes(
+    new ValidationPipe({
+      whitelist: true,
+      forbidNonWhitelisted: true,
+      transform: true,
+    }),
+  )
+  handleTrackVote(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: TrackVoteMessageDto,
+  ): TrackVoteResultDto {
+    const result = this.trackVotesService.recordVote(payload);
+    this.server.to(payload.roomId).emit('track:vote:updated', result);
+
+    this.logger.log(
+      `Vote recorded: client=${client.id} room=${payload.roomId} track=${payload.trackId} vote=${payload.vote}`,
+    );
+
+    return result;
+  }
+}
