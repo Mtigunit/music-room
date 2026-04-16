@@ -1,10 +1,77 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:music_room/core/widgets/app_button.dart';
+import 'package:music_room/core/widgets/app_snackbar.dart';
+import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
+import 'package:music_room/features/auth/presentation/state/auth_event.dart';
+import 'package:music_room/features/auth/presentation/state/auth_state.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return const SizedBox.shrink();
+    return const MockHomePage();
+  }
+}
+
+class MockHomePage extends StatelessWidget {
+  const MockHomePage({super.key});
+
+  void _handleLogout(BuildContext context) {
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (dialogContext) {
+          return AlertDialog(
+            title: const Text('Logout'),
+            content: const Text('Are you sure you want to logout?'),
+            actions: [
+              AppButton(
+                variant: AppButtonVariant.text,
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                label: 'Cancel',
+              ),
+              AppButton(
+                variant: AppButtonVariant.text,
+                onPressed: () {
+                  Navigator.of(dialogContext).pop();
+                  context.read<AuthBloc>().add(const LogoutRequested());
+                },
+                label: 'Logout',
+                foregroundColor: Colors.red,
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocListener<AuthBloc, AuthState>(
+      listener: (context, state) {
+        if (state is LogoutSuccess) {
+          // Show logout success message
+          AppSnackbar.showSuccess(context, 'Logged out successfully!');
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Music Room'),
+          centerTitle: true,
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.logout),
+              onPressed: () => _handleLogout(context),
+              tooltip: 'Logout',
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }

@@ -1,0 +1,155 @@
+import 'package:flutter/material.dart';
+import 'package:music_room/core/widgets/app_back_button.dart';
+import 'package:music_room/core/widgets/app_button.dart';
+import 'package:music_room/core/widgets/app_snackbar.dart';
+import 'package:music_room/core/widgets/primary_button.dart';
+import 'package:music_room/features/auth/presentation/widgets/auth_screen_header.dart';
+import 'package:music_room/features/auth/presentation/widgets/auth_text_input_field.dart';
+
+class ForgotPasswordPage extends StatefulWidget {
+  const ForgotPasswordPage({super.key});
+
+  @override
+  State<ForgotPasswordPage> createState() => _ForgotPasswordPageState();
+}
+
+class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
+  final TextEditingController _emailController = TextEditingController();
+
+  String? _emailError;
+  bool _isSubmitted = false;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    super.dispose();
+  }
+
+  void _validateEmail(String value) {
+    setState(() {
+      if (value.isEmpty) {
+        _emailError = 'Email is required';
+      } else if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
+        _emailError = 'Enter a valid email';
+      } else {
+        _emailError = null;
+      }
+    });
+  }
+
+  void _handleSendResetLink() {
+    _validateEmail(_emailController.text);
+
+    if (_emailError != null) {
+      return;
+    }
+
+    setState(() {
+      _isSubmitted = true;
+    });
+
+    AppSnackbar.showSuccess(context, 'Password reset link has been sent.');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+
+    return Scaffold(
+      appBar: AppBar(
+        leading: AppBackButton(onPressed: () => Navigator.of(context).pop()),
+      ),
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const AuthScreenHeader(
+                title: 'Forgot password?',
+                subtitle:
+                    'Enter your email and we will send you a reset link '
+                    'to regain access to your account.',
+                bottomSpacing: 28,
+              ),
+              AuthTextInputField(
+                label: 'Email address',
+                icon: Icons.mail_outline,
+                placeholder: 'Email address',
+                controller: _emailController,
+                keyboardType: TextInputType.emailAddress,
+                onChanged: _validateEmail,
+                errorText: _emailError,
+              ),
+              const SizedBox(height: 24),
+              PrimaryButton(
+                text: _isSubmitted ? 'Resend link' : 'Send reset link',
+                onPressed: _handleSendResetLink,
+              ),
+              if (_isSubmitted) ...[
+                const SizedBox(height: 32),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 14,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isDarkMode
+                        ? const Color(0xFF1A2432)
+                        : const Color(0xFFEFF6FF),
+                    borderRadius: BorderRadius.circular(14),
+                    border: Border.all(
+                      color: isDarkMode
+                          ? const Color(0xFF2C405B)
+                          : const Color(0xFFBFDBFE),
+                    ),
+                  ),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Icon(
+                        Icons.mark_email_read_outlined,
+                        color: colorScheme.primary,
+                        size: 20,
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'If an account exists for '
+                          '${_emailController.text}, '
+                          'a reset email has been sent.',
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                color: isDarkMode
+                                    ? const Color(0xFFC9D5E8)
+                                    : const Color(0xFF1E3A5F),
+                                height: 1.35,
+                              ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+              const SizedBox(height: 10),
+              Center(
+                child: AppButton(
+                  variant: AppButtonVariant.text,
+                  onPressed: () => Navigator.of(context).pop(),
+                  label: 'Back to sign in',
+                  foregroundColor: colorScheme.primary,
+                  textStyle: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
