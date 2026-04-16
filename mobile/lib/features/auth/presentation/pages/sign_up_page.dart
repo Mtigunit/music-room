@@ -38,6 +38,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
   String? _emailVerificationToken;
   bool _isOtpModalOpen = false;
+  BuildContext? _otpModalContext;
 
   @override
   void dispose() {
@@ -144,26 +145,30 @@ class _SignUpPageState extends State<SignUpPage> {
         enableDrag: false,
         isDismissible: false,
         backgroundColor: Colors.transparent,
-        builder: (_) => OtpVerificationModal(
-          email: _emailController.text,
-          onConfirm: (otpCode) {
-            context.read<AuthBloc>().add(
-              VerifyOtpRequested(
-                email: _emailController.text,
-                code: otpCode,
-              ),
-            );
-          },
-          onResend: () {
-            context.read<AuthBloc>().add(
-              SendOtpRequested(
-                email: _emailController.text,
-              ),
-            );
-          },
-        ),
+        builder: (modalContext) {
+          _otpModalContext = modalContext;
+          return OtpVerificationModal(
+            email: _emailController.text,
+            onConfirm: (otpCode) {
+              context.read<AuthBloc>().add(
+                VerifyOtpRequested(
+                  email: _emailController.text,
+                  code: otpCode,
+                ),
+              );
+            },
+            onResend: () {
+              context.read<AuthBloc>().add(
+                SendOtpRequested(
+                  email: _emailController.text,
+                ),
+              );
+            },
+          );
+        },
       ).whenComplete(() {
         _isOtpModalOpen = false;
+        _otpModalContext = null;
       }),
     );
   }
@@ -193,8 +198,14 @@ class _SignUpPageState extends State<SignUpPage> {
         } else if (state is OtpVerified) {
           AppSnackbar.showSuccess(context, 'Email verified successfully!');
           _emailVerificationToken = state.emailVerificationToken;
+          if (_isOtpModalOpen && _otpModalContext != null) {
+            final modalNavigator = Navigator.of(_otpModalContext!);
+            if (modalNavigator.canPop()) {
+              modalNavigator.pop();
+            }
+          }
           _isOtpModalOpen = false;
-          Navigator.of(context).pop(); // Close OTP modal
+          _otpModalContext = null;
         } else if (state is OtpVerificationFailure) {
           AppSnackbar.showError(context, state.failure.message);
         } else if (state is RegisterLoading) {

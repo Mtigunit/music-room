@@ -167,12 +167,62 @@ class AuthRepositoryImpl implements AuthRepository {
   String? _extractErrorMessage(dynamic responseData) {
     if (responseData is Map<String, dynamic>) {
       if (responseData.containsKey('message')) {
-        return responseData['message'] as String;
+        final message = _normalizeErrorValue(responseData['message']);
+        if (message != null) {
+          return message;
+        }
       }
       if (responseData.containsKey('error')) {
-        return responseData['error'] as String;
+        final error = _normalizeErrorValue(responseData['error']);
+        if (error != null) {
+          return error;
+        }
       }
     }
     return null;
+  }
+
+  String? _normalizeErrorValue(dynamic value) {
+    if (value is String) {
+      final trimmed = value.trim();
+      return trimmed.isEmpty ? null : trimmed;
+    }
+
+    if (value is List) {
+      final parts = value
+          .map(_normalizeErrorValue)
+          .whereType<String>()
+          .where((part) => part.isNotEmpty)
+          .toList();
+
+      if (parts.isEmpty) {
+        return null;
+      }
+
+      return parts.join(', ');
+    }
+
+    if (value is Map<String, dynamic>) {
+      if (value.containsKey('message')) {
+        final message = _normalizeErrorValue(value['message']);
+        if (message != null) {
+          return message;
+        }
+      }
+
+      if (value.containsKey('error')) {
+        final error = _normalizeErrorValue(value['error']);
+        if (error != null) {
+          return error;
+        }
+      }
+    }
+
+    if (value == null) {
+      return null;
+    }
+
+    final fallback = value.toString().trim();
+    return fallback.isEmpty ? null : fallback;
   }
 }
