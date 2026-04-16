@@ -2,9 +2,9 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsISO8601, IsInt, IsString, Min } from 'class-validator';
 
 export class TrackVoteResultDto {
-  @ApiProperty({ example: 'room-123' })
+  @ApiProperty({ example: 'event-123' })
   @IsString()
-  roomId!: string;
+  eventId!: string;
 
   @ApiProperty({ example: 'track-456' })
   @IsString()

@@ -12,14 +12,14 @@ export class TrackVotesService {
     userId: string,
   ): Promise<TrackVoteResultDto> {
     const record = await this.trackVotesRepository.recordVote(
-      payload.roomId,
+      payload.eventId,
       payload.trackId,
       userId,
       payload.vote,
     );
 
     return {
-      roomId: payload.roomId,
+      eventId: payload.eventId,
       trackId: payload.trackId,
       upVotes: record.upVotes,
       downVotes: record.downVotes,

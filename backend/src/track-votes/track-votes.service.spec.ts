@@ -35,7 +35,7 @@ describe('TrackVotesService', () => {
     it('should correctly format and return the vote result', async () => {
       // Arrange
       const payload: TrackVoteMessageDto = {
-        roomId: 'room-123',
+        eventId: 'event-123',
         trackId: 'track-456',
         vote: 'up',
       };
@@ -52,14 +52,14 @@ describe('TrackVotesService', () => {
 
       // Assert
       expect(repository.recordVote).toHaveBeenCalledWith(
-        payload.roomId,
+        payload.eventId,
         payload.trackId,
         'user-123',
         payload.vote,
       );
 
       expect(result).toEqual({
-        roomId: 'room-123',
+        eventId: 'event-123',
         trackId: 'track-456',
         upVotes: 5,
         downVotes: 2,
@@ -71,7 +71,7 @@ describe('TrackVotesService', () => {
     it('should handle negative scores correctly', async () => {
       // Arrange
       const payload: TrackVoteMessageDto = {
-        roomId: 'room-789',
+        eventId: 'event-789',
         trackId: 'track-012',
         vote: 'down',
       };

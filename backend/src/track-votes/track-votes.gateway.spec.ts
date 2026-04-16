@@ -51,13 +51,13 @@ describe('TrackVotesGateway', () => {
     it('should record a vote and broadcast to the room', async () => {
       // Arrange
       const payload: TrackVoteMessageDto = {
-        roomId: 'room-123',
+        eventId: 'event-123',
         trackId: 'track-456',
         vote: 'up',
       };
 
       const mockResult: TrackVoteResultDto = {
-        roomId: 'room-123',
+        eventId: 'event-123',
         trackId: 'track-456',
         upVotes: 5,
         downVotes: 2,
@@ -72,6 +72,7 @@ describe('TrackVotesGateway', () => {
         data: {
           user: { id: 'user-123' },
         },
+        rooms: new Set(['event-123']),
       } as unknown as Socket;
 
       // Act
@@ -81,7 +82,7 @@ describe('TrackVotesGateway', () => {
       expect(service.recordVote).toHaveBeenCalledWith(payload, 'user-123');
 
       // Verify the broadcast behavior
-      expect(gateway.server.to).toHaveBeenCalledWith('room-123');
+      expect(gateway.server.to).toHaveBeenCalledWith('event-123');
       expect(gateway.server.emit).toHaveBeenCalledWith(
         'track:vote:updated',
         mockResult,

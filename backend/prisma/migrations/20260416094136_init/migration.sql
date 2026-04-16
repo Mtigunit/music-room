@@ -11,8 +11,6 @@ CREATE TABLE "User" (
     "username" TEXT NOT NULL,
     "passwordHash" TEXT,
     "isEmailVerified" BOOLEAN NOT NULL DEFAULT false,
-    "passwordResetToken" TEXT,
-    "passwordResetExpires" TIMESTAMP(3),
     "googleId" TEXT,
     "facebookId" TEXT,
     "publicInfo" JSONB DEFAULT '{}',
@@ -173,9 +171,6 @@ CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "User_username_key" ON "User"("username");
-
--- CreateIndex
-CREATE UNIQUE INDEX "User_passwordResetToken_key" ON "User"("passwordResetToken");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "User_googleId_key" ON "User"("googleId");

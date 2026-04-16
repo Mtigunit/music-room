@@ -1,5 +1,5 @@
-import { Injectable } from '@nestjs/common';
-import { RedisService } from '../redis/redis.service';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
 
 type VoteDirection = 'up' | 'down' | 'none';
 
@@ -11,78 +11,84 @@ export interface TrackVoteCounter {
 
 @Injectable()
 export class TrackVotesRepository {
-  constructor(private readonly redisService: RedisService) {}
+  constructor(private readonly prisma: PrismaService) {}
 
   async recordVote(
-    roomId: string,
+    eventId: string,
     trackId: string,
     userId: string,
     vote: VoteDirection,
   ): Promise<TrackVoteCounter> {
-    const client = this.redisService.getClient();
-    const roomTrackKey = this.buildKey(roomId, trackId);
-    const userVoteKey = `${roomTrackKey}:user:${userId}`;
+    const eventTrack = await this.prisma.eventTrack.findFirst({
+      where: {
+        eventId,
+        trackId,
+      },
+    });
 
-    // 1) Find out if the user already voted & what their old vote was
-    const oldVote = (await client.get(userVoteKey)) as VoteDirection | null;
-    const normalizedOldVote = oldVote || 'none';
+    if (!eventTrack) {
+      throw new NotFoundException(
+        `EventTrack not found for event ${eventId} and track ${trackId}`,
+      );
+    }
 
-    // If the user is voting the exact same direction again, do nothing (idempotent)
-    if (normalizedOldVote === vote) {
-      const current = await client.hgetall(roomTrackKey);
+    const eventTrackId = eventTrack.id;
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT * FROM "EventTrack" WHERE id = ${eventTrackId} FOR UPDATE`;
+
+      if (vote === 'none') {
+        await tx.vote.deleteMany({
+          where: {
+            eventTrackId,
+            userId,
+          },
+        });
+      } else {
+        const voteValue = vote === 'up' ? 1 : -1;
+        await tx.vote.upsert({
+          where: {
+            eventTrackId_userId: {
+              eventTrackId,
+              userId,
+            },
+          },
+          update: {
+            voteValue,
+          },
+          create: {
+            eventTrackId,
+            userId,
+            voteValue,
+          },
+        });
+      }
+
+      const allVotes = await tx.vote.findMany({
+        where: { eventTrackId },
+        select: { voteValue: true },
+      });
+
+      let upVotes = 0;
+      let downVotes = 0;
+      let score = 0;
+
+      for (const v of allVotes) {
+        if (v.voteValue === 1) upVotes++;
+        else if (v.voteValue === -1) downVotes++;
+        score += v.voteValue;
+      }
+
+      await tx.eventTrack.update({
+        where: { id: eventTrackId },
+        data: { voteScore: score },
+      });
+
       return {
-        upVotes: parseInt(current.upVotes || '0', 10),
-        downVotes: parseInt(current.downVotes || '0', 10),
+        upVotes,
+        downVotes,
         updatedAt: new Date(),
       };
-    }
-
-    // 2) Prepare the pipeline
-    const pipeline = client.multi();
-
-    // Apply the NEW vote (if they aren't just removing it)
-    if (vote !== 'none') {
-      const newField = vote === 'up' ? 'upVotes' : 'downVotes';
-      const scoreDiff = vote === 'up' ? 1 : -1;
-
-      pipeline.hincrby(roomTrackKey, newField, 1);
-      pipeline.hincrby(roomTrackKey, 'score', scoreDiff);
-      pipeline.set(userVoteKey, vote);
-    } else {
-      // Removing their vote entirely
-      pipeline.del(userVoteKey);
-    }
-
-    // 3) Subtract the OLD vote (if they had one)
-    if (oldVote && oldVote !== 'none') {
-      const oldField = oldVote === 'up' ? 'upVotes' : 'downVotes';
-      const oldScoreDiff = oldVote === 'up' ? -1 : 1;
-      pipeline.hincrby(roomTrackKey, oldField, -1);
-      pipeline.hincrby(roomTrackKey, 'score', oldScoreDiff);
-    }
-
-    // 4) Fetch the final updated counts
-    pipeline.hgetall(roomTrackKey);
-
-    const execResult = (await pipeline.exec()) ?? [];
-    if (!execResult || execResult[0]?.[0]) {
-      throw new Error('Failed to record vote in Redis');
-    }
-
-    // The hgetall result is always the LAST command executed in our pipeline
-    const current = execResult[execResult.length - 1][1] as Record<
-      string,
-      string
-    >;
-
-    return {
-      upVotes: parseInt(current.upVotes || '0', 10),
-      downVotes: parseInt(current.downVotes || '0', 10),
-      updatedAt: new Date(),
-    };
-  }
-
-  private buildKey(roomId: string, trackId: string): string {
-    return `track-votes:${roomId}:${trackId}`;
+    });
   }
 }
