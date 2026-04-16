@@ -32,8 +32,6 @@ model User {
   // Auth & OAuth
   passwordHash         String?
   isEmailVerified      Boolean   @default(false)
-  passwordResetToken   String?   @unique
-  passwordResetExpires DateTime?
   googleId             String?   @unique
   facebookId           String?   @unique
 
