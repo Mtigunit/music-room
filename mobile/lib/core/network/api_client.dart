@@ -52,16 +52,6 @@ class ApiClient {
         },
       ),
     );
-
-    // Logging Interceptor (debug only)
-    if (AppConfig.isDebug) {
-      _dio.interceptors.add(
-        LogInterceptor(
-          requestBody: true,
-          responseBody: true,
-        ),
-      );
-    }
   }
 
   // GET Request

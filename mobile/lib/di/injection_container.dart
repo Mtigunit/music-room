@@ -21,7 +21,6 @@ class InjectionContainer {
   late ApiClient _apiClient;
   late IAuthRemoteDataSource _authRemoteDataSource;
   late AuthRepository _authRepository;
-  late AuthBloc _authBloc;
 
   /// Initialize all dependencies
   Future<void> init() async {
@@ -45,9 +44,6 @@ class InjectionContainer {
       remoteDataSource: _authRemoteDataSource,
       tokenStorage: _tokenStorageService,
     );
-
-    // BLoC
-    _authBloc = AuthBloc(authRepository: _authRepository);
   }
 
   // Getters
@@ -55,5 +51,8 @@ class InjectionContainer {
   ApiClient get apiClient => _apiClient;
   IAuthRemoteDataSource get authRemoteDataSource => _authRemoteDataSource;
   AuthRepository get authRepository => _authRepository;
-  AuthBloc get authBloc => _authBloc;
+
+  AuthBloc createAuthBloc() {
+    return AuthBloc(authRepository: _authRepository);
+  }
 }

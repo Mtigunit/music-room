@@ -17,7 +17,8 @@ class App extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider<AuthBloc>(
-      create: (_) => InjectionContainer().authBloc..add(const AuthStarted()),
+      create: (_) =>
+          InjectionContainer().createAuthBloc()..add(const AuthStarted()),
       child: MaterialApp(
         onGenerateRoute: AppRouter.onGenerateRoute,
         theme: AppTheme.lightTheme(),

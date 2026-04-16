@@ -22,16 +22,13 @@ class AppBackButton extends StatelessWidget {
             ? Colors.white
             : Colors.black87);
 
-    return GestureDetector(
-      onTap: onPressed,
-      child: Padding(
-        padding: padding,
-        child: Icon(
-          Icons.arrow_back,
-          color: resolvedColor,
-          size: iconSize,
-        ),
-      ),
+    return IconButton(
+      onPressed: onPressed,
+      padding: padding,
+      iconSize: iconSize,
+      color: resolvedColor,
+      tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+      icon: const Icon(Icons.arrow_back),
     );
   }
 }
