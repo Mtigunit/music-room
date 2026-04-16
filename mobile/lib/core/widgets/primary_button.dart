@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:music_room/core/widgets/app_button.dart';
 
 class PrimaryButton extends StatelessWidget {
   const PrimaryButton({
@@ -13,30 +14,14 @@ class PrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
     return SizedBox(
       width: double.infinity,
       height: 56,
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: colorScheme.primary,
-          foregroundColor: colorScheme.onPrimary,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(16),
-          ),
-        ),
+      child: AppButton(
         onPressed: onPressed,
-        child: icon != null
-            ? Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(text),
-                  const SizedBox(width: 8),
-                  Icon(icon),
-                ],
-              )
-            : Text(text),
+        label: text,
+        trailing: icon != null ? Icon(icon) : null,
+        borderRadius: 16,
       ),
     );
   }

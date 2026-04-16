@@ -2,11 +2,15 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:music_room/core/widgets/app_back_button.dart';
+import 'package:music_room/core/widgets/app_button.dart';
 import 'package:music_room/core/widgets/app_snackbar.dart';
 import 'package:music_room/features/auth/presentation/pages/forgot_password_page.dart';
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
 import 'package:music_room/features/auth/presentation/state/auth_event.dart';
 import 'package:music_room/features/auth/presentation/state/auth_state.dart';
+import 'package:music_room/features/auth/presentation/widgets/auth_divider_with_text.dart';
+import 'package:music_room/features/auth/presentation/widgets/auth_screen_header.dart';
 import 'package:music_room/features/auth/presentation/widgets/auth_text_input_field.dart';
 import 'package:music_room/features/auth/presentation/widgets/social_login_button.dart';
 import 'package:music_room/routes/route_names.dart';
@@ -82,14 +86,6 @@ class _SignInPageState extends State<SignInPage> {
     );
   }
 
-  void _showErrorSnackBar(String message) {
-    AppSnackbar.showError(context, message);
-  }
-
-  void _showSuccessSnackBar(String message) {
-    AppSnackbar.showSuccess(context, message);
-  }
-
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -104,7 +100,7 @@ class _SignInPageState extends State<SignInPage> {
             duration: const Duration(seconds: 1),
           );
         } else if (state is LoginSuccess) {
-          _showSuccessSnackBar('Signed in successfully!');
+          AppSnackbar.showSuccess(context, 'Signed in successfully!');
           unawaited(
             Navigator.of(context).pushNamedAndRemoveUntil(
               RouteNames.home,
@@ -112,22 +108,12 @@ class _SignInPageState extends State<SignInPage> {
             ),
           );
         } else if (state is LoginFailure) {
-          _showErrorSnackBar(state.failure.message);
+          AppSnackbar.showError(context, state.failure.message);
         }
       },
       child: Scaffold(
         appBar: AppBar(
-          leading: GestureDetector(
-            onTap: () => Navigator.of(context).pop(),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Icon(
-                Icons.arrow_back,
-                color: isDarkMode ? Colors.white : Colors.black87,
-                size: 25,
-              ),
-            ),
-          ),
+          leading: AppBackButton(onPressed: () => Navigator.of(context).pop()),
         ),
         body: SafeArea(
           child: SingleChildScrollView(
@@ -135,24 +121,11 @@ class _SignInPageState extends State<SignInPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Title
-                Text(
-                  'Welcome back',
-                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                    fontSize: 32,
-                    fontWeight: FontWeight.w800,
-                  ),
+                const AuthScreenHeader(
+                  title: 'Welcome back',
+                  subtitle: 'Sign in to your account',
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  'Sign in to your account',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
-                  ),
-                ),
-                const SizedBox(height: 32),
 
-                // Email Input
                 AuthTextInputField(
                   label: 'Email or username',
                   icon: Icons.mail_outline,
@@ -176,7 +149,6 @@ class _SignInPageState extends State<SignInPage> {
                 ),
                 const SizedBox(height: 12),
 
-                // Forgot Password Link
                 Align(
                   alignment: Alignment.centerRight,
                   child: GestureDetector(
@@ -193,95 +165,39 @@ class _SignInPageState extends State<SignInPage> {
                 ),
                 const SizedBox(height: 32),
 
-                // Sign In Button
                 BlocBuilder<AuthBloc, AuthState>(
                   builder: (context, state) {
                     final isLoading = state is LoginLoading;
                     return SizedBox(
                       width: double.infinity,
                       height: 56,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: colorScheme.primary,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
+                      child: AppButton(
                         onPressed: isLoading ? null : _handleSignIn,
-                        child: isLoading
-                            ? const SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    Colors.white,
-                                  ),
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Text(
-                                'Sign in',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
+                        label: 'Sign in',
+                        isLoading: isLoading,
+                        foregroundColor: Colors.white,
+                        borderRadius: 16,
+                        textStyle: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     );
                   },
                 ),
                 const SizedBox(height: 24),
 
-                // Divider with "or continue with"
-                Row(
-                  children: [
-                    Expanded(
-                      child: Divider(
-                        color: isDarkMode ? Colors.grey[700] : Colors.grey[300],
-                        thickness: 1,
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Text(
-                        'or continue with',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: isDarkMode
-                              ? Colors.grey[500]
-                              : Colors.grey[600],
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: Divider(
-                        color: isDarkMode ? Colors.grey[700] : Colors.grey[300],
-                        thickness: 1,
-                      ),
-                    ),
-                  ],
-                ),
+                const AuthDividerWithText(text: 'or continue with'),
                 const SizedBox(height: 16),
 
-                // Social Login Buttons
                 SocialLoginButton(
                   provider: SocialProvider.google,
                   onPressed: () {
                     // TODO(mtigunit): Implement Google login.
                   },
                 ),
-                // const SizedBox(height: 12),
-                // SocialLoginButton(
-                //   provider: SocialProvider.facebook,
-                //   onPressed: () {
-                //     // TODO: Implement Facebook login
-                //   },
-                // ),
                 const SizedBox(height: 24),
 
-                // Sign Up Link
                 Center(
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,

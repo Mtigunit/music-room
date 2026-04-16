@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:music_room/core/widgets/app_button.dart';
 
 enum SocialProvider { google, facebook }
 
@@ -45,16 +46,12 @@ class SocialLoginButton extends StatelessWidget {
     return SizedBox(
       width: double.infinity,
       height: 56,
-      child: OutlinedButton(
-        style: OutlinedButton.styleFrom(
-          side: BorderSide(
-            color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
-          ),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-          ),
-        ),
+      child: AppButton(
+        variant: AppButtonVariant.outlined,
         onPressed: onPressed,
+        borderSide: BorderSide(
+          color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
+        ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [

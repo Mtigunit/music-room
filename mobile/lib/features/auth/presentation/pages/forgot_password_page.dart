@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:music_room/core/widgets/app_back_button.dart';
+import 'package:music_room/core/widgets/app_button.dart';
 import 'package:music_room/core/widgets/app_snackbar.dart';
 import 'package:music_room/core/widgets/primary_button.dart';
+import 'package:music_room/features/auth/presentation/widgets/auth_screen_header.dart';
 import 'package:music_room/features/auth/presentation/widgets/auth_text_input_field.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
@@ -55,17 +58,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
     return Scaffold(
       appBar: AppBar(
-        leading: GestureDetector(
-          onTap: () => Navigator.of(context).pop(),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Icon(
-              Icons.arrow_back,
-              color: isDarkMode ? Colors.white : Colors.black87,
-              size: 25,
-            ),
-          ),
-        ),
+        leading: AppBackButton(onPressed: () => Navigator.of(context).pop()),
       ),
       body: SafeArea(
         child: SingleChildScrollView(
@@ -73,22 +66,13 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Forgot password?',
-                style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                  fontSize: 32,
-                  fontWeight: FontWeight.w800,
-                ),
+              const AuthScreenHeader(
+                title: 'Forgot password?',
+                subtitle:
+                    'Enter your email and we will send you a reset link '
+                    'to regain access to your account.',
+                bottomSpacing: 28,
               ),
-              const SizedBox(height: 10),
-              Text(
-                'Enter your email and we will send you a reset link '
-                'to regain access to your account.',
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
-                ),
-              ),
-              const SizedBox(height: 28),
               AuthTextInputField(
                 label: 'Email address',
                 icon: Icons.mail_outline,
@@ -151,15 +135,14 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
               ],
               const SizedBox(height: 10),
               Center(
-                child: TextButton(
+                child: AppButton(
+                  variant: AppButtonVariant.text,
                   onPressed: () => Navigator.of(context).pop(),
-                  child: Text(
-                    'Back to sign in',
-                    style: TextStyle(
-                      color: colorScheme.primary,
-                      fontSize: 17,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  label: 'Back to sign in',
+                  foregroundColor: colorScheme.primary,
+                  textStyle: const TextStyle(
+                    fontSize: 17,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),

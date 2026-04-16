@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:music_room/core/widgets/app_button.dart';
 import 'package:music_room/core/widgets/app_snackbar.dart';
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
 import 'package:music_room/features/auth/presentation/state/auth_event.dart';
@@ -29,19 +30,19 @@ class MockHomePage extends StatelessWidget {
             title: const Text('Logout'),
             content: const Text('Are you sure you want to logout?'),
             actions: [
-              TextButton(
+              AppButton(
+                variant: AppButtonVariant.text,
                 onPressed: () => Navigator.of(dialogContext).pop(),
-                child: const Text('Cancel'),
+                label: 'Cancel',
               ),
-              TextButton(
+              AppButton(
+                variant: AppButtonVariant.text,
                 onPressed: () {
                   Navigator.of(dialogContext).pop();
                   context.read<AuthBloc>().add(const LogoutRequested());
                 },
-                child: const Text(
-                  'Logout',
-                  style: TextStyle(color: Colors.red),
-                ),
+                label: 'Logout',
+                foregroundColor: Colors.red,
               ),
             ],
           );

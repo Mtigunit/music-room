@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:music_room/core/widgets/app_button.dart';
 
 class OtpVerificationModal extends StatefulWidget {
   const OtpVerificationModal({
@@ -20,17 +21,22 @@ class OtpVerificationModal extends StatefulWidget {
 }
 
 class _OtpVerificationModalState extends State<OtpVerificationModal> {
+  static const int _otpLength = 6;
+  static const int _initialResendSeconds = 21;
+
   late List<TextEditingController> _controllers;
   late List<FocusNode> _focusNodes;
   late Timer _timer;
-  int _remainingSeconds = 21;
+  int _remainingSeconds = _initialResendSeconds;
   bool _canResend = false;
+
+  int get _lastOtpIndex => _otpLength - 1;
 
   @override
   void initState() {
     super.initState();
-    _controllers = List.generate(6, (_) => TextEditingController());
-    _focusNodes = List.generate(6, (_) => FocusNode());
+    _controllers = List.generate(_otpLength, (_) => TextEditingController());
+    _focusNodes = List.generate(_otpLength, (_) => FocusNode());
     _startTimer();
   }
 
@@ -65,7 +71,7 @@ class _OtpVerificationModalState extends State<OtpVerificationModal> {
     if (_canResend) {
       widget.onResend();
       setState(() {
-        _remainingSeconds = 21;
+        _remainingSeconds = _initialResendSeconds;
         _canResend = false;
       });
       _startTimer();
@@ -85,7 +91,7 @@ class _OtpVerificationModalState extends State<OtpVerificationModal> {
       return;
     }
 
-    if (index < 5) {
+    if (index < _lastOtpIndex) {
       _focusNodes[index + 1].requestFocus();
     } else {
       _focusNodes[index].unfocus();
@@ -100,28 +106,28 @@ class _OtpVerificationModalState extends State<OtpVerificationModal> {
 
     var writeIndex = startIndex;
     for (final digit in digits.split('')) {
-      if (writeIndex > 5) {
+      if (writeIndex > _lastOtpIndex) {
         break;
       }
       _controllers[writeIndex].text = digit;
       writeIndex++;
     }
 
-    if (writeIndex <= 5) {
+    if (writeIndex <= _lastOtpIndex) {
       _focusNodes[writeIndex].requestFocus();
     } else {
-      _focusNodes[5].unfocus();
+      _focusNodes[_lastOtpIndex].unfocus();
     }
   }
 
   String get _otpValue =>
       _controllers.map((controller) => controller.text).join();
 
-  bool get _isOtpComplete => _otpValue.length == 6;
+  bool get _isOtpComplete => _otpValue.length == _otpLength;
 
   void _handleConfirm() {
     final otp = _otpValue;
-    if (otp.length == 6) {
+    if (otp.length == _otpLength) {
       widget.onConfirm(otp);
     }
   }
@@ -231,14 +237,14 @@ class _OtpVerificationModalState extends State<OtpVerificationModal> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: List.generate(
-                6,
+                _otpLength,
                 (index) => SizedBox(
                   width: 50,
                   height: 68,
                   child: TextField(
                     controller: _controllers[index],
                     focusNode: _focusNodes[index],
-                    maxLength: 6,
+                    maxLength: _otpLength,
                     textAlign: TextAlign.center,
                     keyboardType: TextInputType.number,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],
@@ -287,14 +293,13 @@ class _OtpVerificationModalState extends State<OtpVerificationModal> {
                 ),
                 const Spacer(),
                 if (_canResend)
-                  TextButton(
+                  AppButton(
+                    variant: AppButtonVariant.text,
                     onPressed: _handleResend,
-                    child: Text(
-                      'Resend',
-                      style: TextStyle(
-                        color: colorScheme.primary,
-                        fontWeight: FontWeight.w700,
-                      ),
+                    label: 'Resend',
+                    foregroundColor: colorScheme.primary,
+                    textStyle: const TextStyle(
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
               ],
@@ -303,24 +308,17 @@ class _OtpVerificationModalState extends State<OtpVerificationModal> {
             SizedBox(
               width: double.infinity,
               height: 56,
-              child: ElevatedButton(
+              child: AppButton(
                 onPressed: _isOtpComplete ? _handleConfirm : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _isOtpComplete
-                      ? colorScheme.primary
-                      : disabledButton,
-                  disabledForegroundColor: mutedText,
-                  disabledBackgroundColor: disabledButton,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                ),
-                child: const Text(
-                  'Confirm',
-                  style: TextStyle(
-                    fontSize: 34 / 2,
-                    fontWeight: FontWeight.w700,
-                  ),
+                backgroundColor: colorScheme.primary,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: disabledButton,
+                disabledForegroundColor: mutedText,
+                borderRadius: 20,
+                label: 'Confirm',
+                textStyle: const TextStyle(
+                  fontSize: 34 / 2,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
             ),

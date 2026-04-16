@@ -22,63 +22,31 @@ abstract class IAuthRemoteDataSource {
 
 /// Implementation of IAuthRemoteDataSource
 class AuthRemoteDataSource implements IAuthRemoteDataSource {
-
   AuthRemoteDataSource({required ApiClient apiClient}) : _apiClient = apiClient;
+
   final ApiClient _apiClient;
 
   @override
   Future<SendOtpResponse> sendOtp(String email) async {
-    try {
-      final response = await _apiClient.post<Map<String, dynamic>>(
-        AppConfig.sendOtpEndpoint,
-        data: {'email': email},
-      );
-
-      if (response.statusCode == 201 && response.data != null) {
-        return SendOtpResponse.fromJson(response.data!);
-      }
-      throw DioException(
-        requestOptions: response.requestOptions,
-        response: response,
-        type: DioExceptionType.badResponse,
-      );
-    } on DioException {
-      rethrow;
-    } catch (e) {
-      throw DioException(
-        requestOptions: RequestOptions(path: AppConfig.sendOtpEndpoint),
-        error: e,
-      );
-    }
+    return _postAndMap(
+      path: AppConfig.sendOtpEndpoint,
+      data: {'email': email},
+      expectedStatusCode: 201,
+      parser: SendOtpResponse.fromJson,
+    );
   }
 
   @override
   Future<VerifyOtpResponse> verifyOtp(String email, String code) async {
-    try {
-      final response = await _apiClient.post<Map<String, dynamic>>(
-        AppConfig.verifyOtpEndpoint,
-        data: {
-          'email': email,
-          'code': code,
-        },
-      );
-
-      if (response.statusCode == 201 && response.data != null) {
-        return VerifyOtpResponse.fromJson(response.data!);
-      }
-      throw DioException(
-        requestOptions: response.requestOptions,
-        response: response,
-        type: DioExceptionType.badResponse,
-      );
-    } on DioException {
-      rethrow;
-    } catch (e) {
-      throw DioException(
-        requestOptions: RequestOptions(path: AppConfig.verifyOtpEndpoint),
-        error: e,
-      );
-    }
+    return _postAndMap(
+      path: AppConfig.verifyOtpEndpoint,
+      data: {
+        'email': email,
+        'code': code,
+      },
+      expectedStatusCode: 201,
+      parser: VerifyOtpResponse.fromJson,
+    );
   }
 
   @override
@@ -88,33 +56,17 @@ class AuthRemoteDataSource implements IAuthRemoteDataSource {
     required String password,
     required String emailVerificationToken,
   }) async {
-    try {
-      final response = await _apiClient.post<Map<String, dynamic>>(
-        AppConfig.registerEndpoint,
-        data: {
-          'email': email,
-          'username': username,
-          'password': password,
-          'emailVerificationToken': emailVerificationToken,
-        },
-      );
-
-      if (response.statusCode == 201 && response.data != null) {
-        return RegisterResponse.fromJson(response.data!);
-      }
-      throw DioException(
-        requestOptions: response.requestOptions,
-        response: response,
-        type: DioExceptionType.badResponse,
-      );
-    } on DioException {
-      rethrow;
-    } catch (e) {
-      throw DioException(
-        requestOptions: RequestOptions(path: AppConfig.registerEndpoint),
-        error: e,
-      );
-    }
+    return _postAndMap(
+      path: AppConfig.registerEndpoint,
+      data: {
+        'email': email,
+        'username': username,
+        'password': password,
+        'emailVerificationToken': emailVerificationToken,
+      },
+      expectedStatusCode: 201,
+      parser: RegisterResponse.fromJson,
+    );
   }
 
   @override
@@ -122,31 +74,15 @@ class AuthRemoteDataSource implements IAuthRemoteDataSource {
     required String identifier,
     required String password,
   }) async {
-    try {
-      final response = await _apiClient.post<Map<String, dynamic>>(
-        AppConfig.loginEndpoint,
-        data: {
-          'identifier': identifier,
-          'password': password,
-        },
-      );
-
-      if (response.statusCode == 201 && response.data != null) {
-        return LoginResponse.fromJson(response.data!);
-      }
-      throw DioException(
-        requestOptions: response.requestOptions,
-        response: response,
-        type: DioExceptionType.badResponse,
-      );
-    } on DioException {
-      rethrow;
-    } catch (e) {
-      throw DioException(
-        requestOptions: RequestOptions(path: AppConfig.loginEndpoint),
-        error: e,
-      );
-    }
+    return _postAndMap(
+      path: AppConfig.loginEndpoint,
+      data: {
+        'identifier': identifier,
+        'password': password,
+      },
+      expectedStatusCode: 201,
+      parser: LoginResponse.fromJson,
+    );
   }
 
   @override
@@ -156,21 +92,65 @@ class AuthRemoteDataSource implements IAuthRemoteDataSource {
         AppConfig.profileEndpoint,
       );
 
-      if (response.statusCode == 200 && response.data != null) {
-        return UserProfile.fromJson(response.data!);
-      }
-      throw DioException(
-        requestOptions: response.requestOptions,
+      return _parseResponse(
         response: response,
-        type: DioExceptionType.badResponse,
+        expectedStatusCode: 200,
+        parser: UserProfile.fromJson,
       );
     } on DioException {
       rethrow;
-    } catch (e) {
-      throw DioException(
-        requestOptions: RequestOptions(path: AppConfig.profileEndpoint),
-        error: e,
-      );
+    } on Object catch (e) {
+      throw _wrapAsDioException(path: AppConfig.profileEndpoint, error: e);
     }
+  }
+
+  Future<T> _postAndMap<T>({
+    required String path,
+    required Map<String, dynamic> data,
+    required int expectedStatusCode,
+    required T Function(Map<String, dynamic>) parser,
+  }) async {
+    try {
+      final response = await _apiClient.post<Map<String, dynamic>>(
+        path,
+        data: data,
+      );
+
+      return _parseResponse(
+        response: response,
+        expectedStatusCode: expectedStatusCode,
+        parser: parser,
+      );
+    } on DioException {
+      rethrow;
+    } on Object catch (e) {
+      throw _wrapAsDioException(path: path, error: e);
+    }
+  }
+
+  T _parseResponse<T>({
+    required Response<Map<String, dynamic>> response,
+    required int expectedStatusCode,
+    required T Function(Map<String, dynamic>) parser,
+  }) {
+    if (response.statusCode == expectedStatusCode && response.data != null) {
+      return parser(response.data!);
+    }
+
+    throw DioException(
+      requestOptions: response.requestOptions,
+      response: response,
+      type: DioExceptionType.badResponse,
+    );
+  }
+
+  DioException _wrapAsDioException({
+    required String path,
+    required Object error,
+  }) {
+    return DioException(
+      requestOptions: RequestOptions(path: path),
+      error: error,
+    );
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:music_room/core/widgets/app_button.dart';
 import 'package:music_room/core/widgets/feature_chip.dart';
 import 'package:music_room/core/widgets/primary_button.dart';
 import 'package:music_room/features/auth/presentation/pages/sign_in_page.dart';
@@ -174,9 +175,6 @@ class _AuthPageState extends State<AuthPage> {
                             spacing: 4,
                             runSpacing: 4,
                             children: [
-                              // _buildFeatureChip(context, 'Live Voting'),
-                              // _buildFeatureChip(context, 'Real-time Queue'),
-                              // _buildFeatureChip(context, 'Collaborative'),
                               FeatureChip(
                                 label: 'Live Voting',
                                 icon: Icons.how_to_vote_outlined,
@@ -200,28 +198,22 @@ class _AuthPageState extends State<AuthPage> {
                           SizedBox(
                             width: double.infinity,
                             height: 56,
-                            child: OutlinedButton(
-                              style: OutlinedButton.styleFrom(
-                                backgroundColor: Colors.transparent,
-                                side: BorderSide(
-                                  color: isDarkMode
-                                      ? const Color(0xFF2B3040)
-                                      : const Color(0xFFD9DDE8),
-                                ),
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(18),
-                                ),
-                              ),
+                            child: AppButton(
+                              variant: AppButtonVariant.outlined,
                               onPressed: _showSignIn,
-                              child: Text(
-                                'I already have an account',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  fontWeight: FontWeight.w700,
-                                  color: isDarkMode
-                                      ? const Color(0xFF8C90A0)
-                                      : const Color(0xFF545B6A),
-                                ),
+                              borderRadius: 18,
+                              borderSide: BorderSide(
+                                color: isDarkMode
+                                    ? const Color(0xFF2B3040)
+                                    : const Color(0xFFD9DDE8),
+                              ),
+                              foregroundColor: isDarkMode
+                                  ? const Color(0xFF8C90A0)
+                                  : const Color(0xFF545B6A),
+                              label: 'I already have an account',
+                              textStyle: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                           ),
@@ -249,30 +241,4 @@ class _AuthPageState extends State<AuthPage> {
       ),
     );
   }
-
-  // Widget _buildFeatureChip(BuildContext context, String label) {
-  //   final colorScheme = Theme.of(context).colorScheme;
-  //   final isDarkMode = Theme.of(context).brightness == Brightness.dark;
-
-  //   return Container(
-  //     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-  //     decoration: BoxDecoration(
-  //       color: colorScheme.primary.withValues(
-  //         alpha: isDarkMode ? 0.14 : 0.09,
-  //       ),
-  //       border: Border.all(
-  //         color: colorScheme.primary.withValues(alpha: 0.4),
-  //       ),
-  //       borderRadius: BorderRadius.circular(22),
-  //     ),
-  //     child: Text(
-  //       label,
-  //       style: TextStyle(
-  //         fontSize: 13,
-  //         fontWeight: FontWeight.w700,
-  //         color: colorScheme.primary,
-  //       ),
-  //     ),
-  //   );
-  // }
 }

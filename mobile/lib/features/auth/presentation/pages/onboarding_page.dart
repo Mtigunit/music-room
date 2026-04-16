@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:music_room/core/services/onboarding_service.dart';
+import 'package:music_room/core/widgets/app_button.dart';
 import 'package:music_room/core/widgets/feature_chip.dart';
 import 'package:music_room/core/widgets/page_indicator.dart';
 import 'package:music_room/core/widgets/primary_button.dart';
@@ -93,19 +94,18 @@ class _OnboardingPageState extends State<OnboardingPage> {
             padding: const EdgeInsets.only(
               right: 16,
             ), // Total ~24px with default action padding
-            child: TextButton(
+            child: AppButton(
+              variant: AppButtonVariant.text,
               onPressed: _onSkip,
-              child: Text(
-                'Skip',
-                style: TextStyle(
-                  color:
-                      Theme.of(
-                        context,
-                      ).textTheme.bodyLarge?.color?.withValues(alpha: 0.4) ??
-                      Colors.grey,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 16,
-                ),
+              label: 'Skip',
+              foregroundColor:
+                  Theme.of(context).textTheme.bodyLarge?.color?.withValues(
+                    alpha: 0.4,
+                  ) ??
+                  Colors.grey,
+              textStyle: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
               ),
             ),
           ),

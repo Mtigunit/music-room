@@ -2,10 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:music_room/core/widgets/app_back_button.dart';
+import 'package:music_room/core/widgets/app_button.dart';
 import 'package:music_room/core/widgets/app_snackbar.dart';
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
 import 'package:music_room/features/auth/presentation/state/auth_event.dart';
 import 'package:music_room/features/auth/presentation/state/auth_state.dart';
+import 'package:music_room/features/auth/presentation/widgets/auth_divider_with_text.dart';
+import 'package:music_room/features/auth/presentation/widgets/auth_screen_header.dart';
 import 'package:music_room/features/auth/presentation/widgets/auth_text_input_field.dart';
 import 'package:music_room/features/auth/presentation/widgets/otp_verification_modal.dart';
 import 'package:music_room/features/auth/presentation/widgets/social_login_button.dart';
@@ -33,6 +37,7 @@ class _SignUpPageState extends State<SignUpPage> {
   String? _passwordError;
 
   String? _emailVerificationToken;
+  bool _isOtpModalOpen = false;
 
   @override
   void dispose() {
@@ -87,7 +92,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
   Future<void> _handleVerifyEmail() async {
     _validateEmail(_emailController.text);
-    if (_emailError == null && _emailController.text.isNotEmpty) {
+    if (_emailError == null) {
       context.read<AuthBloc>().add(
         SendOtpRequested(
           email: _emailController.text,
@@ -108,7 +113,8 @@ class _SignUpPageState extends State<SignUpPage> {
     }
 
     if (_emailVerificationToken == null) {
-      _showErrorSnackBar(
+      AppSnackbar.showError(
+        context,
         'Please verify your email before creating an account.',
       );
       return;
@@ -124,15 +130,13 @@ class _SignUpPageState extends State<SignUpPage> {
     );
   }
 
-  void _showErrorSnackBar(String message) {
-    AppSnackbar.showError(context, message);
-  }
-
-  void _showSuccessSnackBar(String message) {
-    AppSnackbar.showSuccess(context, message);
-  }
-
   void _showOtpVerificationModal() {
+    if (_isOtpModalOpen) {
+      return;
+    }
+
+    _isOtpModalOpen = true;
+
     unawaited(
       showModalBottomSheet<void>(
         context: context,
@@ -158,7 +162,9 @@ class _SignUpPageState extends State<SignUpPage> {
             );
           },
         ),
-      ),
+      ).whenComplete(() {
+        _isOtpModalOpen = false;
+      }),
     );
   }
 
@@ -169,7 +175,6 @@ class _SignUpPageState extends State<SignUpPage> {
 
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
-        // Handle OTP sending
         if (state is OtpLoading) {
           AppSnackbar.showInfo(
             context,
@@ -177,30 +182,29 @@ class _SignUpPageState extends State<SignUpPage> {
             duration: const Duration(seconds: 1),
           );
         } else if (state is OtpSent) {
-          _showSuccessSnackBar('OTP sent to ${state.email}');
-          _showOtpVerificationModal();
+          AppSnackbar.showSuccess(context, 'OTP sent to ${state.email}');
+          if (!_isOtpModalOpen) {
+            _showOtpVerificationModal();
+          }
         } else if (state is OtpFailure) {
-          _showErrorSnackBar(state.failure.message);
-        }
-        // Handle OTP verification
-        else if (state is OtpVerifying) {
+          AppSnackbar.showError(context, state.failure.message);
+        } else if (state is OtpVerifying) {
           // Show loading while verifying
         } else if (state is OtpVerified) {
-          _showSuccessSnackBar('Email verified successfully!');
+          AppSnackbar.showSuccess(context, 'Email verified successfully!');
           _emailVerificationToken = state.emailVerificationToken;
+          _isOtpModalOpen = false;
           Navigator.of(context).pop(); // Close OTP modal
         } else if (state is OtpVerificationFailure) {
-          _showErrorSnackBar(state.failure.message);
-        }
-        // Handle registration
-        else if (state is RegisterLoading) {
+          AppSnackbar.showError(context, state.failure.message);
+        } else if (state is RegisterLoading) {
           AppSnackbar.showInfo(
             context,
             'Creating account...',
             duration: const Duration(seconds: 1),
           );
         } else if (state is RegisterSuccess) {
-          _showSuccessSnackBar('Account created successfully!');
+          AppSnackbar.showSuccess(context, 'Account created successfully!');
           unawaited(
             Navigator.of(context).pushNamedAndRemoveUntil(
               RouteNames.home,
@@ -208,22 +212,12 @@ class _SignUpPageState extends State<SignUpPage> {
             ),
           );
         } else if (state is RegisterFailure) {
-          _showErrorSnackBar(state.failure.message);
+          AppSnackbar.showError(context, state.failure.message);
         }
       },
       child: Scaffold(
         appBar: AppBar(
-          leading: GestureDetector(
-            onTap: () => Navigator.of(context).pop(),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Icon(
-                Icons.arrow_back,
-                color: isDarkMode ? Colors.white : Colors.black87,
-                size: 25,
-              ),
-            ),
-          ),
+          leading: AppBackButton(onPressed: () => Navigator.of(context).pop()),
         ),
         body: SafeArea(
           child: SingleChildScrollView(
@@ -231,24 +225,11 @@ class _SignUpPageState extends State<SignUpPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Title
-                Text(
-                  'Create account',
-                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                    fontSize: 32,
-                    fontWeight: FontWeight.w800,
-                  ),
+                const AuthScreenHeader(
+                  title: 'Create account',
+                  subtitle: 'Join the Music Room community',
                 ),
-                const SizedBox(height: 8),
-                Text(
-                  'Join the Music Room community',
-                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
-                  ),
-                ),
-                const SizedBox(height: 24),
 
-                // Username Input
                 AuthTextInputField(
                   label: 'Username',
                   icon: Icons.alternate_email,
@@ -259,7 +240,6 @@ class _SignUpPageState extends State<SignUpPage> {
                 ),
                 const SizedBox(height: 16),
 
-                // Email Input with Verify Button
                 BlocBuilder<AuthBloc, AuthState>(
                   builder: (context, state) {
                     final isLoading = state is OtpLoading;
@@ -309,7 +289,6 @@ class _SignUpPageState extends State<SignUpPage> {
                 ),
                 const SizedBox(height: 16),
 
-                // Password Input
                 AuthTextInputField(
                   label: 'Password',
                   icon: Icons.lock_outline,
@@ -321,79 +300,31 @@ class _SignUpPageState extends State<SignUpPage> {
                 ),
                 const SizedBox(height: 32),
 
-                // Create Account Button
                 BlocBuilder<AuthBloc, AuthState>(
                   builder: (context, state) {
                     final isLoading = state is RegisterLoading;
                     return SizedBox(
                       width: double.infinity,
                       height: 56,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: colorScheme.primary,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                        ),
+                      child: AppButton(
                         onPressed: isLoading ? null : _handleCreateAccount,
-                        child: isLoading
-                            ? const SizedBox(
-                                width: 24,
-                                height: 24,
-                                child: CircularProgressIndicator(
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    Colors.white,
-                                  ),
-                                  strokeWidth: 2,
-                                ),
-                              )
-                            : const Text(
-                                'Create Account',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
+                        label: 'Create Account',
+                        isLoading: isLoading,
+                        foregroundColor: Colors.white,
+                        borderRadius: 16,
+                        textStyle: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     );
                   },
                 ),
                 const SizedBox(height: 24),
 
-                // Divider with "or continue with"
-                Row(
-                  children: [
-                    Expanded(
-                      child: Divider(
-                        color: isDarkMode ? Colors.grey[700] : Colors.grey[300],
-                        thickness: 1,
-                      ),
-                    ),
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Text(
-                        'or continue with',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: isDarkMode
-                              ? Colors.grey[500]
-                              : Colors.grey[600],
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                    Expanded(
-                      child: Divider(
-                        color: isDarkMode ? Colors.grey[700] : Colors.grey[300],
-                        thickness: 1,
-                      ),
-                    ),
-                  ],
-                ),
+                const AuthDividerWithText(text: 'or continue with'),
                 const SizedBox(height: 16),
 
-                // Social Login Buttons
                 SocialLoginButton(
                   provider: SocialProvider.google,
                   onPressed: () {
@@ -401,15 +332,8 @@ class _SignUpPageState extends State<SignUpPage> {
                   },
                 ),
                 const SizedBox(height: 12),
-                // SocialLoginButton(
-                //   provider: SocialProvider.facebook,
-                //   onPressed: () {
-                //     // TODO: Implement Facebook signup
-                //   },
-                // ),
                 const SizedBox(height: 24),
 
-                // Sign In Link
                 Center(
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
