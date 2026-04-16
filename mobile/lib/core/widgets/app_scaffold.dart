@@ -6,7 +6,6 @@ import 'package:music_room/features/profile/presentation/pages/profile_page.dart
 import 'package:music_room/features/search/presentation/pages/search_page.dart';
 
 class AppScaffold extends StatefulWidget {
-
   const AppScaffold({
     super.key,
     this.initialIndex = 0,
