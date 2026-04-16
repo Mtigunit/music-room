@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
-
+import 'package:music_room/core/widgets/app_scaffold.dart';
 import 'package:music_room/features/auth/presentation/pages/auth_page.dart';
 import 'package:music_room/features/auth/presentation/pages/onboarding_page.dart';
-import 'package:music_room/core/widgets/app_scaffold.dart';
 import 'package:music_room/features/music_control/presentation/pages/music_control_page.dart';
 import 'package:music_room/features/music_vote/presentation/pages/music_vote_page.dart';
 import 'package:music_room/features/playlist/presentation/pages/playlist_page.dart';
