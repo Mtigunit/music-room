@@ -55,9 +55,9 @@ CREATE TABLE "Playlist" (
     "ownerId" TEXT NOT NULL,
     "visibility" TEXT NOT NULL DEFAULT 'public',
     "playbackStatus" "PlaybackStatus" NOT NULL DEFAULT 'STOPPED',
-    "currentTrackId" TEXT,
     "currentTrackStartedAt" TIMESTAMP(3),
     "pausedPlaybackPositionMs" INTEGER,
+    "currentTrackId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Playlist_pkey" PRIMARY KEY ("id")
@@ -92,9 +92,9 @@ CREATE TABLE "Event" (
     "status" TEXT NOT NULL DEFAULT 'active',
     "visibility" TEXT NOT NULL DEFAULT 'public',
     "playbackStatus" "PlaybackStatus" NOT NULL DEFAULT 'STOPPED',
-    "currentTrackId" TEXT,
     "currentTrackStartedAt" TIMESTAMP(3),
     "pausedPlaybackPositionMs" INTEGER,
+    "currentTrackId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Event_pkey" PRIMARY KEY ("id")
@@ -190,7 +190,16 @@ CREATE UNIQUE INDEX "Friendship_userOneId_userTwoId_key" ON "Friendship"("userOn
 CREATE UNIQUE INDEX "Track_providerTrackId_key" ON "Track"("providerTrackId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "Playlist_currentTrackId_key" ON "Playlist"("currentTrackId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PlaylistTrack_playlistId_position_key" ON "PlaylistTrack"("playlistId", "position");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "PlaylistCollaborator_playlistId_userId_key" ON "PlaylistCollaborator"("playlistId", "userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Event_currentTrackId_key" ON "Event"("currentTrackId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Vote_eventTrackId_userId_key" ON "Vote"("eventTrackId", "userId");
@@ -211,6 +220,9 @@ ALTER TABLE "Friendship" ADD CONSTRAINT "Friendship_userTwoId_fkey" FOREIGN KEY 
 ALTER TABLE "Playlist" ADD CONSTRAINT "Playlist_ownerId_fkey" FOREIGN KEY ("ownerId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "Playlist" ADD CONSTRAINT "Playlist_currentTrackId_fkey" FOREIGN KEY ("currentTrackId") REFERENCES "PlaylistTrack"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "PlaylistTrack" ADD CONSTRAINT "PlaylistTrack_playlistId_fkey" FOREIGN KEY ("playlistId") REFERENCES "Playlist"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -226,6 +238,9 @@ ALTER TABLE "PlaylistCollaborator" ADD CONSTRAINT "PlaylistCollaborator_userId_f
 ALTER TABLE "Event" ADD CONSTRAINT "Event_hostId_fkey" FOREIGN KEY ("hostId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "Event" ADD CONSTRAINT "Event_currentTrackId_fkey" FOREIGN KEY ("currentTrackId") REFERENCES "EventTrack"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "EventTrack" ADD CONSTRAINT "EventTrack_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "Event"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -233,6 +248,9 @@ ALTER TABLE "EventTrack" ADD CONSTRAINT "EventTrack_trackId_fkey" FOREIGN KEY ("
 
 -- AddForeignKey
 ALTER TABLE "Vote" ADD CONSTRAINT "Vote_eventTrackId_fkey" FOREIGN KEY ("eventTrackId") REFERENCES "EventTrack"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Vote" ADD CONSTRAINT "Vote_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "EventInvite" ADD CONSTRAINT "EventInvite_eventId_fkey" FOREIGN KEY ("eventId") REFERENCES "Event"("id") ON DELETE CASCADE ON UPDATE CASCADE;
