@@ -1,5 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:music_room/core/services/onboarding_service.dart';
+import 'package:music_room/core/widgets/app_button.dart';
 import 'package:music_room/core/widgets/feature_chip.dart';
 import 'package:music_room/core/widgets/page_indicator.dart';
 import 'package:music_room/core/widgets/primary_button.dart';
@@ -14,6 +16,7 @@ class OnboardingPage extends StatefulWidget {
 }
 
 class _OnboardingPageState extends State<OnboardingPage> {
+  final OnboardingService _onboardingService = OnboardingService();
   final PageController _pageController = PageController();
   int _currentPage = 0;
   static const int pageCount = 3;
@@ -25,14 +28,18 @@ class _OnboardingPageState extends State<OnboardingPage> {
     super.dispose();
   }
 
+  Future<void> _completeOnboardingAndExit() async {
+    await _onboardingService.markOnboardingSeen();
+
+    if (!mounted) {
+      return;
+    }
+
+    unawaited(Navigator.of(context).pushReplacementNamed(RouteNames.auth));
+  }
+
   void _onSkip() {
-    unawaited(
-      _pageController.animateToPage(
-        lastIndex,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      ),
-    );
+    unawaited(_completeOnboardingAndExit());
   }
 
   void _onNext() {
@@ -44,9 +51,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
         ),
       );
     } else {
-      // Reached the end of onboarding
-      if (!mounted) return;
-      unawaited(Navigator.of(context).pushReplacementNamed(RouteNames.auth));
+      unawaited(_completeOnboardingAndExit());
     }
   }
 
@@ -89,19 +94,18 @@ class _OnboardingPageState extends State<OnboardingPage> {
             padding: const EdgeInsets.only(
               right: 16,
             ), // Total ~24px with default action padding
-            child: TextButton(
+            child: AppButton(
+              variant: AppButtonVariant.text,
               onPressed: _onSkip,
-              child: Text(
-                'Skip',
-                style: TextStyle(
-                  color:
-                      Theme.of(
-                        context,
-                      ).textTheme.bodyLarge?.color?.withValues(alpha: 0.4) ??
-                      Colors.grey,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 16,
-                ),
+              label: 'Skip',
+              foregroundColor:
+                  Theme.of(context).textTheme.bodyLarge?.color?.withValues(
+                    alpha: 0.4,
+                  ) ??
+                  Colors.grey,
+              textStyle: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
               ),
             ),
           ),
