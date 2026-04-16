@@ -12,6 +12,10 @@ import 'package:music_room/routes/route_names.dart';
 class AppRouter {
   static const String initialRoute = RouteNames.onboarding;
 
+  static Widget pageForRoute(String routeName) {
+    return _pageForRoute(routeName);
+  }
+
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     final routeName = settings.name ?? RouteNames.home;
 
