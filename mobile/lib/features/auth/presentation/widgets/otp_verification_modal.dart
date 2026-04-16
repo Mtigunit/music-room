@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:music_room/core/config/app_config.dart';
 import 'package:music_room/core/widgets/app_button.dart';
 
 class OtpVerificationModal extends StatefulWidget {
@@ -21,8 +22,8 @@ class OtpVerificationModal extends StatefulWidget {
 }
 
 class _OtpVerificationModalState extends State<OtpVerificationModal> {
-  static const int _otpLength = 6;
-  static const int _initialResendSeconds = 21;
+  static const int _otpLength = AppConfig.otpLength;
+  static const int _initialResendSeconds = AppConfig.otpResendTimeoutSeconds;
 
   late List<TextEditingController> _controllers;
   late List<FocusNode> _focusNodes;
@@ -216,7 +217,7 @@ class _OtpVerificationModalState extends State<OtpVerificationModal> {
                 style: Theme.of(context).textTheme.bodyLarge,
                 children: [
                   TextSpan(
-                    text: 'We sent a 6-digit code to\n',
+                    text: 'We sent a $_otpLength-digit code to\n',
                     style: TextStyle(
                       color: secondaryText,
                       height: 1.45,
@@ -244,10 +245,13 @@ class _OtpVerificationModalState extends State<OtpVerificationModal> {
                   child: TextField(
                     controller: _controllers[index],
                     focusNode: _focusNodes[index],
-                    maxLength: _otpLength,
+                    maxLength: 1,
                     textAlign: TextAlign.center,
                     keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    inputFormatters: [
+                      FilteringTextInputFormatter.digitsOnly,
+                      LengthLimitingTextInputFormatter(1),
+                    ],
                     onChanged: (value) {
                       _onOtpDigitChanged(value, index);
                       setState(() {});

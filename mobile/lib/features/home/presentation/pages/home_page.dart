@@ -7,7 +7,6 @@ import 'package:music_room/core/widgets/app_snackbar.dart';
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
 import 'package:music_room/features/auth/presentation/state/auth_event.dart';
 import 'package:music_room/features/auth/presentation/state/auth_state.dart';
-import 'package:music_room/routes/route_names.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -58,12 +57,6 @@ class MockHomePage extends StatelessWidget {
         if (state is LogoutSuccess) {
           // Show logout success message
           AppSnackbar.showSuccess(context, 'Logged out successfully!');
-          unawaited(
-            Navigator.of(context).pushNamedAndRemoveUntil(
-              RouteNames.auth,
-              (_) => false,
-            ),
-          );
         }
       },
       child: Scaffold(

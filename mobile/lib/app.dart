@@ -78,15 +78,7 @@ class _StartupRouteGateState extends State<_StartupRouteGate> {
 
         return BlocListener<AuthBloc, AuthState>(
           listener: (context, state) {
-            if (state is LoginSuccess || state is RegisterSuccess) {
-              // After successful login/registration, navigate to home
-              unawaited(
-                Navigator.of(context).pushNamedAndRemoveUntil(
-                  RouteNames.home,
-                  (_) => false,
-                ),
-              );
-            } else if (state is AuthAuthenticated) {
+            if (state is AuthAuthenticated) {
               // User already has a valid token on app startup, navigate to home
               unawaited(
                 Navigator.of(context).pushNamedAndRemoveUntil(

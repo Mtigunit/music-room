@@ -1,6 +1,5 @@
 import 'package:equatable/equatable.dart';
 import 'package:music_room/core/error/failure.dart';
-import 'package:music_room/features/auth/data/models/auth_model.dart';
 
 /// Base class for all authentication states
 abstract class AuthState extends Equatable {
@@ -22,11 +21,7 @@ class AuthChecking extends AuthState {
 
 /// User is authenticated
 class AuthAuthenticated extends AuthState {
-  const AuthAuthenticated({required this.userProfile});
-  final UserProfile userProfile;
-
-  @override
-  List<Object?> get props => [userProfile];
+  const AuthAuthenticated();
 }
 
 /// User is not authenticated

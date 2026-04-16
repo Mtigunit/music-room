@@ -13,7 +13,6 @@ import 'package:music_room/features/auth/presentation/widgets/auth_screen_header
 import 'package:music_room/features/auth/presentation/widgets/auth_text_input_field.dart';
 import 'package:music_room/features/auth/presentation/widgets/otp_verification_modal.dart';
 import 'package:music_room/features/auth/presentation/widgets/social_login_button.dart';
-import 'package:music_room/routes/route_names.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({
@@ -205,12 +204,6 @@ class _SignUpPageState extends State<SignUpPage> {
           );
         } else if (state is RegisterSuccess) {
           AppSnackbar.showSuccess(context, 'Account created successfully!');
-          unawaited(
-            Navigator.of(context).pushNamedAndRemoveUntil(
-              RouteNames.home,
-              (_) => false,
-            ),
-          );
         } else if (state is RegisterFailure) {
           AppSnackbar.showError(context, state.failure.message);
         }

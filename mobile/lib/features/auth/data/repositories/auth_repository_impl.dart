@@ -111,58 +111,56 @@ class AuthRepositoryImpl implements AuthRepository {
 
   /// Convert DioException to user-friendly error messages
   Failure _handleDioException(DioException e) {
-    String message;
-
     switch (e.type) {
       case DioExceptionType.connectionTimeout:
       case DioExceptionType.receiveTimeout:
       case DioExceptionType.sendTimeout:
-        message = 'Network timeout. Please check your connection.';
+        return const Failure(
+          message: 'Network timeout. Please check your connection.',
+        );
 
       case DioExceptionType.badResponse:
         final statusCode = e.response?.statusCode;
         final responseData = e.response?.data;
-
-        switch (statusCode) {
-          case 400:
-            message =
-                _extractErrorMessage(responseData) ??
-                'Invalid input. Please check your entries.';
-          case 401:
-            message = 'Invalid credentials. Please try again.';
-          case 409:
-            message =
-                _extractErrorMessage(responseData) ??
-                'Email or username already exists.';
-          case 500:
-            message = 'Server error. Please try again later.';
-          default:
-            message =
-                _extractErrorMessage(responseData) ?? 'An error occurred.';
-        }
+        final message = switch (statusCode) {
+          400 =>
+            _extractErrorMessage(responseData) ??
+                'Invalid input. Please check your entries.',
+          401 => 'Invalid credentials. Please try again.',
+          409 =>
+            _extractErrorMessage(responseData) ??
+                'Email or username already exists.',
+          500 => 'Server error. Please try again later.',
+          _ => _extractErrorMessage(responseData) ?? 'An error occurred.',
+        };
+        return Failure(message: message);
 
       case DioExceptionType.cancel:
-        message = 'Request cancelled.';
+        return const Failure(message: 'Request cancelled.');
 
       case DioExceptionType.unknown:
         final errorText = e.error?.toString().toLowerCase() ?? '';
         if (errorText.contains('socketexception') ||
             errorText.contains('failed host lookup') ||
             errorText.contains('connection refused')) {
-          message =
-              'Cannot reach server. Verify API base URL and backend status.';
+          return const Failure(
+            message:
+                'Cannot reach server. Verify API base URL and backend status.',
+          );
         } else {
-          message = 'Network error. Please check your connection.';
+          return const Failure(
+            message: 'Network error. Please check your connection.',
+          );
         }
 
       case DioExceptionType.badCertificate:
-        message = 'Security certificate error.';
+        return const Failure(message: 'Security certificate error.');
 
       case DioExceptionType.connectionError:
-        message = 'Failed to connect. Please check your connection.';
+        return const Failure(
+          message: 'Failed to connect. Please check your connection.',
+        );
     }
-
-    return Failure(message: message);
   }
 
   /// Extract error message from API response

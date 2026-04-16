@@ -1,5 +1,4 @@
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:music_room/features/auth/data/models/auth_model.dart';
 import 'package:music_room/features/auth/domain/repositories/auth_repository.dart';
 import 'package:music_room/features/auth/presentation/state/auth_event.dart';
 import 'package:music_room/features/auth/presentation/state/auth_state.dart';
@@ -28,11 +27,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       final isAuthenticated = await _authRepository.isAuthenticated();
       if (isAuthenticated) {
         // User is already logged in, no need to show auth screens
-        emit(
-          AuthAuthenticated(
-            userProfile: UserProfile(id: '', email: ''),
-          ),
-        );
+        emit(const AuthAuthenticated());
       } else {
         // User needs to authenticate
         emit(const AuthUnauthenticated());
@@ -56,11 +51,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     if (response != null) {
       emit(LoginSuccess(accessToken: response.accessToken));
       // Emit authenticated state after successful login
-      emit(
-        AuthAuthenticated(
-          userProfile: UserProfile(id: '', email: ''),
-        ),
-      );
+      emit(const AuthAuthenticated());
     } else {
       emit(LoginFailure(failure: failure!));
     }
@@ -120,15 +111,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     if (response != null) {
       emit(RegisterSuccess(accessToken: response.accessToken));
       // Emit authenticated state after successful registration
-      emit(
-        AuthAuthenticated(
-          userProfile: UserProfile(
-            id: '',
-            email: event.email,
-            username: event.username,
-          ),
-        ),
-      );
+      emit(const AuthAuthenticated());
     } else {
       emit(RegisterFailure(failure: failure!));
     }

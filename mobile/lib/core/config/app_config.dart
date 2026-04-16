@@ -34,7 +34,7 @@ class AppConfig {
   static const String userStorageKey = 'user_profile';
 
   // Debugging
-  static const bool isDebug = true;
+  static const bool isDebug = kDebugMode;
 
   // OTP Configuration
   static const int otpLength = 6;

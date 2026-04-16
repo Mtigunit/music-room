@@ -53,6 +53,13 @@ class _AuthTextInputFieldState extends State<AuthTextInputField> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Text(
+          widget.label,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 8),
         Container(
           height: 56,
           decoration: BoxDecoration(
