@@ -22,7 +22,6 @@ class AuthChecking extends AuthState {
 
 /// User is authenticated
 class AuthAuthenticated extends AuthState {
-
   const AuthAuthenticated({required this.userProfile});
   final UserProfile userProfile;
 
@@ -42,7 +41,6 @@ class LoginLoading extends AuthState {
 
 /// Login successful
 class LoginSuccess extends AuthState {
-
   const LoginSuccess({required this.accessToken});
   final String accessToken;
 
@@ -52,7 +50,6 @@ class LoginSuccess extends AuthState {
 
 /// Login failed
 class LoginFailure extends AuthState {
-
   const LoginFailure({required this.failure});
   final Failure failure;
 
@@ -67,7 +64,6 @@ class OtpLoading extends AuthState {
 
 /// OTP sent successfully
 class OtpSent extends AuthState {
-
   const OtpSent({required this.email});
   final String email;
 
@@ -77,7 +73,6 @@ class OtpSent extends AuthState {
 
 /// OTP sending failed
 class OtpFailure extends AuthState {
-
   const OtpFailure({required this.failure});
   final Failure failure;
 
@@ -92,7 +87,6 @@ class OtpVerifying extends AuthState {
 
 /// OTP verification successful
 class OtpVerified extends AuthState {
-
   const OtpVerified({
     required this.emailVerificationToken,
     required this.email,
@@ -106,7 +100,6 @@ class OtpVerified extends AuthState {
 
 /// OTP verification failed
 class OtpVerificationFailure extends AuthState {
-
   const OtpVerificationFailure({required this.failure});
   final Failure failure;
 
@@ -121,7 +114,6 @@ class RegisterLoading extends AuthState {
 
 /// User registration successful
 class RegisterSuccess extends AuthState {
-
   const RegisterSuccess({required this.accessToken});
   final String accessToken;
 
@@ -131,7 +123,6 @@ class RegisterSuccess extends AuthState {
 
 /// User registration failed
 class RegisterFailure extends AuthState {
-
   const RegisterFailure({required this.failure});
   final Failure failure;
 

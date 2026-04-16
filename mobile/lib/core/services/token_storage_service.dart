@@ -3,9 +3,8 @@ import 'package:music_room/core/config/app_config.dart';
 
 /// Service for securely storing and retrieving authentication tokens.
 class TokenStorageService {
-
   TokenStorageService({FlutterSecureStorage? secureStorage})
-      : _secureStorage = secureStorage ?? const FlutterSecureStorage();
+    : _secureStorage = secureStorage ?? const FlutterSecureStorage();
   static const String _tokenKey = AppConfig.tokenStorageKey;
   static const String _userKey = AppConfig.userStorageKey;
 

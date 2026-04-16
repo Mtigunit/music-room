@@ -6,7 +6,6 @@ import 'package:music_room/features/auth/presentation/state/auth_state.dart';
 
 /// BLoC for managing authentication state and events
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
-
   AuthBloc({required AuthRepository authRepository})
     : _authRepository = authRepository,
       super(const AuthInitial()) {
