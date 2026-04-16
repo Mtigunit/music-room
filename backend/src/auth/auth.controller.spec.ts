@@ -18,6 +18,8 @@ describe('AuthController', () => {
           useValue: {
             register: jest.fn(),
             login: jest.fn(),
+            googleAuth: jest.fn(),
+            resetPassword: jest.fn(),
           },
         },
         {
@@ -67,7 +69,7 @@ describe('AuthController', () => {
   describe('verifyOtp', () => {
     it('should call otpService.verifyOtp and return verification token', async () => {
       const expected = { emailVerificationToken: 'token-123' };
-      otpService.verifyOtp.mockResolvedValue(expected);
+      otpService.verifyOtp.mockResolvedValue({ token: 'token-123' });
 
       const result = await controller.verifyOtp({
         email: 'a@b.com',
@@ -136,6 +138,89 @@ describe('AuthController', () => {
       await expect(controller.login(loginDto)).rejects.toThrow(
         UnauthorizedException,
       );
+    });
+  });
+
+  // ─── GOOGLE AUTH ──────────────────────────────────────
+
+  describe('googleAuth', () => {
+    it('should call authService.googleAuth and return the token', async () => {
+      const expectedResult = { access_token: 'jwt-token' };
+      authService.googleAuth.mockResolvedValue(expectedResult);
+
+      const result = await controller.googleAuth({ idToken: 'valid.id.token' });
+
+      expect(result).toEqual(expectedResult);
+      expect(authService.googleAuth).toHaveBeenCalledWith('valid.id.token');
+    });
+
+    it('should propagate UnauthorizedException from service', async () => {
+      authService.googleAuth.mockRejectedValue(
+        new UnauthorizedException('Invalid google token'),
+      );
+
+      await expect(
+        controller.googleAuth({ idToken: 'invalid.id.token' }),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+  });
+
+  // ─── FORGOT PASSWORD ──────────────────────────────────
+
+  describe('forgotPassword', () => {
+    it('should call otpService.sendOtp with password_reset purpose and return message', async () => {
+      otpService.sendOtp.mockResolvedValue(undefined);
+
+      const result = await controller.forgotPassword({ email: 'a@b.com' });
+
+      expect(result).toEqual({
+        message: 'Password reset OTP sent successfully',
+      });
+      expect(otpService.sendOtp).toHaveBeenCalledWith(
+        'a@b.com',
+        'password_reset',
+      );
+    });
+  });
+
+  // ─── VERIFY RESET OTP ─────────────────────────────────
+
+  describe('verifyResetOtp', () => {
+    it('should call otpService.verifyOtp with password_reset purpose and return passwordResetToken', async () => {
+      otpService.verifyOtp.mockResolvedValue({ token: 'reset-token-123' });
+
+      const result = await controller.verifyResetOtp({
+        email: 'a@b.com',
+        code: '123456',
+      });
+
+      expect(result).toEqual({ passwordResetToken: 'reset-token-123' });
+      expect(otpService.verifyOtp).toHaveBeenCalledWith(
+        'a@b.com',
+        '123456',
+        'password_reset',
+      );
+    });
+  });
+
+  // ─── RESET PASSWORD ───────────────────────────────────
+
+  describe('resetPassword', () => {
+    const resetDto = {
+      email: 'a@b.com',
+      resetToken: 'valid.token',
+      newPassword: 'NewPassword123!',
+    };
+
+    it('should call authService.resetPassword and return success message', async () => {
+      authService.resetPassword.mockResolvedValue(undefined);
+
+      const result = await controller.resetPassword(resetDto);
+
+      expect(result).toEqual({
+        message: 'Password has been reset successfully',
+      });
+      expect(authService.resetPassword).toHaveBeenCalledWith(resetDto);
     });
   });
 

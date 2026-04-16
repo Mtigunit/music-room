@@ -30,20 +30,32 @@ export class MailService {
     }
   }
 
-  async sendOtpEmail(to: string, code: string): Promise<void> {
+  async sendOtpEmail(
+    to: string,
+    code: string,
+    purpose: 'email_verification' | 'password_reset' = 'email_verification',
+  ): Promise<void> {
     if (this.isDev) {
-      this.logger.log(`[DEV] OTP for ${to}: ${code}`);
+      this.logger.log(`[DEV] ${purpose} OTP for ${to}: ${code}`);
       return;
     }
+
+    const subject =
+      purpose === 'password_reset'
+        ? 'Music Room — Password Reset'
+        : 'Music Room — Verify your email';
+
+    const title =
+      purpose === 'password_reset' ? 'Password Reset' : 'Email Verification';
 
     try {
       await this.transporter!.sendMail({
         from: this.fromAddress,
         to,
-        subject: 'Music Room — Verify your email',
+        subject,
         html: `
-          <h2>Email Verification</h2>
-          <p>Your verification code is:</p>
+          <h2>${title}</h2>
+          <p>Your code is:</p>
           <h1 style="letter-spacing: 8px; font-size: 36px; text-align: center;">${code}</h1>
           <p>This code expires in 5 minutes.</p>
           <p>If you didn't request this, please ignore this email.</p>
