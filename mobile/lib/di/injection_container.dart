@@ -1,3 +1,59 @@
+import 'package:dio/dio.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:music_room/core/network/api_client.dart';
+import 'package:music_room/core/services/token_storage_service.dart';
+import 'package:music_room/features/auth/data/datasources/auth_remote_datasource.dart';
+import 'package:music_room/features/auth/data/repositories/auth_repository_impl.dart';
+import 'package:music_room/features/auth/domain/repositories/auth_repository.dart';
+import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
+
+/// Service Locator for dependency injection
 class InjectionContainer {
-  Future<void> init() async {}
+  factory InjectionContainer() {
+    return _instance;
+  }
+
+  InjectionContainer._internal();
+
+  static final InjectionContainer _instance = InjectionContainer._internal();
+
+  late TokenStorageService _tokenStorageService;
+  late ApiClient _apiClient;
+  late IAuthRemoteDataSource _authRemoteDataSource;
+  late AuthRepository _authRepository;
+  late AuthBloc _authBloc;
+
+  /// Initialize all dependencies
+  Future<void> init() async {
+    // Core Services
+    _tokenStorageService = TokenStorageService(
+      secureStorage: const FlutterSecureStorage(),
+    );
+
+    // Network
+    final dio = Dio();
+    _apiClient = ApiClient(
+      dio: dio,
+      tokenStorage: _tokenStorageService,
+    );
+
+    // Data Sources
+    _authRemoteDataSource = AuthRemoteDataSource(apiClient: _apiClient);
+
+    // Repositories
+    _authRepository = AuthRepositoryImpl(
+      remoteDataSource: _authRemoteDataSource,
+      tokenStorage: _tokenStorageService,
+    );
+
+    // BLoC
+    _authBloc = AuthBloc(authRepository: _authRepository);
+  }
+
+  // Getters
+  TokenStorageService get tokenStorageService => _tokenStorageService;
+  ApiClient get apiClient => _apiClient;
+  IAuthRemoteDataSource get authRemoteDataSource => _authRemoteDataSource;
+  AuthRepository get authRepository => _authRepository;
+  AuthBloc get authBloc => _authBloc;
 }

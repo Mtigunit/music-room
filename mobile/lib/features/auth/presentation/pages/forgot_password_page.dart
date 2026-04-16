@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:music_room/core/widgets/app_snackbar.dart';
 import 'package:music_room/core/widgets/primary_button.dart';
 import 'package:music_room/features/auth/presentation/widgets/auth_text_input_field.dart';
 
@@ -44,12 +45,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       _isSubmitted = true;
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Password reset link has been sent.'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+    AppSnackbar.showSuccess(context, 'Password reset link has been sent.');
   }
 
   @override

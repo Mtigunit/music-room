@@ -1,6 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/services/onboarding_service.dart';
 import 'package:music_room/core/theme/app_theme.dart';
+import 'package:music_room/di/injection_container.dart';
+import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
+import 'package:music_room/features/auth/presentation/state/auth_event.dart';
+import 'package:music_room/features/auth/presentation/state/auth_state.dart';
 import 'package:music_room/routes/app_router.dart';
 import 'package:music_room/routes/route_names.dart';
 
@@ -9,11 +16,14 @@ class App extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      onGenerateRoute: AppRouter.onGenerateRoute,
-      theme: AppTheme.lightTheme(),
-      darkTheme: AppTheme.darkTheme(),
-      home: const _StartupRouteGate(),
+    return BlocProvider<AuthBloc>(
+      create: (_) => InjectionContainer().authBloc..add(const AuthStarted()),
+      child: MaterialApp(
+        onGenerateRoute: AppRouter.onGenerateRoute,
+        theme: AppTheme.lightTheme(),
+        darkTheme: AppTheme.darkTheme(),
+        home: const _StartupRouteGate(),
+      ),
     );
   }
 }
@@ -37,11 +47,22 @@ class _StartupRouteGateState extends State<_StartupRouteGate> {
   Future<String> _resolveInitialRoute() async {
     final hasSeenOnboarding = await OnboardingService().hasSeenOnboarding();
 
-    if (hasSeenOnboarding) {
-      return RouteNames.auth;
+    // If user hasn't seen onboarding, show onboarding first
+    if (!hasSeenOnboarding) {
+      return AppRouter.initialRoute;
     }
 
-    return AppRouter.initialRoute;
+    // Check if user is already authenticated
+    final tokenStorage = InjectionContainer().tokenStorageService;
+    final isAuthenticated = await tokenStorage.isAuthenticated();
+
+    // If authenticated and onboarded, go directly to home
+    if (isAuthenticated) {
+      return RouteNames.home;
+    }
+
+    // If onboarded but not authenticated, show auth page
+    return RouteNames.auth;
   }
 
   @override
@@ -55,7 +76,36 @@ class _StartupRouteGateState extends State<_StartupRouteGate> {
           );
         }
 
-        return AppRouter.pageForRoute(snapshot.data!);
+        return BlocListener<AuthBloc, AuthState>(
+          listener: (context, state) {
+            if (state is LoginSuccess || state is RegisterSuccess) {
+              // After successful login/registration, navigate to home
+              unawaited(
+                Navigator.of(context).pushNamedAndRemoveUntil(
+                  RouteNames.home,
+                  (_) => false,
+                ),
+              );
+            } else if (state is AuthAuthenticated) {
+              // User already has a valid token on app startup, navigate to home
+              unawaited(
+                Navigator.of(context).pushNamedAndRemoveUntil(
+                  RouteNames.home,
+                  (_) => false,
+                ),
+              );
+            } else if (state is LogoutSuccess) {
+              // After logout, navigate back to auth screen
+              unawaited(
+                Navigator.of(context).pushNamedAndRemoveUntil(
+                  RouteNames.auth,
+                  (_) => false,
+                ),
+              );
+            }
+          },
+          child: AppRouter.pageForRoute(snapshot.data!),
+        );
       },
     );
   }

@@ -73,6 +73,11 @@ class _OtpVerificationModalState extends State<OtpVerificationModal> {
   }
 
   void _onOtpDigitChanged(String value, int index) {
+    if (value.length > 1) {
+      _applyPastedOtp(value, index);
+      return;
+    }
+
     if (value.isEmpty) {
       if (index > 0) {
         _focusNodes[index - 1].requestFocus();
@@ -84,6 +89,28 @@ class _OtpVerificationModalState extends State<OtpVerificationModal> {
       _focusNodes[index + 1].requestFocus();
     } else {
       _focusNodes[index].unfocus();
+    }
+  }
+
+  void _applyPastedOtp(String value, int startIndex) {
+    final digits = value.replaceAll(RegExp(r'\D'), '');
+    if (digits.isEmpty) {
+      return;
+    }
+
+    var writeIndex = startIndex;
+    for (final digit in digits.split('')) {
+      if (writeIndex > 5) {
+        break;
+      }
+      _controllers[writeIndex].text = digit;
+      writeIndex++;
+    }
+
+    if (writeIndex <= 5) {
+      _focusNodes[writeIndex].requestFocus();
+    } else {
+      _focusNodes[5].unfocus();
     }
   }
 
@@ -211,7 +238,7 @@ class _OtpVerificationModalState extends State<OtpVerificationModal> {
                   child: TextField(
                     controller: _controllers[index],
                     focusNode: _focusNodes[index],
-                    maxLength: 1,
+                    maxLength: 6,
                     textAlign: TextAlign.center,
                     keyboardType: TextInputType.number,
                     inputFormatters: [FilteringTextInputFormatter.digitsOnly],

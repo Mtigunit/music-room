@@ -11,6 +11,7 @@ class AuthTextInputField extends StatefulWidget {
     this.keyboardType = TextInputType.text,
     this.suffixWidget,
     this.controller,
+    this.enabled = true,
     super.key,
   });
 
@@ -23,6 +24,7 @@ class AuthTextInputField extends StatefulWidget {
   final TextInputType keyboardType;
   final Widget? suffixWidget;
   final TextEditingController? controller;
+  final bool enabled;
 
   @override
   State<AuthTextInputField> createState() => _AuthTextInputFieldState();
@@ -79,6 +81,7 @@ class _AuthTextInputFieldState extends State<AuthTextInputField> {
                   controller: widget.controller,
                   onChanged: widget.onChanged,
                   obscureText: _obscureText,
+                  enabled: widget.enabled,
                   keyboardType: widget.keyboardType,
                   style: Theme.of(context).textTheme.bodyLarge,
                   decoration: InputDecoration(

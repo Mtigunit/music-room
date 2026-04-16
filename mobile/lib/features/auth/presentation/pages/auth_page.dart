@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:music_room/core/widgets/feature_chip.dart';
 import 'package:music_room/core/widgets/primary_button.dart';
 import 'package:music_room/features/auth/presentation/pages/sign_in_page.dart';
 import 'package:music_room/features/auth/presentation/pages/sign_up_page.dart';
@@ -117,7 +118,7 @@ class _AuthPageState extends State<AuthPage> {
               ),
             ),
             Expanded(
-              flex: 42,
+              flex: 52,
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   return SingleChildScrollView(
@@ -169,13 +170,25 @@ class _AuthPageState extends State<AuthPage> {
                                 ),
                           ),
                           const SizedBox(height: 24),
-                          Wrap(
+                          const Wrap(
                             spacing: 4,
                             runSpacing: 4,
                             children: [
-                              _buildFeatureChip(context, 'Live Voting'),
-                              _buildFeatureChip(context, 'Real-time Queue'),
-                              _buildFeatureChip(context, 'Collaborative'),
+                              // _buildFeatureChip(context, 'Live Voting'),
+                              // _buildFeatureChip(context, 'Real-time Queue'),
+                              // _buildFeatureChip(context, 'Collaborative'),
+                              FeatureChip(
+                                label: 'Live Voting',
+                                icon: Icons.how_to_vote_outlined,
+                              ),
+                              FeatureChip(
+                                label: 'Real-time Queue',
+                                icon: Icons.queue_music_outlined,
+                              ),
+                              FeatureChip(
+                                label: 'Collaborative',
+                                icon: Icons.people_outline,
+                              ),
                             ],
                           ),
                           const SizedBox(height: 18),
@@ -237,27 +250,29 @@ class _AuthPageState extends State<AuthPage> {
     );
   }
 
-  Widget _buildFeatureChip(BuildContext context, String label) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+  // Widget _buildFeatureChip(BuildContext context, String label) {
+  //   final colorScheme = Theme.of(context).colorScheme;
+  //   final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-      decoration: BoxDecoration(
-        color: colorScheme.primary.withValues(alpha: isDarkMode ? 0.14 : 0.09),
-        border: Border.all(
-          color: colorScheme.primary.withValues(alpha: 0.4),
-        ),
-        borderRadius: BorderRadius.circular(22),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 13,
-          fontWeight: FontWeight.w700,
-          color: colorScheme.primary,
-        ),
-      ),
-    );
-  }
+  //   return Container(
+  //     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+  //     decoration: BoxDecoration(
+  //       color: colorScheme.primary.withValues(
+  //         alpha: isDarkMode ? 0.14 : 0.09,
+  //       ),
+  //       border: Border.all(
+  //         color: colorScheme.primary.withValues(alpha: 0.4),
+  //       ),
+  //       borderRadius: BorderRadius.circular(22),
+  //     ),
+  //     child: Text(
+  //       label,
+  //       style: TextStyle(
+  //         fontSize: 13,
+  //         fontWeight: FontWeight.w700,
+  //         color: colorScheme.primary,
+  //       ),
+  //     ),
+  //   );
+  // }
 }

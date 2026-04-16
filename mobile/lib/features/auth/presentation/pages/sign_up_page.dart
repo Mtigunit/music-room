@@ -1,7 +1,15 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:music_room/core/widgets/app_snackbar.dart';
+import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
+import 'package:music_room/features/auth/presentation/state/auth_event.dart';
+import 'package:music_room/features/auth/presentation/state/auth_state.dart';
 import 'package:music_room/features/auth/presentation/widgets/auth_text_input_field.dart';
 import 'package:music_room/features/auth/presentation/widgets/otp_verification_modal.dart';
 import 'package:music_room/features/auth/presentation/widgets/social_login_button.dart';
+import 'package:music_room/routes/route_names.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({
@@ -16,35 +24,22 @@ class SignUpPage extends StatefulWidget {
 }
 
 class _SignUpPageState extends State<SignUpPage> {
-  final TextEditingController _fullNameController = TextEditingController();
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
 
-  String? _fullNameError;
   String? _usernameError;
   String? _emailError;
   String? _passwordError;
 
-  bool _emailVerified = false;
+  String? _emailVerificationToken;
 
   @override
   void dispose() {
-    _fullNameController.dispose();
     _usernameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     super.dispose();
-  }
-
-  void _validateFullName(String value) {
-    setState(() {
-      if (value.isEmpty) {
-        _fullNameError = 'Full name is required';
-      } else {
-        _fullNameError = null;
-      }
-    });
   }
 
   void _validateUsername(String value) {
@@ -53,6 +48,8 @@ class _SignUpPageState extends State<SignUpPage> {
         _usernameError = 'Username is required';
       } else if (value.length < 3) {
         _usernameError = 'At least 3 characters';
+      } else if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(value)) {
+        _usernameError = 'Only letters, numbers, and underscores';
       } else {
         _usernameError = null;
       }
@@ -77,83 +74,92 @@ class _SignUpPageState extends State<SignUpPage> {
         _passwordError = 'Password is required';
       } else if (value.length < 8) {
         _passwordError = 'At least 8 characters';
+      } else if (!RegExp(
+        r'^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])',
+      ).hasMatch(value)) {
+        _passwordError =
+            'Must include uppercase, lowercase, number, and special character';
       } else {
         _passwordError = null;
       }
     });
   }
 
-  Future<void> _showOtpVerificationModal() async {
-    await showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      enableDrag: false,
-      isDismissible: false,
-      backgroundColor: Colors.transparent,
-      builder: (_) => OtpVerificationModal(
-        email: _emailController.text,
-        onConfirm: (otpCode) {
-          // Validate OTP code (in demo, any code except 000000 works)
-          if (otpCode != '000000') {
-            setState(() {
-              _emailVerified = true;
-            });
-            Navigator.of(context).pop();
-
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Email verified successfully!'),
-                duration: Duration(seconds: 2),
-              ),
-            );
-          } else {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Invalid verification code'),
-                duration: Duration(seconds: 2),
-              ),
-            );
-          }
-        },
-        onResend: () {
-          // Handle resend logic
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Verification code resent'),
-              duration: Duration(seconds: 2),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
   Future<void> _handleVerifyEmail() async {
     _validateEmail(_emailController.text);
     if (_emailError == null && _emailController.text.isNotEmpty) {
-      await _showOtpVerificationModal();
+      context.read<AuthBloc>().add(
+        SendOtpRequested(
+          email: _emailController.text,
+        ),
+      );
     }
   }
 
   void _handleCreateAccount() {
-    _validateFullName(_fullNameController.text);
     _validateUsername(_usernameController.text);
     _validateEmail(_emailController.text);
     _validatePassword(_passwordController.text);
 
-    if (_fullNameError == null &&
-        _usernameError == null &&
-        _emailError == null &&
-        _passwordError == null &&
-        _emailVerified) {
-      // Handle account creation
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Account created successfully!'),
-          duration: Duration(seconds: 2),
-        ),
-      );
+    if (_usernameError != null ||
+        _emailError != null ||
+        _passwordError != null) {
+      return;
     }
+
+    if (_emailVerificationToken == null) {
+      _showErrorSnackBar(
+        'Please verify your email before creating an account.',
+      );
+      return;
+    }
+
+    context.read<AuthBloc>().add(
+      RegisterRequested(
+        email: _emailController.text,
+        username: _usernameController.text,
+        password: _passwordController.text,
+        emailVerificationToken: _emailVerificationToken!,
+      ),
+    );
+  }
+
+  void _showErrorSnackBar(String message) {
+    AppSnackbar.showError(context, message);
+  }
+
+  void _showSuccessSnackBar(String message) {
+    AppSnackbar.showSuccess(context, message);
+  }
+
+  void _showOtpVerificationModal() {
+    unawaited(
+      showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        enableDrag: false,
+        isDismissible: false,
+        backgroundColor: Colors.transparent,
+        builder: (_) => OtpVerificationModal(
+          email: _emailController.text,
+          onConfirm: (otpCode) {
+            context.read<AuthBloc>().add(
+              VerifyOtpRequested(
+                email: _emailController.text,
+                code: otpCode,
+              ),
+            );
+          },
+          onResend: () {
+            context.read<AuthBloc>().add(
+              SendOtpRequested(
+                email: _emailController.text,
+              ),
+            );
+          },
+        ),
+      ),
+    );
   }
 
   @override
@@ -161,202 +167,278 @@ class _SignUpPageState extends State<SignUpPage> {
     final colorScheme = Theme.of(context).colorScheme;
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: GestureDetector(
-          onTap: () => Navigator.of(context).pop(),
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Icon(
-              Icons.arrow_back,
-              color: isDarkMode ? Colors.white : Colors.black87,
-              size: 25,
+    return BlocListener<AuthBloc, AuthState>(
+      listener: (context, state) {
+        // Handle OTP sending
+        if (state is OtpLoading) {
+          AppSnackbar.showInfo(
+            context,
+            'Sending OTP...',
+            duration: const Duration(seconds: 1),
+          );
+        } else if (state is OtpSent) {
+          _showSuccessSnackBar('OTP sent to ${state.email}');
+          _showOtpVerificationModal();
+        } else if (state is OtpFailure) {
+          _showErrorSnackBar(state.failure.message);
+        }
+        // Handle OTP verification
+        else if (state is OtpVerifying) {
+          // Show loading while verifying
+        } else if (state is OtpVerified) {
+          _showSuccessSnackBar('Email verified successfully!');
+          _emailVerificationToken = state.emailVerificationToken;
+          Navigator.of(context).pop(); // Close OTP modal
+        } else if (state is OtpVerificationFailure) {
+          _showErrorSnackBar(state.failure.message);
+        }
+        // Handle registration
+        else if (state is RegisterLoading) {
+          AppSnackbar.showInfo(
+            context,
+            'Creating account...',
+            duration: const Duration(seconds: 1),
+          );
+        } else if (state is RegisterSuccess) {
+          _showSuccessSnackBar('Account created successfully!');
+          unawaited(
+            Navigator.of(context).pushNamedAndRemoveUntil(
+              RouteNames.home,
+              (_) => false,
+            ),
+          );
+        } else if (state is RegisterFailure) {
+          _showErrorSnackBar(state.failure.message);
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          leading: GestureDetector(
+            onTap: () => Navigator.of(context).pop(),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Icon(
+                Icons.arrow_back,
+                color: isDarkMode ? Colors.white : Colors.black87,
+                size: 25,
+              ),
             ),
           ),
         ),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Title
-              Text(
-                'Create account',
-                style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                  fontSize: 32,
-                  fontWeight: FontWeight.w800,
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Title
+                Text(
+                  'Create account',
+                  style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                    fontSize: 32,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Join the Music Room community',
-                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                  color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                const SizedBox(height: 8),
+                Text(
+                  'Join the Music Room community',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                    color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 24),
+                const SizedBox(height: 24),
 
-              // Full Name Input
-              AuthTextInputField(
-                label: 'Full name',
-                icon: Icons.person_outline,
-                placeholder: 'Full name',
-                controller: _fullNameController,
-                onChanged: _validateFullName,
-                errorText: _fullNameError,
-              ),
-              const SizedBox(height: 16),
+                // Username Input
+                AuthTextInputField(
+                  label: 'Username',
+                  icon: Icons.alternate_email,
+                  placeholder: 'username',
+                  controller: _usernameController,
+                  onChanged: _validateUsername,
+                  errorText: _usernameError,
+                ),
+                const SizedBox(height: 16),
 
-              // Username Input
-              AuthTextInputField(
-                label: 'Username',
-                icon: Icons.alternate_email,
-                placeholder: 'username',
-                controller: _usernameController,
-                onChanged: _validateUsername,
-                errorText: _usernameError,
-              ),
-              const SizedBox(height: 16),
+                // Email Input with Verify Button
+                BlocBuilder<AuthBloc, AuthState>(
+                  builder: (context, state) {
+                    final isLoading = state is OtpLoading;
+                    final isVerified =
+                        state is OtpVerified || _emailVerificationToken != null;
 
-              // Email Input with Verify Button
-              AuthTextInputField(
-                label: 'Email address',
-                icon: Icons.mail_outline,
-                placeholder: 'Email address',
-                controller: _emailController,
-                keyboardType: TextInputType.emailAddress,
-                onChanged: _validateEmail,
-                errorText: _emailError,
-                suffixWidget: GestureDetector(
-                  onTap: _handleVerifyEmail,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Text(
-                      _emailVerified ? 'Verified' : 'Verify',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: _emailVerified
-                            ? Colors.green
-                            : colorScheme.primary,
+                    return AuthTextInputField(
+                      label: 'Email address',
+                      icon: Icons.mail_outline,
+                      placeholder: 'Email address',
+                      controller: _emailController,
+                      keyboardType: TextInputType.emailAddress,
+                      onChanged: _validateEmail,
+                      errorText: _emailError,
+                      enabled: !isVerified,
+                      suffixWidget: GestureDetector(
+                        onTap: isLoading || isVerified
+                            ? null
+                            : _handleVerifyEmail,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 12),
+                          child: isLoading
+                              ? SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(
+                                      colorScheme.primary,
+                                    ),
+                                  ),
+                                )
+                              : Text(
+                                  isVerified ? '✓ Verified' : 'Verify',
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    fontWeight: FontWeight.w600,
+                                    color: isVerified
+                                        ? Colors.green
+                                        : colorScheme.primary,
+                                  ),
+                                ),
+                        ),
                       ),
-                    ),
-                  ),
+                    );
+                  },
                 ),
-              ),
-              const SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-              // Password Input
-              AuthTextInputField(
-                label: 'Password',
-                icon: Icons.lock_outline,
-                placeholder: 'Password (min. 8 chars)',
-                controller: _passwordController,
-                obscureText: true,
-                onChanged: _validatePassword,
-                errorText: _passwordError,
-              ),
-              const SizedBox(height: 32),
-
-              // Create Account Button
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: colorScheme.primary,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
-                  onPressed: _handleCreateAccount,
-                  child: const Text(
-                    'Create Account',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
+                // Password Input
+                AuthTextInputField(
+                  label: 'Password',
+                  icon: Icons.lock_outline,
+                  placeholder: 'Password (min. 8 chars)',
+                  controller: _passwordController,
+                  obscureText: true,
+                  onChanged: _validatePassword,
+                  errorText: _passwordError,
                 ),
-              ),
-              const SizedBox(height: 24),
+                const SizedBox(height: 32),
 
-              // Divider with "or continue with"
-              Row(
-                children: [
-                  Expanded(
-                    child: Divider(
-                      color: isDarkMode ? Colors.grey[700] : Colors.grey[300],
-                      thickness: 1,
-                    ),
-                  ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Text(
-                      'or continue with',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: isDarkMode ? Colors.grey[500] : Colors.grey[600],
-                        fontWeight: FontWeight.w500,
+                // Create Account Button
+                BlocBuilder<AuthBloc, AuthState>(
+                  builder: (context, state) {
+                    final isLoading = state is RegisterLoading;
+                    return SizedBox(
+                      width: double.infinity,
+                      height: 56,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: colorScheme.primary,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                        ),
+                        onPressed: isLoading ? null : _handleCreateAccount,
+                        child: isLoading
+                            ? const SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  valueColor: AlwaysStoppedAnimation<Color>(
+                                    Colors.white,
+                                  ),
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : const Text(
+                                'Create Account',
+                                style: TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                       ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Divider(
-                      color: isDarkMode ? Colors.grey[700] : Colors.grey[300],
-                      thickness: 1,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
+                    );
+                  },
+                ),
+                const SizedBox(height: 24),
 
-              // Social Login Buttons
-              SocialLoginButton(
-                provider: SocialProvider.google,
-                onPressed: () {
-                  // Handle Google login
-                },
-              ),
-              const SizedBox(height: 12),
-              SocialLoginButton(
-                provider: SocialProvider.facebook,
-                onPressed: () {
-                  // Handle Facebook login
-                },
-              ),
-              const SizedBox(height: 24),
-
-              // Sign In Link
-              Center(
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                // Divider with "or continue with"
+                Row(
                   children: [
-                    Text(
-                      'Already have an account? ',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: isDarkMode ? Colors.grey[400] : Colors.grey[600],
+                    Expanded(
+                      child: Divider(
+                        color: isDarkMode ? Colors.grey[700] : Colors.grey[300],
+                        thickness: 1,
                       ),
                     ),
-                    GestureDetector(
-                      onTap: widget.onSwitchToSignIn,
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
                       child: Text(
-                        'Log in',
+                        'or continue with',
                         style: TextStyle(
                           fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: colorScheme.primary,
+                          color: isDarkMode
+                              ? Colors.grey[500]
+                              : Colors.grey[600],
+                          fontWeight: FontWeight.w500,
                         ),
+                      ),
+                    ),
+                    Expanded(
+                      child: Divider(
+                        color: isDarkMode ? Colors.grey[700] : Colors.grey[300],
+                        thickness: 1,
                       ),
                     ),
                   ],
                 ),
-              ),
-            ],
+                const SizedBox(height: 16),
+
+                // Social Login Buttons
+                SocialLoginButton(
+                  provider: SocialProvider.google,
+                  onPressed: () {
+                    // TODO(mtigunit): Implement Google signup.
+                  },
+                ),
+                const SizedBox(height: 12),
+                // SocialLoginButton(
+                //   provider: SocialProvider.facebook,
+                //   onPressed: () {
+                //     // TODO: Implement Facebook signup
+                //   },
+                // ),
+                const SizedBox(height: 24),
+
+                // Sign In Link
+                Center(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Already have an account? ',
+                        style: TextStyle(
+                          fontSize: 14,
+                          color: isDarkMode
+                              ? Colors.grey[400]
+                              : Colors.grey[600],
+                        ),
+                      ),
+                      GestureDetector(
+                        onTap: widget.onSwitchToSignIn,
+                        child: Text(
+                          'Log in',
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: colorScheme.primary,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
