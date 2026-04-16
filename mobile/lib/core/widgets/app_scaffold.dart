@@ -13,10 +13,10 @@ class AppScaffold extends StatefulWidget {
   final int initialIndex;
 
   @override
-  State<AppScaffold> createState() => _AppScaffoldState();
+  State<AppScaffold> createState() => AppScaffoldState();
 }
 
-class _AppScaffoldState extends State<AppScaffold> {
+class AppScaffoldState extends State<AppScaffold> {
   late int _currentIndex;
 
   final List<Widget> _pages = const [
@@ -34,6 +34,12 @@ class _AppScaffoldState extends State<AppScaffold> {
   }
 
   void _onItemTapped(int index) {
+    setState(() {
+      _currentIndex = index;
+    });
+  }
+
+  void switchTab(int index) {
     setState(() {
       _currentIndex = index;
     });

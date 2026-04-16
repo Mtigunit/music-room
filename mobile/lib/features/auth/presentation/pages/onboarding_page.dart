@@ -35,7 +35,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
       return;
     }
 
-    unawaited(Navigator.of(context).pushReplacementNamed(RouteNames.auth));
+    unawaited(Navigator.of(context).pushReplacementNamed(RouteNames.home));
   }
 
   void _onSkip() {
