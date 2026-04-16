@@ -1,6 +1,10 @@
 pre-commit:
   parallel: true
   jobs:
+    - name: mobile format check
+      glob: "mobile/**"
+      run: cd mobile && dart format --output=none --set-exit-if-changed .
+
     - name: mobile analyze
       glob: "mobile/**"
       run: cd mobile && flutter analyze
@@ -21,6 +25,10 @@ pre-push:
 
     - name: branch name check
       run: sh scripts/check-branch-name.sh
+
+    - name: mobile format check
+      glob: "mobile/**"
+      run: cd mobile && dart format --output=none --set-exit-if-changed .
 
     - name: mobile test
       glob: "mobile/**"
