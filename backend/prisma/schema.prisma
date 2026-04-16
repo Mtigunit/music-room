@@ -1,5 +1,3 @@
-// backend/prisma/schema.prisma
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,44 +6,53 @@ datasource db {
   provider = "postgresql"
 }
 
-// ------------------------------------------------------
+// ======================================================
+// ENUMS
+// ======================================================
+enum PlaybackStatus {
+  STOPPED
+  PLAYING
+  PAUSED
+}
+
+enum TrackStatus {
+  QUEUED
+  PLAYING
+  PLAYED
+}
+
+// ======================================================
 // 1. USER MANAGEMENT & SOCIAL
-// ------------------------------------------------------
+// ======================================================
 model User {
-  id                     String    @id @default(uuid())
-  email                  String    @unique
-  username               String    @unique
+  id                   String    @id @default(uuid())
+  email                String    @unique
+  username             String    @unique
 
-  // Local Authentication
-  passwordHash           String?   // Nullable because OAuth users won't have one initially
-  isEmailVerified        Boolean   @default(false)
-  emailVerificationToken String?   @unique
+  // Auth & OAuth
+  passwordHash         String?
+  isEmailVerified      Boolean   @default(false)
+  googleId             String?   @unique
+  facebookId           String?   @unique
 
-  // Password Reset Flow
-  passwordResetToken     String?   @unique
-  passwordResetExpires   DateTime?
+  // Profile JSONs
+  publicInfo           Json?     @default("{}")
+  friendInfo           Json?     @default("{}")
+  privateInfo          Json?     @default("{}")
+  preferences          Json?     @default("{}")
 
-  // Social Account Linking (Allows a user to have a password AND linked social accounts)
-  googleId               String?   @unique
-  facebookId             String?   @unique
-
-  // Profile Data (Stored as JSON for flexibility, as required by the subject)
-  publicInfo             Json?     @default("{}")
-  friendInfo             Json?     @default("{}")
-  privateInfo            Json?     @default("{}")
-  preferences            Json?     @default("{}")
-
-  createdAt              DateTime  @default(now())
-  updatedAt              DateTime  @updatedAt
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   // Relationships
-  hostedEvents           Event[]   @relation("EventHost")
-  addedTracks            PlaylistItem[]
-  votes                  Vote[]
-  delegations            ControlDelegation[] @relation("Delegatee")
-
-  friendshipsInitiated   Friendship[] @relation("UserOne")
-  friendshipsReceived    Friendship[] @relation("UserTwo")
+  playlists            Playlist[]             @relation("PlaylistOwner")
+  collaborations       PlaylistCollaborator[]
+  hostedEvents         Event[]                @relation("EventHost")
+  eventInvites         EventInvite[]
+  delegations          ControlDelegation[]    @relation("Delegatee")
+  friendshipsInitiated Friendship[]           @relation("UserOne")
+  friendshipsReceived  Friendship[]           @relation("UserTwo")
+  votes                Vote[]
 }
 
 model Friendship {
@@ -61,82 +68,167 @@ model Friendship {
   @@unique([userOneId, userTwoId])
 }
 
-// ------------------------------------------------------
-// 2. CORE SERVICES: EVENTS & TRACKS
-// ------------------------------------------------------
+// ======================================================
+// 2. THE CENTRAL AUDIO DICTIONARY
+// ======================================================
+model Track {
+  id              String   @id @default(uuid())
+
+  providerTrackId String   @unique
+  title           String
+  artist          String?
+  durationMs      Int
+  thumbnailUrl    String?
+
+  playlistTracks  PlaylistTrack[]
+  eventTracks     EventTrack[]
+}
+
+// ======================================================
+// 3. FEATURE 3: PLAYLIST EDITOR
+// ======================================================
+model Playlist {
+  id          String   @id @default(uuid())
+  name        String
+  ownerId     String
+  owner       User     @relation("PlaylistOwner", fields: [ownerId], references: [id])
+  visibility  String   @default("public")
+
+  playbackStatus           PlaybackStatus @default(STOPPED)
+  currentTrackStartedAt    DateTime?
+  pausedPlaybackPositionMs Int?
+
+  // Strict 1-to-1 Relation for currentTrackId
+  currentTrackId           String?        @unique
+  currentTrack             PlaylistTrack? @relation("PlaylistCurrentTrack", fields: [currentTrackId], references: [id])
+
+  // Named relation required to disambiguate from currentTrack
+  tracks        PlaylistTrack[]         @relation("PlaylistTracks")
+  collaborators PlaylistCollaborator[]
+  createdAt     DateTime @default(now())
+}
+
+model PlaylistTrack {
+  id              String      @id @default(uuid())
+
+  playlistId      String
+  playlist        Playlist    @relation("PlaylistTracks", fields: [playlistId], references: [id], onDelete: Cascade)
+
+  trackId         String
+  track           Track       @relation(fields: [trackId], references: [id], onDelete: Restrict)
+
+  position        Int
+  status          TrackStatus @default(QUEUED)
+
+  // Back-relation for the 1-to-1 current track
+  currentIn       Playlist?   @relation("PlaylistCurrentTrack")
+
+  // Enforce unique ordering to prevent duplicates and speed up reads
+  @@unique([playlistId, position])
+}
+
+model PlaylistCollaborator {
+  id          String   @id @default(uuid())
+  playlistId  String
+  userId      String
+  grantedAt   DateTime @default(now())
+
+  playlist    Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([playlistId, userId])
+}
+
+// ======================================================
+// 4. FEATURE 1: TRACK VOTE (Live Party Event)
+// ======================================================
 model Event {
   id          String   @id @default(uuid())
   name        String
   hostId      String
-  visibility  String   @default("public") // "public" or "private"
-  serviceType String   // "vote", "playlist", "control"
-  status      String   @default("active") // "active", "ended"
-  createdAt   DateTime @default(now())
-
   host        User     @relation("EventHost", fields: [hostId], references: [id])
-  playlist    PlaylistItem[]
-  policies    LicensePolicy[]
-  delegations ControlDelegation[]
+  status      String   @default("active")
+  visibility  String   @default("public")
+
+  playbackStatus           PlaybackStatus @default(STOPPED)
+  currentTrackStartedAt    DateTime?
+  pausedPlaybackPositionMs Int?
+
+  // Strict 1-to-1 Relation for currentTrackId
+  currentTrackId           String?      @unique
+  currentTrack             EventTrack?  @relation("EventCurrentTrack", fields: [currentTrackId], references: [id])
+
+  tracks       EventTrack[]    @relation("EventTracks")
+  invites      EventInvite[]
+  policies     LicensePolicy[]
+  delegations  ControlDelegation[]
+  createdAt    DateTime @default(now())
 }
 
-model Track {
-  id             String   @id @default(uuid())
-  externalApiId  String   @unique // ID from Spotify/Apple Music
-  title          String
-  artist         String
-  durationMs     Int
-  coverArtUrl    String?
+model EventTrack {
+  id              String      @id @default(uuid())
 
-  playlistItems  PlaylistItem[]
+  eventId         String
+  event           Event       @relation("EventTracks", fields: [eventId], references: [id], onDelete: Cascade)
+
+  trackId         String
+  track           Track       @relation(fields: [trackId], references: [id], onDelete: Restrict)
+
+  voteScore       Int         @default(0)
+  status          TrackStatus @default(QUEUED)
+
+  votes           Vote[]
+
+  // Back-relation for the 1-to-1 current track
+  currentIn       Event?      @relation("EventCurrentTrack")
 }
 
-model PlaylistItem {
-  id          String   @id @default(uuid())
-  eventId     String
-  trackId     String
-  addedById   String
-  orderIndex  Int      // Crucial for the Playlist Editor drag-and-drop
-  voteScore   Int      @default(0) // Denormalized counter for fast reads
-  createdAt   DateTime @default(now())
-
-  event       Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  track       Track    @relation(fields: [trackId], references: [id])
-  addedBy     User     @relation(fields: [addedById], references: [id])
-  votes       Vote[]
-
-  @@unique([eventId, trackId]) // Prevent duplicate tracks in the same event queue
-}
-
-// ------------------------------------------------------
-// 3. CONCURRENCY & PERMISSIONS (THE HEAVY LIFTING)
-// ------------------------------------------------------
 model Vote {
-  id             String   @id @default(uuid())
-  playlistItemId String
-  userId         String
-  voteValue      Int      // 1 for upvote, -1 for downvote
-  createdAt      DateTime @default(now())
+  id           String      @id @default(uuid())
+  eventTrackId String
+  userId       String
+  voteValue    Int         // 1 (Upvote) or -1 (Downvote)
+  createdAt    DateTime    @default(now())
 
-  playlistItem   PlaylistItem @relation(fields: [playlistItemId], references: [id], onDelete: Cascade)
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventTrack   EventTrack  @relation(fields: [eventTrackId], references: [id], onDelete: Cascade)
 
-  @@unique([playlistItemId, userId]) // Enforce one vote per user per track
+  // Mapped the relation to the User table for strict FK enforcement
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventTrackId, userId])
+}
+
+model EventInvite {
+  id        String   @id @default(uuid())
+  eventId   String
+  userId    String
+  status    String   @default("pending")
+  createdAt DateTime @default(now())
+
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([eventId, userId])
 }
 
 model LicensePolicy {
-  id          String   @id @default(uuid())
-  eventId     String
-  policyType  String   // "geofence", "time_window", "invite_only"
-  config      Json     // Stores coordinates, time ranges, or allowed user IDs
+  id         String   @id @default(uuid())
+  eventId    String
+  policyType String   // "geofence", "time_window"
+  config     Json
 
-  event       Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event      Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
 }
 
+// ======================================================
+// 5. FEATURE 2: CONTROL DELEGATION
+// ======================================================
 model ControlDelegation {
   id          String   @id @default(uuid())
   eventId     String
   delegateeId String
-  deviceId    String   // Device-specific license
+  deviceId    String
+  isActive    Boolean  @default(true)
   grantedAt   DateTime @default(now())
 
   event       Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
@@ -145,15 +237,15 @@ model ControlDelegation {
   @@unique([eventId, delegateeId, deviceId])
 }
 
-// ------------------------------------------------------
-// 4. NON-FUNCTIONAL REQUIREMENTS
-// ------------------------------------------------------
+// ======================================================
+// 6. NON-FUNCTIONAL REQUIREMENTS
+// ======================================================
 model AuditLog {
-  id           String   @id @default(uuid())
-  userId       String?  // Nullable if action was pre-authentication
-  action       String   // e.g., "USER_LOGIN", "VOTE_CAST", "TRACK_MOVED"
-  platform     String   // "iOS", "Android", "Web"
-  deviceModel  String
-  appVersion   String
-  timestamp    DateTime @default(now())
+  id          String   @id @default(uuid())
+  userId      String?
+  action      String
+  platform    String
+  deviceModel String
+  appVersion  String
+  timestamp   DateTime @default(now())
 }
