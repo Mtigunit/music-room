@@ -245,13 +245,10 @@ class _OtpVerificationModalState extends State<OtpVerificationModal> {
                   child: TextField(
                     controller: _controllers[index],
                     focusNode: _focusNodes[index],
-                    maxLength: 1,
+                    maxLength: _otpLength,
                     textAlign: TextAlign.center,
                     keyboardType: TextInputType.number,
-                    inputFormatters: [
-                      FilteringTextInputFormatter.digitsOnly,
-                      LengthLimitingTextInputFormatter(1),
-                    ],
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                     onChanged: (value) {
                       _onOtpDigitChanged(value, index);
                       setState(() {});

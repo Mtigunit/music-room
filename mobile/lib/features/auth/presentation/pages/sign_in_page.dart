@@ -13,6 +13,7 @@ import 'package:music_room/features/auth/presentation/widgets/auth_divider_with_
 import 'package:music_room/features/auth/presentation/widgets/auth_screen_header.dart';
 import 'package:music_room/features/auth/presentation/widgets/auth_text_input_field.dart';
 import 'package:music_room/features/auth/presentation/widgets/social_login_button.dart';
+import 'package:music_room/routes/route_names.dart';
 
 class SignInPage extends StatefulWidget {
   const SignInPage({
@@ -100,6 +101,12 @@ class _SignInPageState extends State<SignInPage> {
           );
         } else if (state is LoginSuccess) {
           AppSnackbar.showSuccess(context, 'Signed in successfully!');
+          unawaited(
+            Navigator.of(context).pushNamedAndRemoveUntil(
+              RouteNames.home,
+              (_) => false,
+            ),
+          );
         } else if (state is LoginFailure) {
           AppSnackbar.showError(context, state.failure.message);
         }
