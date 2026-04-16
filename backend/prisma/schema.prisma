@@ -37,7 +37,7 @@ model User {
   googleId             String?   @unique
   facebookId           String?   @unique
 
-  // Subject Requirement: Profile data MUST be JSON
+  // Profile JSONs
   publicInfo           Json?     @default("{}")
   friendInfo           Json?     @default("{}")
   privateInfo          Json?     @default("{}")
@@ -54,6 +54,7 @@ model User {
   delegations          ControlDelegation[]    @relation("Delegatee")
   friendshipsInitiated Friendship[]           @relation("UserOne")
   friendshipsReceived  Friendship[]           @relation("UserTwo")
+  votes                Vote[]
 }
 
 model Friendship {
@@ -70,40 +71,41 @@ model Friendship {
 }
 
 // ======================================================
-// 2. THE CENTRAL AUDIO DICTIONARY (Normalization)
+// 2. THE CENTRAL AUDIO DICTIONARY
 // ======================================================
 model Track {
   id              String   @id @default(uuid())
 
-  // Audio Provider Data (YouTube API)
-  providerTrackId String   @unique // e.g., "dQw4w9WgXcQ"
+  providerTrackId String   @unique
   title           String
   artist          String?
   durationMs      Int
   thumbnailUrl    String?
 
-  // Relations out to the features
   playlistTracks  PlaylistTrack[]
   eventTracks     EventTrack[]
 }
 
 // ======================================================
-// 3. FEATURE 3: PLAYLIST EDITOR (Creation / Radio)
+// 3. FEATURE 3: PLAYLIST EDITOR
 // ======================================================
 model Playlist {
   id          String   @id @default(uuid())
   name        String
   ownerId     String
   owner       User     @relation("PlaylistOwner", fields: [ownerId], references: [id])
-  visibility  String   @default("public") // "public" or "private"
+  visibility  String   @default("public")
 
-  // Playback State (For Radio Station Mode)
   playbackStatus           PlaybackStatus @default(STOPPED)
-  currentTrackId           String?
   currentTrackStartedAt    DateTime?
   pausedPlaybackPositionMs Int?
 
-  tracks        PlaylistTrack[]
+  // Strict 1-to-1 Relation for currentTrackId
+  currentTrackId           String?        @unique
+  currentTrack             PlaylistTrack? @relation("PlaylistCurrentTrack", fields: [currentTrackId], references: [id])
+
+  // Named relation required to disambiguate from currentTrack
+  tracks        PlaylistTrack[]         @relation("PlaylistTracks")
   collaborators PlaylistCollaborator[]
   createdAt     DateTime @default(now())
 }
@@ -112,17 +114,21 @@ model PlaylistTrack {
   id              String      @id @default(uuid())
 
   playlistId      String
-  playlist        Playlist    @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  playlist        Playlist    @relation("PlaylistTracks", fields: [playlistId], references: [id], onDelete: Cascade)
 
   trackId         String
   track           Track       @relation(fields: [trackId], references: [id], onDelete: Restrict)
 
-  // Editor Rule: Drag-and-Drop Indexing
   position        Int
   status          TrackStatus @default(QUEUED)
+
+  // Back-relation for the 1-to-1 current track
+  currentIn       Playlist?   @relation("PlaylistCurrentTrack")
+
+  // Enforce unique ordering to prevent duplicates and speed up reads
+  @@unique([playlistId, position])
 }
 
-// License Requirement: "Licensed to specific users"
 model PlaylistCollaborator {
   id          String   @id @default(uuid())
   playlistId  String
@@ -143,16 +149,18 @@ model Event {
   name        String
   hostId      String
   host        User     @relation("EventHost", fields: [hostId], references: [id])
-  status      String   @default("active") // "active", "ended"
-  visibility  String   @default("public") // "public", "private"
+  status      String   @default("active")
+  visibility  String   @default("public")
 
-  // Playback State (For Live Party UI Sync)
   playbackStatus           PlaybackStatus @default(STOPPED)
-  currentTrackId           String?
   currentTrackStartedAt    DateTime?
   pausedPlaybackPositionMs Int?
 
-  tracks       EventTrack[]
+  // Strict 1-to-1 Relation for currentTrackId
+  currentTrackId           String?      @unique
+  currentTrack             EventTrack?  @relation("EventCurrentTrack", fields: [currentTrackId], references: [id])
+
+  tracks       EventTrack[]    @relation("EventTracks")
   invites      EventInvite[]
   policies     LicensePolicy[]
   delegations  ControlDelegation[]
@@ -163,16 +171,18 @@ model EventTrack {
   id              String      @id @default(uuid())
 
   eventId         String
-  event           Event       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event           Event       @relation("EventTracks", fields: [eventId], references: [id], onDelete: Cascade)
 
   trackId         String
   track           Track       @relation(fields: [trackId], references: [id], onDelete: Restrict)
 
-  // Voting Rule: Democratic Sorting & Soft Deletes
   voteScore       Int         @default(0)
   status          TrackStatus @default(QUEUED)
 
   votes           Vote[]
+
+  // Back-relation for the 1-to-1 current track
+  currentIn       Event?      @relation("EventCurrentTrack")
 }
 
 model Vote {
@@ -184,15 +194,17 @@ model Vote {
 
   eventTrack   EventTrack  @relation(fields: [eventTrackId], references: [id], onDelete: Cascade)
 
+  // Mapped the relation to the User table for strict FK enforcement
+  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([eventTrackId, userId])
 }
 
-// License Requirement: "Invited users are the only ones who can find the event"
 model EventInvite {
   id        String   @id @default(uuid())
   eventId   String
   userId    String
-  status    String   @default("pending") // "pending", "accepted", "declined"
+  status    String   @default("pending")
   createdAt DateTime @default(now())
 
   event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
@@ -201,25 +213,23 @@ model EventInvite {
   @@unique([eventId, userId])
 }
 
-// License Requirement: "Licensed to specific place/time"
 model LicensePolicy {
   id         String   @id @default(uuid())
   eventId    String
   policyType String   // "geofence", "time_window"
-  config     Json     // Stores coordinates or timestamp ranges
+  config     Json
 
   event      Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
 }
 
 // ======================================================
-// 5. FEATURE 2: CONTROL DELEGATION (Passing the Aux)
+// 5. FEATURE 2: CONTROL DELEGATION
 // ======================================================
-// License Requirement: "Licensed device specifically"
 model ControlDelegation {
   id          String   @id @default(uuid())
   eventId     String
   delegateeId String
-  deviceId    String   // CRITICAL: The unique hardware ID
+  deviceId    String
   isActive    Boolean  @default(true)
   grantedAt   DateTime @default(now())
 
@@ -235,8 +245,8 @@ model ControlDelegation {
 model AuditLog {
   id          String   @id @default(uuid())
   userId      String?
-  action      String   // e.g., "USER_LOGIN", "TRACK_MOVED", "VOTE_CAST"
-  platform    String   // "iOS", "Android", "Web"
+  action      String
+  platform    String
   deviceModel String
   appVersion  String
   timestamp   DateTime @default(now())
