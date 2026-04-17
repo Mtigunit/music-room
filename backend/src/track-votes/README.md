@@ -4,9 +4,9 @@ This module is a minimal example of a WebSocket feature for voting on a music tr
 
 Event: track:vote
 Payload:
-- roomId: string
+- eventId: string
 - trackId: string
-- vote: "up" | "down"
+- vote: "up" | "down" | "none"
 
 Broadcast:
 - track:vote:updated

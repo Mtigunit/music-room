@@ -7,19 +7,21 @@ import { TrackVotesRepository } from './track-votes.repository';
 export class TrackVotesService {
   constructor(private readonly trackVotesRepository: TrackVotesRepository) {}
 
-  recordVote(payload: TrackVoteMessageDto): TrackVoteResultDto {
-    const record = this.trackVotesRepository.recordVote(
-      payload.roomId,
+  async recordVote(
+    payload: TrackVoteMessageDto,
+    userId: string,
+  ): Promise<TrackVoteResultDto> {
+    const record = await this.trackVotesRepository.recordVote(
+      payload.eventId,
       payload.trackId,
+      userId,
       payload.vote,
     );
 
     return {
-      roomId: payload.roomId,
+      eventId: payload.eventId,
       trackId: payload.trackId,
-      upVotes: record.upVotes,
-      downVotes: record.downVotes,
-      score: record.upVotes - record.downVotes,
+      score: record.score,
       updatedAt: record.updatedAt.toISOString(),
     };
   }

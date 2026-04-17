@@ -4,6 +4,7 @@ import {
   SubscribeMessage,
   WebSocketGateway,
   WebSocketServer,
+  WsException,
 } from '@nestjs/websockets';
 import { Logger, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
@@ -30,15 +31,24 @@ export class TrackVotesGateway {
       transform: true,
     }),
   )
-  handleTrackVote(
+  async handleTrackVote(
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: TrackVoteMessageDto,
-  ): TrackVoteResultDto {
-    const result = this.trackVotesService.recordVote(payload);
-    this.server.to(payload.roomId).emit('track:vote:updated', result);
+  ): Promise<TrackVoteResultDto> {
+    const userId = (client.data as { user: { id: string } }).user.id;
+
+    // TODO: check later the license policies
+    if (!client.rooms.has(payload.eventId)) {
+      throw new WsException(
+        `You must join event room ${payload.eventId} to vote.`,
+      );
+    }
+
+    const result = await this.trackVotesService.recordVote(payload, userId);
+    this.server.to(payload.eventId).emit('track:vote:updated', result);
 
     this.logger.log(
-      `Vote recorded: client=${client.id} room=${payload.roomId} track=${payload.trackId} vote=${payload.vote}`,
+      `Vote recorded: client=${client.id} userId=${userId} event=${payload.eventId} track=${payload.trackId} vote=${payload.vote}`,
     );
 
     return result;
