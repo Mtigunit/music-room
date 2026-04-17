@@ -1,6 +1,6 @@
 # **Product Specification: Music Room**
 
-Real-time voting Live Events, delegated music control, and real-time collaborative playlist editor with visibility and license rules.
+Music Room supports real-time voting in Live Events, delegated music control, and a real-time collaborative playlist editor with visibility and license rules.
 
 ## **Clarifications (Architectural Decisions)**
 
