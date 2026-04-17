@@ -67,7 +67,7 @@ Music Room supports real-time voting in Live Events, delegated music control, an
 * **FR-E03:** System MUST allow Host to import tracks from a saved Playlist into a Live Event Queue.
 * **FR-E04:** System MUST strictly order the Live Event Queue dynamically based on voteScore.
 * **FR-E05:** System MUST soft-delete tracks (change status to PLAYED) when playback finishes to advance the queue.
-* **FR-E06:** System MUST evaluate physical license constraints (Geofence, Time Window) before allowing a guest to join or vote in an Event.
+* **FR-E06:** System MUST evaluate physical license constraints (Geofence, Time Window) before allowing a guest to vote in an Event.
 * **FR-E07:** System MUST enforce a digital "Invite" license for Private Events.
 
 **Delegation**
