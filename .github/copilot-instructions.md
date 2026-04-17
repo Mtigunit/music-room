@@ -46,9 +46,14 @@ When working in the `/mobile` directory, act as a senior Flutter UI/UX engineer.
 
 # PR Review Instructions
 
-When generating a PR summary or reviewing code for a Pull Request in this repository, you MUST (this applies to all PRs, not just Music Room-related features):
+When generating a PR summary or reviewing code for a Pull Request in this repository, you MUST:
+
+For all PRs:
 
 1. Read [specification.md](./specification.md) and [project-subject.md](./project-subject.md).
 2. Treat [project-subject.md](./project-subject.md) as the authoritative source for the full project specification and requirements, and use [specification.md](./specification.md) as supplemental PR review guidance.
-3. Cross-reference the git diff against the "User Scenarios" and "Functional Requirements" defined in [project-subject.md](./project-subject.md).
-4. Explicitly state in your review if the code successfully fulfills the user stories, or flag any missing requirements.
+
+For Music Room feature PRs, or any PR that introduces or changes user-facing behavior or requirements-related logic:
+
+3. Cross-reference the git diff against the "User Scenarios" and "Functional Requirements" defined in [project-subject.md](./project-subject.md), when applicable.
+4. Explicitly state in your review whether the code successfully fulfills the relevant user stories, or flag any missing requirements.
