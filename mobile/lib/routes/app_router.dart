@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-
-import 'package:music_room/features/auth/presentation/pages/auth_page.dart';
+import 'package:music_room/core/widgets/app_scaffold.dart';
 import 'package:music_room/features/auth/presentation/pages/onboarding_page.dart';
-import 'package:music_room/features/home/presentation/pages/home_page.dart';
+import 'package:music_room/features/auth/presentation/pages/sign_in_page.dart';
+import 'package:music_room/features/auth/presentation/pages/sign_up_page.dart';
 import 'package:music_room/features/music_control/presentation/pages/music_control_page.dart';
 import 'package:music_room/features/music_vote/presentation/pages/music_vote_page.dart';
 import 'package:music_room/features/playlist/presentation/pages/playlist_page.dart';
@@ -40,12 +40,16 @@ class AppRouter {
       return const OnboardingPage();
     }
 
-    if (routeName == RouteNames.home) {
-      return const HomePage();
+    if (routeName == RouteNames.home || routeName == RouteNames.homeAlias) {
+      return const AppScaffold();
     }
 
     if (routeName == RouteNames.auth) {
-      return const AuthPage();
+      return const SignInPage();
+    }
+
+    if (routeName == RouteNames.signUp) {
+      return const SignUpPage();
     }
 
     if (routeName == RouteNames.musicVote) {

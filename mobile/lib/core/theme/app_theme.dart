@@ -32,9 +32,11 @@ class AppTheme {
       primaryColor: primaryColor,
       scaffoldBackgroundColor: _lightBackground,
 
-      colorScheme: const ColorScheme.light(
+      colorScheme: ColorScheme.light(
         primary: primaryColor,
         secondary: _lightSurface,
+        primaryContainer: primaryColor.withValues(alpha: 0.15),
+        onPrimaryContainer: primaryColor,
       ),
 
       textTheme: const TextTheme(
@@ -89,9 +91,12 @@ class AppTheme {
       primaryColor: primaryColor,
       scaffoldBackgroundColor: _darkBackground,
 
-      colorScheme: const ColorScheme.dark(
+      colorScheme: ColorScheme.dark(
         primary: primaryColor,
+        onPrimary: Colors.white,
         secondary: _darkSurface,
+        primaryContainer: primaryColor.withValues(alpha: 0.3),
+        onPrimaryContainer: const Color(0xFFD8B4FE),
       ),
 
       textTheme: const TextTheme(

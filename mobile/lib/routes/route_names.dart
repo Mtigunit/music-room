@@ -1,7 +1,9 @@
 class RouteNames {
   static const String home = '/';
+  static const String homeAlias = '/home';
   static const String onboarding = '/onboarding';
   static const String auth = '/auth';
+  static const String signUp = '/sign-up';
   static const String musicVote = '/music-vote';
   static const String playlist = '/playlist';
   static const String musicControl = '/music-control';

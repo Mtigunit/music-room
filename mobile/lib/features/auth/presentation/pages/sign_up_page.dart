@@ -17,11 +17,8 @@ import 'package:music_room/routes/route_names.dart';
 
 class SignUpPage extends StatefulWidget {
   const SignUpPage({
-    required this.onSwitchToSignIn,
     super.key,
   });
-
-  final VoidCallback onSwitchToSignIn;
 
   @override
   State<SignUpPage> createState() => _SignUpPageState();
@@ -380,7 +377,13 @@ class _SignUpPageState extends State<SignUpPage> {
                         ),
                       ),
                       GestureDetector(
-                        onTap: widget.onSwitchToSignIn,
+                        onTap: () {
+                          unawaited(
+                            Navigator.of(context).pushReplacementNamed(
+                              RouteNames.auth,
+                            ),
+                          );
+                        },
                         child: Text(
                           'Log in',
                           style: TextStyle(
