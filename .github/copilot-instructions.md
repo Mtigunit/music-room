@@ -43,3 +43,11 @@ When working in the `/mobile` directory, act as a senior Flutter UI/UX engineer.
 
 - Do not commit secrets or API keys. Always reference `process.env` or Flutter environment variables.
 - Keep generated code clean, commented, and ready for strict peer review.
+
+# PR Review Instructions
+
+When generating a PR summary or reviewing code for a Pull Request in this repository, you MUST:
+
+1. Read the specification file located at [specification.md](./specification.md).
+2. Cross-reference the git diff against the "User Scenarios" and "Functional Requirements" defined in that spec.
+3. Explicitly state in your review if the code successfully fulfills the user stories, or flag any missing requirements.
