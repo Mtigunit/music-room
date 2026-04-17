@@ -25,11 +25,10 @@ export class TrackVotesRepository {
           eventId,
           trackId,
         },
-        status: TrackStatus.QUEUED,
       },
     });
 
-    if (!eventTrack) {
+    if (!eventTrack || eventTrack.status !== TrackStatus.QUEUED) {
       throw new NotFoundException(
         `EventTrack not found for event ${eventId} and track ${trackId}`,
       );
