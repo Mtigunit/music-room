@@ -46,6 +46,10 @@ dependencies:
   flutter_secure_storage: ^9.2.2
 
   # JSON Serialization
+  geolocator: ^14.0.2
+  google_maps_flutter: ^2.17.0
+  image_picker: ^1.2.1
+  intl: ^0.20.2
   json_annotation: ^4.8.1
   shared_preferences: ^2.5.3
 

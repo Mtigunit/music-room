@@ -13,12 +13,12 @@ class AppConfig {
       return _apiBaseUrlOverride;
     }
     if (kIsWeb) {
-      return 'http://localhost:3000/';
+      return 'http://10.30.228.165:3000/';
     }
     if (defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://10.0.2.2:3000/';
+      return 'http://10.30.228.165:3000/';
     }
-    return 'http://localhost:3000/';
+    return 'http://10.30.228.165:3000/';
   }
   // static const String apiPrefix = '/api';
 

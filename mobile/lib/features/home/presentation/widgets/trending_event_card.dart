@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 
-class TrendingRoomCard extends StatelessWidget {
-  const TrendingRoomCard({
-    required this.roomTitle,
+class TrendingEventCard extends StatelessWidget {
+  const TrendingEventCard({
+    required this.eventTitle,
     required this.listenerCount,
     required this.imageAsset,
     this.width = 150,
     super.key,
   });
 
-  final String roomTitle;
+  final String eventTitle;
   final int listenerCount;
   final String imageAsset;
   final double width;
@@ -90,7 +90,7 @@ class TrendingRoomCard extends StatelessWidget {
               children: [
                 Expanded(
                   child: Text(
-                    roomTitle,
+                    eventTitle,
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 14,
