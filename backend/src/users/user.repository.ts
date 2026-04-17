@@ -26,4 +26,31 @@ export class UserRepository {
   }): Promise<User> {
     return this.prisma.user.create({ data });
   }
+
+  async findByGoogleId(googleId: string): Promise<User | null> {
+    return this.prisma.user.findUnique({ where: { googleId } });
+  }
+
+  async createOAuthUser(data: {
+    email: string;
+    username: string;
+    googleId: string;
+    isEmailVerified: boolean;
+  }): Promise<User> {
+    return this.prisma.user.create({ data });
+  }
+
+  async linkGoogleAccount(userId: string, googleId: string): Promise<User> {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { googleId, isEmailVerified: true },
+    });
+  }
+
+  async updatePassword(userId: string, passwordHash: string): Promise<User> {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+    });
+  }
 }

@@ -9,7 +9,6 @@ const mockUser: User = {
   username: 'testuser',
   passwordHash: '$2b$10$hashedpassword',
   isEmailVerified: false,
-  emailVerificationToken: null,
   passwordResetToken: null,
   passwordResetExpires: null,
   googleId: null,
@@ -36,7 +35,11 @@ describe('UsersService', () => {
             findByEmail: jest.fn(),
             findByUsername: jest.fn(),
             findById: jest.fn(),
+            findByGoogleId: jest.fn(),
             create: jest.fn(),
+            createOAuthUser: jest.fn(),
+            linkGoogleAccount: jest.fn(),
+            updatePassword: jest.fn(),
           },
         },
       ],
@@ -133,6 +136,88 @@ describe('UsersService', () => {
         passwordHash: '$2b$10$hashed',
         isEmailVerified: true,
       });
+    });
+  });
+  // ─── findByGoogleId ───────────────────────────────────
+
+  describe('findByGoogleId', () => {
+    it('should return a user when found by google ID', async () => {
+      repository.findByGoogleId.mockResolvedValue(mockUser);
+
+      const result = await service.findByGoogleId('google-sub-123');
+
+      expect(result).toEqual(mockUser);
+      expect(repository.findByGoogleId).toHaveBeenCalledWith('google-sub-123');
+    });
+
+    it('should return null when user not found by google ID', async () => {
+      repository.findByGoogleId.mockResolvedValue(null);
+
+      const result = await service.findByGoogleId('missing-google-id');
+
+      expect(result).toBeNull();
+    });
+  });
+
+  // ─── createOAuthUser ──────────────────────────────────
+
+  describe('createOAuthUser', () => {
+    it('should delegate to repository to create OAuth user with verified email', async () => {
+      repository.createOAuthUser.mockResolvedValue(mockUser);
+
+      const result = await service.createOAuthUser(
+        'google@example.com',
+        'googleuser',
+        'google-sub-123',
+        true,
+      );
+
+      expect(result).toEqual(mockUser);
+      expect(result).toEqual(mockUser);
+      expect(repository.createOAuthUser).toHaveBeenCalledWith({
+        email: 'google@example.com',
+        username: 'googleuser',
+        googleId: 'google-sub-123',
+        isEmailVerified: true,
+      });
+    });
+  });
+
+  // ─── linkGoogleAccount ────────────────────────────────
+
+  describe('linkGoogleAccount', () => {
+    it('should delegate to repository to link Google account', async () => {
+      repository.linkGoogleAccount.mockResolvedValue(mockUser);
+
+      const result = await service.linkGoogleAccount(
+        'user-uuid-123',
+        'google-sub-123',
+      );
+
+      expect(result).toEqual(mockUser);
+      expect(repository.linkGoogleAccount).toHaveBeenCalledWith(
+        'user-uuid-123',
+        'google-sub-123',
+      );
+    });
+  });
+
+  // ─── updatePassword ───────────────────────────────────
+
+  describe('updatePassword', () => {
+    it('should delegate to repository to update password', async () => {
+      repository.updatePassword.mockResolvedValue(mockUser);
+
+      const result = await service.updatePassword(
+        'user-uuid-123',
+        '$new$hashed$password',
+      );
+
+      expect(result).toEqual(mockUser);
+      expect(repository.updatePassword).toHaveBeenCalledWith(
+        'user-uuid-123',
+        '$new$hashed$password',
+      );
     });
   });
 });

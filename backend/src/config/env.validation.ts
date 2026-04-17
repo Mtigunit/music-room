@@ -61,6 +61,10 @@ export class EnvironmentVariables {
   @IsString()
   @IsNotEmpty()
   JWT_SECRET!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  GOOGLE_CLIENT_ID!: string;
 }
 
 export function validate(config: Record<string, unknown>) {

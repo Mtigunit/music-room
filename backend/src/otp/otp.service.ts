@@ -17,9 +17,11 @@ const RATE_LIMIT_WINDOW_SECONDS = 900; // 15 minutes
 const MAX_VERIFY_ATTEMPTS = 5;
 const VERIFICATION_TOKEN_EXPIRY = '10m';
 
+export type OtpPurpose = 'email_verification' | 'password_reset';
+
 interface OtpVerificationPayload {
   email: string;
-  purpose: 'email_verification';
+  purpose: OtpPurpose;
 }
 
 @Injectable()
@@ -33,16 +35,25 @@ export class OtpService {
     private readonly jwtService: JwtService,
   ) {}
 
-  async sendOtp(email: string): Promise<void> {
-    // Check if email is already registered
+  async sendOtp(
+    email: string,
+    purpose: OtpPurpose = 'email_verification',
+  ): Promise<void> {
     const existingUser = await this.usersService.findByEmail(email);
 
-    if (existingUser) {
+    if (purpose === 'email_verification' && existingUser) {
       throw new ConflictException('Email already registered');
     }
 
+    if (purpose === 'password_reset' && !existingUser) {
+      // Avoid leaking user existence, but ideally we'd fail consistently.
+      // Easiest approach for now is to just throw an error or pretend to send.
+      // Often, for security, you'd silently return success. Let's throw for clear errors per requirements.
+      throw new BadRequestException('User with this email does not exist');
+    }
+
     // Rate limiting
-    const rateLimitKey = `otp:rate:${email}`;
+    const rateLimitKey = `otp:rate:${purpose}:${email}`;
     const redis = this.redisService.getClient();
     const currentCount = await redis.get(rateLimitKey);
 
@@ -56,8 +67,8 @@ export class OtpService {
     const code = this.generateOtp();
 
     // Store OTP in Redis
-    const otpKey = `otp:${email}`;
-    const attemptsKey = `otp:attempts:${email}`;
+    const otpKey = `otp:${purpose}:${email}`;
+    const attemptsKey = `otp:attempts:${purpose}:${email}`;
     await redis.set(otpKey, code, 'EX', OTP_TTL_SECONDS);
     await redis.set(attemptsKey, '0', 'EX', OTP_TTL_SECONDS);
 
@@ -70,17 +81,18 @@ export class OtpService {
     }
 
     // Send email
-    await this.mailService.sendOtpEmail(email, code);
-    this.logger.log(`OTP sent to ${email}`);
+    await this.mailService.sendOtpEmail(email, code, purpose);
+    this.logger.log(`OTP sent to ${email} for ${purpose}`);
   }
 
   async verifyOtp(
     email: string,
     code: string,
-  ): Promise<{ emailVerificationToken: string }> {
+    purpose: OtpPurpose = 'email_verification',
+  ): Promise<{ token: string }> {
     const redis = this.redisService.getClient();
-    const otpKey = `otp:${email}`;
-    const attemptsKey = `otp:attempts:${email}`;
+    const otpKey = `otp:${purpose}:${email}`;
+    const attemptsKey = `otp:attempts:${purpose}:${email}`;
 
     // Check brute-force attempts
     const attempts = await redis.get(attemptsKey);
@@ -111,14 +123,14 @@ export class OtpService {
     // Generate a short-lived verification token
     const payload: OtpVerificationPayload = {
       email,
-      purpose: 'email_verification',
+      purpose,
     };
 
-    const emailVerificationToken = this.jwtService.sign(payload, {
+    const token = this.jwtService.sign(payload, {
       expiresIn: VERIFICATION_TOKEN_EXPIRY,
     });
 
-    return { emailVerificationToken };
+    return { token };
   }
 
   private generateOtp(): string {
