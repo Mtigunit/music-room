@@ -1,5 +1,6 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { TrackStatus } from '@prisma/client';
 
 type VoteDirection = 'up' | 'down' | 'none';
 
@@ -24,6 +25,7 @@ export class TrackVotesRepository {
           eventId,
           trackId,
         },
+        status: TrackStatus.QUEUED,
       },
     });
 
@@ -36,7 +38,10 @@ export class TrackVotesRepository {
     const eventTrackId = eventTrack.id;
 
     return this.prisma.$transaction(async (tx) => {
-      await tx.$executeRaw`SELECT * FROM "EventTrack" WHERE id = ${eventTrackId} FOR UPDATE`;
+      const lockedTracks = await tx.$queryRaw<
+        Array<{ voteScore: number }>
+      >`SELECT "voteScore" FROM "EventTrack" WHERE id = ${eventTrackId} FOR UPDATE`;
+      const currentScore = lockedTracks[0]?.voteScore ?? eventTrack.voteScore;
 
       const previousVote = await tx.vote.findUnique({
         where: {
@@ -65,15 +70,17 @@ export class TrackVotesRepository {
         const newValue = vote === 'up' ? 1 : -1;
         if (previousVote) {
           scoreDiff = newValue - previousVote.voteValue;
-          await tx.vote.update({
-            where: {
-              eventTrackId_userId: {
-                eventTrackId,
-                userId,
+          if (scoreDiff !== 0) {
+            await tx.vote.update({
+              where: {
+                eventTrackId_userId: {
+                  eventTrackId,
+                  userId,
+                },
               },
-            },
-            data: { voteValue: newValue },
-          });
+              data: { voteValue: newValue },
+            });
+          }
         } else {
           scoreDiff = newValue;
           await tx.vote.create({
@@ -84,6 +91,13 @@ export class TrackVotesRepository {
             },
           });
         }
+      }
+
+      if (scoreDiff === 0) {
+        return {
+          score: currentScore,
+          updatedAt: new Date(),
+        };
       }
 
       const updatedEventTrack = await tx.eventTrack.update({

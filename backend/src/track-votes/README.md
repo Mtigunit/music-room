@@ -6,7 +6,7 @@ Event: track:vote
 Payload:
 - eventId: string
 - trackId: string
-- vote: "up" | "down"
+- vote: "up" | "down" | "none"
 
 Broadcast:
 - track:vote:updated
