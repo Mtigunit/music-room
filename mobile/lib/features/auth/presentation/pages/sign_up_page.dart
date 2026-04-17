@@ -37,8 +37,23 @@ class _SignUpPageState extends State<SignUpPage> {
   String? _passwordError;
 
   String? _emailVerificationToken;
+  String? _verifiedEmail;
   bool _isOtpModalOpen = false;
   BuildContext? _otpModalContext;
+
+  String _normalizeEmail(String value) => value.trim().toLowerCase();
+
+  bool get _isEmailVerified {
+    if (_emailVerificationToken == null || _verifiedEmail == null) {
+      return false;
+    }
+    return _verifiedEmail == _normalizeEmail(_emailController.text);
+  }
+
+  void _clearEmailVerification() {
+    _emailVerificationToken = null;
+    _verifiedEmail = null;
+  }
 
   @override
   void dispose() {
@@ -64,6 +79,10 @@ class _SignUpPageState extends State<SignUpPage> {
 
   void _validateEmail(String value) {
     setState(() {
+      if (_verifiedEmail != null && _normalizeEmail(value) != _verifiedEmail) {
+        _clearEmailVerification();
+      }
+
       if (value.isEmpty) {
         _emailError = 'Email is required';
       } else if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
@@ -113,7 +132,7 @@ class _SignUpPageState extends State<SignUpPage> {
       return;
     }
 
-    if (_emailVerificationToken == null) {
+    if (!_isEmailVerified) {
       AppSnackbar.showError(
         context,
         'Please verify your email before creating an account.',
@@ -198,6 +217,7 @@ class _SignUpPageState extends State<SignUpPage> {
         } else if (state is OtpVerified) {
           AppSnackbar.showSuccess(context, 'Email verified successfully!');
           _emailVerificationToken = state.emailVerificationToken;
+          _verifiedEmail = _normalizeEmail(state.email);
           if (_isOtpModalOpen && _otpModalContext != null) {
             final modalNavigator = Navigator.of(_otpModalContext!);
             if (modalNavigator.canPop()) {
@@ -254,8 +274,7 @@ class _SignUpPageState extends State<SignUpPage> {
                 BlocBuilder<AuthBloc, AuthState>(
                   builder: (context, state) {
                     final isLoading = state is OtpLoading;
-                    final isVerified =
-                        state is OtpVerified || _emailVerificationToken != null;
+                    final isVerified = _isEmailVerified;
 
                     return AuthTextInputField(
                       label: 'Email address',
