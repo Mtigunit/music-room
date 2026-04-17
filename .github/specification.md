@@ -23,7 +23,8 @@ Music Room supports real-time voting in Live Events, delegated music control, an
   * **Given** a live Event, **When** a track finishes playing on the Host's device, **Then** the server marks the track as PLAYED and automatically broadcasts the next highest-voted track to play.
   * **Given** multiple tracks in the queue, **When** users upvote/downvote, **Then** the queue instantly re-sorts deterministically based on total voteScore.
   * **Given** a participant already upvoted a track, **When** they tap upvote again, **Then** the vote is toggled off and the ranking adjusts.
-  * **Given** an Event is licensed by location/time, **When** an out-of-bounds user tries to join or vote, **Then** access is denied with an eligibility error.
+  * **Given** an Event is licensed by location/time, **When** an out-of-bounds user attempts to vote, **Then** the vote is denied with an eligibility error.
+  * **Given** an out-of-bounds user is otherwise allowed to access the Event, **When** they view or join it, **Then** they may access the Event but cannot cast votes until they are within the licensed location/time window.
   * **Given** a Private Event, **When** a non-invited user searches for it, **Then** the event is hidden and inaccessible.
 
 ### **User Story 2 \- Delegated Playback Control / "Pass the Aux" (Priority: P2)**
