@@ -41,13 +41,15 @@ class _SignUpPageState extends State<SignUpPage> {
   bool _isOtpModalOpen = false;
   BuildContext? _otpModalContext;
 
-  String _normalizeEmail(String value) => value.trim().toLowerCase();
+  String get _trimmedEmail => _emailController.text.trim();
+
+  String _sanitizeEmail(String value) => value.trim();
 
   bool get _isEmailVerified {
     if (_emailVerificationToken == null || _verifiedEmail == null) {
       return false;
     }
-    return _verifiedEmail == _normalizeEmail(_emailController.text);
+    return _verifiedEmail == _trimmedEmail;
   }
 
   void _clearEmailVerification() {
@@ -79,7 +81,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
   void _validateEmail(String value) {
     setState(() {
-      if (_verifiedEmail != null && _normalizeEmail(value) != _verifiedEmail) {
+      if (_verifiedEmail != null && _sanitizeEmail(value) != _verifiedEmail) {
         _clearEmailVerification();
       }
 
@@ -115,7 +117,7 @@ class _SignUpPageState extends State<SignUpPage> {
     if (_emailError == null) {
       context.read<AuthBloc>().add(
         SendOtpRequested(
-          email: _emailController.text,
+          email: _trimmedEmail,
         ),
       );
     }
@@ -142,7 +144,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
     context.read<AuthBloc>().add(
       RegisterRequested(
-        email: _emailController.text,
+        email: _trimmedEmail,
         username: _usernameController.text,
         password: _passwordController.text,
         emailVerificationToken: _emailVerificationToken!,
@@ -167,11 +169,11 @@ class _SignUpPageState extends State<SignUpPage> {
         builder: (modalContext) {
           _otpModalContext = modalContext;
           return OtpVerificationModal(
-            email: _emailController.text,
+            email: _trimmedEmail,
             onConfirm: (otpCode) {
               context.read<AuthBloc>().add(
                 VerifyOtpRequested(
-                  email: _emailController.text,
+                  email: _trimmedEmail,
                   code: otpCode,
                 ),
               );
@@ -179,7 +181,7 @@ class _SignUpPageState extends State<SignUpPage> {
             onResend: () {
               context.read<AuthBloc>().add(
                 SendOtpRequested(
-                  email: _emailController.text,
+                  email: _trimmedEmail,
                 ),
               );
             },
@@ -217,7 +219,7 @@ class _SignUpPageState extends State<SignUpPage> {
         } else if (state is OtpVerified) {
           AppSnackbar.showSuccess(context, 'Email verified successfully!');
           _emailVerificationToken = state.emailVerificationToken;
-          _verifiedEmail = _normalizeEmail(state.email);
+          _verifiedEmail = _sanitizeEmail(state.email);
           if (_isOtpModalOpen && _otpModalContext != null) {
             final modalNavigator = Navigator.of(_otpModalContext!);
             if (modalNavigator.canPop()) {
