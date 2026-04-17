@@ -65,6 +65,10 @@ export class EnvironmentVariables {
   @IsString()
   @IsNotEmpty()
   GOOGLE_CLIENT_ID!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  YOUTUBE_API_KEY!: string;
 }
 
 export function validate(config: Record<string, unknown>) {
