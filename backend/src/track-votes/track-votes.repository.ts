@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TrackStatus } from '@prisma/client';
 
@@ -38,9 +42,17 @@ export class TrackVotesRepository {
 
     return this.prisma.$transaction(async (tx) => {
       const lockedTracks = await tx.$queryRaw<
-        Array<{ voteScore: number }>
-      >`SELECT "voteScore" FROM "EventTrack" WHERE id = ${eventTrackId} FOR UPDATE`;
-      const currentScore = lockedTracks[0]?.voteScore ?? eventTrack.voteScore;
+        Array<{ voteScore: number; status: TrackStatus }>
+      >`SELECT "voteScore", "status" FROM "EventTrack" WHERE id = ${eventTrackId} FOR UPDATE`;
+
+      const lockedTrack = lockedTracks[0];
+      if (lockedTrack && lockedTrack.status !== TrackStatus.QUEUED) {
+        throw new BadRequestException(
+          `Cannot vote on track ${trackId}: it is no longer queued.`,
+        );
+      }
+
+      const currentScore = lockedTrack?.voteScore ?? eventTrack.voteScore;
 
       const previousVote = await tx.vote.findUnique({
         where: {

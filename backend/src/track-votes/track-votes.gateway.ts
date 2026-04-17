@@ -37,7 +37,7 @@ export class TrackVotesGateway {
   ): Promise<TrackVoteResultDto> {
     const userId = (client.data as { user: { id: string } }).user.id;
 
-    // TODO: check later the licence policies
+    // TODO: check later the license policies
     if (!client.rooms.has(payload.eventId)) {
       throw new WsException(
         `You must join event room ${payload.eventId} to vote.`,
