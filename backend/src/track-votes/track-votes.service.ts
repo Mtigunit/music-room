@@ -21,9 +21,7 @@ export class TrackVotesService {
     return {
       eventId: payload.eventId,
       trackId: payload.trackId,
-      upVotes: record.upVotes,
-      downVotes: record.downVotes,
-      score: record.upVotes - record.downVotes,
+      score: record.score,
       updatedAt: record.updatedAt.toISOString(),
     };
   }

@@ -35,9 +35,9 @@ export class TrackVotesGateway {
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: TrackVoteMessageDto,
   ): Promise<TrackVoteResultDto> {
-    const data = client.data as { user?: { id: string } };
-    const userId = data.user?.id || 'anonymous';
+    const userId = (client.data as { user: { id: string } }).user.id;
 
+    // TODO: check later the licence policies
     if (!client.rooms.has(payload.eventId)) {
       throw new WsException(
         `You must join event room ${payload.eventId} to vote.`,

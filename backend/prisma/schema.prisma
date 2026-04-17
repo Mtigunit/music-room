@@ -181,6 +181,8 @@ model EventTrack {
 
   // Back-relation for the 1-to-1 current track
   currentIn       Event?      @relation("EventCurrentTrack")
+
+  @@unique([eventId, trackId])
 }
 
 model Vote {

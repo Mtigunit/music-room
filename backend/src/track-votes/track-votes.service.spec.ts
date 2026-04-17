@@ -42,8 +42,7 @@ describe('TrackVotesService', () => {
 
       const mockDate = new Date('2026-04-15T10:00:00.000Z');
       repository.recordVote.mockResolvedValue({
-        upVotes: 5,
-        downVotes: 2,
+        score: 3,
         updatedAt: mockDate,
       });
 
@@ -61,9 +60,7 @@ describe('TrackVotesService', () => {
       expect(result).toEqual({
         eventId: 'event-123',
         trackId: 'track-456',
-        upVotes: 5,
-        downVotes: 2,
-        score: 3, // 5 - 2
+        score: 3,
         updatedAt: mockDate.toISOString(),
       });
     });
@@ -77,8 +74,7 @@ describe('TrackVotesService', () => {
       };
 
       repository.recordVote.mockResolvedValue({
-        upVotes: 10,
-        downVotes: 15,
+        score: -5,
         updatedAt: new Date(),
       });
 

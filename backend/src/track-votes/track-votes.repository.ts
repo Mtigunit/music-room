@@ -4,8 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 type VoteDirection = 'up' | 'down' | 'none';
 
 export interface TrackVoteCounter {
-  upVotes: number;
-  downVotes: number;
+  score: number;
   updatedAt: Date;
 }
 
@@ -19,10 +18,12 @@ export class TrackVotesRepository {
     userId: string,
     vote: VoteDirection,
   ): Promise<TrackVoteCounter> {
-    const eventTrack = await this.prisma.eventTrack.findFirst({
+    const eventTrack = await this.prisma.eventTrack.findUnique({
       where: {
-        eventId,
-        trackId,
+        eventId_trackId: {
+          eventId,
+          trackId,
+        },
       },
     });
 
@@ -37,56 +38,61 @@ export class TrackVotesRepository {
     return this.prisma.$transaction(async (tx) => {
       await tx.$executeRaw`SELECT * FROM "EventTrack" WHERE id = ${eventTrackId} FOR UPDATE`;
 
-      if (vote === 'none') {
-        await tx.vote.deleteMany({
-          where: {
+      const previousVote = await tx.vote.findUnique({
+        where: {
+          eventTrackId_userId: {
             eventTrackId,
             userId,
           },
-        });
-      } else {
-        const voteValue = vote === 'up' ? 1 : -1;
-        await tx.vote.upsert({
-          where: {
-            eventTrackId_userId: {
-              eventTrackId,
-              userId,
-            },
-          },
-          update: {
-            voteValue,
-          },
-          create: {
-            eventTrackId,
-            userId,
-            voteValue,
-          },
-        });
-      }
-
-      const allVotes = await tx.vote.findMany({
-        where: { eventTrackId },
-        select: { voteValue: true },
+        },
       });
 
-      let upVotes = 0;
-      let downVotes = 0;
-      let score = 0;
+      let scoreDiff = 0;
 
-      for (const v of allVotes) {
-        if (v.voteValue === 1) upVotes++;
-        else if (v.voteValue === -1) downVotes++;
-        score += v.voteValue;
+      if (vote === 'none') {
+        if (previousVote) {
+          scoreDiff = -previousVote.voteValue;
+          await tx.vote.delete({
+            where: {
+              eventTrackId_userId: {
+                eventTrackId,
+                userId,
+              },
+            },
+          });
+        }
+      } else {
+        const newValue = vote === 'up' ? 1 : -1;
+        if (previousVote) {
+          scoreDiff = newValue - previousVote.voteValue;
+          await tx.vote.update({
+            where: {
+              eventTrackId_userId: {
+                eventTrackId,
+                userId,
+              },
+            },
+            data: { voteValue: newValue },
+          });
+        } else {
+          scoreDiff = newValue;
+          await tx.vote.create({
+            data: {
+              eventTrackId,
+              userId,
+              voteValue: newValue,
+            },
+          });
+        }
       }
 
-      await tx.eventTrack.update({
+      const updatedEventTrack = await tx.eventTrack.update({
         where: { id: eventTrackId },
-        data: { voteScore: score },
+        data: { voteScore: { increment: scoreDiff } },
       });
 
       return {
-        upVotes,
-        downVotes,
+        score: updatedEventTrack.voteScore,
         updatedAt: new Date(),
       };
     });

@@ -59,8 +59,6 @@ describe('TrackVotesGateway', () => {
       const mockResult: TrackVoteResultDto = {
         eventId: 'event-123',
         trackId: 'track-456',
-        upVotes: 5,
-        downVotes: 2,
         score: 3,
         updatedAt: '2026-04-15T10:00:00.000Z',
       };

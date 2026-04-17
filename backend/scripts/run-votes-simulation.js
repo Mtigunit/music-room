@@ -165,22 +165,22 @@ async function runTest() {
   // ---------- TEST SEQUENCE ---------- //
   
   console.log('\n--- ACTION 1: Client 1 votes UP on Track 1 ---');
-  client1.emit('track:vote', { eventId: EVENT_ID, trackId: TRACK_ID_1, vote: 'up' }, (ack) => console.log('Ack 1:', ack.score));
+  client1.emit('track:vote', { eventId: EVENT_ID, trackId: TRACK_ID_1, vote: 'up' }, (ack) => console.log('Ack 1:', ack));
   await sleep(500); // Wait for processing + broadcast
   await showDbState();
 
   console.log('\n--- ACTION 2: Client 2 votes UP on Track 2 ---');
-  client2.emit('track:vote', { eventId: EVENT_ID, trackId: TRACK_ID_2, vote: 'up' }, (ack) => console.log('Ack 2:', ack.score));
+  client2.emit('track:vote', { eventId: EVENT_ID, trackId: TRACK_ID_2, vote: 'up' }, (ack) => console.log('Ack 2:', ack));
   await sleep(500);
   await showDbState();
 
   console.log('\n--- ACTION 3: Client 1 votes UP on Track 2 ---');
-  client1.emit('track:vote', { eventId: EVENT_ID, trackId: TRACK_ID_2, vote: 'up' }, (ack) => console.log('Ack 3:', ack.score));
+  client1.emit('track:vote', { eventId: EVENT_ID, trackId: TRACK_ID_2, vote: 'up' }, (ack) => console.log('Ack 3:', ack));
   await sleep(500);
   await showDbState();
 
   console.log('\n--- ACTION 4: Client 2 votes DOWN on Track 3 ---');
-  client2.emit('track:vote', { eventId: EVENT_ID, trackId: TRACK_ID_3, vote: 'down' }, (ack) => console.log('Ack 4:', ack.score));
+  client2.emit('track:vote', { eventId: EVENT_ID, trackId: TRACK_ID_3, vote: 'down' }, (ack) => console.log('Ack 4:', ack));
   await sleep(500);
   await showDbState();
 
@@ -189,13 +189,13 @@ async function runTest() {
   await Promise.all([
     new Promise(resolve => {
       client1.emit('track:vote', { eventId: EVENT_ID, trackId: TRACK_ID_3, vote: 'up' }, (ack) => {
-        console.log('Ack 5 (Client 1):', ack.score);
+        console.log('Ack 5 (Client 1):', ack);
         resolve();
       });
     }),
     new Promise(resolve => {
       client2.emit('track:vote', { eventId: EVENT_ID, trackId: TRACK_ID_3, vote: 'up' }, (ack) => {
-        console.log('Ack 5 (Client 2):', ack.score);
+        console.log('Ack 5 (Client 2):', ack);
         resolve();
       });
     })
@@ -204,7 +204,7 @@ async function runTest() {
   await showDbState();
 
   console.log('\n--- ACTION 6: Client 1 REMOVES their vote entirely ("none") on Track 2 ---');
-  client1.emit('track:vote', { eventId: EVENT_ID, trackId: TRACK_ID_2, vote: 'none' }, (ack) => console.log('Ack 6:', ack.score));
+  client1.emit('track:vote', { eventId: EVENT_ID, trackId: TRACK_ID_2, vote: 'none' }, (ack) => console.log('Ack 6:', ack));
   await sleep(500);
   await showDbState();
 
