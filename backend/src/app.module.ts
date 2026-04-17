@@ -12,6 +12,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { RedisModule } from './redis/redis.module';
 import { WebsocketsModule } from './websockets/websockets.module';
 import { TrackVotesModule } from './track-votes/track-votes.module';
+import { TracksModule } from './tracks/tracks.module';
 
 @Module({
   imports: [
@@ -27,6 +28,7 @@ import { TrackVotesModule } from './track-votes/track-votes.module';
     RedisModule,
     WebsocketsModule,
     TrackVotesModule,
+    TracksModule,
   ],
   controllers: [AppController],
   providers: [AppService, AppRepository],
