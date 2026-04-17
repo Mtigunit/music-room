@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:music_room/core/services/onboarding_service.dart';
 import 'package:music_room/core/theme/app_theme.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
@@ -45,8 +46,24 @@ class _StartupRouteGateState extends State<_StartupRouteGate> {
   }
 
   Future<String> _resolveInitialRoute() async {
-    // Force onboarding every time per user request
-    return RouteNames.onboarding;
+    final hasSeenOnboarding = await OnboardingService().hasSeenOnboarding();
+
+    // If user hasn't seen onboarding, show onboarding first
+    if (!hasSeenOnboarding) {
+      return AppRouter.initialRoute;
+    }
+
+    // Check if user is already authenticated
+    final tokenStorage = InjectionContainer().tokenStorageService;
+    final isAuthenticated = await tokenStorage.isAuthenticated();
+
+    // If authenticated and onboarded, go directly to home
+    if (isAuthenticated) {
+      return RouteNames.home;
+    }
+
+    // If onboarded but not authenticated, show auth page
+    return RouteNames.auth;
   }
 
   @override

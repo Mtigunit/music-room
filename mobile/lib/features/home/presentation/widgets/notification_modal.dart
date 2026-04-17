@@ -1,5 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:music_room/features/home/data/mock_data/mock_notifications.dart';
+import 'package:music_room/features/home/domain/models/notification_item.dart';
+
+extension NotificationItemIcon on NotificationItem {
+  IconData get icon {
+    switch (type) {
+      case NotificationType.invite:
+        return Icons.music_note;
+      case NotificationType.like:
+        return Icons.favorite;
+      case NotificationType.trending:
+        return Icons.trending_up;
+      case NotificationType.system:
+        return Icons.info_outline;
+      case NotificationType.follow:
+        return Icons.person_add;
+    }
+  }
+}
 
 class NotificationModal extends StatelessWidget {
   const NotificationModal({super.key});
@@ -56,7 +74,6 @@ class NotificationModal extends StatelessWidget {
             // Notification List
             Flexible(
               child: ListView.builder(
-                shrinkWrap: true,
                 itemCount: mockNotifications.length,
                 itemBuilder: (context, index) {
                   final notification = mockNotifications[index];

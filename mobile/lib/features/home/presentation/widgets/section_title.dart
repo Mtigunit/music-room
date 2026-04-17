@@ -45,9 +45,8 @@ class SectionTitle extends StatelessWidget {
           onPressed: onSeeAllPressed,
           style: TextButton.styleFrom(
             foregroundColor: colorScheme.primary,
-            padding: EdgeInsets.zero,
-            minimumSize: Size.zero,
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            minimumSize: const Size(48, 48),
           ),
           child: const Text(
             'See all',

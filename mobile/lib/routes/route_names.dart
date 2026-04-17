@@ -1,5 +1,4 @@
 class RouteNames {
-  static const String startup = '/';
   static const String home = '/home';
   static const String onboarding = '/onboarding';
   static const String auth = '/auth';
