@@ -40,7 +40,7 @@ class AppRouter {
       return const OnboardingPage();
     }
 
-    if (routeName == RouteNames.home) {
+    if (routeName == RouteNames.home || routeName == RouteNames.homeAlias) {
       return const AppScaffold();
     }
 

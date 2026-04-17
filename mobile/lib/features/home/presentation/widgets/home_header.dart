@@ -89,7 +89,7 @@ class HomeHeader extends StatelessWidget {
                 final scaffoldState = context
                     .findAncestorStateOfType<AppScaffoldState>();
                 if (scaffoldState != null) {
-                  scaffoldState.switchTab(4);
+                  scaffoldState.switchTab(AppTabs.profile);
                 } else {
                   unawaited(
                     Navigator.of(context).pushNamed(RouteNames.profile),
