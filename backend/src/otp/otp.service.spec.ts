@@ -12,8 +12,7 @@ const mockUser: User = {
   email: 'taken@example.com',
   username: 'takenuser',
   passwordHash: '$2b$10$hashed',
-  isEmailVerified: true,
-  emailVerificationToken: null,
+  isEmailVerified: false,
   passwordResetToken: null,
   passwordResetExpires: null,
   googleId: null,
@@ -95,14 +94,21 @@ describe('OtpService', () => {
 
       expect(usersService.findByEmail).toHaveBeenCalledWith('new@example.com');
       expect(redisClient.set).toHaveBeenCalledWith(
-        'otp:new@example.com',
+        'otp:email_verification:new@example.com',
         expect.stringMatching(/^\d{6}$/),
+        'EX',
+        300,
+      );
+      expect(redisClient.set).toHaveBeenCalledWith(
+        'otp:attempts:email_verification:new@example.com',
+        '0',
         'EX',
         300,
       );
       expect(mailService.sendOtpEmail).toHaveBeenCalledWith(
         'new@example.com',
         expect.stringMatching(/^\d{6}$/),
+        'email_verification',
       );
     });
 
@@ -138,7 +144,7 @@ describe('OtpService', () => {
       await otpService.sendOtp('new@example.com');
 
       expect(redisClient.expire).toHaveBeenCalledWith(
-        'otp:rate:new@example.com',
+        'otp:rate:email_verification:new@example.com',
         900,
       );
     });
@@ -164,10 +170,10 @@ describe('OtpService', () => {
 
       const result = await otpService.verifyOtp('a@b.com', '123456');
 
-      expect(result).toEqual({ emailVerificationToken: 'verification-token' });
+      expect(result).toEqual({ token: 'verification-token' });
       expect(redisClient.del).toHaveBeenCalledWith(
-        'otp:a@b.com',
-        'otp:attempts:a@b.com',
+        'otp:email_verification:a@b.com',
+        'otp:attempts:email_verification:a@b.com',
       );
       expect(jwtService.sign).toHaveBeenCalledWith(
         { email: 'a@b.com', purpose: 'email_verification' },
@@ -201,7 +207,9 @@ describe('OtpService', () => {
       await expect(otpService.verifyOtp('a@b.com', '123456')).rejects.toThrow(
         'Invalid OTP',
       );
-      expect(redisClient.incr).toHaveBeenCalledWith('otp:attempts:a@b.com');
+      expect(redisClient.incr).toHaveBeenCalledWith(
+        'otp:attempts:email_verification:a@b.com',
+      );
     });
 
     it('should delete OTP and throw after max verification attempts', async () => {
@@ -216,8 +224,8 @@ describe('OtpService', () => {
         'Too many failed attempts',
       );
       expect(redisClient.del).toHaveBeenCalledWith(
-        'otp:a@b.com',
-        'otp:attempts:a@b.com',
+        'otp:email_verification:a@b.com',
+        'otp:attempts:email_verification:a@b.com',
       );
     });
   });

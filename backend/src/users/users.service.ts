@@ -31,4 +31,30 @@ export class UsersService {
       isEmailVerified,
     });
   }
+
+  async findByGoogleId(googleId: string): Promise<User | null> {
+    return this.userRepository.findByGoogleId(googleId);
+  }
+
+  async createOAuthUser(
+    email: string,
+    username: string,
+    googleId: string,
+    isEmailVerified: boolean = true,
+  ): Promise<User> {
+    return this.userRepository.createOAuthUser({
+      email,
+      username,
+      googleId,
+      isEmailVerified,
+    });
+  }
+
+  async linkGoogleAccount(userId: string, googleId: string): Promise<User> {
+    return this.userRepository.linkGoogleAccount(userId, googleId);
+  }
+
+  async updatePassword(userId: string, passwordHash: string): Promise<User> {
+    return this.userRepository.updatePassword(userId, passwordHash);
+  }
 }

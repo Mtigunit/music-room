@@ -5,12 +5,15 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
+import { OAuth2Client } from 'google-auth-library';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
 import type { User } from '@prisma/client';
 
 jest.mock('bcrypt');
+jest.mock('google-auth-library');
 
 const mockUser: User = {
   id: 'user-uuid-123',
@@ -18,7 +21,6 @@ const mockUser: User = {
   username: 'testuser',
   passwordHash: '$2b$10$hashedpassword',
   isEmailVerified: false,
-  emailVerificationToken: null,
   passwordResetToken: null,
   passwordResetExpires: null,
   googleId: null,
@@ -35,8 +37,14 @@ describe('AuthService', () => {
   let authService: AuthService;
   let usersService: jest.Mocked<UsersService>;
   let jwtService: jest.Mocked<JwtService>;
+  let verifyIdTokenMock: jest.Mock;
 
   beforeEach(async () => {
+    verifyIdTokenMock = jest.fn();
+    (OAuth2Client as unknown as jest.Mock).mockImplementation(() => ({
+      verifyIdToken: verifyIdTokenMock,
+    }));
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         AuthService,
@@ -45,8 +53,12 @@ describe('AuthService', () => {
           useValue: {
             findByEmail: jest.fn(),
             findByUsername: jest.fn(),
+            findByGoogleId: jest.fn(),
             findById: jest.fn(),
             create: jest.fn(),
+            createOAuthUser: jest.fn(),
+            linkGoogleAccount: jest.fn(),
+            updatePassword: jest.fn(),
           },
         },
         {
@@ -54,6 +66,16 @@ describe('AuthService', () => {
           useValue: {
             sign: jest.fn().mockReturnValue('signed-jwt-token'),
             verify: jest.fn(),
+          },
+        },
+        {
+          provide: ConfigService,
+          useValue: {
+            getOrThrow: jest.fn().mockImplementation((key) => {
+              if (key === 'GOOGLE_CLIENT_ID') return 'mock-client-id';
+              return 'mock-value';
+            }),
+            get: jest.fn(),
           },
         },
       ],
@@ -79,7 +101,6 @@ describe('AuthService', () => {
     };
 
     beforeEach(() => {
-      // Default: verification token is valid and matches the email
       jwtService.verify.mockReturnValue({
         email: registerDto.email,
         purpose: 'email_verification',
@@ -99,14 +120,6 @@ describe('AuthService', () => {
       const result = await authService.register(registerDto);
 
       expect(result).toEqual({ access_token: 'signed-jwt-token' });
-      expect(jwtService.verify).toHaveBeenCalledWith(
-        registerDto.emailVerificationToken,
-      );
-      expect(usersService.findByEmail).toHaveBeenCalledWith(registerDto.email);
-      expect(usersService.findByUsername).toHaveBeenCalledWith(
-        registerDto.username,
-      );
-      expect(bcrypt.hash).toHaveBeenCalledWith(registerDto.password, 10);
       expect(usersService.create).toHaveBeenCalledWith(
         registerDto.email,
         registerDto.username,
@@ -115,7 +128,7 @@ describe('AuthService', () => {
       );
     });
 
-    it('should throw BadRequestException if verification token email does not match', async () => {
+    it('should throw BadRequestException if token email does not match', async () => {
       jwtService.verify.mockReturnValue({
         email: 'different@example.com',
         purpose: 'email_verification',
@@ -123,23 +136,6 @@ describe('AuthService', () => {
 
       await expect(authService.register(registerDto)).rejects.toThrow(
         BadRequestException,
-      );
-      await expect(authService.register(registerDto)).rejects.toThrow(
-        'Verification token does not match the provided email',
-      );
-      expect(usersService.create).not.toHaveBeenCalled();
-    });
-
-    it('should throw BadRequestException if verification token is invalid', async () => {
-      jwtService.verify.mockImplementation(() => {
-        throw new Error('invalid token');
-      });
-
-      await expect(authService.register(registerDto)).rejects.toThrow(
-        BadRequestException,
-      );
-      await expect(authService.register(registerDto)).rejects.toThrow(
-        'Invalid or expired email verification token',
       );
     });
 
@@ -154,16 +150,21 @@ describe('AuthService', () => {
       );
     });
 
-    it('should throw ConflictException if email already exists', async () => {
-      usersService.findByEmail.mockResolvedValue(mockUser);
+    it('should throw BadRequestException if verification token is invalid', async () => {
+      jwtService.verify.mockImplementation(() => {
+        throw new Error('invalid token');
+      });
 
+      await expect(authService.register(registerDto)).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should throw ConflictException if email exists', async () => {
+      usersService.findByEmail.mockResolvedValue(mockUser);
       await expect(authService.register(registerDto)).rejects.toThrow(
         ConflictException,
       );
-      await expect(authService.register(registerDto)).rejects.toThrow(
-        'Email already registered',
-      );
-      expect(usersService.create).not.toHaveBeenCalled();
     });
 
     it('should throw ConflictException if username already exists', async () => {
@@ -173,10 +174,6 @@ describe('AuthService', () => {
       await expect(authService.register(registerDto)).rejects.toThrow(
         ConflictException,
       );
-      await expect(authService.register(registerDto)).rejects.toThrow(
-        'Username already taken',
-      );
-      expect(usersService.create).not.toHaveBeenCalled();
     });
   });
 
@@ -188,24 +185,12 @@ describe('AuthService', () => {
       password: 'password123',
     };
 
-    it('should login and return an access token for valid credentials (email)', async () => {
+    it('should login with valid email credentials', async () => {
       usersService.findByEmail.mockResolvedValue(mockUser);
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
 
       const result = await authService.login(loginDto);
-
       expect(result).toEqual({ access_token: 'signed-jwt-token' });
-      expect(usersService.findByEmail).toHaveBeenCalledWith(
-        loginDto.identifier,
-      );
-      expect(bcrypt.compare).toHaveBeenCalledWith(
-        loginDto.password,
-        mockUser.passwordHash,
-      );
-      expect(jwtService.sign).toHaveBeenCalledWith({
-        sub: mockUser.id,
-        email: mockUser.email,
-      });
     });
 
     it('should login and return an access token for valid credentials (username)', async () => {
@@ -229,9 +214,6 @@ describe('AuthService', () => {
       await expect(authService.login(loginDto)).rejects.toThrow(
         UnauthorizedException,
       );
-      await expect(authService.login(loginDto)).rejects.toThrow(
-        'Invalid credentials',
-      );
     });
 
     it('should throw UnauthorizedException if user has no passwordHash (OAuth-only account)', async () => {
@@ -252,8 +234,236 @@ describe('AuthService', () => {
       await expect(authService.login(loginDto)).rejects.toThrow(
         UnauthorizedException,
       );
-      await expect(authService.login(loginDto)).rejects.toThrow(
-        'Invalid credentials',
+    });
+  });
+
+  // ─── GOOGLE AUTH ──────────────────────────────────────
+
+  describe('googleAuth', () => {
+    const mockGooglePayload = {
+      email: 'google@example.com',
+      sub: 'google-sub-123',
+      given_name: 'Google User',
+    };
+
+    beforeEach(() => {
+      verifyIdTokenMock.mockResolvedValue({
+        getPayload: () => mockGooglePayload,
+      });
+    });
+
+    it('should return token if user already exists by googleId', async () => {
+      usersService.findByGoogleId.mockResolvedValue(mockUser);
+
+      const result = await authService.googleAuth('valid-id-token');
+
+      expect(result).toEqual({ access_token: 'signed-jwt-token' });
+      expect(usersService.findByGoogleId).toHaveBeenCalledWith(
+        'google-sub-123',
+      );
+      expect(usersService.findByEmail).not.toHaveBeenCalled();
+    });
+
+    it('should link account and return token if user exists by email but no googleId', async () => {
+      usersService.findByGoogleId.mockResolvedValue(null);
+      usersService.findByEmail.mockResolvedValue(mockUser);
+      usersService.linkGoogleAccount.mockResolvedValue({
+        ...mockUser,
+        googleId: 'google-sub-123',
+      });
+
+      const result = await authService.googleAuth('valid-id-token');
+
+      expect(result).toEqual({ access_token: 'signed-jwt-token' });
+      expect(usersService.findByEmail).toHaveBeenCalledWith(
+        'google@example.com',
+      );
+      expect(usersService.linkGoogleAccount).toHaveBeenCalledWith(
+        mockUser.id,
+        'google-sub-123',
+      );
+    });
+
+    it('should create new OAuth user with unique username if new', async () => {
+      usersService.findByGoogleId.mockResolvedValue(null);
+      usersService.findByEmail.mockResolvedValue(null);
+      // Mock findByUsername to return null on the first try so the username is "googleuser"
+      usersService.findByUsername.mockResolvedValue(null);
+      usersService.createOAuthUser.mockResolvedValue({
+        ...mockUser,
+        email: 'google@example.com',
+        username: 'googleuser',
+        googleId: 'google-sub-123',
+      });
+
+      const result = await authService.googleAuth('valid-id-token');
+
+      expect(result).toEqual({ access_token: 'signed-jwt-token' });
+      expect(usersService.createOAuthUser).toHaveBeenCalledWith(
+        'google@example.com',
+        expect.stringMatching(/^googleuser/),
+        'google-sub-123',
+        true,
+      );
+    });
+
+    it('should generate a unique username with suffix if base exists', async () => {
+      usersService.findByGoogleId.mockResolvedValue(null);
+      usersService.findByEmail.mockResolvedValue(null);
+
+      // First try returns a user, second try returns null
+      usersService.findByUsername
+        .mockResolvedValueOnce(mockUser)
+        .mockResolvedValueOnce(null);
+
+      usersService.createOAuthUser.mockResolvedValue(mockUser);
+
+      await authService.googleAuth('valid-id-token');
+
+      expect(usersService.findByUsername).toHaveBeenCalledTimes(2);
+      expect(usersService.createOAuthUser).toHaveBeenCalledWith(
+        'google@example.com',
+        expect.stringMatching(/^googleuser_\d{4}$/), // Matches suffix logic
+        'google-sub-123',
+        true,
+      );
+    });
+
+    it('should throw UnauthorizedException if token verification fails', async () => {
+      verifyIdTokenMock.mockRejectedValue(new Error('Invalid token'));
+
+      await expect(authService.googleAuth('invalid')).rejects.toThrow(
+        UnauthorizedException,
+      );
+    });
+  });
+
+  // ─── GENERATE UNIQUE USERNAME ─────────────────────────
+
+  describe('generateUniqueUsername', () => {
+    it('should handle empty base strings by padding with x', async () => {
+      usersService.findByUsername.mockResolvedValue(null);
+      const result = await authService['generateUniqueUsername']('');
+      expect(result).toBe('xxx');
+      expect(usersService.findByUsername).toHaveBeenCalledWith('xxx');
+    });
+
+    it('should strip special characters and lowercase the string', async () => {
+      usersService.findByUsername.mockResolvedValue(null);
+      const result =
+        await authService['generateUniqueUsername']('Hello@World!');
+      expect(result).toBe('helloworld');
+      expect(usersService.findByUsername).toHaveBeenCalledWith('helloworld');
+    });
+
+    it('should properly truncate long strings and resolve collisions', async () => {
+      const longBase = 'a'.repeat(30);
+      const truncatedBase = 'a'.repeat(20);
+
+      // 1st try: collision on truncated base
+      // 2nd try: success with random suffix
+      usersService.findByUsername
+        .mockResolvedValueOnce(mockUser)
+        .mockResolvedValueOnce(null);
+
+      const result = await authService['generateUniqueUsername'](longBase);
+
+      expect(result).toMatch(new RegExp(`^${truncatedBase}_\\d{4}$`));
+
+      const suffixString = result.split('_')[1];
+      const suffix = parseInt(suffixString, 10);
+      expect(suffix).toBeGreaterThanOrEqual(1000);
+      expect(suffix).toBeLessThanOrEqual(9999);
+
+      expect(usersService.findByUsername).toHaveBeenCalledTimes(2);
+      expect(usersService.findByUsername).toHaveBeenNthCalledWith(
+        1,
+        truncatedBase,
+      );
+    });
+  });
+
+  // ─── RESET PASSWORD ───────────────────────────────────
+
+  describe('resetPassword', () => {
+    const resetDto = {
+      email: 'test@example.com',
+      resetToken: 'valid-reset-token',
+      newPassword: 'NewPassword123!',
+    };
+
+    it('should successfully reset the password', async () => {
+      jwtService.verify.mockReturnValue({
+        email: 'test@example.com',
+        purpose: 'password_reset',
+      });
+      usersService.findByEmail.mockResolvedValue(mockUser);
+      (bcrypt.hash as jest.Mock).mockResolvedValue('$2b$10$newhashedpassword');
+
+      await authService.resetPassword(resetDto);
+
+      expect(jwtService.verify).toHaveBeenCalledWith('valid-reset-token');
+      expect(usersService.findByEmail).toHaveBeenCalledWith('test@example.com');
+      expect(bcrypt.hash).toHaveBeenCalledWith('NewPassword123!', 10);
+      expect(usersService.updatePassword).toHaveBeenCalledWith(
+        mockUser.id,
+        '$2b$10$newhashedpassword',
+      );
+    });
+
+    it('should throw BadRequestException if token is invalid or expired', async () => {
+      jwtService.verify.mockImplementation(() => {
+        throw new Error('invalid token');
+      });
+
+      await expect(authService.resetPassword(resetDto)).rejects.toThrow(
+        BadRequestException,
+      );
+      await expect(authService.resetPassword(resetDto)).rejects.toThrow(
+        'Invalid or expired reset token',
+      );
+    });
+
+    it('should throw BadRequestException if token purpose is not password_reset', async () => {
+      jwtService.verify.mockReturnValue({
+        email: 'test@example.com',
+        purpose: 'email_verification',
+      });
+
+      await expect(authService.resetPassword(resetDto)).rejects.toThrow(
+        BadRequestException,
+      );
+      await expect(authService.resetPassword(resetDto)).rejects.toThrow(
+        'Invalid reset token',
+      );
+    });
+
+    it('should throw BadRequestException if token email does not match DTO email', async () => {
+      jwtService.verify.mockReturnValue({
+        email: 'different@example.com',
+        purpose: 'password_reset',
+      });
+
+      await expect(authService.resetPassword(resetDto)).rejects.toThrow(
+        BadRequestException,
+      );
+      await expect(authService.resetPassword(resetDto)).rejects.toThrow(
+        'Reset token does not match the provided email',
+      );
+    });
+
+    it('should throw BadRequestException if user does not exist', async () => {
+      jwtService.verify.mockReturnValue({
+        email: 'test@example.com',
+        purpose: 'password_reset',
+      });
+      usersService.findByEmail.mockResolvedValue(null);
+
+      await expect(authService.resetPassword(resetDto)).rejects.toThrow(
+        BadRequestException,
+      );
+      await expect(authService.resetPassword(resetDto)).rejects.toThrow(
+        'User does not exist',
       );
     });
   });

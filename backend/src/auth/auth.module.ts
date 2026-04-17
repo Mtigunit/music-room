@@ -13,6 +13,7 @@ import { OtpModule } from '../otp/otp.module';
     UsersModule,
     PassportModule,
     OtpModule,
+    ConfigModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

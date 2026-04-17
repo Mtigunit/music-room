@@ -5,26 +5,37 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
+import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
+import { OAuth2Client } from 'google-auth-library';
 import { UsersService } from '../users/users.service';
 import type { RegisterDto } from './dto/register.dto';
 import type { LoginDto } from './dto/login.dto';
+import type { ResetPasswordDto } from './dto/reset-password.dto';
 import type { JwtPayload } from './interfaces/jwt-payload.interface';
 import type { User } from '@prisma/client';
 
 const BCRYPT_SALT_ROUNDS = 10;
 
-interface EmailVerificationPayload {
+interface OtpVerificationPayload {
   email: string;
   purpose: string;
 }
 
 @Injectable()
 export class AuthService {
+  private readonly googleClient: OAuth2Client;
+
   constructor(
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
-  ) {}
+    private readonly configService: ConfigService,
+  ) {
+    this.googleClient = new OAuth2Client(
+      this.configService.getOrThrow<string>('GOOGLE_CLIENT_ID'),
+    );
+  }
 
   async register(dto: RegisterDto): Promise<{ access_token: string }> {
     // Verify the email verification token
@@ -88,9 +99,112 @@ export class AuthService {
     return this.generateToken(user.id, user.email);
   }
 
+  async googleAuth(idToken: string): Promise<{ access_token: string }> {
+    try {
+      const ticket = await this.googleClient.verifyIdToken({
+        idToken,
+        audience: this.configService.getOrThrow<string>('GOOGLE_CLIENT_ID'),
+      });
+      const payload = ticket.getPayload();
+
+      if (!payload || !payload.email || !payload.sub) {
+        throw new UnauthorizedException('Invalid Google token payload');
+      }
+
+      const { email, sub: googleId, given_name } = payload;
+
+      // 1. Check if user exists by googleId
+      let user = await this.usersService.findByGoogleId(googleId);
+
+      // 2. If not, check if user exists by email (Account Linking)
+      if (!user) {
+        user = await this.usersService.findByEmail(email);
+        if (user) {
+          // Implicit linking: update googleId and set isEmailVerified = true
+          user = await this.usersService.linkGoogleAccount(user.id, googleId);
+        } else {
+          // 3. User does not exist at all, register new OAuth user
+          const uniqueUsername = await this.generateUniqueUsername(
+            given_name || email.split('@')[0],
+          );
+          user = await this.usersService.createOAuthUser(
+            email,
+            uniqueUsername,
+            googleId,
+            true, // Google verifies the email
+          );
+        }
+      }
+
+      // Return the new session
+      return this.generateToken(user.id, user.email);
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      throw new UnauthorizedException('Failed to authenticate with Google');
+    }
+  }
+
+  private async generateUniqueUsername(base: string): Promise<string> {
+    // Sanitize base: remove non-alphanumeric chars
+    const sanitizedBase = base.replace(/[^a-zA-Z0-9]/g, '').toLowerCase();
+
+    // Ensure it's at least 3 chars (for our validation logic)
+    let username = sanitizedBase.padEnd(3, 'x');
+
+    // Truncate to leave room for the random suffix if needed
+    username = username.slice(0, 20);
+
+    let isUnique = false;
+    let finalUsername = username;
+
+    while (!isUnique) {
+      const existing = await this.usersService.findByUsername(finalUsername);
+      if (!existing) {
+        isUnique = true;
+      } else {
+        const randomSuffix = crypto.randomInt(1000, 9999).toString();
+        finalUsername = `${username}_${randomSuffix}`;
+      }
+    }
+
+    return finalUsername;
+  }
+
+  async resetPassword(dto: ResetPasswordDto): Promise<void> {
+    let payload: OtpVerificationPayload;
+
+    try {
+      payload = this.jwtService.verify<OtpVerificationPayload>(dto.resetToken);
+    } catch {
+      throw new BadRequestException('Invalid or expired reset token');
+    }
+
+    if (payload.purpose !== 'password_reset') {
+      throw new BadRequestException('Invalid reset token');
+    }
+
+    const email = payload.email;
+
+    if (email !== dto.email) {
+      throw new BadRequestException(
+        'Reset token does not match the provided email',
+      );
+    }
+
+    const user = await this.usersService.findByEmail(email);
+    if (!user) {
+      throw new BadRequestException('User does not exist');
+    }
+
+    const passwordHash = await bcrypt.hash(dto.newPassword, BCRYPT_SALT_ROUNDS);
+    await this.usersService.updatePassword(user.id, passwordHash);
+  }
+
   private verifyEmailToken(token: string): string {
     try {
-      const payload = this.jwtService.verify<EmailVerificationPayload>(token);
+      const payload = this.jwtService.verify<OtpVerificationPayload>(token);
 
       if (payload.purpose !== 'email_verification') {
         throw new BadRequestException('Invalid verification token');
