@@ -10,10 +10,18 @@ class GenreFilterList extends StatelessWidget {
   final int selectedIndex;
   final ValueChanged<int>? onSelected;
 
+  static const List<String> genres = [
+    'All',
+    'Electronic',
+    'Hip Hop',
+    'Lo-Fi',
+    'Pop',
+    'Jazz',
+  ];
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final genres = ['All', 'Electronic', 'Hip Hop', 'Lo-Fi', 'Pop', 'Jazz'];
 
     return SizedBox(
       height: 40,

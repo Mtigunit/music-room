@@ -116,7 +116,7 @@ class HomePage extends StatelessWidget {
             bottom: 16,
             right: 24,
             child: FloatingActionButton.extended(
-              onPressed: () {},
+              onPressed: null,
               backgroundColor: Theme.of(context).colorScheme.primary,
               foregroundColor: Theme.of(context).colorScheme.onPrimary,
               icon: const Icon(Icons.add),

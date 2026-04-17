@@ -240,7 +240,7 @@ class RoomVerticalCard extends StatelessWidget {
                     SizedBox(
                       height: 36,
                       child: ElevatedButton(
-                        onPressed: () {},
+                        onPressed: null,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: colorScheme.primary,
                           foregroundColor: colorScheme.onPrimary,

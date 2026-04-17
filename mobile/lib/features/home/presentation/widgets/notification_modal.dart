@@ -63,9 +63,9 @@ class NotificationModal extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  TextButton(
-                    onPressed: () {},
-                    child: const Text('Mark all read'),
+                  const TextButton(
+                    onPressed: null,
+                    child: Text('Mark all read'),
                   ),
                 ],
               ),

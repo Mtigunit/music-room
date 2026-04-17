@@ -51,9 +51,11 @@ class AppScaffoldState extends State<AppScaffold> {
   }
 
   void switchTab(int index) {
-    setState(() {
-      _currentIndex = index;
-    });
+    if (index >= 0 && index < _pages.length) {
+      setState(() {
+        _currentIndex = index;
+      });
+    }
   }
 
   @override
