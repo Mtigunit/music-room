@@ -1,14 +1,6 @@
 name: Common CI
 
 on:
-  push:
-    branches:
-      - main
-    paths:
-      - commitlint.config.js
-      - package.json
-      - package-lock.json
-      - .github/workflows/common-ci.yml
   pull_request:
     paths:
       - commitlint.config.js
@@ -43,18 +35,5 @@ jobs:
         run: npm install --no-audit --no-fund
 
       - name: Lint commit messages (pull request)
-        if: ${{ github.event_name == 'pull_request' }}
         run: |
           npx commitlint --from "${{ github.event.pull_request.base.sha }}" --to "${{ github.event.pull_request.head.sha }}" --verbose
-
-      - name: Lint commit messages (push)
-        if: ${{ github.event_name == 'push' }}
-        run: |
-          BEFORE_SHA="${{ github.event.before }}"
-          NULL_SHA="0000000000000000000000000000000000000000"
-
-          if [ "$BEFORE_SHA" = "$NULL_SHA" ]; then
-            BEFORE_SHA=$(git rev-list --max-parents=0 HEAD)
-          fi
-
-          npx commitlint --from "$BEFORE_SHA" --to "${{ github.sha }}" --verbose

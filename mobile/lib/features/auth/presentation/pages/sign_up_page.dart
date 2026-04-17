@@ -37,8 +37,25 @@ class _SignUpPageState extends State<SignUpPage> {
   String? _passwordError;
 
   String? _emailVerificationToken;
+  String? _verifiedEmail;
   bool _isOtpModalOpen = false;
   BuildContext? _otpModalContext;
+
+  String get _trimmedEmail => _emailController.text.trim();
+
+  String _sanitizeEmail(String value) => value.trim();
+
+  bool get _isEmailVerified {
+    if (_emailVerificationToken == null || _verifiedEmail == null) {
+      return false;
+    }
+    return _verifiedEmail == _trimmedEmail;
+  }
+
+  void _clearEmailVerification() {
+    _emailVerificationToken = null;
+    _verifiedEmail = null;
+  }
 
   @override
   void dispose() {
@@ -64,6 +81,10 @@ class _SignUpPageState extends State<SignUpPage> {
 
   void _validateEmail(String value) {
     setState(() {
+      if (_verifiedEmail != null && _sanitizeEmail(value) != _verifiedEmail) {
+        _clearEmailVerification();
+      }
+
       if (value.isEmpty) {
         _emailError = 'Email is required';
       } else if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
@@ -96,7 +117,7 @@ class _SignUpPageState extends State<SignUpPage> {
     if (_emailError == null) {
       context.read<AuthBloc>().add(
         SendOtpRequested(
-          email: _emailController.text,
+          email: _trimmedEmail,
         ),
       );
     }
@@ -113,7 +134,7 @@ class _SignUpPageState extends State<SignUpPage> {
       return;
     }
 
-    if (_emailVerificationToken == null) {
+    if (!_isEmailVerified) {
       AppSnackbar.showError(
         context,
         'Please verify your email before creating an account.',
@@ -123,7 +144,7 @@ class _SignUpPageState extends State<SignUpPage> {
 
     context.read<AuthBloc>().add(
       RegisterRequested(
-        email: _emailController.text,
+        email: _trimmedEmail,
         username: _usernameController.text,
         password: _passwordController.text,
         emailVerificationToken: _emailVerificationToken!,
@@ -148,11 +169,11 @@ class _SignUpPageState extends State<SignUpPage> {
         builder: (modalContext) {
           _otpModalContext = modalContext;
           return OtpVerificationModal(
-            email: _emailController.text,
+            email: _trimmedEmail,
             onConfirm: (otpCode) {
               context.read<AuthBloc>().add(
                 VerifyOtpRequested(
-                  email: _emailController.text,
+                  email: _trimmedEmail,
                   code: otpCode,
                 ),
               );
@@ -160,7 +181,7 @@ class _SignUpPageState extends State<SignUpPage> {
             onResend: () {
               context.read<AuthBloc>().add(
                 SendOtpRequested(
-                  email: _emailController.text,
+                  email: _trimmedEmail,
                 ),
               );
             },
@@ -198,6 +219,7 @@ class _SignUpPageState extends State<SignUpPage> {
         } else if (state is OtpVerified) {
           AppSnackbar.showSuccess(context, 'Email verified successfully!');
           _emailVerificationToken = state.emailVerificationToken;
+          _verifiedEmail = _sanitizeEmail(state.email);
           if (_isOtpModalOpen && _otpModalContext != null) {
             final modalNavigator = Navigator.of(_otpModalContext!);
             if (modalNavigator.canPop()) {
@@ -254,8 +276,7 @@ class _SignUpPageState extends State<SignUpPage> {
                 BlocBuilder<AuthBloc, AuthState>(
                   builder: (context, state) {
                     final isLoading = state is OtpLoading;
-                    final isVerified =
-                        state is OtpVerified || _emailVerificationToken != null;
+                    final isVerified = _isEmailVerified;
 
                     return AuthTextInputField(
                       label: 'Email address',
