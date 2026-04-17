@@ -20,7 +20,7 @@ Real-time voting Live Events, delegated music control, and real-time collaborati
 * *Why this priority:* This is the core consumption use case. Music plays from the Host's phone while guests silently control the upcoming queue via democracy.
 * *Acceptance Scenarios:*
   * **Given** a Host creates a new Event, **When** they select an existing Playlist, **Then** the event initializes by copying the playlist's tracks into the active Event Queue (all starting with 0 votes).
-  * **Given** a live Event, **When** a track finishes playing on the Host's device, **Then** the server soft-deletes the track (status: PLAYED) and automatically broadcasts the next highest-voted track to play.
+  * **Given** a live Event, **When** a track finishes playing on the Host's device, **Then** the server marks the track as PLAYED and automatically broadcasts the next highest-voted track to play.
   * **Given** multiple tracks in the queue, **When** users upvote/downvote, **Then** the queue instantly re-sorts deterministically based on total voteScore.
   * **Given** a participant already upvoted a track, **When** they tap upvote again, **Then** the vote is toggled off and the ranking adjusts.
   * **Given** an Event is licensed by location/time, **When** an out-of-bounds user tries to join or vote, **Then** access is denied with an eligibility error.
