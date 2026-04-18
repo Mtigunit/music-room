@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:music_room/features/events/presentation/widgets/step_1_details.dart';
 import 'package:music_room/features/events/presentation/widgets/step_2_genre.dart';
 import 'package:music_room/features/events/presentation/widgets/step_3_music.dart';
@@ -23,7 +23,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
   // Global Form State
   String eventName = '';
   String eventDescription = '';
-  File? eventCover;
+  XFile? eventCover;
 
   List<String> selectedGenres = [];
 

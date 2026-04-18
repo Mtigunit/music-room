@@ -8,7 +8,7 @@ void main() async {
 
   // Load environment variables (.env is optional)
   try {
-    await dotenv.load();
+    await dotenv.load(isOptional: true);
   } on Exception {
     // If .env is missing, the app will fall back to default configs
     debugPrint('.env file not found, falling back to default URLs');

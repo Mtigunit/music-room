@@ -1,4 +1,5 @@
-import 'dart:io';
+import 'dart:io' as io;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -15,18 +16,28 @@ class Step1Details extends StatelessWidget {
   });
   final String eventName;
   final String eventDescription;
-  final File? eventCover;
+  final XFile? eventCover;
   final ValueChanged<String> onNameChanged;
   final ValueChanged<String> onDescriptionChanged;
-  final ValueChanged<File?> onCoverChanged;
+  final ValueChanged<XFile?> onCoverChanged;
   final VoidCallback onNext;
 
   Future<void> _pickImage() async {
     final picker = ImagePicker();
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
-      onCoverChanged(File(pickedFile.path));
+      onCoverChanged(pickedFile);
     }
+  }
+
+  ImageProvider _getCoverImage() {
+    if (eventCover != null) {
+      if (kIsWeb) {
+        return NetworkImage(eventCover!.path);
+      }
+      return FileImage(io.File(eventCover!.path));
+    }
+    return const AssetImage('assets/images/step1.webp');
   }
 
   @override
@@ -125,7 +136,7 @@ class Step1Details extends StatelessWidget {
                 const SizedBox(height: 24),
 
                 Text(
-                  'ROOM COVER',
+                  'EVENT COVER',
                   style: theme.textTheme.labelSmall?.copyWith(
                     letterSpacing: 1.2,
                     fontWeight: FontWeight.bold,
@@ -146,9 +157,7 @@ class Step1Details extends StatelessWidget {
                         ),
                       ),
                       image: DecorationImage(
-                        image: eventCover != null
-                            ? FileImage(eventCover!) as ImageProvider
-                            : const AssetImage('assets/images/step1.webp'),
+                        image: _getCoverImage(),
                         fit: BoxFit.cover,
                         colorFilter: eventCover == null
                             ? ColorFilter.mode(

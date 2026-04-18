@@ -127,7 +127,12 @@ class _Step4AccessState extends State<Step4Access> {
                   subtitle: 'Only people with an invite link can join',
                   icon: Icons.lock_outline,
                   isSelected: widget.visibility == 'Private',
-                  onTap: () => widget.onVisibilityChanged('Private'),
+                  onTap: () {
+                    widget.onVisibilityChanged('Private');
+                    if (widget.votingRule == 'Everyone') {
+                      widget.onVotingRuleChanged('Invited Only');
+                    }
+                  },
                   theme: theme,
                 ),
                 const SizedBox(height: 20),
@@ -154,16 +159,22 @@ class _Step4AccessState extends State<Step4Access> {
                         ),
                       ),
                       const SizedBox(height: 18),
-                      _buildToggleRow(
-                        title: 'Everyone can vote',
-                        subtitle: 'All listeners can upvote tracks',
-                        value: widget.votingRule == 'Everyone',
-                        onChanged: (enabled) {
-                          if (enabled) {
-                            widget.onVotingRuleChanged('Everyone');
-                          }
-                        },
-                        theme: theme,
+                      Opacity(
+                        opacity: widget.visibility == 'Private' ? 0.4 : 1.0,
+                        child: IgnorePointer(
+                          ignoring: widget.visibility == 'Private',
+                          child: _buildToggleRow(
+                            title: 'Everyone can vote',
+                            subtitle: 'All listeners can upvote tracks',
+                            value: widget.votingRule == 'Everyone',
+                            onChanged: (enabled) {
+                              if (enabled) {
+                                widget.onVotingRuleChanged('Everyone');
+                              }
+                            },
+                            theme: theme,
+                          ),
+                        ),
                       ),
                       const SizedBox(height: 14),
                       _buildToggleRow(
