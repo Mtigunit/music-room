@@ -105,10 +105,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
   void _closeOtpModalIfOpen() {
     if (_isOtpModalOpen && mounted) {
-      final navigator = Navigator.of(context);
-      if (navigator.canPop()) {
-        navigator.pop();
-      }
+      unawaited(Navigator.of(context, rootNavigator: true).maybePop());
     }
     _isOtpModalOpen = false;
   }
