@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:music_room/core/widgets/app_back_button.dart';
 import 'package:music_room/features/events/domain/entities/event_location.dart';
 import 'package:music_room/features/events/presentation/widgets/step_1_details.dart';
 import 'package:music_room/features/events/presentation/widgets/step_2_genre.dart';
@@ -98,13 +99,9 @@ class _CreateEventPageState extends State<CreateEventPage> {
         leadingWidth: 48,
         leading: Padding(
           padding: const EdgeInsets.only(left: 8),
-          child: IconButton(
+          child: AppBackButton(
             onPressed: _prevStep,
-            icon: Icon(
-              Icons.arrow_back_ios_new,
-              color: theme.colorScheme.onSurface,
-              size: 20,
-            ),
+            color: theme.colorScheme.onSurface,
           ),
         ),
         title: Text(
