@@ -102,6 +102,79 @@ class OtpVerificationFailure extends AuthState {
   List<Object?> get props => [failure];
 }
 
+/// Password-reset OTP sending in progress
+class PasswordResetOtpLoading extends AuthState {
+  const PasswordResetOtpLoading();
+}
+
+/// Password-reset OTP sent successfully
+class PasswordResetOtpSent extends AuthState {
+  const PasswordResetOtpSent({required this.email});
+  final String email;
+
+  @override
+  List<Object?> get props => [email];
+}
+
+/// Password-reset OTP sending failed
+class PasswordResetOtpFailure extends AuthState {
+  const PasswordResetOtpFailure({required this.failure});
+  final Failure failure;
+
+  @override
+  List<Object?> get props => [failure];
+}
+
+/// Password-reset OTP verification in progress
+class PasswordResetOtpVerifying extends AuthState {
+  const PasswordResetOtpVerifying();
+}
+
+/// Password-reset OTP verification successful
+class PasswordResetOtpVerified extends AuthState {
+  const PasswordResetOtpVerified({
+    required this.passwordResetToken,
+    required this.email,
+  });
+  final String passwordResetToken;
+  final String email;
+
+  @override
+  List<Object?> get props => [passwordResetToken, email];
+}
+
+/// Password-reset OTP verification failed
+class PasswordResetOtpVerificationFailure extends AuthState {
+  const PasswordResetOtpVerificationFailure({required this.failure});
+  final Failure failure;
+
+  @override
+  List<Object?> get props => [failure];
+}
+
+/// Password reset request in progress
+class ResetPasswordLoading extends AuthState {
+  const ResetPasswordLoading();
+}
+
+/// Password reset request successful
+class ResetPasswordSuccess extends AuthState {
+  const ResetPasswordSuccess({required this.message});
+  final String message;
+
+  @override
+  List<Object?> get props => [message];
+}
+
+/// Password reset request failed
+class ResetPasswordFailure extends AuthState {
+  const ResetPasswordFailure({required this.failure});
+  final Failure failure;
+
+  @override
+  List<Object?> get props => [failure];
+}
+
 /// User registration in progress
 class RegisterLoading extends AuthState {
   const RegisterLoading();

@@ -15,6 +15,19 @@ abstract class AuthRepository {
     String code,
   );
 
+  Future<(bool, Failure?)> sendPasswordResetOtp(String email);
+
+  Future<(VerifyResetOtpResponse?, Failure?)> verifyPasswordResetOtp(
+    String email,
+    String code,
+  );
+
+  Future<(MessageResponse?, Failure?)> resetPassword({
+    required String email,
+    required String resetToken,
+    required String newPassword,
+  });
+
   Future<(RegisterResponse?, Failure?)> register({
     required String email,
     required String username,

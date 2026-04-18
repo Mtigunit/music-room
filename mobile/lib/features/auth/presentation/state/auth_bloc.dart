@@ -12,6 +12,9 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<LoginRequested>(_onLoginRequested);
     on<SendOtpRequested>(_onSendOtpRequested);
     on<VerifyOtpRequested>(_onVerifyOtpRequested);
+    on<SendPasswordResetOtpRequested>(_onSendPasswordResetOtpRequested);
+    on<VerifyPasswordResetOtpRequested>(_onVerifyPasswordResetOtpRequested);
+    on<ResetPasswordRequested>(_onResetPasswordRequested);
     on<RegisterRequested>(_onRegisterRequested);
     on<LogoutRequested>(_onLogoutRequested);
   }
@@ -92,6 +95,65 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       );
     } else {
       emit(OtpVerificationFailure(failure: failure!));
+    }
+  }
+
+  /// Handle password-reset OTP sending request
+  Future<void> _onSendPasswordResetOtpRequested(
+    SendPasswordResetOtpRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(const PasswordResetOtpLoading());
+    final (success, failure) = await _authRepository.sendPasswordResetOtp(
+      event.email,
+    );
+
+    if (success) {
+      emit(PasswordResetOtpSent(email: event.email));
+    } else {
+      emit(PasswordResetOtpFailure(failure: failure!));
+    }
+  }
+
+  /// Handle password-reset OTP verification request
+  Future<void> _onVerifyPasswordResetOtpRequested(
+    VerifyPasswordResetOtpRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(const PasswordResetOtpVerifying());
+    final (response, failure) = await _authRepository.verifyPasswordResetOtp(
+      event.email,
+      event.code,
+    );
+
+    if (response != null) {
+      emit(
+        PasswordResetOtpVerified(
+          passwordResetToken: response.passwordResetToken,
+          email: event.email,
+        ),
+      );
+    } else {
+      emit(PasswordResetOtpVerificationFailure(failure: failure!));
+    }
+  }
+
+  /// Handle password reset submission request
+  Future<void> _onResetPasswordRequested(
+    ResetPasswordRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(const ResetPasswordLoading());
+    final (response, failure) = await _authRepository.resetPassword(
+      email: event.email,
+      resetToken: event.resetToken,
+      newPassword: event.newPassword,
+    );
+
+    if (response != null) {
+      emit(ResetPasswordSuccess(message: response.message));
+    } else {
+      emit(ResetPasswordFailure(failure: failure!));
     }
   }
 

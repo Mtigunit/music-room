@@ -26,6 +26,30 @@ class VerifyOtpResponse {
   Map<String, dynamic> toJson() => _$VerifyOtpResponseToJson(this);
 }
 
+/// Response model for /auth/verify-reset-otp endpoint
+@JsonSerializable()
+class VerifyResetOtpResponse {
+  VerifyResetOtpResponse({required this.passwordResetToken});
+
+  factory VerifyResetOtpResponse.fromJson(Map<String, dynamic> json) =>
+      _$VerifyResetOtpResponseFromJson(json);
+  final String passwordResetToken;
+
+  Map<String, dynamic> toJson() => _$VerifyResetOtpResponseToJson(this);
+}
+
+/// Generic API response with a message field
+@JsonSerializable()
+class MessageResponse {
+  MessageResponse({required this.message});
+
+  factory MessageResponse.fromJson(Map<String, dynamic> json) =>
+      _$MessageResponseFromJson(json);
+  final String message;
+
+  Map<String, dynamic> toJson() => _$MessageResponseToJson(this);
+}
+
 /// Response model for /auth/register endpoint
 @JsonSerializable()
 class RegisterResponse {

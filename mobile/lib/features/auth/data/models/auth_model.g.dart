@@ -22,6 +22,24 @@ Map<String, dynamic> _$VerifyOtpResponseToJson(VerifyOtpResponse instance) =>
       'emailVerificationToken': instance.emailVerificationToken,
     };
 
+VerifyResetOtpResponse _$VerifyResetOtpResponseFromJson(
+  Map<String, dynamic> json,
+) => VerifyResetOtpResponse(
+  passwordResetToken: json['passwordResetToken'] as String,
+);
+
+Map<String, dynamic> _$VerifyResetOtpResponseToJson(
+  VerifyResetOtpResponse instance,
+) => <String, dynamic>{
+  'passwordResetToken': instance.passwordResetToken,
+};
+
+MessageResponse _$MessageResponseFromJson(Map<String, dynamic> json) =>
+    MessageResponse(message: json['message'] as String);
+
+Map<String, dynamic> _$MessageResponseToJson(MessageResponse instance) =>
+    <String, dynamic>{'message': instance.message};
+
 RegisterResponse _$RegisterResponseFromJson(Map<String, dynamic> json) =>
     RegisterResponse(accessToken: json['access_token'] as String);
 

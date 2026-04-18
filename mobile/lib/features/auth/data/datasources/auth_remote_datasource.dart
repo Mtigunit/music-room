@@ -7,6 +7,16 @@ import 'package:music_room/features/auth/data/models/auth_model.dart';
 abstract class IAuthRemoteDataSource {
   Future<SendOtpResponse> sendOtp(String email);
   Future<VerifyOtpResponse> verifyOtp(String email, String code);
+  Future<SendOtpResponse> sendPasswordResetOtp(String email);
+  Future<VerifyResetOtpResponse> verifyPasswordResetOtp(
+    String email,
+    String code,
+  );
+  Future<MessageResponse> resetPassword({
+    required String email,
+    required String resetToken,
+    required String newPassword,
+  });
   Future<RegisterResponse> register({
     required String email,
     required String username,
@@ -46,6 +56,51 @@ class AuthRemoteDataSource implements IAuthRemoteDataSource {
       },
       expectedStatusCode: 201,
       parser: VerifyOtpResponse.fromJson,
+    );
+  }
+
+  @override
+  Future<SendOtpResponse> sendPasswordResetOtp(String email) async {
+    return _postAndMap(
+      path: AppConfig.forgotPasswordEndpoint,
+      data: {'email': email},
+      expectedStatusCode: 201,
+      parser: SendOtpResponse.fromJson,
+    );
+  }
+
+  @override
+  Future<VerifyResetOtpResponse> verifyPasswordResetOtp(
+    String email,
+    String code,
+  ) async {
+    return _postAndMap(
+      path: AppConfig.verifyResetOtpEndpoint,
+      data: {
+        'email': email,
+        'code': code,
+      },
+      expectedStatusCode: 201,
+      parser: VerifyResetOtpResponse.fromJson,
+    );
+  }
+
+  @override
+  Future<MessageResponse> resetPassword({
+    required String email,
+    required String resetToken,
+    required String newPassword,
+  }) async {
+    return _postAndMap(
+      path: AppConfig.resetPasswordEndpoint,
+      data: {
+        'email': email,
+        'resetToken': resetToken,
+        'newPassword': newPassword,
+      },
+      expectedStatusCode: 200,
+      additionalSuccessStatusCodes: const {201},
+      parser: MessageResponse.fromJson,
     );
   }
 
@@ -109,6 +164,7 @@ class AuthRemoteDataSource implements IAuthRemoteDataSource {
     required Map<String, dynamic> data,
     required int expectedStatusCode,
     required T Function(Map<String, dynamic>) parser,
+    Set<int> additionalSuccessStatusCodes = const {},
   }) async {
     try {
       final response = await _apiClient.post<Map<String, dynamic>>(
@@ -119,6 +175,7 @@ class AuthRemoteDataSource implements IAuthRemoteDataSource {
       return _parseResponse(
         response: response,
         expectedStatusCode: expectedStatusCode,
+        additionalSuccessStatusCodes: additionalSuccessStatusCodes,
         parser: parser,
       );
     } on DioException {
@@ -132,8 +189,15 @@ class AuthRemoteDataSource implements IAuthRemoteDataSource {
     required Response<Map<String, dynamic>> response,
     required int expectedStatusCode,
     required T Function(Map<String, dynamic>) parser,
+    Set<int> additionalSuccessStatusCodes = const {},
   }) {
-    if (response.statusCode == expectedStatusCode && response.data != null) {
+    final statusCode = response.statusCode;
+    final isExpectedStatus =
+        statusCode == expectedStatusCode ||
+        (statusCode != null &&
+            additionalSuccessStatusCodes.contains(statusCode));
+
+    if (isExpectedStatus && response.data != null) {
       return parser(response.data!);
     }
 
