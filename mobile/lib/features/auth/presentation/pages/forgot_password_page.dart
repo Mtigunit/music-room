@@ -112,6 +112,20 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     _isOtpModalOpen = false;
   }
 
+  bool _shouldUseGenericForgotPasswordMessage(String failureMessage) {
+    final normalizedMessage = failureMessage.toLowerCase();
+    const enumerationIndicators = <String>[
+      'not found',
+      'does not exist',
+      'no account',
+      'unknown email',
+      'user not found',
+      'email not registered',
+    ];
+
+    return enumerationIndicators.any(normalizedMessage.contains);
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -135,10 +149,21 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
             _showOtpVerificationModal();
           }
         } else if (state is PasswordResetOtpFailure) {
-          AppSnackbar.showInfo(
-            context,
-            'If an account exists, an OTP has been sent to the email.',
-          );
+          final failureMessage = state.failure.message.trim();
+
+          if (_shouldUseGenericForgotPasswordMessage(failureMessage)) {
+            AppSnackbar.showInfo(
+              context,
+              'If an account exists, an OTP has been sent to the email.',
+            );
+          } else {
+            AppSnackbar.showError(
+              context,
+              failureMessage.isNotEmpty
+                  ? failureMessage
+                  : 'Unable to send reset OTP. Please try again.',
+            );
+          }
         } else if (state is PasswordResetOtpVerified) {
           AppSnackbar.showSuccess(context, 'OTP verified successfully!');
           _closeOtpModalIfOpen();
