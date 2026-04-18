@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:music_room/features/events/domain/entities/event_location.dart';
 
 class Step4Access extends StatefulWidget {
   const Step4Access({
@@ -25,7 +25,7 @@ class Step4Access extends StatefulWidget {
   });
   final String visibility;
   final String votingRule;
-  final LatLng? allowedLocation;
+  final EventLocation? allowedLocation;
   final double allowedRadius;
   final DateTime? startDate;
   final TimeOfDay? startTime;
@@ -34,7 +34,7 @@ class Step4Access extends StatefulWidget {
 
   final ValueChanged<String> onVisibilityChanged;
   final ValueChanged<String> onVotingRuleChanged;
-  final ValueChanged<LatLng?> onLocationChanged;
+  final ValueChanged<EventLocation?> onLocationChanged;
   final ValueChanged<double> onRadiusChanged;
   final ValueChanged<DateTime?> onStartDateChanged;
   final ValueChanged<TimeOfDay?> onStartTimeChanged;

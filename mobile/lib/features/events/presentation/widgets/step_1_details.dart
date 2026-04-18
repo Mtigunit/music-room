@@ -1,7 +1,6 @@
-import 'dart:io' as io;
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:music_room/features/events/presentation/widgets/image_helper/image_helper.dart';
 
 class Step1Details extends StatelessWidget {
   const Step1Details({
@@ -32,10 +31,7 @@ class Step1Details extends StatelessWidget {
 
   ImageProvider _getCoverImage() {
     if (eventCover != null) {
-      if (kIsWeb) {
-        return NetworkImage(eventCover!.path);
-      }
-      return FileImage(io.File(eventCover!.path));
+      return getPlatformCoverImage(eventCover!);
     }
     return const AssetImage('assets/images/step1.webp');
   }
