@@ -27,7 +27,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   String? _requestedEmail;
   bool _isOtpModalOpen = false;
   bool _hasNavigatedToResetPage = false;
-  BuildContext? _otpModalContext;
 
   String get _trimmedEmail => _emailController.text.trim();
 
@@ -78,7 +77,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         isDismissible: false,
         backgroundColor: Colors.transparent,
         builder: (modalContext) {
-          _otpModalContext = modalContext;
           final requestedEmail = _requestedEmail ?? _trimmedEmail;
           return OtpVerificationModal(
             email: requestedEmail,
@@ -101,20 +99,18 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         },
       ).whenComplete(() {
         _isOtpModalOpen = false;
-        _otpModalContext = null;
       }),
     );
   }
 
   void _closeOtpModalIfOpen() {
-    if (_isOtpModalOpen && _otpModalContext != null) {
-      final modalNavigator = Navigator.of(_otpModalContext!);
-      if (modalNavigator.canPop()) {
-        modalNavigator.pop();
+    if (_isOtpModalOpen && mounted) {
+      final navigator = Navigator.of(context);
+      if (navigator.canPop()) {
+        navigator.pop();
       }
     }
     _isOtpModalOpen = false;
-    _otpModalContext = null;
   }
 
   @override
@@ -131,13 +127,19 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
             duration: const Duration(seconds: 1),
           );
         } else if (state is PasswordResetOtpSent) {
-          AppSnackbar.showSuccess(context, 'OTP sent to ${state.email}');
+          AppSnackbar.showInfo(
+            context,
+            'If an account exists, an OTP has been sent to the email.',
+          );
           _requestedEmail = state.email;
           if (!_isOtpModalOpen) {
             _showOtpVerificationModal();
           }
         } else if (state is PasswordResetOtpFailure) {
-          AppSnackbar.showError(context, state.failure.message);
+          AppSnackbar.showInfo(
+            context,
+            'If an account exists, an OTP has been sent to the email.',
+          );
         } else if (state is PasswordResetOtpVerified) {
           AppSnackbar.showSuccess(context, 'OTP verified successfully!');
           _closeOtpModalIfOpen();
@@ -187,6 +189,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                   icon: Icons.mail_outline,
                   placeholder: 'Email address',
                   controller: _emailController,
+                  keyboardType: TextInputType.emailAddress,
                   onChanged: _validateEmail,
                   errorText: _emailError,
                 ),
