@@ -1,0 +1,235 @@
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:music_room/features/events/presentation/widgets/image_helper/image_helper.dart';
+
+class Step1Details extends StatelessWidget {
+  const Step1Details({
+    required this.eventName,
+    required this.eventDescription,
+    required this.eventCover,
+    required this.onNameChanged,
+    required this.onDescriptionChanged,
+    required this.onCoverChanged,
+    required this.onNext,
+    super.key,
+  });
+  final String eventName;
+  final String eventDescription;
+  final XFile? eventCover;
+  final ValueChanged<String> onNameChanged;
+  final ValueChanged<String> onDescriptionChanged;
+  final ValueChanged<XFile?> onCoverChanged;
+  final VoidCallback onNext;
+
+  Future<void> _pickImage() async {
+    final picker = ImagePicker();
+    final pickedFile = await picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile != null) {
+      onCoverChanged(pickedFile);
+    }
+  }
+
+  ImageProvider _getCoverImage() {
+    if (eventCover != null) {
+      return getPlatformCoverImage(eventCover!);
+    }
+    return const AssetImage('assets/images/step1.webp');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Expanded(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 24,
+              vertical: 16,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'EVENT NAME',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    letterSpacing: 1.2,
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  initialValue: eventName,
+                  onChanged: onNameChanged,
+                  decoration: InputDecoration(
+                    hintText: 'e.g. Late Night Vibes',
+                    hintStyle: TextStyle(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
+                    ),
+                    filled: true,
+                    fillColor: theme.colorScheme.surface,
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide(
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.1,
+                        ),
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide(color: theme.colorScheme.primary),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 16,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                Text(
+                  'DESCRIPTION (OPTIONAL)',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    letterSpacing: 1.2,
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                TextFormField(
+                  initialValue: eventDescription,
+                  onChanged: onDescriptionChanged,
+                  maxLines: 4,
+                  decoration: InputDecoration(
+                    hintText: "What's the vibe?",
+                    hintStyle: TextStyle(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
+                    ),
+                    filled: true,
+                    fillColor: theme.colorScheme.surface,
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide(
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.1,
+                        ),
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide(color: theme.colorScheme.primary),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 16,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                Text(
+                  'EVENT COVER',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    letterSpacing: 1.2,
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                GestureDetector(
+                  onTap: _pickImage,
+                  child: Container(
+                    height: 180,
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.1,
+                        ),
+                      ),
+                      image: DecorationImage(
+                        image: _getCoverImage(),
+                        fit: BoxFit.cover,
+                        colorFilter: eventCover == null
+                            ? ColorFilter.mode(
+                                Colors.black.withValues(alpha: 0.3),
+                                BlendMode.darken,
+                              )
+                            : null,
+                      ),
+                    ),
+                    child: Center(
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
+                        ),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.surface.withValues(
+                            alpha: 0.8,
+                          ),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.image_outlined,
+                              color: theme.colorScheme.primary,
+                            ),
+                            const SizedBox(width: 8),
+                            Text(
+                              eventCover == null
+                                  ? 'Add Event Cover'
+                                  : 'Change Cover',
+                              style: TextStyle(
+                                color: theme.colorScheme.primary,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 32),
+              ],
+            ),
+          ),
+        ),
+        Padding(
+          padding: const EdgeInsets.only(left: 24, right: 24, bottom: 24),
+          child: ElevatedButton(
+            onPressed: eventName.isNotEmpty ? onNext : null,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: theme.colorScheme.primary,
+              disabledBackgroundColor: theme.colorScheme.onSurface.withValues(
+                alpha: 0.12,
+              ),
+              foregroundColor: theme.colorScheme.onPrimary,
+              disabledForegroundColor: theme.colorScheme.onSurface.withValues(
+                alpha: 0.38,
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 16),
+              elevation: 0,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              textStyle: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            child: const Text('Continue'),
+          ),
+        ),
+      ],
+    );
+  }
+}

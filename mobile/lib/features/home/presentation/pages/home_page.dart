@@ -1,10 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:music_room/features/events/presentation/pages/create_event_page.dart';
+import 'package:music_room/features/home/presentation/widgets/event_vertical_card.dart';
 import 'package:music_room/features/home/presentation/widgets/genre_filter_list.dart';
 import 'package:music_room/features/home/presentation/widgets/home_header.dart';
 import 'package:music_room/features/home/presentation/widgets/home_search_bar.dart';
-import 'package:music_room/features/home/presentation/widgets/room_vertical_card.dart';
 import 'package:music_room/features/home/presentation/widgets/section_title.dart';
-import 'package:music_room/features/home/presentation/widgets/trending_room_card.dart';
+import 'package:music_room/features/home/presentation/widgets/trending_event_card.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -41,9 +44,9 @@ class HomePage extends StatelessWidget {
                     separatorBuilder: (context, index) =>
                         const SizedBox(width: 16),
                     itemBuilder: (context, index) {
-                      return const RoomVerticalCard(
+                      return const EventVerticalCard(
                         width: 280,
-                        roomTitle: 'Late Night Vibes',
+                        eventTitle: 'Late Night Vibes',
                         hostName: 'djnova',
                         trackName: 'Midnight City',
                         artistName: 'M83',
@@ -58,7 +61,7 @@ class HomePage extends StatelessWidget {
 
                 SectionTitle(
                   title: 'Trending Now',
-                  subtitle: 'Most active rooms globally',
+                  subtitle: 'Most active events globally',
                   onSeeAllPressed: () {},
                 ),
                 const SizedBox(height: 16),
@@ -71,8 +74,8 @@ class HomePage extends StatelessWidget {
                     separatorBuilder: (context, index) =>
                         const SizedBox(width: 16),
                     itemBuilder: (context, index) {
-                      return const TrendingRoomCard(
-                        roomTitle: 'Chill Sunday Session',
+                      return const TrendingEventCard(
+                        eventTitle: 'Chill Sunday Session',
                         listenerCount: 89,
                         imageAsset: 'assets/images/step2.webp',
                       );
@@ -82,7 +85,7 @@ class HomePage extends StatelessWidget {
                 const SizedBox(height: 32),
 
                 SectionTitle(
-                  title: "Friends' Rooms",
+                  title: "Friends' Events",
                   subtitle: 'People you follow are listening',
                   onSeeAllPressed: () {},
                 ),
@@ -96,9 +99,9 @@ class HomePage extends StatelessWidget {
                     separatorBuilder: (context, index) =>
                         const SizedBox(width: 16),
                     itemBuilder: (context, index) {
-                      return const RoomVerticalCard(
+                      return const EventVerticalCard(
                         width: 280,
-                        roomTitle: "Alex's Playlist",
+                        eventTitle: "Alex's Playlist",
                         hostName: 'alex_m',
                         trackName: 'Blinding Lights',
                         artistName: 'The Weeknd',
@@ -116,12 +119,20 @@ class HomePage extends StatelessWidget {
             bottom: 16,
             right: 24,
             child: FloatingActionButton.extended(
-              onPressed: null,
+              onPressed: () {
+                unawaited(
+                  Navigator.of(context).push<void>(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const CreateEventPage(),
+                    ),
+                  ),
+                );
+              },
               backgroundColor: Theme.of(context).colorScheme.primary,
               foregroundColor: Theme.of(context).colorScheme.onPrimary,
               icon: const Icon(Icons.add),
               label: const Text(
-                'Create Room',
+                'Create Event',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
             ),

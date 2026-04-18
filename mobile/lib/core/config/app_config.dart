@@ -1,8 +1,9 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AppConfig {
   // API Configuration
-  // Use --dart-define=API_BASE_URL=... to override per environment.
+  // Use .env file or --dart-define=API_BASE_URL=... to override
   // Defaults are selected per platform to avoid localhost networking issues.
   static const String _apiBaseUrlOverride = String.fromEnvironment(
     'API_BASE_URL',
@@ -12,13 +13,14 @@ class AppConfig {
     if (_apiBaseUrlOverride.isNotEmpty) {
       return _apiBaseUrlOverride;
     }
+
     if (kIsWeb) {
-      return 'http://localhost:3000/';
+      return dotenv.env['API_BASE_URL'] ?? 'http://localhost:3000/';
     }
     if (defaultTargetPlatform == TargetPlatform.android) {
-      return 'http://10.0.2.2:3000/';
+      return dotenv.env['API_BASE_URL'] ?? 'http://10.0.2.2:3000/';
     }
-    return 'http://localhost:3000/';
+    return dotenv.env['API_BASE_URL'] ?? 'http://localhost:3000/';
   }
   // static const String apiPrefix = '/api';
 

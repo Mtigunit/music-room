@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
-class RoomVerticalCard extends StatelessWidget {
-  const RoomVerticalCard({
-    required this.roomTitle,
+class EventVerticalCard extends StatelessWidget {
+  const EventVerticalCard({
+    required this.eventTitle,
     required this.hostName,
     required this.trackName,
     required this.artistName,
@@ -13,7 +13,7 @@ class RoomVerticalCard extends StatelessWidget {
     super.key,
   });
 
-  final String roomTitle;
+  final String eventTitle;
   final String hostName;
   final String trackName;
   final String artistName;
@@ -122,7 +122,7 @@ class RoomVerticalCard extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        roomTitle,
+                        eventTitle,
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 22,
@@ -257,7 +257,7 @@ class RoomVerticalCard extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Text(
-                              'Join Room',
+                              'Join Event',
                               style: TextStyle(
                                 fontSize: 13,
                                 fontWeight: FontWeight.bold,
