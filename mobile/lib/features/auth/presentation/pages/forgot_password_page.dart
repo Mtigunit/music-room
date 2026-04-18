@@ -37,10 +37,12 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   }
 
   void _validateEmail(String value) {
+    final normalizedValue = value.trim();
+
     setState(() {
-      if (value.isEmpty) {
+      if (normalizedValue.isEmpty) {
         _emailError = 'Email is required';
-      } else if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
+      } else if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(normalizedValue)) {
         _emailError = 'Enter a valid email address';
       } else {
         _emailError = null;
@@ -49,7 +51,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   }
 
   Future<void> _handleRequestResetOtp() async {
-    _validateEmail(_emailController.text);
+    _validateEmail(_trimmedEmail);
 
     if (_emailError != null) {
       return;
