@@ -14,12 +14,12 @@ import 'package:music_room/routes/route_names.dart';
 
 class EnterNewPasswordPage extends StatefulWidget {
   const EnterNewPasswordPage({
-    required this.identifier,
+    required this.email,
     required this.resetToken,
     super.key,
   });
 
-  final String identifier;
+  final String email;
   final String resetToken;
 
   @override
@@ -91,7 +91,7 @@ class _EnterNewPasswordPageState extends State<EnterNewPasswordPage> {
 
     context.read<AuthBloc>().add(
       ResetPasswordRequested(
-        email: widget.identifier,
+        email: widget.email,
         resetToken: widget.resetToken,
         newPassword: _newPasswordController.text,
       ),

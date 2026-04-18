@@ -21,51 +21,45 @@ class ForgotPasswordPage extends StatefulWidget {
 }
 
 class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
-  final TextEditingController _identifierController = TextEditingController();
+  final TextEditingController _emailController = TextEditingController();
 
-  String? _identifierError;
+  String? _emailError;
+  String? _requestedEmail;
   bool _isOtpModalOpen = false;
   bool _hasNavigatedToResetPage = false;
   BuildContext? _otpModalContext;
 
-  String get _trimmedIdentifier => _identifierController.text.trim();
-
-  String _sanitizeIdentifier(String value) => value.trim();
+  String get _trimmedEmail => _emailController.text.trim();
 
   @override
   void dispose() {
-    _identifierController.dispose();
+    _emailController.dispose();
     super.dispose();
   }
 
-  void _validateIdentifier(String value) {
-    final normalized = value.trim();
-    final digitsOnly = normalized.replaceAll(RegExp(r'\D'), '');
-
+  void _validateEmail(String value) {
     setState(() {
-      if (normalized.isEmpty) {
-        _identifierError = 'Email or phone number is required';
-      } else if (normalized.contains('@') &&
-          !RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(normalized)) {
-        _identifierError = 'Enter a valid email address';
-      } else if (!normalized.contains('@') &&
-          (digitsOnly.length < 10 || digitsOnly.length > 15)) {
-        _identifierError = 'Enter a valid phone number';
+      if (value.isEmpty) {
+        _emailError = 'Email is required';
+      } else if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
+        _emailError = 'Enter a valid email address';
       } else {
-        _identifierError = null;
+        _emailError = null;
       }
     });
   }
 
   Future<void> _handleRequestResetOtp() async {
-    _validateIdentifier(_identifierController.text);
+    _validateEmail(_emailController.text);
 
-    if (_identifierError != null) {
+    if (_emailError != null) {
       return;
     }
 
+    _requestedEmail = _trimmedEmail;
+
     context.read<AuthBloc>().add(
-      SendPasswordResetOtpRequested(email: _trimmedIdentifier),
+      SendPasswordResetOtpRequested(email: _requestedEmail!),
     );
   }
 
@@ -85,12 +79,13 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         backgroundColor: Colors.transparent,
         builder: (modalContext) {
           _otpModalContext = modalContext;
+          final requestedEmail = _requestedEmail ?? _trimmedEmail;
           return OtpVerificationModal(
-            email: _trimmedIdentifier,
+            email: requestedEmail,
             onConfirm: (otpCode) {
               context.read<AuthBloc>().add(
                 VerifyPasswordResetOtpRequested(
-                  email: _trimmedIdentifier,
+                  email: requestedEmail,
                   code: otpCode,
                 ),
               );
@@ -98,7 +93,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
             onResend: () {
               context.read<AuthBloc>().add(
                 SendPasswordResetOtpRequested(
-                  email: _trimmedIdentifier,
+                  email: requestedEmail,
                 ),
               );
             },
@@ -137,6 +132,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           );
         } else if (state is PasswordResetOtpSent) {
           AppSnackbar.showSuccess(context, 'OTP sent to ${state.email}');
+          _requestedEmail = state.email;
           if (!_isOtpModalOpen) {
             _showOtpVerificationModal();
           }
@@ -152,7 +148,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                   .push(
                     MaterialPageRoute<void>(
                       builder: (_) => EnterNewPasswordPage(
-                        identifier: _sanitizeIdentifier(state.email),
+                        email: state.email,
                         resetToken: state.passwordResetToken,
                       ),
                     ),
@@ -181,51 +177,18 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 const AuthScreenHeader(
                   title: 'Forgot password?',
                   subtitle:
-                      'Enter your registered email or phone number and '
+                      'Enter your registered email address and '
                       'verify OTP to continue.',
                   bottomSpacing: 28,
                 ),
 
-                BlocBuilder<AuthBloc, AuthState>(
-                  builder: (context, state) {
-                    final isLoading =
-                        state is PasswordResetOtpLoading ||
-                        state is PasswordResetOtpVerifying;
-
-                    return AuthTextInputField(
-                      label: 'Email or phone number',
-                      icon: Icons.mail_outline,
-                      placeholder: 'Email or phone number',
-                      controller: _identifierController,
-                      onChanged: _validateIdentifier,
-                      errorText: _identifierError,
-                      suffixWidget: GestureDetector(
-                        onTap: isLoading ? null : _handleRequestResetOtp,
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          child: isLoading
-                              ? SizedBox(
-                                  width: 20,
-                                  height: 20,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    valueColor: AlwaysStoppedAnimation<Color>(
-                                      colorScheme.primary,
-                                    ),
-                                  ),
-                                )
-                              : Text(
-                                  'Send OTP',
-                                  style: TextStyle(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w600,
-                                    color: colorScheme.primary,
-                                  ),
-                                ),
-                        ),
-                      ),
-                    );
-                  },
+                AuthTextInputField(
+                  label: 'Email address',
+                  icon: Icons.mail_outline,
+                  placeholder: 'Email address',
+                  controller: _emailController,
+                  onChanged: _validateEmail,
+                  errorText: _emailError,
                 ),
 
                 const SizedBox(height: 24),
@@ -234,7 +197,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                     final isLoading = state is PasswordResetOtpLoading;
                     return AppButton(
                       onPressed: isLoading ? null : _handleRequestResetOtp,
-                      label: 'Request OTP',
+                      label: 'Send OTP',
                       isLoading: isLoading,
                       borderRadius: 16,
                       textStyle: const TextStyle(
@@ -275,7 +238,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                       Expanded(
                         child: Text(
                           'After OTP verification, you will be redirected to '
-                          'create a new password.',
+                          'enter a new password.',
                           style: Theme.of(context).textTheme.bodyMedium
                               ?.copyWith(
                                 color: isDarkMode

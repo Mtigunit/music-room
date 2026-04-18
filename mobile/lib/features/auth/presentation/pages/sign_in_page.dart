@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:music_room/core/widgets/app_back_button.dart';
 import 'package:music_room/core/widgets/app_button.dart';
 import 'package:music_room/core/widgets/app_snackbar.dart';
 import 'package:music_room/features/auth/presentation/pages/forgot_password_page.dart';
@@ -109,9 +108,6 @@ class _SignInPageState extends State<SignInPage> {
         }
       },
       child: Scaffold(
-        appBar: AppBar(
-          leading: AppBackButton(onPressed: () => Navigator.of(context).pop()),
-        ),
         body: SafeArea(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
