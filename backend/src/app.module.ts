@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
@@ -13,6 +13,7 @@ import { RedisModule } from './redis/redis.module';
 import { WebsocketsModule } from './websockets/websockets.module';
 import { TrackVotesModule } from './track-votes/track-votes.module';
 import { TracksModule } from './tracks/tracks.module';
+import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware';
 
 @Module({
   imports: [
@@ -33,4 +34,8 @@ import { TracksModule } from './tracks/tracks.module';
   controllers: [AppController],
   providers: [AppService, AppRepository],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(RequestLoggerMiddleware).forRoutes('*');
+  }
+}
