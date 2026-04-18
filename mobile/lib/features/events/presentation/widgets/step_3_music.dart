@@ -91,7 +91,7 @@ class Step3Music extends StatelessWidget {
                 OutlinedButton.icon(
                   onPressed: _addMockTrack,
                   icon: const Icon(Icons.playlist_add),
-                  label: const Text('Import Existing Playlist'),
+                  label: const Text('Add Demo Track'),
                   style: OutlinedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: 16),
                     shape: RoundedRectangleBorder(

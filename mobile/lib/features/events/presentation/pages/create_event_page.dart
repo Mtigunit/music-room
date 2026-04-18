@@ -41,6 +41,12 @@ class _CreateEventPageState extends State<CreateEventPage> {
 
   List<String> invitedUsers = [];
 
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
   void _nextStep() {
     if (_currentStep < _totalSteps - 1) {
       unawaited(

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-class Step5Summary extends StatelessWidget {
+class Step5Summary extends StatefulWidget {
   const Step5Summary({
     required this.eventName,
     required this.selectedGenres,
@@ -21,16 +21,30 @@ class Step5Summary extends StatelessWidget {
   final ValueChanged<List<String>> onInvitesChanged;
   final VoidCallback onSubmit;
 
+  @override
+  State<Step5Summary> createState() => _Step5SummaryState();
+}
+
+class _Step5SummaryState extends State<Step5Summary> {
+  final TextEditingController _inviteController = TextEditingController();
+
   void _addInvite(String username) {
-    if (username.isNotEmpty && !invitedUsers.contains(username)) {
-      final updated = List<String>.from(invitedUsers)..add(username);
-      onInvitesChanged(updated);
+    if (username.isNotEmpty && !widget.invitedUsers.contains(username)) {
+      final updated = List<String>.from(widget.invitedUsers)..add(username);
+      widget.onInvitesChanged(updated);
+      _inviteController.clear();
     }
   }
 
   void _removeInvite(int index) {
-    final updated = List<String>.from(invitedUsers)..removeAt(index);
-    onInvitesChanged(updated);
+    final updated = List<String>.from(widget.invitedUsers)..removeAt(index);
+    widget.onInvitesChanged(updated);
+  }
+
+  @override
+  void dispose() {
+    _inviteController.dispose();
+    super.dispose();
   }
 
   @override
@@ -50,7 +64,7 @@ class Step5Summary extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  'Invite friends to join your room when it starts.',
+                  'Invite friends to join your event when it starts.',
                   style: theme.textTheme.titleMedium?.copyWith(
                     color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                   ),
@@ -59,6 +73,7 @@ class Step5Summary extends StatelessWidget {
 
                 // Invite Search Bar
                 TextField(
+                  controller: _inviteController,
                   decoration: InputDecoration(
                     hintText: '@username or email',
                     hintStyle: TextStyle(
@@ -68,15 +83,18 @@ class Step5Summary extends StatelessWidget {
                       Icons.person_add_alt_1_outlined,
                       color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
                     ),
-                    suffixIcon: Container(
-                      margin: const EdgeInsets.all(8),
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.primary,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        Icons.add,
-                        color: theme.colorScheme.onPrimary,
+                    suffixIcon: InkWell(
+                      onTap: () => _addInvite(_inviteController.text),
+                      child: Container(
+                        margin: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.primary,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(
+                          Icons.add,
+                          color: theme.colorScheme.onPrimary,
+                        ),
                       ),
                     ),
                     filled: true,
@@ -103,11 +121,11 @@ class Step5Summary extends StatelessWidget {
                 const SizedBox(height: 16),
 
                 // Display Invited Users (Chips)
-                if (invitedUsers.isNotEmpty)
+                if (widget.invitedUsers.isNotEmpty)
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children: invitedUsers.asMap().entries.map((entry) {
+                    children: widget.invitedUsers.asMap().entries.map((entry) {
                       return Chip(
                         label: Text(entry.value),
                         onDeleted: () => _removeInvite(entry.key),
@@ -121,21 +139,25 @@ class Step5Summary extends StatelessWidget {
 
                 const SizedBox(height: 32),
 
-                // Room Summary Box
+                // Event Summary Box
                 Container(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
+                  ),
                   decoration: BoxDecoration(
-                    color: theme.colorScheme.primary.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(20),
+                    color: theme.colorScheme.primary.withValues(alpha: 0.08),
+                    borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                      color: theme.colorScheme.primary.withValues(alpha: 0.5),
+                      color: theme.colorScheme.primary,
+                      width: 2,
                     ),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'ROOM SUMMARY',
+                        'EVENT SUMMARY',
                         style: theme.textTheme.labelMedium?.copyWith(
                           letterSpacing: 1.2,
                           color: theme.colorScheme.primary,
@@ -145,42 +167,41 @@ class Step5Summary extends StatelessWidget {
                       const SizedBox(height: 24),
                       _buildSummaryRow(
                         'Name',
-                        eventName.isEmpty ? 'Unnamed Room' : eventName,
+                        widget.eventName.isEmpty
+                            ? 'Unnamed Event'
+                            : widget.eventName,
                         theme,
                       ),
                       const Divider(height: 24),
                       _buildSummaryRow(
                         'Genres',
-                        selectedGenres.isEmpty
+                        widget.selectedGenres.isEmpty
                             ? 'None selected'
-                            : selectedGenres.join(', '),
+                            : widget.selectedGenres.join(', '),
                         theme,
                       ),
                       const Divider(height: 24),
                       _buildSummaryRow(
                         'Visibility',
-                        visibility,
+                        widget.visibility,
                         theme,
-                        valueColor: visibility == 'Public'
-                            ? theme.colorScheme.tertiary
-                            : theme.colorScheme.primary,
                       ),
                       const Divider(height: 24),
                       _buildSummaryRow(
                         'Voting',
-                        votingRule,
+                        widget.votingRule,
                         theme,
                       ),
                       const Divider(height: 24),
                       _buildSummaryRow(
                         'Tracks queued',
-                        '$trackCount',
+                        '${widget.trackCount}',
                         theme,
                       ),
                       const Divider(height: 24),
                       _buildSummaryRow(
                         'Invited',
-                        '${invitedUsers.length} friends',
+                        '${widget.invitedUsers.length} friends',
                         theme,
                       ),
                     ],
@@ -194,9 +215,9 @@ class Step5Summary extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.only(left: 24, right: 24, bottom: 24),
           child: ElevatedButton.icon(
-            onPressed: onSubmit,
+            onPressed: widget.onSubmit,
             icon: const Icon(Icons.video_call_outlined),
-            label: const Text('Start Room'),
+            label: const Text('Start Event'),
             style: ElevatedButton.styleFrom(
               backgroundColor: theme.colorScheme.primary,
               foregroundColor: theme.colorScheme.onPrimary,

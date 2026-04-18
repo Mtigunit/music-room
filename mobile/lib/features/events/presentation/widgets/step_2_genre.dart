@@ -53,7 +53,7 @@ class Step2Genre extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  "Pick the genres that define your room's vibe.",
+                  "Pick the genres that define your event's vibe.",
                   style: theme.textTheme.titleMedium?.copyWith(
                     color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
                   ),

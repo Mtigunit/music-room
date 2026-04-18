@@ -43,10 +43,12 @@ dependencies:
   flutter_bloc: ^8.1.5
 
   # Storage & Security
+  flutter_dotenv: ^5.1.0
   flutter_secure_storage: ^9.2.2
 
+  # Environment
+
   # JSON Serialization
-  geolocator: ^14.0.2
   google_maps_flutter: ^2.17.0
   image_picker: ^1.2.1
   intl: ^0.20.2
@@ -83,6 +85,7 @@ flutter:
 
   # To add assets to your application, add an assets section, like this:
   assets:
+    - .env
     - assets/images/
 
   # An image asset can refer to one or more resolution-specific "variants", see

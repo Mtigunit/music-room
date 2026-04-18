@@ -46,7 +46,7 @@ class Step1Details extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  'ROOM NAME',
+                  'EVENT NAME',
                   style: theme.textTheme.labelSmall?.copyWith(
                     letterSpacing: 1.2,
                     fontWeight: FontWeight.bold,
