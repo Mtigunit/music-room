@@ -6,7 +6,7 @@ class AppBackButton extends StatelessWidget {
     super.key,
     this.color,
     this.padding = const EdgeInsets.all(16),
-    this.iconSize = 25,
+    this.iconSize = 20,
   });
 
   final VoidCallback onPressed;
@@ -28,7 +28,7 @@ class AppBackButton extends StatelessWidget {
       iconSize: iconSize,
       color: resolvedColor,
       tooltip: MaterialLocalizations.of(context).backButtonTooltip,
-      icon: const Icon(Icons.arrow_back),
+      icon: const Icon(Icons.arrow_back_ios_new),
     );
   }
 }
