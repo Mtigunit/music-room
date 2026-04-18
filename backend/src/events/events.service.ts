@@ -7,23 +7,23 @@ import { EventsRepository } from './events.repository';
 export class EventsService {
   constructor(private readonly eventsRepository: EventsRepository) {}
 
-  create(createEventDto: CreateEventDto) {
-    return this.eventsRepository.create(createEventDto);
+  create(userId: string, createEventDto: CreateEventDto) {
+    return this.eventsRepository.create(userId, createEventDto);
   }
 
   findAll() {
     return this.eventsRepository.findAll();
   }
 
-  findOne(id: number) {
+  findOne(id: string) {
     return this.eventsRepository.findOne(id);
   }
 
-  update(id: number, updateEventDto: UpdateEventDto) {
+  update(id: string, updateEventDto: UpdateEventDto) {
     return this.eventsRepository.update(id, updateEventDto);
   }
 
-  remove(id: number) {
+  remove(id: string) {
     return this.eventsRepository.remove(id);
   }
 }

@@ -87,3 +87,5 @@ Thumbs.db
 # lock files
 yarn.lock
 pnpm-lock.yaml
+
+backend/uploads

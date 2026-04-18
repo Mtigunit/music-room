@@ -39,5 +39,9 @@
     "@commitlint/cli": "^20.5.0",
     "@commitlint/config-conventional": "^20.5.0",
     "lefthook": "^2.1.5"
+  },
+  "dependencies": {
+    "@types/multer": "^2.1.0",
+    "multer": "^2.1.1"
   }
 }
