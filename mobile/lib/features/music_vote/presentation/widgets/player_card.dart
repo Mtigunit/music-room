@@ -105,17 +105,18 @@ class _PlayerCardState extends State<PlayerCard>
                   ),
                 ),
                 // Like button
-                Tooltip(
-                  message: _isLiked ? 'Unlike track' : 'Like track',
-                  child: IconButton(
-                    onPressed: () => setState(() => _isLiked = !_isLiked),
-                    style: IconButton.styleFrom(
-                      fixedSize: const Size(38, 38),
-                      backgroundColor: _isLiked
+                GestureDetector(
+                  onTap: () => setState(() => _isLiked = !_isLiked),
+                  child: Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: _isLiked
                           ? Colors.red.withValues(alpha: 0.15)
                           : colorScheme.onSurface.withValues(alpha: 0.08),
                     ),
-                    icon: Icon(
+                    child: Icon(
                       _isLiked ? Icons.favorite : Icons.favorite_border,
                       size: 18,
                       color: _isLiked
@@ -226,37 +227,36 @@ class _MockAlbumArt extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         gradient: RadialGradient(
-          center: const Alignment(0.1, -0.2),
+          center: Alignment(0.1, -0.2),
           radius: 1.2,
           colors: [
-            primaryColor.withValues(alpha: 0.24),
-            const Color(0xFF2A0040),
-            const Color(0xFF0D001A),
+            Color(0xFF2A0040),
+            Color(0xFF0D001A),
           ],
         ),
       ),
       child: CustomPaint(
         painter: _SynthwavePainter(),
-        child: Center(
+        child: const Center(
           child: Padding(
-            padding: const EdgeInsets.only(bottom: 30),
+            padding: EdgeInsets.only(bottom: 30),
             child: Text(
-              'Synthwave',
+              'Sythwave',
               style: TextStyle(
                 fontFamily: 'sans-serif',
                 fontSize: 28,
                 fontWeight: FontWeight.w900,
-                color: primaryColor,
+                color: Color(0xFFFF69B4),
                 letterSpacing: 2,
                 shadows: [
                   Shadow(
-                    color: primaryColor.withValues(alpha: 0.8),
+                    color: Color(0xFFFF69B4),
                     blurRadius: 20,
                   ),
                   Shadow(
-                    color: primaryColor.withValues(alpha: 0.45),
+                    color: Color(0xFFFF69B4),
                     blurRadius: 40,
                   ),
                 ],

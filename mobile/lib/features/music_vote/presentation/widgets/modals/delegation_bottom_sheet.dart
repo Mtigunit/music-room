@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/mock_data.dart';
 
@@ -133,12 +132,10 @@ class _DelegationBottomSheetState extends State<DelegationBottomSheet> {
                       isDark: isDark,
                       onToggle: (value) {
                         setState(() => state.isDelegated = value);
-                        if (kDebugMode) {
-                          debugPrint(
-                            'Delegation toggled for '
-                            '${state.user.username}: $value',
-                          );
-                        }
+                        debugPrint(
+                          'Delegation toggled for '
+                          '${state.user.username}: $value',
+                        );
                       },
                     );
                   },
@@ -185,7 +182,7 @@ class _InfoBanner extends StatelessWidget {
     final textColor = isDark
         ? colorScheme.onSurface.withValues(alpha: 0.85)
         : colorScheme.primary.withValues(alpha: 0.9);
-    final iconColor = colorScheme.primary;
+    final iconColor = isDark ? colorScheme.primary : colorScheme.primary;
 
     return Container(
       padding: const EdgeInsets.all(14),

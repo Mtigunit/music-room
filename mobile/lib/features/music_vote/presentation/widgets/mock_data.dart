@@ -1,5 +1,6 @@
-// Mock data models and hardcoded lists used exclusively for UI development.
-// Replace with real domain entities and repository calls in the next phase.
+/// Mock data models and hardcoded lists used exclusively for UI development.
+/// Replace with real domain entities and repository calls in the next phase.
+library;
 
 // ---------------------------------------------------------------------------
 // Models
@@ -143,7 +144,7 @@ const List<MockTrack> mockSearchTracks = [
     id: 10,
     title: 'Flowers',
     artist: 'Miley Cyrus',
-    album: 'Endless Summer Vacation',
+    album: 'Endless Summer Vacation · 3:20',
     duration: '3:20',
     colorHex: 0xFFE74C8B,
   ),
@@ -151,7 +152,7 @@ const List<MockTrack> mockSearchTracks = [
     id: 11,
     title: 'Anti-Hero',
     artist: 'Taylor Swift',
-    album: 'Midnights',
+    album: 'Midnights · 3:20',
     duration: '3:20',
     colorHex: 0xFF1A1A2E,
   ),
@@ -159,7 +160,7 @@ const List<MockTrack> mockSearchTracks = [
     id: 12,
     title: 'Unholy',
     artist: 'Sam Smith ft. Kim Petras',
-    album: 'Gloria',
+    album: 'Gloria · 2:36',
     duration: '2:36',
     colorHex: 0xFF8B0000,
   ),
@@ -167,7 +168,7 @@ const List<MockTrack> mockSearchTracks = [
     id: 13,
     title: 'Calm Down',
     artist: 'Rema & Selena Gomez',
-    album: 'Rave & Roses Ultra',
+    album: 'Rave & Roses Ultra · 3:59',
     duration: '3:59',
     colorHex: 0xFF16A085,
   ),
@@ -175,7 +176,7 @@ const List<MockTrack> mockSearchTracks = [
     id: 14,
     title: 'Cruel Summer',
     artist: 'Taylor Swift',
-    album: 'Lover',
+    album: 'Lover · 2:58',
     duration: '2:58',
     colorHex: 0xFFD4A0D4,
   ),
@@ -183,7 +184,7 @@ const List<MockTrack> mockSearchTracks = [
     id: 15,
     title: 'Escapism.',
     artist: 'RAYE ft. 070 Shake',
-    album: 'My 21st Century Blues',
+    album: 'My 21st Century Blues · 3:42',
     duration: '3:42',
     colorHex: 0xFF0A3D6B,
   ),
