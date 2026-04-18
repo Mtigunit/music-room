@@ -25,6 +25,9 @@ class AppConfig {
   // API Endpoints
   static const String sendOtpEndpoint = 'auth/send-otp';
   static const String verifyOtpEndpoint = 'auth/verify-otp';
+  static const String forgotPasswordEndpoint = 'auth/forgot-password';
+  static const String verifyResetOtpEndpoint = 'auth/verify-reset-otp';
+  static const String resetPasswordEndpoint = 'auth/reset-password';
   static const String registerEndpoint = 'auth/register';
   static const String loginEndpoint = 'auth/login';
   static const String profileEndpoint = 'auth/profile';
