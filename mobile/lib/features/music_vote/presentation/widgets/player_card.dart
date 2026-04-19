@@ -227,36 +227,37 @@ class _MockAlbumArt extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         gradient: RadialGradient(
-          center: Alignment(0.1, -0.2),
+          center: const Alignment(0.1, -0.2),
           radius: 1.2,
           colors: [
-            Color(0xFF2A0040),
-            Color(0xFF0D001A),
+            primaryColor.withValues(alpha: 0.24),
+            const Color(0xFF2A0040),
+            const Color(0xFF0D001A),
           ],
         ),
       ),
       child: CustomPaint(
         painter: _SynthwavePainter(),
-        child: const Center(
+        child: Center(
           child: Padding(
-            padding: EdgeInsets.only(bottom: 30),
+            padding: const EdgeInsets.only(bottom: 30),
             child: Text(
               'Synthwave',
               style: TextStyle(
                 fontFamily: 'sans-serif',
                 fontSize: 28,
                 fontWeight: FontWeight.w900,
-                color: Color(0xFFFF69B4),
+                color: primaryColor,
                 letterSpacing: 2,
                 shadows: [
                   Shadow(
-                    color: Color(0xFFFF69B4),
+                    color: primaryColor.withValues(alpha: 0.8),
                     blurRadius: 20,
                   ),
                   Shadow(
-                    color: Color(0xFFFF69B4),
+                    color: primaryColor.withValues(alpha: 0.45),
                     blurRadius: 40,
                   ),
                 ],

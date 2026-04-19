@@ -1,6 +1,5 @@
-/// Mock data models and hardcoded lists used exclusively for UI development.
-/// Replace with real domain entities and repository calls in the next phase.
-library;
+// Mock data models and hardcoded lists used exclusively for UI development.
+// Replace with real domain entities and repository calls in the next phase.
 
 // ---------------------------------------------------------------------------
 // Models

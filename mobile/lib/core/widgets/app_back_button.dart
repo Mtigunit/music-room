@@ -16,11 +16,7 @@ class AppBackButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final resolvedColor =
-        color ??
-        (Theme.of(context).brightness == Brightness.dark
-            ? Colors.white
-            : Colors.black87);
+    final resolvedColor = color ?? Theme.of(context).colorScheme.onSurface;
 
     return IconButton(
       onPressed: onPressed ?? () => Navigator.of(context).maybePop(),
