@@ -44,15 +44,6 @@ class _Step3MusicBody extends StatelessWidget {
   final ValueChanged<List<TrackModel>> onTracksChanged;
   final VoidCallback onNext;
 
-  void _addTrack(TrackModel track) {
-    if (!selectedTracks.any(
-      (t) => t.providerTrackId == track.providerTrackId,
-    )) {
-      final updatedTracks = List<TrackModel>.from(selectedTracks)..add(track);
-      onTracksChanged(updatedTracks);
-    }
-  }
-
   void _removeTrack(int index) {
     final updatedTracks = List<TrackModel>.from(selectedTracks)
       ..removeAt(index);
@@ -85,16 +76,8 @@ class _Step3MusicBody extends StatelessWidget {
         child: SizedBox(
           height: MediaQuery.of(context).size.height * 0.9,
           child: AddTracksModal(
-            selectedTracks: selectedTracks,
-            onAddTrack: (track) {
-              _addTrack(track);
-              ScaffoldMessenger.of(ctx).showSnackBar(
-                const SnackBar(
-                  content: Text('Track added!'),
-                  duration: Duration(seconds: 1),
-                ),
-              );
-            },
+            initialSelectedTracks: selectedTracks,
+            onTracksChanged: onTracksChanged,
           ),
         ),
       ),

@@ -3,15 +3,46 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/features/events/data/models/track_model.dart';
 import 'package:music_room/features/events/presentation/state/track_search_cubit.dart';
 
-class AddTracksModal extends StatelessWidget {
+class AddTracksModal extends StatefulWidget {
   const AddTracksModal({
-    required this.selectedTracks,
-    required this.onAddTrack,
+    required this.initialSelectedTracks,
+    required this.onTracksChanged,
     super.key,
   });
 
-  final List<TrackModel> selectedTracks;
-  final ValueChanged<TrackModel> onAddTrack;
+  final List<TrackModel> initialSelectedTracks;
+  final ValueChanged<List<TrackModel>> onTracksChanged;
+
+  @override
+  State<AddTracksModal> createState() => _AddTracksModalState();
+}
+
+class _AddTracksModalState extends State<AddTracksModal> {
+  late List<TrackModel> _localTracks;
+
+  @override
+  void initState() {
+    super.initState();
+    _localTracks = List.from(widget.initialSelectedTracks);
+  }
+
+  void _handleAddTrack(TrackModel track) {
+    if (!_localTracks.any((t) => t.providerTrackId == track.providerTrackId)) {
+      setState(() {
+        _localTracks.add(track);
+      });
+      widget.onTracksChanged(_localTracks);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Track added!'),
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -130,7 +161,7 @@ class AddTracksModal extends StatelessWidget {
                     itemCount: state.tracks.length,
                     itemBuilder: (context, index) {
                       final track = state.tracks[index];
-                      final isAdded = selectedTracks.any(
+                      final isAdded = _localTracks.any(
                         (t) => t.providerTrackId == track.providerTrackId,
                       );
                       return ListTile(
@@ -173,7 +204,9 @@ class AddTracksModal extends StatelessWidget {
                                     alpha: 0.5,
                                   ),
                           ),
-                          onPressed: isAdded ? null : () => onAddTrack(track),
+                          onPressed: isAdded
+                              ? null
+                              : () => _handleAddTrack(track),
                         ),
                       );
                     },
