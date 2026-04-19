@@ -243,7 +243,7 @@ class _MockAlbumArt extends StatelessWidget {
           child: Padding(
             padding: EdgeInsets.only(bottom: 30),
             child: Text(
-              'Sythwave',
+              'Synthwave',
               style: TextStyle(
                 fontFamily: 'sans-serif',
                 fontSize: 28,

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/mock_data.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/modals/add_song_bottom_sheet.dart';
@@ -15,6 +16,11 @@ class QueueSection extends StatefulWidget {
 class _QueueSectionState extends State<QueueSection> {
   /// Track which items the user has voted for (by track ID).
   final Set<int> _votedIds = {};
+
+  /// Local mutable vote counts for the session.
+  final Map<int, int> _voteCounts = {
+    for (final t in mockQueueTracks) t.id: t.votes,
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -70,15 +76,21 @@ class _QueueSectionState extends State<QueueSection> {
             return QueueTrackItem(
               track: track,
               hasVoted: hasVoted,
+              voteCount: _voteCounts[track.id] ?? track.votes,
               onVote: () {
                 setState(() {
+                  final currentVotes = _voteCounts[track.id] ?? track.votes;
                   if (hasVoted) {
                     _votedIds.remove(track.id);
+                    _voteCounts[track.id] = currentVotes - 1;
                   } else {
                     _votedIds.add(track.id);
+                    _voteCounts[track.id] = currentVotes + 1;
                   }
                 });
-                debugPrint('Voted for: ${track.title}');
+                if (kDebugMode) {
+                  debugPrint('Voted for: ${track.title}');
+                }
               },
             );
           },
@@ -98,55 +110,65 @@ class _AddSongButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        unawaited(
-          showModalBottomSheet<void>(
-            context: context,
-            isScrollControlled: true,
-            useSafeArea: true,
-            barrierColor: Colors.black.withValues(alpha: 0.7),
-            backgroundColor: Colors.transparent,
-            builder: (_) => const AddSongBottomSheet(),
-          ),
-        );
-      },
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [
-              colorScheme.primary,
-              colorScheme.primary.withValues(alpha: 0.8),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: colorScheme.primary.withValues(alpha: 0.4),
-              blurRadius: 16,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: const Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(Icons.add, size: 18, color: Colors.white),
-            SizedBox(width: 8),
-            Text(
-              'Add Song',
-              style: TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-                letterSpacing: 0.2,
+    const borderRadius = BorderRadius.all(Radius.circular(14));
+
+    return Semantics(
+      button: true,
+      label: 'Add song',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          borderRadius: borderRadius,
+          onTap: () {
+            unawaited(
+              showModalBottomSheet<void>(
+                context: context,
+                isScrollControlled: true,
+                useSafeArea: true,
+                barrierColor: Colors.black.withValues(alpha: 0.7),
+                backgroundColor: Colors.transparent,
+                builder: (_) => const AddSongBottomSheet(),
               ),
+            );
+          },
+          child: Ink(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 14),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  colorScheme.primary,
+                  colorScheme.primary.withValues(alpha: 0.8),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: borderRadius,
+              boxShadow: [
+                BoxShadow(
+                  color: colorScheme.primary.withValues(alpha: 0.4),
+                  blurRadius: 16,
+                  offset: const Offset(0, 6),
+                ),
+              ],
             ),
-          ],
+            child: const Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(Icons.add, size: 18, color: Colors.white),
+                SizedBox(width: 8),
+                Text(
+                  'Add Song',
+                  style: TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: Colors.white,
+                    letterSpacing: 0.2,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
@@ -161,12 +183,14 @@ class QueueTrackItem extends StatelessWidget {
   const QueueTrackItem({
     required this.track,
     required this.hasVoted,
+    required this.voteCount,
     required this.onVote,
     super.key,
   });
 
   final MockTrack track;
   final bool hasVoted;
+  final int voteCount;
   final VoidCallback onVote;
 
   @override
@@ -249,7 +273,7 @@ class QueueTrackItem extends StatelessWidget {
 
           // Vote chip
           _VoteChip(
-            votes: track.votes,
+            votes: voteCount,
             hasVoted: hasVoted,
             colorScheme: colorScheme,
             onVote: onVote,
@@ -310,34 +334,47 @@ class _VoteChip extends StatelessWidget {
         ? colorScheme.primary
         : colorScheme.onSurface.withValues(alpha: 0.6);
 
-    return GestureDetector(
-      onTap: onVote,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        decoration: BoxDecoration(
-          color: bgColor,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: hasVoted
-                ? colorScheme.primary.withValues(alpha: 0.4)
-                : Colors.transparent,
-          ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.arrow_upward_rounded, size: 16, color: fgColor),
-            const SizedBox(height: 2),
-            Text(
-              '$votes',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                color: fgColor,
+    return Semantics(
+      button: true,
+      selected: hasVoted,
+      label: hasVoted ? 'Vote added' : 'Upvote track',
+      value: '$votes votes',
+      child: Tooltip(
+        message: hasVoted ? 'Vote added' : 'Upvote track',
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            onTap: onVote,
+            borderRadius: BorderRadius.circular(12),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: bgColor,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: hasVoted
+                      ? colorScheme.primary.withValues(alpha: 0.4)
+                      : Colors.transparent,
+                ),
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.arrow_upward_rounded, size: 16, color: fgColor),
+                  const SizedBox(height: 2),
+                  Text(
+                    '$votes',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: fgColor,
+                    ),
+                  ),
+                ],
               ),
             ),
-          ],
+          ),
         ),
       ),
     );
