@@ -1,4 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:music_room/di/injection_container.dart';
+import 'package:music_room/features/events/data/models/track_model.dart';
+import 'package:music_room/features/events/presentation/state/track_search_cubit.dart';
+import 'package:music_room/features/events/presentation/widgets/add_tracks_modal.dart';
+import 'package:music_room/features/events/presentation/widgets/import_playlist_modal.dart';
 
 class Step3Music extends StatelessWidget {
   const Step3Music({
@@ -7,19 +13,96 @@ class Step3Music extends StatelessWidget {
     required this.onNext,
     super.key,
   });
-  final List<String> selectedTracks;
-  final ValueChanged<List<String>> onTracksChanged;
+
+  final List<TrackModel> selectedTracks;
+  final ValueChanged<List<TrackModel>> onTracksChanged;
   final VoidCallback onNext;
 
-  void _addMockTrack() {
-    final updatedTracks = List<String>.from(selectedTracks)
-      ..add('Dummy Track ${selectedTracks.length + 1} - Dummy Artist');
-    onTracksChanged(updatedTracks);
+  @override
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (_) => TrackSearchCubit(
+        remoteDataSource: InjectionContainer().trackRemoteDataSource,
+      ),
+      child: _Step3MusicBody(
+        selectedTracks: selectedTracks,
+        onTracksChanged: onTracksChanged,
+        onNext: onNext,
+      ),
+    );
+  }
+}
+
+class _Step3MusicBody extends StatelessWidget {
+  const _Step3MusicBody({
+    required this.selectedTracks,
+    required this.onTracksChanged,
+    required this.onNext,
+  });
+
+  final List<TrackModel> selectedTracks;
+  final ValueChanged<List<TrackModel>> onTracksChanged;
+  final VoidCallback onNext;
+
+  void _addTrack(TrackModel track) {
+    if (!selectedTracks.any(
+      (t) => t.providerTrackId == track.providerTrackId,
+    )) {
+      final updatedTracks = List<TrackModel>.from(selectedTracks)..add(track);
+      onTracksChanged(updatedTracks);
+    }
   }
 
   void _removeTrack(int index) {
-    final updatedTracks = List<String>.from(selectedTracks)..removeAt(index);
+    final updatedTracks = List<TrackModel>.from(selectedTracks)
+      ..removeAt(index);
     onTracksChanged(updatedTracks);
+  }
+
+  Future<void> _showImportPlaylistModal(BuildContext context) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SizedBox(
+        height: MediaQuery.of(context).size.height * 0.9,
+        child: const ImportPlaylistModal(),
+      ),
+    );
+  }
+
+  Future<void> _showAddTracksModal(BuildContext context) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => BlocProvider.value(
+        value: context.read<TrackSearchCubit>(),
+        child: SizedBox(
+          height: MediaQuery.of(context).size.height * 0.9,
+          child: AddTracksModal(
+            selectedTracks: selectedTracks,
+            onAddTrack: (track) {
+              _addTrack(track);
+              ScaffoldMessenger.of(ctx).showSnackBar(
+                const SnackBar(
+                  content: Text('Track added!'),
+                  duration: Duration(seconds: 1),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+
+    if (context.mounted) {
+      context.read<TrackSearchCubit>().searchTracks('');
+    }
   }
 
   @override
@@ -32,10 +115,7 @@ class Step3Music extends StatelessWidget {
       children: [
         Expanded(
           child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 24,
-              vertical: 16,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -46,65 +126,58 @@ class Step3Music extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                TextField(
-                  decoration: InputDecoration(
-                    hintText: 'Search for tracks to add...',
-                    hintStyle: TextStyle(
-                      color: theme.colorScheme.onSurface.withValues(
-                        alpha: 0.35,
-                      ),
-                    ),
-                    prefixIcon: Icon(
-                      Icons.search,
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
-                    ),
-                    filled: true,
-                    fillColor: theme.colorScheme.surface,
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: BorderSide(
-                        color: theme.colorScheme.onSurface.withValues(
-                          alpha: 0.1,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _showAddTracksModal(context),
+                        icon: const Icon(Icons.search),
+                        label: const Text('Add Tracks'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: theme.colorScheme.primary,
+                          foregroundColor: theme.colorScheme.onPrimary,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          elevation: 0,
+                          textStyle: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                     ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: BorderSide(color: theme.colorScheme.primary),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () => _showImportPlaylistModal(context),
+                        icon: const Icon(Icons.playlist_add),
+                        label: const Text(
+                          'Import Playlist',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          side: BorderSide(
+                            color: theme.colorScheme.primary.withValues(
+                              alpha: 0.55,
+                            ),
+                          ),
+                          foregroundColor: theme.colorScheme.primary,
+                          textStyle: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
                     ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 16,
-                    ),
-                  ),
-                  onSubmitted: (value) {
-                    if (value.isNotEmpty) {
-                      final updated = List<String>.from(selectedTracks)
-                        ..add(value);
-                      onTracksChanged(updated);
-                    }
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                OutlinedButton.icon(
-                  onPressed: _addMockTrack,
-                  icon: const Icon(Icons.playlist_add),
-                  label: const Text('Add Demo Track'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    side: BorderSide(
-                      color: theme.colorScheme.primary.withValues(alpha: 0.55),
-                    ),
-                    foregroundColor: theme.colorScheme.primary,
-                    textStyle: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+                  ],
                 ),
                 const SizedBox(height: 24),
 
@@ -133,35 +206,43 @@ class Step3Music extends StatelessWidget {
                       : ListView.builder(
                           itemCount: selectedTracks.length,
                           itemBuilder: (context, index) {
-                            final parts = selectedTracks[index].split(' - ');
-                            final trackTitle = parts.first;
-                            final artistName = parts.length > 1
-                                ? parts.sublist(1).join(' - ')
-                                : 'Dummy Artist';
+                            final track = selectedTracks[index];
 
                             return ListTile(
                               contentPadding: EdgeInsets.zero,
                               minVerticalPadding: 8,
-                              leading: Container(
-                                width: 48,
-                                height: 48,
-                                decoration: BoxDecoration(
-                                  color: theme.colorScheme.primaryContainer,
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Icon(
-                                  Icons.music_note,
-                                  color: theme.colorScheme.primary,
+                              leading: ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: Image.network(
+                                  track.thumbnailUrl,
+                                  width: 48,
+                                  height: 48,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Container(
+                                      width: 48,
+                                      height: 48,
+                                      color: theme.colorScheme.primaryContainer,
+                                      child: Icon(
+                                        Icons.music_note,
+                                        color: theme.colorScheme.primary,
+                                      ),
+                                    );
+                                  },
                                 ),
                               ),
                               title: Text(
-                                trackTitle,
+                                track.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                 style: theme.textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
                               subtitle: Text(
-                                artistName,
+                                track.artist,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                 style: theme.textTheme.bodyMedium?.copyWith(
                                   color: theme.colorScheme.onSurface.withValues(
                                     alpha: 0.7,

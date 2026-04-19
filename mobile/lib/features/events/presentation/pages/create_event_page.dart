@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
 import 'package:music_room/core/widgets/app_back_button.dart';
+import 'package:music_room/features/events/data/models/track_model.dart';
 import 'package:music_room/features/events/domain/entities/event_location.dart';
 import 'package:music_room/features/events/presentation/widgets/step_1_details.dart';
 import 'package:music_room/features/events/presentation/widgets/step_2_genre.dart';
@@ -30,7 +31,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
 
   List<String> selectedGenres = [];
 
-  List<String> selectedTracks = []; // Or specific track model
+  List<TrackModel> selectedTracks = []; // Use actual TrackModel
 
   String visibility = 'Public'; // Public, Private
   String votingRule = 'Everyone'; // Everyone, Invited Only, Location & Time

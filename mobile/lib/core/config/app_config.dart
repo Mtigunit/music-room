@@ -37,6 +37,9 @@ class AppConfig {
   static const String eventsEndpoint = 'events';
   static const String playlistsEndpoint = 'playlists';
 
+  // Track Endpoints
+  static const String searchTracksEndpoint = 'tracks/search';
+
   // Security
   static const String tokenStorageKey = 'auth_token';
   static const String userStorageKey = 'user_profile';
