@@ -65,7 +65,7 @@ export class PlaylistsService {
     updatePlaylistDto: UpdatePlaylistDto,
   ) {
     const playlist =
-      await this.playlistsRepository.getPlaylistDetails(playlistId);
+      await this.playlistsRepository.findPlaylistForAuth(playlistId);
     if (!playlist) {
       throw new NotFoundException('Playlist not found');
     }
@@ -82,7 +82,7 @@ export class PlaylistsService {
 
   async remove(playlistId: string, requesterId: string) {
     const playlist =
-      await this.playlistsRepository.getPlaylistDetails(playlistId);
+      await this.playlistsRepository.findPlaylistForAuth(playlistId);
     if (!playlist) {
       throw new NotFoundException('Playlist not found');
     }
@@ -100,7 +100,7 @@ export class PlaylistsService {
     targetUserId: string,
   ) {
     const playlist =
-      await this.playlistsRepository.getPlaylistDetails(playlistId);
+      await this.playlistsRepository.findPlaylistForAuth(playlistId);
     if (!playlist) {
       throw new NotFoundException('Playlist not found');
     }
@@ -127,7 +127,7 @@ export class PlaylistsService {
     track: TrackSearchResultDto,
   ) {
     const playlist =
-      await this.playlistsRepository.getPlaylistDetails(playlistId);
+      await this.playlistsRepository.findPlaylistForAuth(playlistId);
     if (!playlist) {
       throw new NotFoundException('Playlist not found');
     }

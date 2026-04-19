@@ -104,6 +104,21 @@ export class PlaylistsRepository {
     return { data, meta: { total, page, limit } };
   }
 
+  async findPlaylistForAuth(playlistId: string) {
+    return this.prisma.playlist.findUnique({
+      where: { id: playlistId },
+      select: {
+        id: true,
+        ownerId: true,
+        visibility: true,
+        editLicense: true,
+        collaborators: {
+          select: { userId: true },
+        },
+      },
+    });
+  }
+
   async getPlaylistDetails(playlistId: string) {
     return this.prisma.playlist.findUnique({
       where: { id: playlistId },
