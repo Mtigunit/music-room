@@ -21,28 +21,53 @@ enum TrackStatus {
   PLAYED
 }
 
+enum PlaylistVisibility {
+  PUBLIC
+  PRIVATE
+}
+
+enum PlaylistEditLicense {
+  OPEN
+  RESTRICTED
+}
+
+enum PlaylistTag {
+  POP
+  HIP_HOP
+  RNB
+  ROCK
+  JAZZ
+  CLASSICAL
+  ELECTRONIC
+  COUNTRY
+  CHILL
+  WORKOUT
+  PARTY
+  FOCUS
+  ACOUSTIC
+}
+
 // ======================================================
 // 1. USER MANAGEMENT & SOCIAL
 // ======================================================
 model User {
-  id                   String    @id @default(uuid())
-  email                String    @unique
-  username             String    @unique
+  id       String @id @default(uuid())
+  email    String @unique
+  username String @unique
 
   // Auth & OAuth
-  passwordHash         String?
-  isEmailVerified      Boolean   @default(false)
-  googleId             String?   @unique
-  facebookId           String?   @unique
+  passwordHash    String?
+  isEmailVerified Boolean @default(false)
+  googleId        String? @unique
 
   // Profile JSONs
-  publicInfo           Json?     @default("{}")
-  friendInfo           Json?     @default("{}")
-  privateInfo          Json?     @default("{}")
-  preferences          Json?     @default("{}")
+  publicInfo  Json? @default("{}")
+  friendInfo  Json? @default("{}")
+  privateInfo Json? @default("{}")
+  preferences Json? @default("{}")
 
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   // Relationships
   playlists            Playlist[]             @relation("PlaylistOwner")
@@ -53,6 +78,7 @@ model User {
   friendshipsInitiated Friendship[]           @relation("UserOne")
   friendshipsReceived  Friendship[]           @relation("UserTwo")
   votes                Vote[]
+  playlistTracks       PlaylistTrack[]
 }
 
 model Friendship {
@@ -62,8 +88,8 @@ model Friendship {
   status    String   @default("pending") // "pending", "accepted", "blocked"
   createdAt DateTime @default(now())
 
-  userOne   User     @relation("UserOne", fields: [userOneId], references: [id], onDelete: Cascade)
-  userTwo   User     @relation("UserTwo", fields: [userTwoId], references: [id], onDelete: Cascade)
+  userOne User @relation("UserOne", fields: [userOneId], references: [id], onDelete: Cascade)
+  userTwo User @relation("UserTwo", fields: [userTwoId], references: [id], onDelete: Cascade)
 
   @@unique([userOneId, userTwoId])
 }
@@ -72,112 +98,116 @@ model Friendship {
 // 2. THE CENTRAL AUDIO DICTIONARY
 // ======================================================
 model Track {
-  id              String   @id @default(uuid())
+  id String @id @default(uuid())
 
-  providerTrackId String   @unique
+  providerTrackId String  @unique
   title           String
   artist          String?
   durationMs      Int
   thumbnailUrl    String?
 
-  playlistTracks  PlaylistTrack[]
-  eventTracks     EventTrack[]
+  playlistTracks PlaylistTrack[]
+  eventTracks    EventTrack[]
 }
 
 // ======================================================
 // 3. FEATURE 3: PLAYLIST EDITOR
 // ======================================================
 model Playlist {
-  id          String   @id @default(uuid())
+  id          String              @id @default(uuid())
   name        String
+  visibility  PlaylistVisibility  @default(PUBLIC)
+  description String?             // OPTIONAL text description
+  tags        PlaylistTag[]       @default([]) // ARRAY of tags
   ownerId     String
-  owner       User     @relation("PlaylistOwner", fields: [ownerId], references: [id])
-  visibility  String   @default("public")
+  editLicense PlaylistEditLicense @default(OPEN)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 
-  playbackStatus           PlaybackStatus @default(STOPPED)
-  currentTrackStartedAt    DateTime?
-  pausedPlaybackPositionMs Int?
-
-  // Strict 1-to-1 Relation for currentTrackId
-  currentTrackId           String?        @unique
-  currentTrack             PlaylistTrack? @relation("PlaylistCurrentTrack", fields: [currentTrackId], references: [id])
-
-  // Named relation required to disambiguate from currentTrack
-  tracks        PlaylistTrack[]         @relation("PlaylistTracks")
-  collaborators PlaylistCollaborator[]
-  createdAt     DateTime @default(now())
+  // --- Relations ---
+  owner         User                   @relation("PlaylistOwner", fields: [ownerId], references: [id])
+  tracks        PlaylistTrack[]
+  collaborators PlaylistCollaborator[] // Users licensed to co-edit if visibility is PRIVATE
+  counter       PlaylistCounter?      // For generating unique position values in a concurrent environment
 }
 
 model PlaylistTrack {
-  id              String      @id @default(uuid())
+  id         String   @id @default(uuid())
+  playlistId String
+  trackId    String
+  position   Int      // Strict integer used for drag-and-drop ordering
+  addedById  String   // The user who added this specific track
+  addedAt    DateTime @default(now())
 
-  playlistId      String
-  playlist        Playlist    @relation("PlaylistTracks", fields: [playlistId], references: [id], onDelete: Cascade)
+  // --- Relations ---
+  playlist   Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  track      Track    @relation(fields: [trackId], references: [id]) // Link to the central Audio Dictionary
+  addedBy    User     @relation(fields: [addedById], references: [id])
 
-  trackId         String
-  track           Track       @relation(fields: [trackId], references: [id], onDelete: Restrict)
-
-  position        Int
-  status          TrackStatus @default(QUEUED)
-
-  // Back-relation for the 1-to-1 current track
-  currentIn       Playlist?   @relation("PlaylistCurrentTrack")
-
-  // Enforce unique ordering to prevent duplicates and speed up reads
+  // --- The Secret Sauce for Drag-and-Drop ---
+  // This constraint guarantees that two tracks can NEVER occupy the exact same position
+  // in the same playlist. This forces the PostgreSQL row-level locks to do their job!
   @@unique([playlistId, position])
 }
 
 model PlaylistCollaborator {
-  id          String   @id @default(uuid())
-  playlistId  String
-  userId      String
-  grantedAt   DateTime @default(now())
+  id         String   @id @default(uuid())
+  playlistId String
+  userId     String
+  grantedAt  DateTime @default(now())
 
-  playlist    Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
-  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  playlist Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([playlistId, userId])
+}
+
+model PlaylistCounter {
+  playlistId   String @id
+  nextPosition Int    @default(0)
+
+  playlist Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
 }
 
 // ======================================================
 // 4. FEATURE 1: TRACK VOTE (Live Party Event)
 // ======================================================
 model Event {
-  id          String   @id @default(uuid())
-  name        String
-  hostId      String
-  host        User     @relation("EventHost", fields: [hostId], references: [id])
-  status      String   @default("active")
-  visibility  String   @default("public")
+  id         String @id @default(uuid())
+  name       String
+  hostId     String
+  host       User   @relation("EventHost", fields: [hostId], references: [id])
+  status     String @default("active")
+  visibility String @default("public")
 
   playbackStatus           PlaybackStatus @default(STOPPED)
   currentTrackStartedAt    DateTime?
   pausedPlaybackPositionMs Int?
 
   // Strict 1-to-1 Relation for currentTrackId
-  currentTrackId           String?      @unique
-  currentTrack             EventTrack?  @relation("EventCurrentTrack", fields: [currentTrackId], references: [id])
+  currentTrackId String?     @unique
+  currentTrack   EventTrack? @relation("EventCurrentTrack", fields: [currentTrackId], references: [id])
 
-  tracks       EventTrack[]    @relation("EventTracks")
-  invites      EventInvite[]
-  policies     LicensePolicy[]
-  delegations  ControlDelegation[]
-  createdAt    DateTime @default(now())
+  tracks      EventTrack[]        @relation("EventTracks")
+  invites     EventInvite[]
+  policies    LicensePolicy[]
+  delegations ControlDelegation[]
+  createdAt   DateTime            @default(now())
 }
 
 model EventTrack {
-  id              String      @id @default(uuid())
+  id String @id @default(uuid())
 
-  eventId         String
-  event           Event       @relation("EventTracks", fields: [eventId], references: [id], onDelete: Cascade)
+  eventId String
+  event   Event  @relation("EventTracks", fields: [eventId], references: [id], onDelete: Cascade)
 
-  trackId         String
-  track           Track       @relation(fields: [trackId], references: [id], onDelete: Restrict)
+  trackId String
+  track   Track  @relation(fields: [trackId], references: [id], onDelete: Restrict)
 
-  voteScore       Int         @default(0)
-  status          TrackStatus @default(QUEUED)
+  voteScore Int         @default(0)
+  status    TrackStatus @default(QUEUED)
 
-  votes           Vote[]
+  votes Vote[]
 
   // Back-relation for the 1-to-1 current track
   currentIn       Event?      @relation("EventCurrentTrack")
@@ -186,16 +216,16 @@ model EventTrack {
 }
 
 model Vote {
-  id           String      @id @default(uuid())
+  id           String   @id @default(uuid())
   eventTrackId String
   userId       String
-  voteValue    Int         // 1 (Upvote) or -1 (Downvote)
-  createdAt    DateTime    @default(now())
+  voteValue    Int // 1 (Upvote) or -1 (Downvote)
+  createdAt    DateTime @default(now())
 
-  eventTrack   EventTrack  @relation(fields: [eventTrackId], references: [id], onDelete: Cascade)
+  eventTrack EventTrack @relation(fields: [eventTrackId], references: [id], onDelete: Cascade)
 
   // Mapped the relation to the User table for strict FK enforcement
-  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([eventTrackId, userId])
 }
@@ -207,19 +237,19 @@ model EventInvite {
   status    String   @default("pending")
   createdAt DateTime @default(now())
 
-  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, userId])
 }
 
 model LicensePolicy {
-  id         String   @id @default(uuid())
+  id         String @id @default(uuid())
   eventId    String
-  policyType String   // "geofence", "time_window"
+  policyType String // "geofence", "time_window"
   config     Json
 
-  event      Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
 }
 
 // ======================================================
@@ -233,8 +263,8 @@ model ControlDelegation {
   isActive    Boolean  @default(true)
   grantedAt   DateTime @default(now())
 
-  event       Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  delegatee   User     @relation("Delegatee", fields: [delegateeId], references: [id], onDelete: Cascade)
+  event     Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  delegatee User  @relation("Delegatee", fields: [delegateeId], references: [id], onDelete: Cascade)
 
   @@unique([eventId, delegateeId, deviceId])
 }
