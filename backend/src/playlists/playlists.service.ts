@@ -132,13 +132,21 @@ export class PlaylistsService {
       throw new NotFoundException('Playlist not found');
     }
 
+    const isOwner = playlist.ownerId === addedById;
+    const isCollaborator = playlist.collaborators.some(
+      (c) => c.userId === addedById,
+    );
+
+    if (playlist.visibility === PlaylistVisibility.PRIVATE) {
+      if (!isOwner && !isCollaborator) {
+        throw new ForbiddenException(
+          'You do not have permission to add tracks to this private playlist',
+        );
+      }
+    }
+
     // Validate editLicense restrictions
     if (playlist.editLicense === PlaylistEditLicense.RESTRICTED) {
-      const isOwner = playlist.ownerId === addedById;
-      const isCollaborator = playlist.collaborators.some(
-        (c) => c.userId === addedById,
-      );
-
       if (!isOwner && !isCollaborator) {
         throw new ForbiddenException(
           'You do not have permission to add tracks to this playlist',
