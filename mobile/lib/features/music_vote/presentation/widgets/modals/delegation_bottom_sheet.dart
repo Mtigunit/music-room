@@ -185,7 +185,7 @@ class _InfoBanner extends StatelessWidget {
     final textColor = isDark
         ? colorScheme.onSurface.withValues(alpha: 0.85)
         : colorScheme.primary.withValues(alpha: 0.9);
-    final iconColor = isDark ? colorScheme.primary : colorScheme.primary;
+    final iconColor = colorScheme.primary;
 
     return Container(
       padding: const EdgeInsets.all(14),

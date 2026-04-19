@@ -17,10 +17,8 @@ class _QueueSectionState extends State<QueueSection> {
   /// Track which items the user has voted for (by track ID).
   final Set<int> _votedIds = {};
 
-  /// Local mutable vote counts for the session.
-  final Map<int, int> _voteCounts = {
-    for (final t in mockQueueTracks) t.id: t.votes,
-  };
+  /// Local mutable copy of vote counts for UI responsiveness.
+  final Map<int, int> _voteCounts = {};
 
   @override
   Widget build(BuildContext context) {
@@ -63,37 +61,40 @@ class _QueueSectionState extends State<QueueSection> {
         const SizedBox(height: 12),
 
         // ── Queue list ──────────────────────────────────────────────────────
-        ListView.separated(
+        Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: mockQueueTracks.length,
-          separatorBuilder: (_, separator) => const SizedBox(height: 8),
-          itemBuilder: (context, index) {
-            final track = mockQueueTracks[index];
-            final hasVoted = _votedIds.contains(track.id);
-
-            return QueueTrackItem(
-              track: track,
-              hasVoted: hasVoted,
-              voteCount: _voteCounts[track.id] ?? track.votes,
-              onVote: () {
-                setState(() {
-                  final currentVotes = _voteCounts[track.id] ?? track.votes;
-                  if (hasVoted) {
-                    _votedIds.remove(track.id);
-                    _voteCounts[track.id] = currentVotes - 1;
-                  } else {
-                    _votedIds.add(track.id);
-                    _voteCounts[track.id] = currentVotes + 1;
-                  }
-                });
-                if (kDebugMode) {
-                  debugPrint('Voted for: ${track.title}');
-                }
-              },
-            );
-          },
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: List.generate(mockQueueTracks.length, (index) {
+              final track = mockQueueTracks[index];
+              return Padding(
+                padding: EdgeInsets.only(
+                  bottom: index == mockQueueTracks.length - 1 ? 0 : 8,
+                ),
+                child: QueueTrackItem(
+                  track: track,
+                  voteCount: _voteCounts[track.id] ?? track.votes,
+                  hasVoted: _votedIds.contains(track.id),
+                  onVote: () {
+                    setState(() {
+                      final recomputedHasVoted = _votedIds.contains(track.id);
+                      final currentVotes = _voteCounts[track.id] ?? track.votes;
+                      if (recomputedHasVoted) {
+                        _votedIds.remove(track.id);
+                        _voteCounts[track.id] = currentVotes - 1;
+                      } else {
+                        _votedIds.add(track.id);
+                        _voteCounts[track.id] = currentVotes + 1;
+                      }
+                    });
+                    if (kDebugMode) {
+                      debugPrint('Voted for: ${track.title}');
+                    }
+                  },
+                ),
+              );
+            }),
+          ),
         ),
       ],
     );
