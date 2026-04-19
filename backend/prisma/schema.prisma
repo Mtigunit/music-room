@@ -31,6 +31,22 @@ enum PlaylistEditLicense {
   RESTRICTED
 }
 
+enum PlaylistTag {
+  POP
+  HIP_HOP
+  RNB
+  ROCK
+  JAZZ
+  CLASSICAL
+  ELECTRONIC
+  COUNTRY
+  CHILL
+  WORKOUT
+  PARTY
+  FOCUS
+  ACOUSTIC
+}
+
 // ======================================================
 // 1. USER MANAGEMENT & SOCIAL
 // ======================================================
@@ -102,7 +118,7 @@ model Playlist {
   name        String
   visibility  PlaylistVisibility  @default(PUBLIC)
   description String?             // OPTIONAL text description
-  tags        String[]            @default([]) // ARRAY of strings (e.g., ["HipHop", "90s", "Chill"])
+  tags        PlaylistTag[]       @default([]) // ARRAY of tags
   ownerId     String
   editLicense PlaylistEditLicense @default(OPEN)
   createdAt   DateTime @default(now())

@@ -10,6 +10,9 @@ CREATE TYPE "PlaylistVisibility" AS ENUM ('PUBLIC', 'PRIVATE');
 -- CreateEnum
 CREATE TYPE "PlaylistEditLicense" AS ENUM ('OPEN', 'RESTRICTED');
 
+-- CreateEnum
+CREATE TYPE "PlaylistTag" AS ENUM ('POP', 'HIP_HOP', 'RNB', 'ROCK', 'JAZZ', 'CLASSICAL', 'ELECTRONIC', 'COUNTRY', 'CHILL', 'WORKOUT', 'PARTY', 'FOCUS', 'ACOUSTIC');
+
 -- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
@@ -57,7 +60,7 @@ CREATE TABLE "Playlist" (
     "name" TEXT NOT NULL,
     "visibility" "PlaylistVisibility" NOT NULL DEFAULT 'PUBLIC',
     "description" TEXT,
-    "tags" TEXT[] DEFAULT ARRAY[]::TEXT[],
+    "tags" "PlaylistTag"[] DEFAULT ARRAY[]::"PlaylistTag"[],
     "ownerId" TEXT NOT NULL,
     "editLicense" "PlaylistEditLicense" NOT NULL DEFAULT 'OPEN',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,

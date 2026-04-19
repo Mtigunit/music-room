@@ -57,6 +57,7 @@ describe('PlaylistsService', () => {
             getUserPlaylists: jest.fn(),
             explorePublicPlaylists: jest.fn(),
             getPlaylistDetails: jest.fn(),
+            findPlaylistForAuth: jest.fn(),
             updatePlaylist: jest.fn(),
             deletePlaylist: jest.fn(),
             addCollaborator: jest.fn(),
@@ -147,7 +148,7 @@ describe('PlaylistsService', () => {
 
   describe('update', () => {
     it('should throw NotFoundException when playlist does not exist', async () => {
-      repository.getPlaylistDetails.mockResolvedValueOnce(null);
+      repository.findPlaylistForAuth.mockResolvedValueOnce(null);
 
       await expect(
         service.update(PLAYLIST_ID, OWNER_ID, { name: 'New' }),
@@ -155,7 +156,7 @@ describe('PlaylistsService', () => {
     });
 
     it('should throw ForbiddenException when a non-owner tries to update', async () => {
-      repository.getPlaylistDetails.mockResolvedValueOnce(buildPlaylist());
+      repository.findPlaylistForAuth.mockResolvedValueOnce(buildPlaylist());
 
       await expect(
         service.update(PLAYLIST_ID, OTHER_USER_ID, { name: 'New' }),
@@ -163,7 +164,7 @@ describe('PlaylistsService', () => {
     });
 
     it('should allow the owner to update the playlist', async () => {
-      repository.getPlaylistDetails.mockResolvedValueOnce(buildPlaylist());
+      repository.findPlaylistForAuth.mockResolvedValueOnce(buildPlaylist());
       repository.updatePlaylist.mockResolvedValueOnce({} as never);
 
       await service.update(PLAYLIST_ID, OWNER_ID, { name: 'New' });
@@ -178,7 +179,7 @@ describe('PlaylistsService', () => {
 
   describe('remove', () => {
     it('should throw NotFoundException when playlist does not exist', async () => {
-      repository.getPlaylistDetails.mockResolvedValueOnce(null);
+      repository.findPlaylistForAuth.mockResolvedValueOnce(null);
 
       await expect(service.remove(PLAYLIST_ID, OWNER_ID)).rejects.toThrow(
         NotFoundException,
@@ -186,7 +187,7 @@ describe('PlaylistsService', () => {
     });
 
     it('should throw ForbiddenException when a non-owner tries to delete', async () => {
-      repository.getPlaylistDetails.mockResolvedValueOnce(buildPlaylist());
+      repository.findPlaylistForAuth.mockResolvedValueOnce(buildPlaylist());
 
       await expect(service.remove(PLAYLIST_ID, OTHER_USER_ID)).rejects.toThrow(
         ForbiddenException,
@@ -194,7 +195,7 @@ describe('PlaylistsService', () => {
     });
 
     it('should allow the owner to delete the playlist', async () => {
-      repository.getPlaylistDetails.mockResolvedValueOnce(buildPlaylist());
+      repository.findPlaylistForAuth.mockResolvedValueOnce(buildPlaylist());
       repository.deletePlaylist.mockResolvedValueOnce({} as never);
 
       await service.remove(PLAYLIST_ID, OWNER_ID);
@@ -207,7 +208,7 @@ describe('PlaylistsService', () => {
 
   describe('addCollaborator', () => {
     it('should throw NotFoundException when playlist does not exist', async () => {
-      repository.getPlaylistDetails.mockResolvedValueOnce(null);
+      repository.findPlaylistForAuth.mockResolvedValueOnce(null);
 
       await expect(
         service.addCollaborator(PLAYLIST_ID, OWNER_ID, OTHER_USER_ID),
@@ -215,7 +216,7 @@ describe('PlaylistsService', () => {
     });
 
     it('should throw ForbiddenException when a non-owner tries to add a collaborator', async () => {
-      repository.getPlaylistDetails.mockResolvedValueOnce(buildPlaylist());
+      repository.findPlaylistForAuth.mockResolvedValueOnce(buildPlaylist());
 
       await expect(
         service.addCollaborator(PLAYLIST_ID, OTHER_USER_ID, COLLABORATOR_ID),
@@ -223,7 +224,7 @@ describe('PlaylistsService', () => {
     });
 
     it('should throw BadRequestException when the target user does not exist', async () => {
-      repository.getPlaylistDetails.mockResolvedValueOnce(buildPlaylist());
+      repository.findPlaylistForAuth.mockResolvedValueOnce(buildPlaylist());
       repository.checkUserExists.mockResolvedValueOnce(false);
 
       await expect(
@@ -232,7 +233,7 @@ describe('PlaylistsService', () => {
     });
 
     it('should add a collaborator when all checks pass', async () => {
-      repository.getPlaylistDetails.mockResolvedValueOnce(buildPlaylist());
+      repository.findPlaylistForAuth.mockResolvedValueOnce(buildPlaylist());
       repository.checkUserExists.mockResolvedValueOnce(true);
       repository.addCollaborator.mockResolvedValueOnce({} as never);
 
@@ -249,7 +250,7 @@ describe('PlaylistsService', () => {
 
   describe('addTrackToPlaylist', () => {
     it('should throw NotFoundException when playlist does not exist', async () => {
-      repository.getPlaylistDetails.mockResolvedValueOnce(null);
+      repository.findPlaylistForAuth.mockResolvedValueOnce(null);
 
       await expect(
         service.addTrackToPlaylist(PLAYLIST_ID, OWNER_ID, sampleTrack),
@@ -257,7 +258,7 @@ describe('PlaylistsService', () => {
     });
 
     it('should allow any user to add a track when editLicense is OPEN', async () => {
-      repository.getPlaylistDetails.mockResolvedValueOnce(buildPlaylist());
+      repository.findPlaylistForAuth.mockResolvedValueOnce(buildPlaylist());
       repository.addTrackToPlaylist.mockResolvedValueOnce({} as never);
 
       await service.addTrackToPlaylist(PLAYLIST_ID, OTHER_USER_ID, sampleTrack);
@@ -270,7 +271,7 @@ describe('PlaylistsService', () => {
     });
 
     it('should allow the owner to add a track when editLicense is RESTRICTED', async () => {
-      repository.getPlaylistDetails.mockResolvedValueOnce(
+      repository.findPlaylistForAuth.mockResolvedValueOnce(
         buildPlaylist({ editLicense: PlaylistEditLicense.RESTRICTED }),
       );
       repository.addTrackToPlaylist.mockResolvedValueOnce({} as never);
@@ -285,7 +286,7 @@ describe('PlaylistsService', () => {
     });
 
     it('should allow a collaborator to add a track when editLicense is RESTRICTED', async () => {
-      repository.getPlaylistDetails.mockResolvedValueOnce(
+      repository.findPlaylistForAuth.mockResolvedValueOnce(
         buildPlaylist({
           editLicense: PlaylistEditLicense.RESTRICTED,
           collaborators: [
@@ -315,7 +316,7 @@ describe('PlaylistsService', () => {
     });
 
     it('should throw ForbiddenException when an unauthorized user adds a track to a RESTRICTED playlist', async () => {
-      repository.getPlaylistDetails.mockResolvedValueOnce(
+      repository.findPlaylistForAuth.mockResolvedValueOnce(
         buildPlaylist({ editLicense: PlaylistEditLicense.RESTRICTED }),
       );
 

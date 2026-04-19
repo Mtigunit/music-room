@@ -1,5 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { type PlaylistTrack, Prisma } from '@prisma/client';
+import {
+  PlaylistTag,
+  PlaylistVisibility,
+  type PlaylistTrack,
+  Prisma,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { TrackSearchResultDto } from '../tracks/dto/track-search-result.dto';
 import { CreatePlaylistDto } from './dto/create-playlist.dto';
@@ -62,14 +67,14 @@ export class PlaylistsRepository {
 
   async explorePublicPlaylists(
     searchQuery: string | undefined,
-    tag: string | undefined,
+    tag: PlaylistTag | undefined,
     paginationDto: PaginationDto,
   ) {
     const { page = 1, limit = 20 } = paginationDto;
     const skip = (page - 1) * limit;
 
     const where: Prisma.PlaylistWhereInput = {
-      visibility: 'PUBLIC',
+      visibility: PlaylistVisibility.PUBLIC,
     };
 
     if (searchQuery) {

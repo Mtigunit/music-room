@@ -18,7 +18,6 @@ import {
   ApiParam,
   ApiBody,
   ApiBearerAuth,
-  ApiQuery,
 } from '@nestjs/swagger';
 import { PlaylistsService } from './playlists.service';
 import { CreatePlaylistDto } from './dto/create-playlist.dto';
@@ -26,6 +25,7 @@ import { UpdatePlaylistDto } from './dto/update-playlist.dto';
 import { AddTrackToPlaylistDto } from './dto/add-track-to-playlist.dto';
 import { AddCollaboratorDto } from './dto/add-collaborator.dto';
 import { PaginationDto } from '../common/dto/pagination.dto';
+import { ExplorePlaylistsQueryDto } from './dto/explore-playlists-query.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 
 @ApiTags('Playlists')
@@ -58,26 +58,12 @@ export class PlaylistsController {
 
   @Get('explore')
   @ApiOperation({ summary: 'Explore public playlists' })
-  @ApiQuery({
-    name: 'q',
-    required: false,
-    description: 'Search name or description',
-  })
-  @ApiQuery({
-    name: 'tag',
-    required: false,
-    description: 'Filter by genre/tag',
-  })
   @ApiResponse({ status: 200, description: 'List of public playlists.' })
-  explorePublicPlaylists(
-    @Query('q') searchQuery: string,
-    @Query('tag') tag: string,
-    @Query() paginationDto: PaginationDto,
-  ) {
+  explorePublicPlaylists(@Query() query: ExplorePlaylistsQueryDto) {
     return this.playlistsService.explorePublicPlaylists(
-      searchQuery,
-      tag,
-      paginationDto,
+      query.q,
+      query.tag,
+      query,
     );
   }
 

@@ -9,7 +9,11 @@ import { UpdatePlaylistDto } from './dto/update-playlist.dto';
 import { PlaylistsRepository } from './playlists.repository';
 import { TrackSearchResultDto } from '../tracks/dto/track-search-result.dto';
 import { PaginationDto } from '../common/dto/pagination.dto';
-import { PlaylistEditLicense, PlaylistVisibility } from '@prisma/client';
+import {
+  PlaylistEditLicense,
+  PlaylistTag,
+  PlaylistVisibility,
+} from '@prisma/client';
 
 @Injectable()
 export class PlaylistsService {
@@ -25,7 +29,7 @@ export class PlaylistsService {
 
   async explorePublicPlaylists(
     searchQuery: string | undefined,
-    tag: string | undefined,
+    tag: PlaylistTag | undefined,
     paginationDto: PaginationDto,
   ) {
     return this.playlistsRepository.explorePublicPlaylists(

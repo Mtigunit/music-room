@@ -8,8 +8,11 @@ import {
   IsString,
   MaxLength,
 } from 'class-validator';
-import { PlaylistEditLicense, PlaylistVisibility } from '@prisma/client';
-import { PlaylistTag } from '../enums/playlist.enum';
+import {
+  PlaylistEditLicense,
+  PlaylistVisibility,
+  PlaylistTag,
+} from '@prisma/client';
 
 export class CreatePlaylistDto {
   @ApiProperty({
