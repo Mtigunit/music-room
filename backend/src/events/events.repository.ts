@@ -2,11 +2,12 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  ConflictException,
 } from '@nestjs/common';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { PrismaService } from '../prisma/prisma.service';
-import { TrackStatus, Prisma } from '@prisma/client';
+import { TrackStatus, Prisma, EventVisibility } from '@prisma/client';
 
 @Injectable()
 export class EventsRepository {
@@ -24,7 +25,7 @@ export class EventsRepository {
       locationLng,
       policies,
       playlistIds,
-      trackIds,
+      tracks,
     } = createEventDto;
 
     return this.prisma.$transaction(async (tx) => {
@@ -42,23 +43,6 @@ export class EventsRepository {
           );
           throw new NotFoundException(
             `Playlists not found: ${missingIds.join(', ')}`,
-          );
-        }
-      }
-
-      if (trackIds && trackIds.length > 0) {
-        const uniqueTrackIds = Array.from(new Set(trackIds));
-        const tracks = await tx.track.findMany({
-          where: { id: { in: uniqueTrackIds } },
-          select: { id: true },
-        });
-        if (tracks.length !== uniqueTrackIds.length) {
-          const foundIds = tracks.map((t) => t.id);
-          const missingIds = uniqueTrackIds.filter(
-            (id) => !foundIds.includes(id),
-          );
-          throw new NotFoundException(
-            `Tracks not found: ${missingIds.join(', ')}`,
           );
         }
       }
@@ -102,8 +86,32 @@ export class EventsRepository {
         finalTrackIds.push(...playlistTracks.map((pt) => pt.trackId));
       }
 
-      if (trackIds && trackIds.length > 0) {
-        finalTrackIds.push(...trackIds);
+      if (tracks && tracks.length > 0) {
+        const uniqueProviderTrackIds = Array.from(
+          new Set(tracks.map((t) => t.providerTrackId)),
+        );
+
+        const uniqueTracksToInsert = uniqueProviderTrackIds.map(
+          (provideId) => tracks.find((t) => t.providerTrackId === provideId)!,
+        );
+
+        await tx.track.createMany({
+          data: uniqueTracksToInsert.map((t) => ({
+            providerTrackId: t.providerTrackId,
+            title: t.title,
+            artist: t.artist || '',
+            durationMs: t.durationMs,
+            thumbnailUrl: t.thumbnailUrl || '',
+          })),
+          skipDuplicates: true,
+        });
+
+        const createdTracks = await tx.track.findMany({
+          where: { providerTrackId: { in: uniqueProviderTrackIds } },
+          select: { id: true },
+        });
+
+        finalTrackIds.push(...createdTracks.map((t) => t.id));
       }
 
       // Deduplicate using a Set
@@ -126,17 +134,82 @@ export class EventsRepository {
     });
   }
 
-  async findAll(options: { page: number; limit: number; name?: string }) {
-    const { page, limit, name } = options;
+  async explore(
+    userId: string,
+    options: { page: number; limit: number; search?: string },
+  ) {
+    const { page, limit, search } = options;
     const skip = (page - 1) * limit;
 
-    const where: Prisma.EventWhereInput = {};
-    if (name) {
-      where.name = {
-        contains: name,
-        mode: 'insensitive',
-      };
-    }
+    const baseCondition: Prisma.EventWhereInput = {
+      OR: [
+        { visibility: EventVisibility.PUBLIC },
+        { hostId: userId },
+        { invites: { some: { userId } } },
+      ],
+    };
+
+    const where: Prisma.EventWhereInput = search
+      ? {
+          AND: [
+            baseCondition,
+            {
+              OR: [
+                { name: { contains: search, mode: 'insensitive' } },
+                { description: { contains: search, mode: 'insensitive' } },
+                { tags: { has: search } },
+              ],
+            },
+          ],
+        }
+      : baseCondition;
+
+    const [data, total] = await Promise.all([
+      this.prisma.event.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.event.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async findAll(
+    userId: string,
+    options: { page: number; limit: number; search?: string },
+  ) {
+    const { page, limit, search } = options;
+    const skip = (page - 1) * limit;
+
+    const baseCondition: Prisma.EventWhereInput = {
+      OR: [{ hostId: userId }, { invites: { some: { userId } } }],
+    };
+
+    const where: Prisma.EventWhereInput = search
+      ? {
+          AND: [
+            baseCondition,
+            {
+              OR: [
+                { name: { contains: search, mode: 'insensitive' } },
+                { description: { contains: search, mode: 'insensitive' } },
+                { tags: { has: search } },
+              ],
+            },
+          ],
+        }
+      : baseCondition;
 
     const [data, total] = await Promise.all([
       this.prisma.event.findMany({
@@ -183,7 +256,7 @@ export class EventsRepository {
       locationLng,
       policies,
       playlistIds,
-      trackIds,
+      tracks,
     } = updateEventDto;
 
     return this.prisma.$transaction(async (tx) => {
@@ -216,23 +289,6 @@ export class EventsRepository {
         }
       }
 
-      if (trackIds && trackIds.length > 0) {
-        const uniqueTrackIds = Array.from(new Set(trackIds));
-        const tracks = await tx.track.findMany({
-          where: { id: { in: uniqueTrackIds } },
-          select: { id: true },
-        });
-        if (tracks.length !== uniqueTrackIds.length) {
-          const foundIds = tracks.map((t) => t.id);
-          const missingIds = uniqueTrackIds.filter(
-            (id) => !foundIds.includes(id),
-          );
-          throw new NotFoundException(
-            `Tracks not found: ${missingIds.join(', ')}`,
-          );
-        }
-      }
-
       // 2. Update the Event
       const updatedEvent = await tx.event.update({
         where: { id },
@@ -258,7 +314,7 @@ export class EventsRepository {
       });
 
       // 3. Track resolution logic
-      if (playlistIds !== undefined || trackIds !== undefined) {
+      if (playlistIds !== undefined || tracks !== undefined) {
         // clear existing tracks and re-insert
         await tx.eventTrack.deleteMany({ where: { eventId: id } });
 
@@ -274,8 +330,32 @@ export class EventsRepository {
           finalTrackIds.push(...playlistTracks.map((pt) => pt.trackId));
         }
 
-        if (trackIds && trackIds.length > 0) {
-          finalTrackIds.push(...trackIds);
+        if (tracks && tracks.length > 0) {
+          const uniqueProviderTrackIds = Array.from(
+            new Set(tracks.map((t) => t.providerTrackId)),
+          );
+
+          const uniqueTracksToInsert = uniqueProviderTrackIds.map(
+            (provideId) => tracks.find((t) => t.providerTrackId === provideId)!,
+          );
+
+          await tx.track.createMany({
+            data: uniqueTracksToInsert.map((t) => ({
+              providerTrackId: t.providerTrackId,
+              title: t.title,
+              artist: t.artist || '',
+              durationMs: t.durationMs,
+              thumbnailUrl: t.thumbnailUrl || '',
+            })),
+            skipDuplicates: true,
+          });
+
+          const createdTracks = await tx.track.findMany({
+            where: { providerTrackId: { in: uniqueProviderTrackIds } },
+            select: { id: true },
+          });
+
+          finalTrackIds.push(...createdTracks.map((t) => t.id));
         }
 
         finalTrackIds = Array.from(new Set(finalTrackIds));
@@ -297,7 +377,16 @@ export class EventsRepository {
     });
   }
 
-  async appendTracks(id: string, trackIds: string[]) {
+  async appendTracks(
+    id: string,
+    tracksInput: {
+      providerTrackId: string;
+      title: string;
+      artist?: string;
+      durationMs: number;
+      thumbnailUrl?: string;
+    }[],
+  ) {
     return this.prisma.$transaction(async (tx) => {
       // 0. Check event exists
       const existingEvent = await tx.event.findUnique({ where: { id } });
@@ -305,24 +394,39 @@ export class EventsRepository {
         throw new NotFoundException(`Event with ID ${id} not found`);
       }
 
-      // 1. Verify tracks exist
-      if (trackIds && trackIds.length > 0) {
-        const uniqueTrackIds = Array.from(new Set(trackIds));
+      // 1. Process tracks
+      if (tracksInput && tracksInput.length > 0) {
+        const uniqueProviderTrackIds = Array.from(
+          new Set(tracksInput.map((t) => t.providerTrackId)),
+        );
+
+        // Deduplicate input tracks based on providerTrackId
+        const uniqueTracksToInsert = uniqueProviderTrackIds.map(
+          (provideId) =>
+            tracksInput.find((t) => t.providerTrackId === provideId)!,
+        );
+
+        // Insert new tracks or find existing ones safely via `skipDuplicates`
+        await tx.track.createMany({
+          data: uniqueTracksToInsert.map((t) => ({
+            providerTrackId: t.providerTrackId,
+            title: t.title,
+            artist: t.artist || '',
+            durationMs: t.durationMs,
+            thumbnailUrl: t.thumbnailUrl || '',
+          })),
+          skipDuplicates: true, // Requires Postgres DB connector
+        });
+
+        // Fetch inserted / existing Track IDs
         const tracks = await tx.track.findMany({
-          where: { id: { in: uniqueTrackIds } },
+          where: { providerTrackId: { in: uniqueProviderTrackIds } },
           select: { id: true },
         });
-        if (tracks.length !== uniqueTrackIds.length) {
-          const foundIds = tracks.map((t) => t.id);
-          const missingIds = uniqueTrackIds.filter(
-            (tId) => !foundIds.includes(tId),
-          );
-          throw new NotFoundException(
-            `Tracks not found: ${missingIds.join(', ')}`,
-          );
-        }
 
-        // 2. Create EventTrack records, bypassing existing ones safely via `skipDuplicates`
+        const uniqueTrackIds = tracks.map((t) => t.id);
+
+        // 2. Create EventTrack records
         const eventTracksData = uniqueTrackIds.map((trackId) => ({
           eventId: id,
           trackId,
@@ -339,6 +443,55 @@ export class EventsRepository {
         where: { id },
         include: { tracks: true },
       });
+    });
+  }
+
+  async inviteUser(eventId: string, hostId: string, invitedUserId: string) {
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+    });
+
+    if (!event) {
+      throw new NotFoundException(`Event with ID ${eventId} not found`);
+    }
+
+    if (event.hostId !== hostId) {
+      throw new ForbiddenException(
+        'Only the host can invite users to this event',
+      );
+    }
+
+    if (hostId === invitedUserId) {
+      throw new ConflictException('You cannot invite yourself to the event');
+    }
+
+    const userToInvite = await this.prisma.user.findUnique({
+      where: { id: invitedUserId },
+    });
+
+    if (!userToInvite) {
+      throw new NotFoundException(`User with ID ${invitedUserId} not found`);
+    }
+
+    const existingInvite = await this.prisma.eventInvite.findUnique({
+      where: {
+        eventId_userId: {
+          eventId,
+          userId: invitedUserId,
+        },
+      },
+    });
+
+    if (existingInvite) {
+      throw new ConflictException('User is already invited to this event');
+    }
+
+    return this.prisma.eventInvite.create({
+      data: {
+        eventId,
+        userId: invitedUserId,
+        status: 'pending',
+      },
     });
   }
 

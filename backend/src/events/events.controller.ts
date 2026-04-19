@@ -30,6 +30,7 @@ import { EventsService } from './events.service';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { AppendTracksDto } from './dto/append-tracks.dto';
+import { InviteUserDto } from './dto/invite-user.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { Request } from 'express';
 
@@ -56,8 +57,10 @@ export class EventsController {
     return this.eventsService.create(userId, createEventDto);
   }
 
-  @Get()
-  @ApiOperation({ summary: 'Get all events' })
+  @Get('explore')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Explore public events and user events' })
   @ApiQuery({
     name: 'page',
     required: false,
@@ -71,18 +74,53 @@ export class EventsController {
     description: 'Items per page (default 10)',
   })
   @ApiQuery({
-    name: 'name',
+    name: 'search',
     required: false,
     type: String,
-    description: 'Search events by name',
+    description: 'Search events by name, tags, or description',
   })
   @ApiResponse({ status: 200, description: 'List of events.' })
+  explore(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Req() req: Request,
+    @Query('search') search?: string,
+  ) {
+    const userId = (req.user as { id: string }).id;
+    return this.eventsService.explore(userId, { page, limit, search });
+  }
+
+  @Get()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get all events created by or invited to the user' })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Page number (default 1)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Items per page (default 10)',
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Search events by name, tags, or description',
+  })
+  @ApiResponse({ status: 200, description: 'List of user events.' })
   findAll(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
-    @Query('name') name?: string,
+    @Req() req: Request,
+    @Query('search') search?: string,
   ) {
-    return this.eventsService.findAll({ page, limit, name });
+    const userId = (req.user as { id: string }).id;
+    return this.eventsService.findAll(userId, { page, limit, search });
   }
 
   @Get(':id')
@@ -122,12 +160,34 @@ export class EventsController {
   @ApiConsumes('application/json')
   @ApiBody({ type: AppendTracksDto })
   @ApiResponse({ status: 201, description: 'Tracks appended successfully.' })
-  @ApiResponse({ status: 404, description: 'Event or tracks not found.' })
+  @ApiResponse({ status: 404, description: 'Event not found.' })
   appendTracks(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() appendTracksDto: AppendTracksDto,
   ) {
-    return this.eventsService.appendTracks(id, appendTracksDto.trackIds);
+    return this.eventsService.appendTracks(id, appendTracksDto.tracks);
+  }
+
+  @Post(':id/invites')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Invite a user to an event' })
+  @ApiParam({ name: 'id', type: String })
+  @ApiBody({ type: InviteUserDto })
+  @ApiResponse({ status: 201, description: 'User invited successfully.' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden. Only the host can invite users.',
+  })
+  @ApiResponse({ status: 404, description: 'Event or user not found.' })
+  @ApiResponse({ status: 409, description: 'User already invited.' })
+  inviteUser(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() inviteUserDto: InviteUserDto,
+    @Req() req: Request,
+  ) {
+    const hostId = (req.user as { id: string }).id;
+    return this.eventsService.inviteUser(id, hostId, inviteUserDto.userId);
   }
 
   @Delete(':id')

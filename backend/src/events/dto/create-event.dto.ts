@@ -4,6 +4,7 @@ import {
   IsEnum,
   IsArray,
   ArrayMinSize,
+  ArrayMaxSize,
   IsOptional,
   IsNumber,
   ValidateNested,
@@ -13,6 +14,13 @@ import {
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import { EventVisibility, PolicyType, Prisma } from '@prisma/client';
+import { AppendedTrackDto } from './append-tracks.dto';
+
+export enum Tags {
+  TEST1 = 'TEST1',
+  TEST2 = 'TEST2',
+  TEST3 = 'TEST3',
+}
 
 export class GeofenceConfigDto {
   [key: string]: Prisma.InputJsonValue | undefined;
@@ -59,10 +67,11 @@ export class CreateEventDto {
   @IsString()
   name: string;
 
-  @ApiProperty({ type: [String], minItems: 1 })
+  @ApiProperty({ enum: Tags, isArray: true, minItems: 1, maxItems: 3 })
   @IsArray()
   @ArrayMinSize(1)
-  @IsString({ each: true })
+  @ArrayMaxSize(3)
+  @IsEnum(Tags, { each: true })
   @Transform(({ value }) => {
     // Handle JSON string array e.g. '["rock", "pop"]' from FormData
     if (
@@ -169,10 +178,11 @@ export class CreateEventDto {
   })
   playlistIds?: string[];
 
-  @ApiPropertyOptional({ type: [String] })
+  @ApiPropertyOptional({ type: [AppendedTrackDto] })
   @IsOptional()
   @IsArray()
-  @IsUUID('all', { each: true })
+  @ValidateNested({ each: true })
+  @Type(() => AppendedTrackDto)
   @Transform(({ value }) => {
     if (
       typeof value === 'string' &&
@@ -180,12 +190,14 @@ export class CreateEventDto {
       value.endsWith(']')
     ) {
       try {
-        return JSON.parse(value) as string[];
+        return JSON.parse(value) as AppendedTrackDto[];
       } catch {
         return value;
       }
     }
-    return Array.isArray(value) ? (value as string[]) : [value as string];
+    return Array.isArray(value)
+      ? (value as AppendedTrackDto[])
+      : [value as AppendedTrackDto];
   })
-  trackIds?: string[];
+  tracks?: AppendedTrackDto[];
 }

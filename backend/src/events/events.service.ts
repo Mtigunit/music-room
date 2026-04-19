@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
+import { AppendedTrackDto } from './dto/append-tracks.dto';
 import { EventsRepository } from './events.repository';
 
 @Injectable()
@@ -11,8 +12,18 @@ export class EventsService {
     return this.eventsRepository.create(userId, createEventDto);
   }
 
-  findAll(options: { page: number; limit: number; name?: string }) {
-    return this.eventsRepository.findAll(options);
+  explore(
+    userId: string,
+    options: { page: number; limit: number; search?: string },
+  ) {
+    return this.eventsRepository.explore(userId, options);
+  }
+
+  findAll(
+    userId: string,
+    options: { page: number; limit: number; search?: string },
+  ) {
+    return this.eventsRepository.findAll(userId, options);
   }
 
   findOne(id: string) {
@@ -23,8 +34,12 @@ export class EventsService {
     return this.eventsRepository.update(id, userId, updateEventDto);
   }
 
-  appendTracks(id: string, trackIds: string[]) {
-    return this.eventsRepository.appendTracks(id, trackIds);
+  appendTracks(id: string, tracks: AppendedTrackDto[]) {
+    return this.eventsRepository.appendTracks(id, tracks);
+  }
+
+  inviteUser(eventId: string, hostId: string, invitedUserId: string) {
+    return this.eventsRepository.inviteUser(eventId, hostId, invitedUserId);
   }
 
   remove(id: string, userId: string) {

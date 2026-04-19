@@ -3,6 +3,8 @@ import { EventsController } from './events.controller';
 import { EventsService } from './events.service';
 import { EventsRepository } from './events.repository';
 import { PrismaService } from '../prisma/prisma.service';
+import { AppendTracksDto } from './dto/append-tracks.dto';
+import type { Request } from 'express';
 
 describe('EventsController', () => {
   let controller: EventsController;
@@ -41,14 +43,39 @@ describe('EventsController', () => {
   describe('appendTracks', () => {
     it('should call eventsService.appendTracks with correct parameters', async () => {
       const eventId = '740777df-e348-40b6-925e-4c0f020cf68c';
-      const trackIds = ['a1b2c3d4-e5f6-4890-8bcd-ef1234567890'];
+      const tracks = [
+        {
+          providerTrackId: 'zaGHlRk1Aq0',
+          title: 'A MESSAGE TO DIE FOR',
+          durationMs: 362000,
+        },
+      ];
       const spy = jest
         .spyOn(service, 'appendTracks')
-        .mockResolvedValue(undefined as any);
+        .mockResolvedValue(undefined as never);
 
-      await controller.appendTracks(eventId, { trackIds });
+      await controller.appendTracks(eventId, { tracks } as AppendTracksDto);
 
-      expect(spy).toHaveBeenCalledWith(eventId, trackIds);
+      expect(spy).toHaveBeenCalledWith(eventId, tracks);
+    });
+  });
+
+  describe('inviteUser', () => {
+    it('should call eventsService.inviteUser with correct parameters', async () => {
+      const eventId = '740777df-e348-40b6-925e-4c0f020cf68c';
+      const hostId = 'user-1';
+      const invitedUserId = 'user-2';
+      const dto = { userId: invitedUserId };
+
+      const req = { user: { id: hostId } } as unknown as Request;
+
+      const spy = jest
+        .spyOn(service, 'inviteUser')
+        .mockResolvedValue({ id: 'invite-1' } as never);
+
+      await controller.inviteUser(eventId, dto, req);
+
+      expect(spy).toHaveBeenCalledWith(eventId, hostId, invitedUserId);
     });
   });
 });
