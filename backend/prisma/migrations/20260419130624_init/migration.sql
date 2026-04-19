@@ -4,6 +4,12 @@ CREATE TYPE "PlaybackStatus" AS ENUM ('STOPPED', 'PLAYING', 'PAUSED');
 -- CreateEnum
 CREATE TYPE "TrackStatus" AS ENUM ('QUEUED', 'PLAYING', 'PLAYED');
 
+-- CreateEnum
+CREATE TYPE "PlaylistVisibility" AS ENUM ('PUBLIC', 'PRIVATE');
+
+-- CreateEnum
+CREATE TYPE "PlaylistEditLicense" AS ENUM ('OPEN', 'RESTRICTED');
+
 -- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
@@ -11,10 +17,7 @@ CREATE TABLE "User" (
     "username" TEXT NOT NULL,
     "passwordHash" TEXT,
     "isEmailVerified" BOOLEAN NOT NULL DEFAULT false,
-    "passwordResetToken" TEXT,
-    "passwordResetExpires" TIMESTAMP(3),
     "googleId" TEXT,
-    "facebookId" TEXT,
     "publicInfo" JSONB DEFAULT '{}',
     "friendInfo" JSONB DEFAULT '{}',
     "privateInfo" JSONB DEFAULT '{}',
@@ -52,13 +55,13 @@ CREATE TABLE "Track" (
 CREATE TABLE "Playlist" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
+    "visibility" "PlaylistVisibility" NOT NULL DEFAULT 'PUBLIC',
+    "description" TEXT,
+    "tags" TEXT[] DEFAULT ARRAY[]::TEXT[],
     "ownerId" TEXT NOT NULL,
-    "visibility" TEXT NOT NULL DEFAULT 'public',
-    "playbackStatus" "PlaybackStatus" NOT NULL DEFAULT 'STOPPED',
-    "currentTrackStartedAt" TIMESTAMP(3),
-    "pausedPlaybackPositionMs" INTEGER,
-    "currentTrackId" TEXT,
+    "editLicense" "PlaylistEditLicense" NOT NULL DEFAULT 'OPEN',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Playlist_pkey" PRIMARY KEY ("id")
 );
@@ -69,7 +72,8 @@ CREATE TABLE "PlaylistTrack" (
     "playlistId" TEXT NOT NULL,
     "trackId" TEXT NOT NULL,
     "position" INTEGER NOT NULL,
-    "status" "TrackStatus" NOT NULL DEFAULT 'QUEUED',
+    "addedById" TEXT NOT NULL,
+    "addedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "PlaylistTrack_pkey" PRIMARY KEY ("id")
 );
@@ -82,6 +86,14 @@ CREATE TABLE "PlaylistCollaborator" (
     "grantedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "PlaylistCollaborator_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PlaylistCounter" (
+    "playlistId" TEXT NOT NULL,
+    "nextPosition" INTEGER NOT NULL DEFAULT 0,
+
+    CONSTRAINT "PlaylistCounter_pkey" PRIMARY KEY ("playlistId")
 );
 
 -- CreateTable
@@ -175,22 +187,13 @@ CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 CREATE UNIQUE INDEX "User_username_key" ON "User"("username");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "User_passwordResetToken_key" ON "User"("passwordResetToken");
-
--- CreateIndex
 CREATE UNIQUE INDEX "User_googleId_key" ON "User"("googleId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "User_facebookId_key" ON "User"("facebookId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Friendship_userOneId_userTwoId_key" ON "Friendship"("userOneId", "userTwoId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Track_providerTrackId_key" ON "Track"("providerTrackId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Playlist_currentTrackId_key" ON "Playlist"("currentTrackId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "PlaylistTrack_playlistId_position_key" ON "PlaylistTrack"("playlistId", "position");
@@ -200,6 +203,9 @@ CREATE UNIQUE INDEX "PlaylistCollaborator_playlistId_userId_key" ON "PlaylistCol
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Event_currentTrackId_key" ON "Event"("currentTrackId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "EventTrack_eventId_trackId_key" ON "EventTrack"("eventId", "trackId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Vote_eventTrackId_userId_key" ON "Vote"("eventTrackId", "userId");
@@ -220,19 +226,22 @@ ALTER TABLE "Friendship" ADD CONSTRAINT "Friendship_userTwoId_fkey" FOREIGN KEY 
 ALTER TABLE "Playlist" ADD CONSTRAINT "Playlist_ownerId_fkey" FOREIGN KEY ("ownerId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Playlist" ADD CONSTRAINT "Playlist_currentTrackId_fkey" FOREIGN KEY ("currentTrackId") REFERENCES "PlaylistTrack"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "PlaylistTrack" ADD CONSTRAINT "PlaylistTrack_playlistId_fkey" FOREIGN KEY ("playlistId") REFERENCES "Playlist"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "PlaylistTrack" ADD CONSTRAINT "PlaylistTrack_trackId_fkey" FOREIGN KEY ("trackId") REFERENCES "Track"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "PlaylistTrack" ADD CONSTRAINT "PlaylistTrack_addedById_fkey" FOREIGN KEY ("addedById") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "PlaylistCollaborator" ADD CONSTRAINT "PlaylistCollaborator_playlistId_fkey" FOREIGN KEY ("playlistId") REFERENCES "Playlist"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "PlaylistCollaborator" ADD CONSTRAINT "PlaylistCollaborator_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PlaylistCounter" ADD CONSTRAINT "PlaylistCounter_playlistId_fkey" FOREIGN KEY ("playlistId") REFERENCES "Playlist"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Event" ADD CONSTRAINT "Event_hostId_fkey" FOREIGN KEY ("hostId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

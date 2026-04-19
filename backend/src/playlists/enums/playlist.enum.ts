@@ -1,0 +1,15 @@
+export enum PlaylistTag {
+  POP = 'POP',
+  HIP_HOP = 'HIP_HOP',
+  RNB = 'RNB',
+  ROCK = 'ROCK',
+  JAZZ = 'JAZZ',
+  CLASSICAL = 'CLASSICAL',
+  ELECTRONIC = 'ELECTRONIC',
+  COUNTRY = 'COUNTRY',
+  CHILL = 'CHILL',
+  WORKOUT = 'WORKOUT',
+  PARTY = 'PARTY',
+  FOCUS = 'FOCUS',
+  ACOUSTIC = 'ACOUSTIC',
+}
