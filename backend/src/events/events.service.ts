@@ -23,6 +23,10 @@ export class EventsService {
     return this.eventsRepository.update(id, updateEventDto);
   }
 
+  appendTracks(id: string, trackIds: string[]) {
+    return this.eventsRepository.appendTracks(id, trackIds);
+  }
+
   remove(id: string) {
     return this.eventsRepository.remove(id);
   }

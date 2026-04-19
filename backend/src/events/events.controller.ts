@@ -25,6 +25,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { EventsService } from './events.service';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
+import { AppendTracksDto } from './dto/append-tracks.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { Request } from 'express';
 
@@ -83,6 +84,20 @@ export class EventsController {
   ) {
     if (file) updateEventDto.coverImage = file.path;
     return this.eventsService.update(id, updateEventDto);
+  }
+
+  @Post(':id/tracks')
+  @ApiOperation({ summary: 'Append tracks to an event' })
+  @ApiParam({ name: 'id', type: String })
+  @ApiConsumes('application/json')
+  @ApiBody({ type: AppendTracksDto })
+  @ApiResponse({ status: 201, description: 'Tracks appended successfully.' })
+  @ApiResponse({ status: 404, description: 'Event or tracks not found.' })
+  appendTracks(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() appendTracksDto: AppendTracksDto,
+  ) {
+    return this.eventsService.appendTracks(id, appendTracksDto.trackIds);
   }
 
   @Delete(':id')

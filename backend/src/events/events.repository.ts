@@ -247,6 +247,51 @@ export class EventsRepository {
     });
   }
 
+  async appendTracks(id: string, trackIds: string[]) {
+    return this.prisma.$transaction(async (tx) => {
+      // 0. Check event exists
+      const existingEvent = await tx.event.findUnique({ where: { id } });
+      if (!existingEvent) {
+        throw new NotFoundException(`Event with ID ${id} not found`);
+      }
+
+      // 1. Verify tracks exist
+      if (trackIds && trackIds.length > 0) {
+        const tracks = await tx.track.findMany({
+          where: { id: { in: trackIds } },
+          select: { id: true },
+        });
+        if (tracks.length !== trackIds.length) {
+          const foundIds = tracks.map((t) => t.id);
+          const missingIds = trackIds.filter((tId) => !foundIds.includes(tId));
+          throw new NotFoundException(
+            `Tracks not found: ${missingIds.join(', ')}`,
+          );
+        }
+
+        // 2. Deduplicate track IDs
+        const uniqueTrackIds = Array.from(new Set(trackIds));
+
+        // 3. Create EventTrack records, bypassing existing ones safely via `skipDuplicates`
+        const eventTracksData = uniqueTrackIds.map((trackId) => ({
+          eventId: id,
+          trackId,
+          status: TrackStatus.QUEUED,
+        }));
+
+        await tx.eventTrack.createMany({
+          data: eventTracksData,
+          skipDuplicates: true, // Requires Postgres DB connector
+        });
+      }
+
+      return tx.event.findUnique({
+        where: { id },
+        include: { tracks: true },
+      });
+    });
+  }
+
   async remove(id: string) {
     try {
       await this.prisma.event.delete({
