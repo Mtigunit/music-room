@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:music_room/core/widgets/app_back_button.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/mock_data.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/modals/delegation_bottom_sheet.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/modals/invite_bottom_sheet.dart';
@@ -16,18 +17,14 @@ class LiveHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
           // ── Back button ──────────────────────────────────────────────────
-          _CircleIconButton(
-            icon: Icons.arrow_back,
-            onPressed: () => Navigator.of(context).maybePop(),
-            colorScheme: colorScheme,
-            isDark: isDark,
+          const AppBackButton(
+            padding: EdgeInsets.zero,
           ),
           const SizedBox(width: 12),
 
@@ -76,18 +73,15 @@ class LiveHeader extends StatelessWidget {
           ),
 
           // ── Action icons ─────────────────────────────────────────────────
-          _CircleIconButton(
-            icon: Icons.person_add_alt_1_outlined,
+          IconButton(
+            padding: EdgeInsets.zero,
+            icon: const Icon(Icons.person_add_alt_1_outlined),
             onPressed: () => _showInviteSheet(context),
-            colorScheme: colorScheme,
-            isDark: isDark,
           ),
-          const SizedBox(width: 8),
-          _CircleIconButton(
-            icon: Icons.settings_outlined,
+          IconButton(
+            padding: EdgeInsets.zero,
+            icon: const Icon(Icons.settings_outlined),
             onPressed: () => _showDelegationSheet(context),
-            colorScheme: colorScheme,
-            isDark: isDark,
           ),
         ],
       ),
@@ -205,43 +199,6 @@ class _GuestAvatarStack extends StatelessWidget {
             ),
           );
         }),
-      ),
-    );
-  }
-}
-
-class _CircleIconButton extends StatelessWidget {
-  const _CircleIconButton({
-    required this.icon,
-    required this.onPressed,
-    required this.colorScheme,
-    required this.isDark,
-  });
-
-  final IconData icon;
-  final VoidCallback onPressed;
-  final ColorScheme colorScheme;
-  final bool isDark;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 38,
-      height: 38,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: isDark
-            ? Colors.white.withValues(alpha: 0.08)
-            : Colors.black.withValues(alpha: 0.06),
-        border: Border.all(
-          color: colorScheme.onSurface.withValues(alpha: 0.1),
-        ),
-      ),
-      child: IconButton(
-        padding: EdgeInsets.zero,
-        icon: Icon(icon, size: 18),
-        color: colorScheme.onSurface,
-        onPressed: onPressed,
       ),
     );
   }

@@ -1,6 +1,9 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+
+import 'package:music_room/core/widgets/app_back_button.dart';
 import 'package:music_room/features/events/domain/entities/event_location.dart';
 import 'package:music_room/features/events/presentation/widgets/step_1_details.dart';
 import 'package:music_room/features/events/presentation/widgets/step_2_genre.dart';
@@ -95,40 +98,46 @@ class _CreateEventPageState extends State<CreateEventPage> {
       appBar: AppBar(
         backgroundColor: theme.colorScheme.surface,
         elevation: 0,
-        leadingWidth: 48,
-        leading: Padding(
-          padding: const EdgeInsets.only(left: 8),
-          child: IconButton(
-            onPressed: _prevStep,
-            icon: Icon(
-              Icons.arrow_back_ios_new,
-              color: theme.colorScheme.onSurface,
-              size: 20,
-            ),
-          ),
-        ),
-        title: Text(
-          'Create Event',
-          style: theme.textTheme.titleLarge?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: theme.colorScheme.onSurface,
-          ),
-        ),
-        centerTitle: false,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 24),
-            child: Center(
-              child: Text(
-                '${_currentStep + 1} / $_totalSteps',
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: theme.colorScheme.primary,
+        automaticallyImplyLeading: false,
+        titleSpacing: 0,
+        title: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 60,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: AppBackButton(
+                    onPressed: _prevStep,
+                    padding: EdgeInsets.zero,
+                  ),
                 ),
               ),
-            ),
+              Expanded(
+                child: Text(
+                  'Create Event',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface,
+                  ),
+                ),
+              ),
+              SizedBox(
+                width: 60,
+                child: Text(
+                  '${_currentStep + 1} / $_totalSteps',
+                  textAlign: TextAlign.right,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(60),
           child: Padding(
