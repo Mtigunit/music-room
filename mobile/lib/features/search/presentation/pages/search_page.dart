@@ -579,11 +579,13 @@ class _TrackResultCard extends StatelessWidget {
           context,
           'Added "${item.title}" to your event shortlist.',
         );
+        return;
       case _TrackAction.saveToPlaylist:
         AppSnackbar.showSuccess(
           context,
           'Saved "${item.title}" to your playlist.',
         );
+        return;
     }
   }
 }
