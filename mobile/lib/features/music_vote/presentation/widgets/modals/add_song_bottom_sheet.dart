@@ -79,7 +79,6 @@ class _AddSongBottomSheetState extends State<AddSongBottomSheet> {
                   children: [
                     AppBackButton(
                       padding: EdgeInsets.zero,
-                      iconSize: 20,
                       onPressed: () => Navigator.of(context).pop(),
                     ),
                     const SizedBox(width: 14),
