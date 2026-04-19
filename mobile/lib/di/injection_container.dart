@@ -6,6 +6,8 @@ import 'package:music_room/features/auth/data/datasources/auth_remote_datasource
 import 'package:music_room/features/auth/data/repositories/auth_repository_impl.dart';
 import 'package:music_room/features/auth/domain/repositories/auth_repository.dart';
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
+import 'package:music_room/features/search/data/datasources/search_remote_datasource.dart';
+import 'package:music_room/features/search/data/services/search_query_service.dart';
 
 /// Service Locator for dependency injection
 class InjectionContainer {
@@ -20,6 +22,8 @@ class InjectionContainer {
   late TokenStorageService _tokenStorageService;
   late ApiClient _apiClient;
   late IAuthRemoteDataSource _authRemoteDataSource;
+  late ISearchRemoteDataSource _searchRemoteDataSource;
+  late SearchQueryService _searchQueryService;
   late AuthRepository _authRepository;
 
   /// Initialize all dependencies
@@ -28,6 +32,7 @@ class InjectionContainer {
     _tokenStorageService = TokenStorageService(
       secureStorage: const FlutterSecureStorage(),
     );
+    _searchQueryService = SearchQueryService();
 
     // Network
     final dio = Dio();
@@ -38,6 +43,7 @@ class InjectionContainer {
 
     // Data Sources
     _authRemoteDataSource = AuthRemoteDataSource(apiClient: _apiClient);
+    _searchRemoteDataSource = SearchRemoteDataSource(apiClient: _apiClient);
 
     // Repositories
     _authRepository = AuthRepositoryImpl(
@@ -50,6 +56,8 @@ class InjectionContainer {
   TokenStorageService get tokenStorageService => _tokenStorageService;
   ApiClient get apiClient => _apiClient;
   IAuthRemoteDataSource get authRemoteDataSource => _authRemoteDataSource;
+  ISearchRemoteDataSource get searchRemoteDataSource => _searchRemoteDataSource;
+  SearchQueryService get searchQueryService => _searchQueryService;
   AuthRepository get authRepository => _authRepository;
 
   AuthBloc createAuthBloc() {

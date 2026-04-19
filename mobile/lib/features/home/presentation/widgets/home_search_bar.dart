@@ -1,7 +1,57 @@
 import 'package:flutter/material.dart';
+import 'package:music_room/di/injection_container.dart';
+import 'package:music_room/features/search/data/services/search_query_service.dart';
 
-class HomeSearchBar extends StatelessWidget {
-  const HomeSearchBar({super.key});
+class HomeSearchBar extends StatefulWidget {
+  const HomeSearchBar({
+    super.key,
+    this.onSubmitted,
+  });
+
+  final ValueChanged<String>? onSubmitted;
+
+  @override
+  State<HomeSearchBar> createState() => _HomeSearchBarState();
+}
+
+class _HomeSearchBarState extends State<HomeSearchBar> {
+  late TextEditingController _controller;
+  late SearchQueryService _searchQueryService;
+
+  @override
+  void initState() {
+    super.initState();
+    _searchQueryService = InjectionContainer().searchQueryService;
+    _controller = TextEditingController(text: _searchQueryService.currentQuery);
+    _searchQueryService.queryNotifier.addListener(_onQueryChanged);
+  }
+
+  @override
+  void dispose() {
+    _searchQueryService.queryNotifier.removeListener(_onQueryChanged);
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _onQueryChanged() {
+    final newQuery = _searchQueryService.currentQuery;
+    if (_controller.text != newQuery) {
+      final currentSelection = _controller.selection;
+      final maxOffset = newQuery.length;
+
+      final selection = currentSelection.isValid
+          ? TextSelection(
+              baseOffset: currentSelection.baseOffset.clamp(0, maxOffset),
+              extentOffset: currentSelection.extentOffset.clamp(0, maxOffset),
+            )
+          : TextSelection.collapsed(offset: maxOffset);
+
+      _controller.value = TextEditingValue(
+        text: newQuery,
+        selection: selection,
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -9,7 +59,7 @@ class HomeSearchBar extends StatelessWidget {
 
     return Container(
       height: 52,
-      padding: const EdgeInsets.symmetric(horizontal: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 14),
       decoration: BoxDecoration(
         color: Theme.of(context).cardColor,
         borderRadius: BorderRadius.circular(16),
@@ -24,22 +74,43 @@ class HomeSearchBar extends StatelessWidget {
           ),
         ],
       ),
-      child: Row(
-        children: [
-          Icon(
+      child: TextField(
+        controller: _controller,
+        textInputAction: TextInputAction.search,
+        onChanged: (value) {
+          _searchQueryService.currentQuery = value;
+        },
+        onSubmitted: (value) {
+          final trimmed = value.trim();
+          if (trimmed.isNotEmpty) {
+            _searchQueryService.currentQuery = trimmed;
+            widget.onSubmitted?.call(trimmed);
+          }
+        },
+        decoration: InputDecoration(
+          border: InputBorder.none,
+          isCollapsed: true,
+          hintText: 'Search rooms, tracks, artists...',
+          hintStyle: TextStyle(
+            color: colorScheme.onSurface.withValues(alpha: 0.4),
+            fontSize: 15,
+          ),
+          prefixIcon: Icon(
             Icons.search,
             color: colorScheme.onSurface.withValues(alpha: 0.4),
             size: 20,
           ),
-          const SizedBox(width: 12),
-          Text(
-            'Search rooms, tracks, artists...',
-            style: TextStyle(
-              color: colorScheme.onSurface.withValues(alpha: 0.4),
-              fontSize: 15,
-            ),
+          prefixIconConstraints: const BoxConstraints(
+            minHeight: 20,
+            minWidth: 32,
           ),
-        ],
+          contentPadding: const EdgeInsets.symmetric(vertical: 14),
+        ),
+        style: TextStyle(
+          color: colorScheme.onSurface,
+          fontSize: 15,
+          fontWeight: FontWeight.w500,
+        ),
       ),
     );
   }

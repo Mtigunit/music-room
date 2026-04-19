@@ -3,14 +3,12 @@ import 'package:music_room/features/home/presentation/pages/home_page.dart';
 import 'package:music_room/features/music_vote/presentation/pages/music_vote_page.dart';
 import 'package:music_room/features/playlist/presentation/pages/playlist_page.dart';
 import 'package:music_room/features/profile/presentation/pages/profile_page.dart';
-import 'package:music_room/features/search/presentation/pages/search_page.dart';
 
 class AppTabs {
   static const int home = 0;
-  static const int search = 1;
-  static const int room = 2;
-  static const int playlist = 3;
-  static const int profile = 4;
+  static const int room = 1;
+  static const int playlist = 2;
+  static const int profile = 3;
 }
 
 class AppScaffold extends StatefulWidget {
@@ -18,8 +16,8 @@ class AppScaffold extends StatefulWidget {
     super.key,
     this.initialIndex = 0,
   }) : assert(
-         initialIndex >= 0 && initialIndex <= 4,
-         'initialIndex must be between 0 and 4',
+         initialIndex >= 0 && initialIndex <= 3,
+         'initialIndex must be between 0 and 3',
        );
   final int initialIndex;
 
@@ -32,7 +30,6 @@ class AppScaffoldState extends State<AppScaffold> {
 
   final List<Widget> _pages = const [
     HomePage(),
-    SearchPage(),
     MusicVotePage(),
     PlaylistPage(),
     ProfilePage(),
@@ -90,10 +87,6 @@ class AppScaffoldState extends State<AppScaffold> {
             BottomNavigationBarItem(
               icon: Icon(Icons.home_outlined, size: 28),
               label: 'Home',
-            ),
-            BottomNavigationBarItem(
-              icon: Icon(Icons.search, size: 28),
-              label: 'Search',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.sensors, size: 28),
