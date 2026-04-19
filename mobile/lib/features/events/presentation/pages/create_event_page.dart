@@ -111,7 +111,6 @@ class _CreateEventPageState extends State<CreateEventPage> {
                   child: AppBackButton(
                     onPressed: _prevStep,
                     padding: EdgeInsets.zero,
-                    color: theme.colorScheme.onSurface,
                   ),
                 ),
               ),
