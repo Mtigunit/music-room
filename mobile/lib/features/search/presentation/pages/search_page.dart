@@ -2,11 +2,14 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:music_room/core/widgets/app_snackbar.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/home/presentation/widgets/genre_filter_list.dart';
 import 'package:music_room/features/search/data/datasources/search_remote_datasource.dart';
 import 'package:music_room/features/search/data/services/search_query_service.dart';
+import 'package:music_room/features/search/presentation/widgets/search_field.dart';
+import 'package:music_room/features/search/presentation/widgets/search_message_state.dart';
+import 'package:music_room/features/search/presentation/widgets/search_result_card.dart';
+import 'package:music_room/features/search/presentation/widgets/search_track_result_card.dart';
 import 'package:music_room/routes/route_names.dart';
 
 class SearchPage extends StatefulWidget {
@@ -266,7 +269,7 @@ class _SearchPageState extends State<SearchPage> {
                     ),
                     const SizedBox(width: 4),
                     Expanded(
-                      child: _SearchField(
+                      child: SearchField(
                         controller: _searchController,
                         onChanged: _onQueryChanged,
                         onSubmitted: _performSearch,
@@ -305,7 +308,7 @@ class _SearchPageState extends State<SearchPage> {
     final query = _searchController.text.trim();
 
     if (query.isEmpty) {
-      return _SearchMessageState(
+      return SearchMessageState(
         key: const ValueKey<String>('empty-query'),
         icon: Icons.search,
         title: 'Search ${_filterLabel(_selectedFilter).toLowerCase()}',
@@ -323,7 +326,7 @@ class _SearchPageState extends State<SearchPage> {
     }
 
     if (_errorMessage != null) {
-      return _SearchMessageState(
+      return SearchMessageState(
         key: const ValueKey<String>('error'),
         icon: Icons.error_outline,
         title: 'Unable to load results',
@@ -338,7 +341,7 @@ class _SearchPageState extends State<SearchPage> {
           : 'No ${_filterLabel(_selectedFilter).toLowerCase()} matched '
                 '"$query".';
 
-      return _SearchMessageState(
+      return SearchMessageState(
         key: const ValueKey<String>('empty-results'),
         icon: Icons.inbox_outlined,
         title: 'No results found',
@@ -362,7 +365,7 @@ class _SearchPageState extends State<SearchPage> {
             itemCount: _results.length,
             separatorBuilder: (_, _) => const SizedBox(height: 12),
             itemBuilder: (context, index) {
-              return _TrackResultCard(item: _results[index]);
+              return TrackResultCard(item: _results[index]);
             },
           );
         }
@@ -382,7 +385,7 @@ class _SearchPageState extends State<SearchPage> {
             crossAxisSpacing: 12,
           ),
           itemBuilder: (context, index) {
-            return _SearchResultCard(item: _results[index]);
+            return SearchResultCard(item: _results[index]);
           },
         );
       },
@@ -400,446 +403,5 @@ class _SearchPageState extends State<SearchPage> {
       case SearchFilterType.playlists:
         return 'Playlists';
     }
-  }
-}
-
-class _SearchField extends StatelessWidget {
-  const _SearchField({
-    required this.controller,
-    required this.onChanged,
-    required this.onSubmitted,
-  });
-
-  final TextEditingController controller;
-  final ValueChanged<String> onChanged;
-  final ValueChanged<String> onSubmitted;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return ListenableBuilder(
-      listenable: controller,
-      builder: (context, child) {
-        return TextField(
-          controller: controller,
-          onChanged: onChanged,
-          onSubmitted: onSubmitted,
-          textInputAction: TextInputAction.search,
-          decoration: InputDecoration(
-            hintText: 'Search tracks, users, events, playlists...',
-            prefixIcon: Icon(
-              Icons.search,
-              color: colorScheme.onSurface.withValues(alpha: 0.6),
-            ),
-            suffixIcon: controller.text.isNotEmpty
-                ? IconButton(
-                    onPressed: () {
-                      controller.clear();
-                      onChanged('');
-                    },
-                    icon: const Icon(Icons.close),
-                  )
-                : null,
-            filled: true,
-            fillColor: colorScheme.secondary.withValues(alpha: 0.45),
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide.none,
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(16),
-              borderSide: BorderSide(
-                color: colorScheme.primary,
-                width: 1.4,
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _TrackResultCard extends StatelessWidget {
-  const _TrackResultCard({required this.item});
-
-  final SearchResultItem item;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(
-          color: colorScheme.onSurface.withValues(alpha: 0.08),
-        ),
-      ),
-      padding: const EdgeInsets.all(12),
-      child: Row(
-        children: [
-          _TrackThumbnail(imageUrl: item.imageUrl),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  item.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${item.subtitle}'
-                  '${item.meta != null && item.meta!.isNotEmpty ? ' · '
-                            '${item.meta}' : ''}',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.onSurface.withValues(alpha: 0.72),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          PopupMenuButton<_TrackAction>(
-            tooltip: 'Track actions',
-            offset: const Offset(0, 45),
-            elevation: 10,
-            constraints: const BoxConstraints(minWidth: 250),
-            splashRadius: 20,
-            onSelected: (action) => _handleTrackAction(context, action),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-            color: colorScheme.surface.withValues(alpha: 0.98),
-            surfaceTintColor: colorScheme.surface.withValues(alpha: 0.98),
-            padding: EdgeInsets.zero,
-            itemBuilder: (context) => [
-              const PopupMenuItem<_TrackAction>(
-                value: _TrackAction.addToEvent,
-                child: _TrackMenuActionItem(
-                  icon: Icons.event,
-                  title: 'Add to event',
-                  subtitle: 'Queue this track for one of your events',
-                ),
-              ),
-              PopupMenuDivider(
-                height: 4,
-                color: Theme.of(context).dividerColor.withValues(alpha: 0.1),
-              ),
-              const PopupMenuItem<_TrackAction>(
-                value: _TrackAction.saveToPlaylist,
-                child: _TrackMenuActionItem(
-                  icon: Icons.playlist_add,
-                  title: 'Save to playlist',
-                  subtitle: 'Add this track to one of your playlists',
-                ),
-              ),
-            ],
-            child: Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    colorScheme.primary.withValues(alpha: 0.14),
-                    colorScheme.primary.withValues(alpha: 0.06),
-                  ],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(
-                  color: colorScheme.primary.withValues(alpha: 0.18),
-                ),
-              ),
-              child: Icon(
-                Icons.more_horiz_rounded,
-                color: colorScheme.primary,
-                size: 22,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _handleTrackAction(BuildContext context, _TrackAction action) {
-    switch (action) {
-      case _TrackAction.addToEvent:
-        AppSnackbar.showInfo(
-          context,
-          'Add to event feature coming soon.',
-        );
-        return;
-      case _TrackAction.saveToPlaylist:
-        AppSnackbar.showInfo(
-          context,
-          'Save to playlist feature coming soon.',
-        );
-        return;
-    }
-  }
-}
-
-class _TrackMenuActionItem extends StatelessWidget {
-  const _TrackMenuActionItem({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-  });
-
-  final IconData icon;
-  final String title;
-  final String subtitle;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 6),
-      child: Row(
-        children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: colorScheme.primary.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Icon(
-              icon,
-              color: colorScheme.primary.withValues(alpha: 0.6),
-              size: 18,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurface.withValues(alpha: 0.62),
-                    height: 1.25,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SearchResultCard extends StatelessWidget {
-  const _SearchResultCard({required this.item});
-
-  final SearchResultItem item;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final hasImage = item.imageUrl != null && item.imageUrl!.isNotEmpty;
-
-    return Container(
-      decoration: BoxDecoration(
-        color: Theme.of(context).cardColor,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: colorScheme.onSurface.withValues(alpha: 0.08),
-        ),
-      ),
-      padding: const EdgeInsets.all(12),
-      child: Row(
-        children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              color: colorScheme.secondary.withValues(alpha: 0.8),
-            ),
-            child: hasImage
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(12),
-                    child: Image.network(
-                      item.imageUrl!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => Icon(
-                        _iconForFilter(item.filterType),
-                        color: colorScheme.primary,
-                      ),
-                    ),
-                  )
-                : Icon(
-                    _iconForFilter(item.filterType),
-                    color: colorScheme.primary,
-                  ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Text(
-                  item.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  item.subtitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.onSurface.withValues(alpha: 0.7),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (item.meta != null && item.meta!.isNotEmpty)
-            Container(
-              margin: const EdgeInsets.only(left: 8),
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-              decoration: BoxDecoration(
-                color: colorScheme.primary.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                item.meta!,
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: colorScheme.primary,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  IconData _iconForFilter(SearchFilterType filter) {
-    switch (filter) {
-      case SearchFilterType.tracks:
-        return Icons.music_note;
-      case SearchFilterType.users:
-        return Icons.person;
-      case SearchFilterType.events:
-        return Icons.event;
-      case SearchFilterType.playlists:
-        return Icons.queue_music;
-    }
-  }
-}
-
-class _TrackThumbnail extends StatelessWidget {
-  const _TrackThumbnail({this.imageUrl});
-
-  final String? imageUrl;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final hasImage = imageUrl != null && imageUrl!.isNotEmpty;
-
-    return Container(
-      width: 64,
-      height: 64,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(14),
-        color: colorScheme.secondary.withValues(alpha: 0.85),
-      ),
-      child: hasImage
-          ? ClipRRect(
-              borderRadius: BorderRadius.circular(14),
-              child: Image.network(
-                imageUrl!,
-                fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => Icon(
-                  Icons.music_note,
-                  color: colorScheme.primary,
-                ),
-              ),
-            )
-          : Icon(
-              Icons.music_note,
-              color: colorScheme.primary,
-            ),
-    );
-  }
-}
-
-enum _TrackAction { addToEvent, saveToPlaylist }
-
-class _SearchMessageState extends StatelessWidget {
-  const _SearchMessageState({
-    required this.icon,
-    required this.title,
-    required this.message,
-    super.key,
-  });
-
-  final IconData icon;
-  final String title;
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 42, color: colorScheme.primary),
-            const SizedBox(height: 12),
-            Text(
-              title,
-              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              message,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurface.withValues(alpha: 0.68),
-              ),
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
