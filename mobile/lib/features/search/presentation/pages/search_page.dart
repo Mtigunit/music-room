@@ -330,8 +330,8 @@ class _SearchPageState extends State<SearchPage> {
 
     if (_results.isEmpty) {
       final emptyMessage = _selectedFilter == SearchFilterType.users
-          ? 'No users matched "$query". This tab currently searches your '
-                'signed-in profile from the existing API.'
+          ? 'No users matched "$query". Try a different name or search '
+                'term.'
           : 'No ${_filterLabel(_selectedFilter).toLowerCase()} matched '
                 '"$query".';
 
