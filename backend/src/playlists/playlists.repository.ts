@@ -77,9 +77,17 @@ export class PlaylistsRepository {
     };
 
     if (searchQuery) {
+      const normalized = searchQuery.trim().toUpperCase();
+      const searchTag = (Object.values(PlaylistTag) as string[]).includes(
+        normalized,
+      )
+        ? (normalized as PlaylistTag)
+        : undefined;
+
       where.OR = [
         { name: { contains: searchQuery, mode: 'insensitive' } },
         { description: { contains: searchQuery, mode: 'insensitive' } },
+        ...(searchTag ? [{ tags: { has: searchTag } }] : []),
       ];
     }
 
