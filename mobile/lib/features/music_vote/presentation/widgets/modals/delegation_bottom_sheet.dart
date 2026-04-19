@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/mock_data.dart';
 
@@ -132,10 +133,12 @@ class _DelegationBottomSheetState extends State<DelegationBottomSheet> {
                       isDark: isDark,
                       onToggle: (value) {
                         setState(() => state.isDelegated = value);
-                        debugPrint(
-                          'Delegation toggled for '
-                          '${state.user.username}: $value',
-                        );
+                        if (kDebugMode) {
+                          debugPrint(
+                            'Delegation toggled for '
+                            '${state.user.username}: $value',
+                          );
+                        }
                       },
                     );
                   },

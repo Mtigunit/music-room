@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:music_room/core/widgets/app_back_button.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/mock_data.dart';
 
 /// "Add Song" search bottom sheet.
@@ -75,21 +77,10 @@ class _AddSongBottomSheetState extends State<AddSongBottomSheet> {
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Row(
                   children: [
-                    GestureDetector(
-                      onTap: () => Navigator.of(context).pop(),
-                      child: Container(
-                        width: 36,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: colorScheme.onSurface.withValues(alpha: 0.08),
-                        ),
-                        child: Icon(
-                          Icons.arrow_back,
-                          size: 18,
-                          color: colorScheme.onSurface,
-                        ),
-                      ),
+                    AppBackButton(
+                      padding: EdgeInsets.zero,
+                      iconSize: 20,
+                      onPressed: () => Navigator.of(context).pop(),
                     ),
                     const SizedBox(width: 14),
                     Column(
@@ -312,28 +303,33 @@ class _SearchTrackItemState extends State<_SearchTrackItem> {
           ),
           const SizedBox(width: 8),
 
-          // Add button
-          GestureDetector(
-            onTap: () {
-              setState(() => _added = !_added);
-              debugPrint('Added to queue: ${widget.track.title}');
-            },
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: 36,
-              height: 36,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: _added
-                    ? widget.colorScheme.primary
-                    : widget.colorScheme.onSurface.withValues(alpha: 0.1),
-              ),
-              child: Icon(
-                _added ? Icons.check : Icons.add,
-                size: 18,
-                color: _added
-                    ? Colors.white
-                    : widget.colorScheme.onSurface.withValues(alpha: 0.7),
+          Semantics(
+            button: true,
+            label: _added ? 'Remove from queue' : 'Add to queue',
+            child: GestureDetector(
+              onTap: () {
+                setState(() => _added = !_added);
+                if (kDebugMode) {
+                  debugPrint('Added to queue: ${widget.track.title}');
+                }
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: _added
+                      ? widget.colorScheme.primary
+                      : widget.colorScheme.onSurface.withValues(alpha: 0.1),
+                ),
+                child: Icon(
+                  _added ? Icons.check : Icons.add,
+                  size: 18,
+                  color: _added
+                      ? Colors.white
+                      : widget.colorScheme.onSurface.withValues(alpha: 0.7),
+                ),
               ),
             ),
           ),
