@@ -21,7 +21,7 @@ enum TrackStatus {
   PLAYED
 }
 
-enum PlaylistVisibility {
+enum Visibility {
   PUBLIC
   PRIVATE
 }
@@ -31,7 +31,7 @@ enum PlaylistEditLicense {
   RESTRICTED
 }
 
-enum PlaylistTag {
+enum Tags {
   POP
   HIP_HOP
   RNB
@@ -116,9 +116,9 @@ model Track {
 model Playlist {
   id          String              @id @default(uuid())
   name        String
-  visibility  PlaylistVisibility  @default(PUBLIC)
+  visibility  Visibility  @default(PUBLIC)
   description String?             // OPTIONAL text description
-  tags        PlaylistTag[]       @default([]) // ARRAY of tags
+  tags        Tags[]       @default([]) // ARRAY of tags
   ownerId     String
   editLicense PlaylistEditLicense @default(OPEN)
   createdAt   DateTime @default(now())
@@ -169,30 +169,46 @@ model PlaylistCounter {
   playlist Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
 }
 
+enum EventStatus {
+  ACTIVE
+  ENDED
+  CLOSED
+}
+
 // ======================================================
 // 4. FEATURE 1: TRACK VOTE (Live Party Event)
 // ======================================================
 model Event {
-  id         String @id @default(uuid())
-  name       String
-  hostId     String
-  host       User   @relation("EventHost", fields: [hostId], references: [id])
-  status     String @default("active")
-  visibility String @default("public")
+  id          String   @id @default(uuid())
+  
+  // Event metadata 
+  name        String
+  description String?
+  coverImage  String
+  status      EventStatus    @default(ACTIVE)
+  visibility  Visibility   @default(PUBLIC)
+  invitingOnly Boolean @default(false)
+  tags        Tags[]
+  // hoster metadata
+  hostId      String
+  locationLat     Float?
+  locationLng     Float?
 
+  // Track 
   playbackStatus           PlaybackStatus @default(STOPPED)
   currentTrackStartedAt    DateTime?
   pausedPlaybackPositionMs Int?
+  currentTrackId           String?      @unique
+
+  createdAt    DateTime @default(now())
 
   // Strict 1-to-1 Relation for currentTrackId
-  currentTrackId String?     @unique
-  currentTrack   EventTrack? @relation("EventCurrentTrack", fields: [currentTrackId], references: [id])
-
-  tracks      EventTrack[]        @relation("EventTracks")
-  invites     EventInvite[]
-  policies    LicensePolicy[]
-  delegations ControlDelegation[]
-  createdAt   DateTime            @default(now())
+  host        User     @relation("EventHost", fields: [hostId], references: [id])
+  currentTrack             EventTrack?  @relation("EventCurrentTrack", fields: [currentTrackId], references: [id])
+  tracks       EventTrack[]    @relation("EventTracks")
+  invites      EventInvite[]
+  policies     LicensePolicy[]
+  delegations  ControlDelegation[]
 }
 
 model EventTrack {
@@ -243,10 +259,16 @@ model EventInvite {
   @@unique([eventId, userId])
 }
 
+
+enum PolicyType {
+  GEOFENCE
+  TIME_WINDOW
+}
+
 model LicensePolicy {
   id         String @id @default(uuid())
   eventId    String
-  policyType String // "geofence", "time_window"
+  policyType PolicyType
   config     Json
 
   event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)

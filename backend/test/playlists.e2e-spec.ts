@@ -7,7 +7,7 @@ import { PlaylistsModule } from '../src/playlists/playlists.module';
 import { PrismaModule } from '../src/prisma/prisma.module';
 import { PrismaService } from '../src/prisma/prisma.service';
 import { JwtAuthGuard } from '../src/auth/guards/jwt-auth.guard';
-import { PlaylistEditLicense, PlaylistVisibility } from '@prisma/client';
+import { PlaylistEditLicense, Visibility } from '@prisma/client';
 
 /**
  * A mock guard that injects a fake user into the request.
@@ -103,7 +103,7 @@ describe('Playlists Integration (e2e)', () => {
         .post('/playlists')
         .send({
           name: 'Integration Test Playlist',
-          visibility: PlaylistVisibility.PUBLIC,
+          visibility: Visibility.PUBLIC,
           editLicense: PlaylistEditLicense.OPEN,
           tags: ['CHILL'],
         })
@@ -189,7 +189,7 @@ describe('Playlists Integration (e2e)', () => {
       MOCK_USER_ID = ownerId;
       const res = await request(app.getHttpServer()).post('/playlists').send({
         name: 'Private Suite Playlist',
-        visibility: PlaylistVisibility.PRIVATE,
+        visibility: Visibility.PRIVATE,
         editLicense: PlaylistEditLicense.RESTRICTED,
       });
       playlistId = res.body.id as string;
@@ -225,7 +225,7 @@ describe('Playlists Integration (e2e)', () => {
       MOCK_USER_ID = ownerId;
       const res = await request(app.getHttpServer()).post('/playlists').send({
         name: 'To Be Updated',
-        visibility: PlaylistVisibility.PUBLIC,
+        visibility: Visibility.PUBLIC,
         editLicense: PlaylistEditLicense.OPEN,
       });
       playlistId = res.body.id as string;
@@ -261,7 +261,7 @@ describe('Playlists Integration (e2e)', () => {
       MOCK_USER_ID = ownerId;
       const res = await request(app.getHttpServer()).post('/playlists').send({
         name: 'To Be Deleted',
-        visibility: PlaylistVisibility.PUBLIC,
+        visibility: Visibility.PUBLIC,
         editLicense: PlaylistEditLicense.OPEN,
       });
       playlistId = res.body.id as string;
@@ -299,7 +299,7 @@ describe('Playlists Integration (e2e)', () => {
       MOCK_USER_ID = ownerId;
       const res = await request(app.getHttpServer()).post('/playlists').send({
         name: 'Collab Playlist',
-        visibility: PlaylistVisibility.PRIVATE,
+        visibility: Visibility.PRIVATE,
         editLicense: PlaylistEditLicense.RESTRICTED,
       });
       playlistId = res.body.id as string;

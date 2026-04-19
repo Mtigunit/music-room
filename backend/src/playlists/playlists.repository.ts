@@ -1,10 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import {
-  PlaylistTag,
-  PlaylistVisibility,
-  type PlaylistTrack,
-  Prisma,
-} from '@prisma/client';
+import { Tags, Visibility, type PlaylistTrack, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { TrackSearchResultDto } from '../tracks/dto/track-search-result.dto';
 import { CreatePlaylistDto } from './dto/create-playlist.dto';
@@ -66,22 +61,20 @@ export class PlaylistsRepository {
 
   async explorePublicPlaylists(
     searchQuery: string | undefined,
-    tag: PlaylistTag | undefined,
+    tag: Tags | undefined,
     paginationDto: PaginationDto,
   ) {
     const { page = 1, limit = 20 } = paginationDto;
     const skip = (page - 1) * limit;
 
     const where: Prisma.PlaylistWhereInput = {
-      visibility: PlaylistVisibility.PUBLIC,
+      visibility: Visibility.PUBLIC,
     };
 
     if (searchQuery) {
       const normalized = searchQuery.trim().toUpperCase();
-      const searchTag = (Object.values(PlaylistTag) as string[]).includes(
-        normalized,
-      )
-        ? (normalized as PlaylistTag)
+      const searchTag = (Object.values(Tags) as string[]).includes(normalized)
+        ? (normalized as Tags)
         : undefined;
 
       where.OR = [
