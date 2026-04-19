@@ -27,16 +27,13 @@ export class PlaylistsRepository {
           owner: {
             connect: { id: userId },
           },
+          counter: {
+            create: {
+              nextPosition: 0,
+            },
+          },
         },
       });
-
-      await tx.playlistCounter.create({
-        data: {
-          playlistId: playlist.id,
-          nextPosition: 0,
-        },
-      });
-
       return playlist;
     });
   }

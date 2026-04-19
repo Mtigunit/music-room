@@ -128,7 +128,7 @@ model Playlist {
   owner         User                   @relation("PlaylistOwner", fields: [ownerId], references: [id])
   tracks        PlaylistTrack[]
   collaborators PlaylistCollaborator[] // Users licensed to co-edit if visibility is PRIVATE
-  counter       PlaylistCounter       @relation(fields: [id], references: [playlistId], onDelete: Cascade) // For generating unique position values in a concurrent environment
+  counter       PlaylistCounter?      // For generating unique position values in a concurrent environment
 }
 
 model PlaylistTrack {
@@ -166,7 +166,7 @@ model PlaylistCounter {
   playlistId   String @id
   nextPosition Int    @default(0)
 
-  playlist Playlist?
+  playlist Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
 }
 
 // ======================================================
