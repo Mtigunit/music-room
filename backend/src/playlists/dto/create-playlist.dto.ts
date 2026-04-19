@@ -8,11 +8,7 @@ import {
   IsString,
   MaxLength,
 } from 'class-validator';
-import {
-  PlaylistEditLicense,
-  PlaylistVisibility,
-  PlaylistTag,
-} from '@prisma/client';
+import { PlaylistEditLicense, Visibility, Tags } from '@prisma/client';
 
 export class CreatePlaylistDto {
   @ApiProperty({
@@ -26,13 +22,13 @@ export class CreatePlaylistDto {
   name: string;
 
   @ApiProperty({
-    enum: PlaylistVisibility,
-    example: PlaylistVisibility.PUBLIC,
+    enum: Visibility,
+    example: Visibility.PUBLIC,
     description: 'Playlist visibility',
   })
-  @IsEnum(PlaylistVisibility)
+  @IsEnum(Visibility)
   @IsNotEmpty()
-  visibility: PlaylistVisibility;
+  visibility: Visibility;
 
   @ApiProperty({
     enum: PlaylistEditLicense,
@@ -53,15 +49,15 @@ export class CreatePlaylistDto {
   description?: string;
 
   @ApiPropertyOptional({
-    example: [PlaylistTag.CHILL, PlaylistTag.ACOUSTIC],
+    example: [Tags.CHILL, Tags.ACOUSTIC],
     maxItems: 5,
     description: 'Array of genre tags',
-    enum: PlaylistTag,
+    enum: Tags,
     isArray: true,
   })
   @IsArray()
-  @IsEnum(PlaylistTag, { each: true })
+  @IsEnum(Tags, { each: true })
   @IsOptional()
   @ArrayMaxSize(5)
-  tags?: PlaylistTag[];
+  tags?: Tags[];
 }

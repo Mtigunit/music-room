@@ -3,7 +3,7 @@ import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PlaylistsService } from './playlists.service';
 import { PlaylistsRepository } from './playlists.repository';
 import { TrackSearchResultDto } from '../tracks/dto/track-search-result.dto';
-import { PlaylistEditLicense, PlaylistVisibility } from '@prisma/client';
+import { PlaylistEditLicense, Visibility } from '@prisma/client';
 
 type PlaylistDetails = NonNullable<
   Awaited<ReturnType<PlaylistsRepository['getPlaylistDetails']>>
@@ -28,7 +28,7 @@ function buildPlaylist(
   return {
     id: PLAYLIST_ID,
     name: 'Test Playlist',
-    visibility: PlaylistVisibility.PUBLIC,
+    visibility: Visibility.PUBLIC,
     editLicense: PlaylistEditLicense.OPEN,
     description: null,
     tags: [],
@@ -102,7 +102,7 @@ describe('PlaylistsService', () => {
 
     it('should return a private playlist to the owner', async () => {
       const playlist = buildPlaylist({
-        visibility: PlaylistVisibility.PRIVATE,
+        visibility: Visibility.PRIVATE,
       });
       repository.getPlaylistDetails.mockResolvedValueOnce(playlist);
 
@@ -112,7 +112,7 @@ describe('PlaylistsService', () => {
 
     it('should return a private playlist to a collaborator', async () => {
       const playlist = buildPlaylist({
-        visibility: PlaylistVisibility.PRIVATE,
+        visibility: Visibility.PRIVATE,
         collaborators: [
           {
             id: 'collab-record',
@@ -134,7 +134,7 @@ describe('PlaylistsService', () => {
 
     it('should throw ForbiddenException for a private playlist when requester is neither owner nor collaborator', async () => {
       const playlist = buildPlaylist({
-        visibility: PlaylistVisibility.PRIVATE,
+        visibility: Visibility.PRIVATE,
       });
       repository.getPlaylistDetails.mockResolvedValueOnce(playlist);
 

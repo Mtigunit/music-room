@@ -13,14 +13,8 @@ import {
   IsBoolean,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
-import { EventVisibility, PolicyType, Prisma } from '@prisma/client';
+import { Visibility, PolicyType, Prisma, Tags } from '@prisma/client';
 import { AppendedTrackDto } from './append-tracks.dto';
-
-export enum Tags {
-  TEST1 = 'TEST1',
-  TEST2 = 'TEST2',
-  TEST3 = 'TEST3',
-}
 
 export class GeofenceConfigDto {
   [key: string]: Prisma.InputJsonValue | undefined;
@@ -80,19 +74,19 @@ export class CreateEventDto {
       value.endsWith(']')
     ) {
       try {
-        return JSON.parse(value) as string[];
+        return JSON.parse(value) as Tags[];
       } catch {
         return value;
       }
     }
-    return Array.isArray(value) ? (value as string[]) : [value as string];
+    return Array.isArray(value) ? (value as Tags[]) : [value as Tags];
   })
-  tags: string[];
+  tags: Tags[];
 
-  @ApiProperty({ enum: EventVisibility })
-  // @IsIn(Object.values(EventVisibility))
-  @IsEnum(EventVisibility)
-  visibility: EventVisibility;
+  @ApiProperty({ enum: Visibility })
+  // @IsIn(Object.values(Visibility))
+  @IsEnum(Visibility)
+  visibility: Visibility;
 
   @ApiPropertyOptional()
   @IsOptional()
@@ -116,22 +110,44 @@ export class CreateEventDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsNumber()
-  @Transform(({ value }) => {
+  @Transform(({ obj, key }) => {
+    const value = (obj as Record<string, unknown>)?.[key];
+    if (
+      value === '' ||
+      value === null ||
+      value === undefined ||
+      value === 'null' ||
+      value === 'undefined'
+    )
+      return undefined;
     if (typeof value === 'string') {
-      return parseFloat(value.replace(',', '.'));
+      const parsed = parseFloat(value.replace(',', '.'));
+      return isNaN(parsed) ? undefined : parsed;
     }
-    return typeof value === 'number' ? value : Number(value);
+    const num = Number(value);
+    return isNaN(num) ? undefined : num;
   })
   locationLat?: number;
 
   @ApiPropertyOptional()
   @IsOptional()
   @IsNumber()
-  @Transform(({ value }) => {
+  @Transform(({ obj, key }) => {
+    const value = (obj as Record<string, unknown>)?.[key];
+    if (
+      value === '' ||
+      value === null ||
+      value === undefined ||
+      value === 'null' ||
+      value === 'undefined'
+    )
+      return undefined;
     if (typeof value === 'string') {
-      return parseFloat(value.replace(',', '.'));
+      const parsed = parseFloat(value.replace(',', '.'));
+      return isNaN(parsed) ? undefined : parsed;
     }
-    return typeof value === 'number' ? value : Number(value);
+    const num = Number(value);
+    return isNaN(num) ? undefined : num;
   })
   locationLng?: number;
 

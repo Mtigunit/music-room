@@ -7,7 +7,7 @@ import {
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { PrismaService } from '../prisma/prisma.service';
-import { TrackStatus, Prisma, EventVisibility } from '@prisma/client';
+import { TrackStatus, Prisma, Visibility, Tags } from '@prisma/client';
 
 @Injectable()
 export class EventsRepository {
@@ -143,22 +143,27 @@ export class EventsRepository {
 
     const baseCondition: Prisma.EventWhereInput = {
       OR: [
-        { visibility: EventVisibility.PUBLIC },
+        { visibility: Visibility.PUBLIC },
         { hostId: userId },
         { invites: { some: { userId } } },
       ],
     };
+
+    const searchConditions: Prisma.EventWhereInput[] = [
+      { name: { contains: search, mode: 'insensitive' } },
+      { description: { contains: search, mode: 'insensitive' } },
+    ];
+
+    if (search && Object.values(Tags).includes(search.toUpperCase() as Tags)) {
+      searchConditions.push({ tags: { has: search.toUpperCase() as Tags } });
+    }
 
     const where: Prisma.EventWhereInput = search
       ? {
           AND: [
             baseCondition,
             {
-              OR: [
-                { name: { contains: search, mode: 'insensitive' } },
-                { description: { contains: search, mode: 'insensitive' } },
-                { tags: { has: search } },
-              ],
+              OR: searchConditions,
             },
           ],
         }
@@ -196,16 +201,21 @@ export class EventsRepository {
       OR: [{ hostId: userId }, { invites: { some: { userId } } }],
     };
 
+    const searchConditions: Prisma.EventWhereInput[] = [
+      { name: { contains: search, mode: 'insensitive' } },
+      { description: { contains: search, mode: 'insensitive' } },
+    ];
+
+    if (search && Object.values(Tags).includes(search.toUpperCase() as Tags)) {
+      searchConditions.push({ tags: { has: search.toUpperCase() as Tags } });
+    }
+
     const where: Prisma.EventWhereInput = search
       ? {
           AND: [
             baseCondition,
             {
-              OR: [
-                { name: { contains: search, mode: 'insensitive' } },
-                { description: { contains: search, mode: 'insensitive' } },
-                { tags: { has: search } },
-              ],
+              OR: searchConditions,
             },
           ],
         }

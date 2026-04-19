@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsEnum, IsOptional, IsString } from 'class-validator';
-import { PlaylistTag } from '@prisma/client';
+import { Tags } from '@prisma/client';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 
 export class ExplorePlaylistsQueryDto extends PaginationDto {
@@ -14,10 +14,10 @@ export class ExplorePlaylistsQueryDto extends PaginationDto {
 
   @ApiPropertyOptional({
     description: 'Filter by playlist tag',
-    enum: PlaylistTag,
-    example: PlaylistTag.CHILL,
+    enum: Tags,
+    example: Tags.CHILL,
   })
   @IsOptional()
-  @IsEnum(PlaylistTag)
-  tag?: PlaylistTag;
+  @IsEnum(Tags)
+  tag?: Tags;
 }

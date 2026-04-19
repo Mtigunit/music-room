@@ -9,11 +9,7 @@ import { UpdatePlaylistDto } from './dto/update-playlist.dto';
 import { PlaylistsRepository } from './playlists.repository';
 import { TrackSearchResultDto } from '../tracks/dto/track-search-result.dto';
 import { PaginationDto } from '../common/dto/pagination.dto';
-import {
-  PlaylistEditLicense,
-  PlaylistTag,
-  PlaylistVisibility,
-} from '@prisma/client';
+import { PlaylistEditLicense, Tags, Visibility } from '@prisma/client';
 
 @Injectable()
 export class PlaylistsService {
@@ -29,7 +25,7 @@ export class PlaylistsService {
 
   async explorePublicPlaylists(
     searchQuery: string | undefined,
-    tag: PlaylistTag | undefined,
+    tag: Tags | undefined,
     paginationDto: PaginationDto,
   ) {
     return this.playlistsRepository.explorePublicPlaylists(
@@ -47,7 +43,7 @@ export class PlaylistsService {
       throw new NotFoundException('Playlist not found');
     }
 
-    if (playlist.visibility === PlaylistVisibility.PRIVATE) {
+    if (playlist.visibility === Visibility.PRIVATE) {
       const isOwner = playlist.ownerId === requesterId;
       const isCollaborator = playlist.collaborators.some(
         (c) => c.userId === requesterId,
@@ -141,7 +137,7 @@ export class PlaylistsService {
       (c) => c.userId === addedById,
     );
 
-    if (playlist.visibility === PlaylistVisibility.PRIVATE) {
+    if (playlist.visibility === Visibility.PRIVATE) {
       if (!isOwner && !isCollaborator) {
         throw new ForbiddenException(
           'You do not have permission to add tracks to this private playlist',

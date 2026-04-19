@@ -21,7 +21,7 @@ enum TrackStatus {
   PLAYED
 }
 
-enum PlaylistVisibility {
+enum Visibility {
   PUBLIC
   PRIVATE
 }
@@ -31,7 +31,7 @@ enum PlaylistEditLicense {
   RESTRICTED
 }
 
-enum PlaylistTag {
+enum Tags {
   POP
   HIP_HOP
   RNB
@@ -116,9 +116,9 @@ model Track {
 model Playlist {
   id          String              @id @default(uuid())
   name        String
-  visibility  PlaylistVisibility  @default(PUBLIC)
+  visibility  Visibility  @default(PUBLIC)
   description String?             // OPTIONAL text description
-  tags        PlaylistTag[]       @default([]) // ARRAY of tags
+  tags        Tags[]       @default([]) // ARRAY of tags
   ownerId     String
   editLicense PlaylistEditLicense @default(OPEN)
   createdAt   DateTime @default(now())
@@ -169,11 +169,6 @@ model PlaylistCounter {
   playlist Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
 }
 
-enum EventVisibility {
-  PUBLIC
-  PRIVATE
-}
-
 enum EventStatus {
   ACTIVE
   ENDED
@@ -191,9 +186,9 @@ model Event {
   description String?
   coverImage  String
   status      EventStatus    @default(ACTIVE)
-  visibility  EventVisibility   @default(PUBLIC)
+  visibility  Visibility   @default(PUBLIC)
   invitingOnly Boolean @default(false)
-  tags        String[]
+  tags        Tags[]
   // hoster metadata
   hostId      String
   locationLat     Float?
