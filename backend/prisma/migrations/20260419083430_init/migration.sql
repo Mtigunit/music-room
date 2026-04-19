@@ -11,8 +11,6 @@ CREATE TABLE "User" (
     "username" TEXT NOT NULL,
     "passwordHash" TEXT,
     "isEmailVerified" BOOLEAN NOT NULL DEFAULT false,
-    "passwordResetToken" TEXT,
-    "passwordResetExpires" TIMESTAMP(3),
     "googleId" TEXT,
     "facebookId" TEXT,
     "publicInfo" JSONB DEFAULT '{}',
@@ -175,9 +173,6 @@ CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 CREATE UNIQUE INDEX "User_username_key" ON "User"("username");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "User_passwordResetToken_key" ON "User"("passwordResetToken");
-
--- CreateIndex
 CREATE UNIQUE INDEX "User_googleId_key" ON "User"("googleId");
 
 -- CreateIndex
@@ -200,6 +195,9 @@ CREATE UNIQUE INDEX "PlaylistCollaborator_playlistId_userId_key" ON "PlaylistCol
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Event_currentTrackId_key" ON "Event"("currentTrackId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "EventTrack_eventId_trackId_key" ON "EventTrack"("eventId", "trackId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Vote_eventTrackId_userId_key" ON "Vote"("eventTrackId", "userId");
