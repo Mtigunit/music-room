@@ -64,6 +64,56 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<(bool, Failure?)> sendPasswordResetOtp(String email) async {
+    try {
+      await _remoteDataSource.sendPasswordResetOtp(email);
+      return (true, null);
+    } on DioException catch (e) {
+      return (false, _handleDioException(e));
+    } on Object catch (e) {
+      return (false, Failure(message: 'An unexpected error occurred: $e'));
+    }
+  }
+
+  @override
+  Future<(VerifyResetOtpResponse?, Failure?)> verifyPasswordResetOtp(
+    String email,
+    String code,
+  ) async {
+    try {
+      final response = await _remoteDataSource.verifyPasswordResetOtp(
+        email,
+        code,
+      );
+      return (response, null);
+    } on DioException catch (e) {
+      return (null, _handleDioException(e));
+    } on Object catch (e) {
+      return (null, Failure(message: 'An unexpected error occurred: $e'));
+    }
+  }
+
+  @override
+  Future<(MessageResponse?, Failure?)> resetPassword({
+    required String email,
+    required String resetToken,
+    required String newPassword,
+  }) async {
+    try {
+      final response = await _remoteDataSource.resetPassword(
+        email: email,
+        resetToken: resetToken,
+        newPassword: newPassword,
+      );
+      return (response, null);
+    } on DioException catch (e) {
+      return (null, _handleDioException(e));
+    } on Object catch (e) {
+      return (null, Failure(message: 'An unexpected error occurred: $e'));
+    }
+  }
+
+  @override
   Future<(RegisterResponse?, Failure?)> register({
     required String email,
     required String username,

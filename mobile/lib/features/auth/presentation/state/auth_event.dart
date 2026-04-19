@@ -48,6 +48,43 @@ class VerifyOtpRequested extends AuthEvent {
   List<Object?> get props => [email, code];
 }
 
+/// Event to request password reset OTP code
+class SendPasswordResetOtpRequested extends AuthEvent {
+  const SendPasswordResetOtpRequested({required this.email});
+  final String email;
+
+  @override
+  List<Object?> get props => [email];
+}
+
+/// Event to verify password reset OTP code and receive reset token
+class VerifyPasswordResetOtpRequested extends AuthEvent {
+  const VerifyPasswordResetOtpRequested({
+    required this.email,
+    required this.code,
+  });
+  final String email;
+  final String code;
+
+  @override
+  List<Object?> get props => [email, code];
+}
+
+/// Event to reset password with a verified reset token
+class ResetPasswordRequested extends AuthEvent {
+  const ResetPasswordRequested({
+    required this.email,
+    required this.resetToken,
+    required this.newPassword,
+  });
+  final String email;
+  final String resetToken;
+  final String newPassword;
+
+  @override
+  List<Object?> get props => [email, resetToken, newPassword];
+}
+
 /// Event to register a new user
 class RegisterRequested extends AuthEvent {
   const RegisterRequested({
