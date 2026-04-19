@@ -8,6 +8,7 @@ import 'package:music_room/features/home/presentation/widgets/home_header.dart';
 import 'package:music_room/features/home/presentation/widgets/home_search_bar.dart';
 import 'package:music_room/features/home/presentation/widgets/section_title.dart';
 import 'package:music_room/features/home/presentation/widgets/trending_event_card.dart';
+import 'package:music_room/features/search/presentation/pages/search_page.dart';
 
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
@@ -24,7 +25,17 @@ class HomePage extends StatelessWidget {
               children: [
                 const HomeHeader(),
                 const SizedBox(height: 24),
-                const HomeSearchBar(),
+                HomeSearchBar(
+                  onSubmitted: (query) {
+                    unawaited(
+                      Navigator.of(context).push<void>(
+                        MaterialPageRoute<void>(
+                          builder: (_) => SearchPage(initialQuery: query),
+                        ),
+                      ),
+                    );
+                  },
+                ),
                 const SizedBox(height: 24),
                 const GenreFilterList(),
                 const SizedBox(height: 32),
