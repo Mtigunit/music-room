@@ -31,17 +31,24 @@ export default tseslint.config(
       '@typescript-eslint/no-floating-promises': 'warn',
       '@typescript-eslint/no-unsafe-argument': 'warn',
       '@typescript-eslint/no-unsafe-call': 'off',
-      "prettier/prettier": ["error", { endOfLine: "auto" }],
+      'prettier/prettier': ['error', { endOfLine: 'auto' }],
     },
   },
   {
-    files: ['**/*.spec.ts', '**/*.test.ts'],
+    files: [
+      '**/*.spec.ts',
+      '**/*.test.ts',
+      '**/*.e2e-spec.ts',
+      '**/*.e2e-test.ts',
+    ],
     plugins: {
       jest: jestPlugin,
     },
     rules: {
       '@typescript-eslint/unbound-method': 'off',
       'jest/unbound-method': 'error',
+      '@typescript-eslint/no-unsafe-member-access': 'off',
+      '@typescript-eslint/no-unsafe-assignment': 'off',
     },
   },
 );
