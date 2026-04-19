@@ -195,11 +195,6 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   String _buildNetworkErrorMessage(DioException error) {
-    if (error.response?.statusCode == 404 &&
-        _selectedFilter == SearchFilterType.users) {
-      return 'User search endpoint is not available yet.';
-    }
-
     if (error.response?.statusCode == 400) {
       return 'Please enter a more specific search query.';
     }
