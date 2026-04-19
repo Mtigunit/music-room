@@ -389,6 +389,7 @@ export class EventsRepository {
 
   async appendTracks(
     id: string,
+    userId: string,
     tracksInput: {
       providerTrackId: string;
       title: string;
@@ -398,10 +399,23 @@ export class EventsRepository {
     }[],
   ) {
     return this.prisma.$transaction(async (tx) => {
-      // 0. Check event exists
-      const existingEvent = await tx.event.findUnique({ where: { id } });
+      // 0. Check event exists and access rules
+      const existingEvent = await tx.event.findUnique({
+        where: { id },
+        include: { invites: true },
+      });
       if (!existingEvent) {
         throw new NotFoundException(`Event with ID ${id} not found`);
+      }
+
+      if (
+        existingEvent.visibility !== Visibility.PUBLIC &&
+        existingEvent.hostId !== userId &&
+        !existingEvent.invites.some((i) => i.userId === userId)
+      ) {
+        throw new ForbiddenException(
+          'You do not have permission to append tracks to this event',
+        );
       }
 
       // 1. Process tracks

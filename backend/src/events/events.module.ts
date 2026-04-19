@@ -13,7 +13,7 @@ import { PrismaModule } from '../prisma/prisma.module';
     PrismaModule,
     MulterModule.register({
       limits: {
-        fileSize: 2 * 1024 * 1024, // 5MB limit
+        fileSize: 2 * 1024 * 1024, // 2MB limit
       },
       fileFilter: (req, file, cb) => {
         if (!file.mimetype.match(/\/(jpg|jpeg|png|gif|webp)$/)) {
@@ -27,10 +27,12 @@ import { PrismaModule } from '../prisma/prisma.module';
       storage: diskStorage({
         destination: (req, file, cb) => {
           const uploadPath = './uploads';
-          if (!fs.existsSync(uploadPath)) {
-            fs.mkdirSync(uploadPath, { recursive: true });
-          }
-          cb(null, uploadPath);
+          fs.mkdir(uploadPath, { recursive: true }, (error) => {
+            if (error) {
+              return cb(error, uploadPath);
+            }
+            cb(null, uploadPath);
+          });
         },
         filename: (req, file, cb) => {
           const uniqueSuffix =

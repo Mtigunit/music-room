@@ -39,6 +39,7 @@ describe('EventsService', () => {
   describe('appendTracks', () => {
     it('should call eventsRepository.appendTracks with correct parameters', async () => {
       const eventId = '740777df-e348-40b6-925e-4c0f020cf68c';
+      const userId = 'user-1';
       const tracks = [
         {
           providerTrackId: 'zaGHlRk1Aq0',
@@ -50,9 +51,9 @@ describe('EventsService', () => {
         .spyOn(repository, 'appendTracks')
         .mockResolvedValue(undefined as never);
 
-      await service.appendTracks(eventId, tracks);
+      await service.appendTracks(eventId, userId, tracks);
 
-      expect(spy).toHaveBeenCalledWith(eventId, tracks);
+      expect(spy).toHaveBeenCalledWith(eventId, userId, tracks);
     });
   });
 

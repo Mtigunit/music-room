@@ -155,17 +155,22 @@ export class EventsController {
   }
 
   @Post(':id/tracks')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Append tracks to an event' })
   @ApiParam({ name: 'id', type: String })
   @ApiConsumes('application/json')
   @ApiBody({ type: AppendTracksDto })
   @ApiResponse({ status: 201, description: 'Tracks appended successfully.' })
+  @ApiResponse({ status: 403, description: 'Forbidden. No access to event.' })
   @ApiResponse({ status: 404, description: 'Event not found.' })
   appendTracks(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() appendTracksDto: AppendTracksDto,
+    @Req() req: Request,
   ) {
-    return this.eventsService.appendTracks(id, appendTracksDto.tracks);
+    const userId = (req.user as { id: string }).id;
+    return this.eventsService.appendTracks(id, userId, appendTracksDto.tracks);
   }
 
   @Post(':id/invites')

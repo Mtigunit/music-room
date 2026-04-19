@@ -34,8 +34,8 @@ export class EventsService {
     return this.eventsRepository.update(id, userId, updateEventDto);
   }
 
-  appendTracks(id: string, tracks: AppendedTrackDto[]) {
-    return this.eventsRepository.appendTracks(id, tracks);
+  appendTracks(id: string, userId: string, tracks: AppendedTrackDto[]) {
+    return this.eventsRepository.appendTracks(id, userId, tracks);
   }
 
   inviteUser(eventId: string, hostId: string, invitedUserId: string) {

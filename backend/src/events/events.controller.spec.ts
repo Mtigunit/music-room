@@ -43,6 +43,7 @@ describe('EventsController', () => {
   describe('appendTracks', () => {
     it('should call eventsService.appendTracks with correct parameters', async () => {
       const eventId = '740777df-e348-40b6-925e-4c0f020cf68c';
+      const userId = 'user-1';
       const tracks = [
         {
           providerTrackId: 'zaGHlRk1Aq0',
@@ -50,13 +51,18 @@ describe('EventsController', () => {
           durationMs: 362000,
         },
       ];
+      const req = { user: { id: userId } } as unknown as Request;
       const spy = jest
         .spyOn(service, 'appendTracks')
         .mockResolvedValue(undefined as never);
 
-      await controller.appendTracks(eventId, { tracks } as AppendTracksDto);
+      await controller.appendTracks(
+        eventId,
+        { tracks } as AppendTracksDto,
+        req,
+      );
 
-      expect(spy).toHaveBeenCalledWith(eventId, tracks);
+      expect(spy).toHaveBeenCalledWith(eventId, userId, tracks);
     });
   });
 

@@ -67,11 +67,12 @@ export class CreateEventDto {
   @ArrayMaxSize(3)
   @IsEnum(Tags, { each: true })
   @Transform(({ value }) => {
+    if (value === undefined || value === null || value === '') return undefined;
     // Handle JSON string array e.g. '["rock", "pop"]' from FormData
     if (
       typeof value === 'string' &&
-      value.startsWith('[') &&
-      value.endsWith(']')
+      value.trim().startsWith('[') &&
+      value.trim().endsWith(']')
     ) {
       try {
         return JSON.parse(value) as Tags[];
@@ -84,7 +85,6 @@ export class CreateEventDto {
   tags: Tags[];
 
   @ApiProperty({ enum: Visibility })
-  // @IsIn(Object.values(Visibility))
   @IsEnum(Visibility)
   visibility: Visibility;
 
@@ -157,6 +157,7 @@ export class CreateEventDto {
   @ValidateNested({ each: true })
   @Type(() => LicensePolicyDto)
   @Transform(({ value }) => {
+    if (value === undefined || value === null || value === '') return undefined;
     if (
       typeof value === 'string' &&
       value.trim().startsWith('[') &&
@@ -179,10 +180,11 @@ export class CreateEventDto {
   @IsArray()
   @IsUUID('all', { each: true })
   @Transform(({ value }) => {
+    if (value === undefined || value === null || value === '') return undefined;
     if (
       typeof value === 'string' &&
-      value.startsWith('[') &&
-      value.endsWith(']')
+      value.trim().startsWith('[') &&
+      value.trim().endsWith(']')
     ) {
       try {
         return JSON.parse(value) as string[];
@@ -200,10 +202,11 @@ export class CreateEventDto {
   @ValidateNested({ each: true })
   @Type(() => AppendedTrackDto)
   @Transform(({ value }) => {
+    if (value === undefined || value === null || value === '') return undefined;
     if (
       typeof value === 'string' &&
-      value.startsWith('[') &&
-      value.endsWith(']')
+      value.trim().startsWith('[') &&
+      value.trim().endsWith(']')
     ) {
       try {
         return JSON.parse(value) as AppendedTrackDto[];
