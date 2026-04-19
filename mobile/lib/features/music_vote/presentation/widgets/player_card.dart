@@ -105,18 +105,17 @@ class _PlayerCardState extends State<PlayerCard>
                   ),
                 ),
                 // Like button
-                GestureDetector(
-                  onTap: () => setState(() => _isLiked = !_isLiked),
-                  child: Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: _isLiked
+                Tooltip(
+                  message: _isLiked ? 'Unlike track' : 'Like track',
+                  child: IconButton(
+                    onPressed: () => setState(() => _isLiked = !_isLiked),
+                    style: IconButton.styleFrom(
+                      fixedSize: const Size(38, 38),
+                      backgroundColor: _isLiked
                           ? Colors.red.withValues(alpha: 0.15)
                           : colorScheme.onSurface.withValues(alpha: 0.08),
                     ),
-                    child: Icon(
+                    icon: Icon(
                       _isLiked ? Icons.favorite : Icons.favorite_border,
                       size: 18,
                       color: _isLiked

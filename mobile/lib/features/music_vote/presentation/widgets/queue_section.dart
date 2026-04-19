@@ -338,10 +338,10 @@ class _VoteChip extends StatelessWidget {
     return Semantics(
       button: true,
       selected: hasVoted,
-      label: hasVoted ? 'Vote added' : 'Upvote track',
+      label: hasVoted ? 'Remove upvote' : 'Upvote track',
       value: '$votes votes',
       child: Tooltip(
-        message: hasVoted ? 'Vote added' : 'Upvote track',
+        message: hasVoted ? 'Remove upvote' : 'Upvote track',
         child: Material(
           type: MaterialType.transparency,
           child: InkWell(

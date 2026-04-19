@@ -90,6 +90,7 @@ class InviteBottomSheet extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: _SocialShareRow(
+                  link: _mockRoomLink,
                   colorScheme: colorScheme,
                   isDark: isDark,
                 ),
@@ -253,8 +254,13 @@ class _RoomLinkBoxState extends State<_RoomLinkBox> {
 // ────────────────────────────────────────────────────────────────────────────
 
 class _SocialShareRow extends StatelessWidget {
-  const _SocialShareRow({required this.colorScheme, required this.isDark});
+  const _SocialShareRow({
+    required this.link,
+    required this.colorScheme,
+    required this.isDark,
+  });
 
+  final String link;
   final ColorScheme colorScheme;
   final bool isDark;
 
@@ -300,7 +306,18 @@ class _SocialShareRow extends StatelessWidget {
                   button: true,
                   label: 'Share via ${item.label}',
                   child: GestureDetector(
-                    onTap: () {
+                    onTap: () async {
+                      if (item.label == 'Copy') {
+                        await Clipboard.setData(ClipboardData(text: link));
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Link copied to clipboard'),
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        }
+                      }
                       if (kDebugMode) {
                         debugPrint('Share via ${item.label}');
                       }
