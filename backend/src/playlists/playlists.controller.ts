@@ -137,6 +137,8 @@ export class PlaylistsController {
   @ApiBody({ type: AddTrackToPlaylistDto })
   @ApiResponse({ status: 201, description: 'Track added to playlist.' })
   @ApiResponse({ status: 400, description: 'Invalid request.' })
+  @ApiResponse({ status: 403, description: 'Forbidden.' })
+  @ApiResponse({ status: 404, description: 'Playlist not found.' })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   addTrackToPlaylist(
     @Param('id', ParseUUIDPipe) playlistId: string,
