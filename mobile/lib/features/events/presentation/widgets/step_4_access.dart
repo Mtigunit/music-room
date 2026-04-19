@@ -1,6 +1,16 @@
+import 'dart:async';
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:intl/intl.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:music_room/features/events/domain/entities/event_location.dart';
+
+// ---------------------------------------------------------------------------
+// Step 4 – Access & Licenses
+// ---------------------------------------------------------------------------
 
 class Step4Access extends StatefulWidget {
   const Step4Access({
@@ -23,6 +33,7 @@ class Step4Access extends StatefulWidget {
     required this.onNext,
     super.key,
   });
+
   final String visibility;
   final String votingRule;
   final EventLocation? allowedLocation;
@@ -47,55 +58,154 @@ class Step4Access extends StatefulWidget {
 }
 
 class _Step4AccessState extends State<Step4Access> {
-  Future<void> _pickDate(BuildContext context, {required bool isStart}) async {
+  // ------------------------------------------------------------------
+  // Map state
+  // ------------------------------------------------------------------
+  static const LatLng _defaultCenter = LatLng(48.8566, 2.3522); // Paris
+
+  late final MapController _mapController;
+  LatLng _centerPin = _defaultCenter;
+  bool _locationLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _mapController = MapController();
+
+    // Seed pin from previously selected location, if any.
+    if (widget.allowedLocation != null) {
+      _centerPin = LatLng(
+        widget.allowedLocation!.latitude,
+        widget.allowedLocation!.longitude,
+      );
+    } else {
+      // Attempt GPS fetch on first open.
+      unawaited(_fetchGpsLocation());
+    }
+  }
+
+  @override
+  void dispose() {
+    _mapController.dispose();
+    super.dispose();
+  }
+
+  // ------------------------------------------------------------------
+  // GPS
+  // ------------------------------------------------------------------
+  Future<void> _fetchGpsLocation() async {
+    setState(() => _locationLoading = true);
+
+    try {
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return;
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      );
+
+      if (!mounted) return;
+
+      final latLng = LatLng(position.latitude, position.longitude);
+      _mapController.move(latLng, 15);
+      setState(() => _centerPin = latLng);
+      widget.onLocationChanged(
+        EventLocation(position.latitude, position.longitude),
+      );
+    } on Exception catch (_) {
+      // Silently fall back to default center – not a fatal error.
+    } finally {
+      if (mounted) setState(() => _locationLoading = false);
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // Combined Date + Time picker
+  // ------------------------------------------------------------------
+  Future<void> _pickDateTime(
+    BuildContext context, {
+    required bool isStart,
+  }) async {
     final now = DateTime.now();
-    final current = isStart ? widget.startDate : widget.endDate;
-    final initialDate = (current != null && current.isAfter(now))
-        ? current
+    final existingDate = isStart ? widget.startDate : widget.endDate;
+    final existingTime = isStart ? widget.startTime : widget.endTime;
+
+    final initialDate = (existingDate != null && existingDate.isAfter(now))
+        ? existingDate
         : now;
 
-    final picked = await showDatePicker(
+    // 1️⃣ Pick date first.
+    final pickedDate = await showDatePicker(
       context: context,
       initialDate: initialDate,
       firstDate: now,
       lastDate: now.add(const Duration(days: 365)),
     );
 
-    if (picked == null) {
-      return;
-    }
+    if (pickedDate == null || !mounted) return;
 
-    if (isStart) {
-      widget.onStartDateChanged(picked);
-    } else {
-      widget.onEndDateChanged(picked);
-    }
-  }
-
-  Future<void> _pickTime(BuildContext context, {required bool isStart}) async {
-    final picked = await showTimePicker(
+    // 2️⃣ Immediately open time picker, using the local context captured
+    // before the async gap to satisfy the linter.
+    if (!context.mounted) return;
+    final pickedTime = await showTimePicker(
       context: context,
-      initialTime: isStart
-          ? (widget.startTime ?? TimeOfDay.now())
-          : (widget.endTime ?? TimeOfDay.now()),
+      initialTime: existingTime ?? TimeOfDay.now(),
     );
 
-    if (picked == null) {
-      return;
-    }
+    if (pickedTime == null || !mounted) return;
 
+    // 3️⃣ Propagate both to parent.
     if (isStart) {
-      widget.onStartTimeChanged(picked);
+      widget.onStartDateChanged(pickedDate);
+      widget.onStartTimeChanged(pickedTime);
     } else {
-      widget.onEndTimeChanged(picked);
+      widget.onEndDateChanged(pickedDate);
+      widget.onEndTimeChanged(pickedTime);
     }
   }
 
+  // ------------------------------------------------------------------
+  // Helpers
+  // ------------------------------------------------------------------
+
+  /// Builds a human-readable label: "Apr 23, 2026 • 04:30 PM" or a placeholder.
+  String _formatDateTime(
+    DateTime? date,
+    TimeOfDay? time,
+    String placeholder,
+  ) {
+    if (date == null) return placeholder;
+
+    final datePart = DateFormat('MMM d, yyyy').format(date);
+    if (time == null) return datePart;
+
+    final dt = DateTime(
+      date.year,
+      date.month,
+      date.day,
+      time.hour,
+      time.minute,
+    );
+    return '$datePart • ${DateFormat('hh:mm a').format(dt)}';
+  }
+
+  // ------------------------------------------------------------------
+  // Build
+  // ------------------------------------------------------------------
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final showDynamicUI = widget.votingRule == 'Location & Time';
-    final mockRadius = widget.allowedRadius.clamp(10.0, 250.0);
+    final radius = widget.allowedRadius.clamp(10.0, 500.0);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -113,6 +223,8 @@ class _Step4AccessState extends State<Step4Access> {
                   ),
                 ),
                 const SizedBox(height: 24),
+
+                // ── Visibility cards ──────────────────────────────────
                 _buildSelectionCard(
                   title: 'Public',
                   subtitle: 'Anyone can discover and join your event',
@@ -136,6 +248,8 @@ class _Step4AccessState extends State<Step4Access> {
                   theme: theme,
                 ),
                 const SizedBox(height: 20),
+
+                // ── Voting permissions card ───────────────────────────
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -159,6 +273,8 @@ class _Step4AccessState extends State<Step4Access> {
                         ),
                       ),
                       const SizedBox(height: 18),
+
+                      // Everyone (disabled when Private)
                       Opacity(
                         opacity: widget.visibility == 'Private' ? 0.4 : 1.0,
                         child: IgnorePointer(
@@ -177,6 +293,8 @@ class _Step4AccessState extends State<Step4Access> {
                         ),
                       ),
                       const SizedBox(height: 14),
+
+                      // Invited Only
                       _buildToggleRow(
                         title: 'Invited Only',
                         subtitle: 'Only explicitly invited users can vote',
@@ -189,6 +307,8 @@ class _Step4AccessState extends State<Step4Access> {
                         theme: theme,
                       ),
                       const SizedBox(height: 14),
+
+                      // Location & Time Restricted
                       _buildToggleRow(
                         title: 'Location & Time Restricted',
                         subtitle: 'Strict access requirements',
@@ -200,86 +320,13 @@ class _Step4AccessState extends State<Step4Access> {
                         },
                         theme: theme,
                       ),
+
+                      // ── Dynamic section ───────────────────────────
                       if (showDynamicUI) ...[
-                        const SizedBox(height: 18),
-                        _buildMockMap(theme, mockRadius),
-                        const SizedBox(height: 10),
-                        Text(
-                          'Mock Radius: ${mockRadius.toInt()}m',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface.withValues(
-                              alpha: 0.75,
-                            ),
-                          ),
-                        ),
-                        Slider(
-                          value: mockRadius,
-                          min: 10,
-                          max: 250,
-                          divisions: 24,
-                          label: '${mockRadius.toInt()}m',
-                          activeColor: theme.colorScheme.primary,
-                          inactiveColor: theme.colorScheme.onSurface.withValues(
-                            alpha: 0.15,
-                          ),
-                          onChanged: widget.onRadiusChanged,
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildPickerButton(
-                                context,
-                                label: widget.startDate == null
-                                    ? 'Start Date'
-                                    : DateFormat(
-                                        'MMM d, yyyy',
-                                      ).format(widget.startDate!),
-                                icon: Icons.calendar_today_outlined,
-                                onTap: () => _pickDate(context, isStart: true),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: _buildPickerButton(
-                                context,
-                                label: widget.startTime == null
-                                    ? 'Start Time'
-                                    : widget.startTime!.format(context),
-                                icon: Icons.schedule_outlined,
-                                onTap: () => _pickTime(context, isStart: true),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildPickerButton(
-                                context,
-                                label: widget.endDate == null
-                                    ? 'End Date'
-                                    : DateFormat(
-                                        'MMM d, yyyy',
-                                      ).format(widget.endDate!),
-                                icon: Icons.calendar_today_outlined,
-                                onTap: () => _pickDate(context, isStart: false),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: _buildPickerButton(
-                                context,
-                                label: widget.endTime == null
-                                    ? 'End Time'
-                                    : widget.endTime!.format(context),
-                                icon: Icons.schedule_outlined,
-                                onTap: () => _pickTime(context, isStart: false),
-                              ),
-                            ),
-                          ],
-                        ),
+                        const SizedBox(height: 20),
+                        _buildMapSection(theme, radius),
+                        const SizedBox(height: 16),
+                        _buildDateTimeSection(theme),
                       ],
                     ],
                   ),
@@ -289,6 +336,8 @@ class _Step4AccessState extends State<Step4Access> {
             ),
           ),
         ),
+
+        // ── Continue button ───────────────────────────────────────────
         Padding(
           padding: const EdgeInsets.only(left: 24, right: 24, bottom: 24),
           child: ElevatedButton(
@@ -313,98 +362,244 @@ class _Step4AccessState extends State<Step4Access> {
     );
   }
 
-  Widget _buildMockMap(ThemeData theme, double radius) {
-    final normalized = (radius - 10) / 240;
-    final circleSize = 44 + (normalized * 90);
-
-    return Container(
-      height: 160,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
-        ),
-      ),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Positioned.fill(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest.withValues(
-                    alpha: 0.35,
+  // ------------------------------------------------------------------
+  // Real FlutterMap + center-pin + CircleLayer
+  // ------------------------------------------------------------------
+  Widget _buildMapSection(ThemeData theme, double radius) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // -- Map container ------------------------------------------
+        ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: SizedBox(
+            height: 250,
+            child: Stack(
+              children: [
+                // Real OSM map
+                FlutterMap(
+                  mapController: _mapController,
+                  options: MapOptions(
+                    initialCenter: _centerPin,
+                    initialZoom: 15,
+                    // Update pin & notify parent on every camera move.
+                    onPositionChanged: (camera, hasGesture) {
+                      if (!hasGesture) return;
+                      setState(() => _centerPin = camera.center);
+                      widget.onLocationChanged(
+                        EventLocation(
+                          camera.center.latitude,
+                          camera.center.longitude,
+                        ),
+                      );
+                    },
                   ),
-                  borderRadius: BorderRadius.circular(12),
+                  children: [
+                    // Free OSM tile layer – no API key required.
+                    TileLayer(
+                      urlTemplate:
+                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                      userAgentPackageName: 'com.music_room.app',
+                    ),
+                    // Dynamic geofence circle.
+                    CircleLayer(
+                      circles: [
+                        CircleMarker(
+                          point: _centerPin,
+                          // radius in metres → flutter_map uses logical pixels
+                          // at zoom 15: 1 metre ≈ 0.075 px, so keep as-is.
+                          radius: radius,
+                          useRadiusInMeter: true,
+                          color: theme.colorScheme.primary.withValues(
+                            alpha: 0.18,
+                          ),
+                          borderColor: theme.colorScheme.primary,
+                          borderStrokeWidth: 2,
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+
+                // Static center-pin icon (always centered on the Stack).
+                const Center(
+                  child: _CenterPin(),
+                ),
+
+                // GPS button (top-right corner).
+                Positioned(
+                  top: 10,
+                  right: 10,
+                  child: _GpsButton(
+                    loading: _locationLoading,
+                    onPressed: _fetchGpsLocation,
+                    theme: theme,
+                  ),
+                ),
+
+                // Coordinates label (bottom-left corner).
+                Positioned(
+                  left: 10,
+                  bottom: 10,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surface.withValues(alpha: 0.88),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '${_centerPin.latitude.toStringAsFixed(5)}, '
+                      '${_centerPin.longitude.toStringAsFixed(5)}',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        fontFeatures: const [],
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 10),
+
+        // -- Radius label -------------------------------------------
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Geofence Radius',
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.75),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                '${radius.toInt()} m',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ),
-          ),
-          Container(
-            width: circleSize,
-            height: circleSize,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: theme.colorScheme.primary.withValues(alpha: 0.12),
-              border: Border.all(color: theme.colorScheme.primary, width: 2),
-            ),
-          ),
-          Icon(
-            Icons.place,
-            size: 20,
-            color: theme.colorScheme.primary,
-          ),
-          Positioned(
-            left: 16,
-            top: 12,
-            child: Text(
-              'Mock map preview',
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
-              ),
-            ),
-          ),
-        ],
-      ),
+          ],
+        ),
+
+        // -- Radius slider ------------------------------------------
+        Slider(
+          value: widget.allowedRadius.clamp(10.0, 500.0),
+          min: 10,
+          max: 500,
+          divisions: 49,
+          label: '${radius.toInt()} m',
+          activeColor: theme.colorScheme.primary,
+          inactiveColor: theme.colorScheme.onSurface.withValues(alpha: 0.15),
+          onChanged: widget.onRadiusChanged,
+        ),
+      ],
     );
   }
+
+  // ------------------------------------------------------------------
+  // Condensed 2-field date + time pickers
+  // ------------------------------------------------------------------
+  Widget _buildDateTimeSection(ThemeData theme) {
+    return Column(
+      children: [
+        _buildPickerButton(
+          context,
+          label: _formatDateTime(
+            widget.startDate,
+            widget.startTime,
+            'Start Date & Time',
+          ),
+          icon: Icons.play_circle_outline_rounded,
+          isSet: widget.startDate != null,
+          onTap: () => _pickDateTime(context, isStart: true),
+          theme: theme,
+        ),
+        const SizedBox(height: 10),
+        _buildPickerButton(
+          context,
+          label: _formatDateTime(
+            widget.endDate,
+            widget.endTime,
+            'End Date & Time',
+          ),
+          icon: Icons.stop_circle_outlined,
+          isSet: widget.endDate != null,
+          onTap: () => _pickDateTime(context, isStart: false),
+          theme: theme,
+        ),
+      ],
+    );
+  }
+
+  // ------------------------------------------------------------------
+  // Sub-widgets (unchanged helpers kept clean)
+  // ------------------------------------------------------------------
 
   Widget _buildPickerButton(
     BuildContext context, {
     required String label,
     required IconData icon,
+    required bool isSet,
     required VoidCallback onTap,
+    required ThemeData theme,
   }) {
-    final theme = Theme.of(context);
-
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(22),
+      borderRadius: BorderRadius.circular(14),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(22),
+          color: isSet
+              ? theme.colorScheme.primary.withValues(alpha: 0.08)
+              : theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.25),
+            color: isSet
+                ? theme.colorScheme.primary.withValues(alpha: 0.6)
+                : theme.colorScheme.onSurface.withValues(alpha: 0.2),
+            width: isSet ? 1.5 : 1.0,
           ),
         ),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 16, color: theme.colorScheme.primary),
-            const SizedBox(width: 8),
-            Flexible(
+            Icon(
+              icon,
+              size: 20,
+              color: isSet
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.onSurface.withValues(alpha: 0.5),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
               child: Text(
                 label,
                 overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  color: theme.colorScheme.primary,
-                  fontWeight: FontWeight.w700,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: isSet
+                      ? theme.colorScheme.onSurface
+                      : theme.colorScheme.onSurface.withValues(alpha: 0.45),
+                  fontWeight: isSet ? FontWeight.w600 : FontWeight.normal,
                 ),
               ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 18,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.35),
             ),
           ],
         ),
@@ -537,6 +732,109 @@ class _Step4AccessState extends State<Step4Access> {
           inactiveTrackColor: theme.colorScheme.surfaceContainerHighest,
         ),
       ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Private sub-widgets
+// ---------------------------------------------------------------------------
+
+/// Static pin icon always rendered at the center of the map stack.
+class _CenterPin extends StatelessWidget {
+  const _CenterPin();
+
+  @override
+  Widget build(BuildContext context) {
+    final primary = Theme.of(context).colorScheme.primary;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Container(
+          decoration: BoxDecoration(
+            color: primary,
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: primary.withValues(alpha: 0.4),
+                blurRadius: 8,
+                spreadRadius: 2,
+              ),
+            ],
+          ),
+          padding: const EdgeInsets.all(6),
+          child: const Icon(Icons.place, color: Colors.white, size: 22),
+        ),
+        // Tiny pointer triangle below the circle.
+        CustomPaint(
+          size: const Size(12, 8),
+          painter: _TrianglePainter(primary),
+        ),
+      ],
+    );
+  }
+}
+
+/// Draws a downward-pointing triangle for the pin's tail.
+class _TrianglePainter extends CustomPainter {
+  const _TrianglePainter(this.color);
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()..color = color;
+    // Use the dart:ui Path directly to avoid the latlong2 Path name clash.
+    final path = ui.Path()
+      ..moveTo(0, 0)
+      ..lineTo(size.width, 0)
+      ..lineTo(size.width / 2, size.height)
+      ..close();
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(_TrianglePainter old) => old.color != color;
+}
+
+/// Floating GPS button shown in the top-right of the map.
+class _GpsButton extends StatelessWidget {
+  const _GpsButton({
+    required this.loading,
+    required this.onPressed,
+    required this.theme,
+  });
+
+  final bool loading;
+  final VoidCallback onPressed;
+  final ThemeData theme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: theme.colorScheme.surface,
+      borderRadius: BorderRadius.circular(10),
+      elevation: 2,
+      child: InkWell(
+        onTap: loading ? null : onPressed,
+        borderRadius: BorderRadius.circular(10),
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: loading
+              ? SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: theme.colorScheme.primary,
+                  ),
+                )
+              : Icon(
+                  Icons.my_location_rounded,
+                  size: 20,
+                  color: theme.colorScheme.primary,
+                ),
+        ),
+      ),
     );
   }
 }

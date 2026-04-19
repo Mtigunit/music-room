@@ -44,14 +44,17 @@ dependencies:
 
   # Storage & Security
   flutter_dotenv: ^5.1.0
+  flutter_map: ^8.3.0
   flutter_secure_storage: ^9.2.2
 
   # Environment
 
   # JSON Serialization
+  geolocator: ^14.0.2
   image_picker: ^1.2.1
   intl: ^0.20.2
   json_annotation: ^4.8.1
+  latlong2: ^0.9.1
   shared_preferences: ^2.5.3
 
 
