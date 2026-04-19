@@ -51,6 +51,10 @@ class _CreateEventPageState extends State<CreateEventPage> {
   }
 
   void _nextStep() {
+    // Dismiss the soft keyboard before advancing so it doesn't linger
+    // across steps regardless of which text field was last focused.
+    FocusManager.instance.primaryFocus?.unfocus();
+
     if (_currentStep < _totalSteps - 1) {
       unawaited(
         _pageController.nextPage(
