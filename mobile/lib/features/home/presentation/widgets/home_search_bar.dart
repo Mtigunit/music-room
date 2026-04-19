@@ -36,7 +36,20 @@ class _HomeSearchBarState extends State<HomeSearchBar> {
   void _onQueryChanged() {
     final newQuery = _searchQueryService.currentQuery;
     if (_controller.text != newQuery) {
-      _controller.text = newQuery;
+      final currentSelection = _controller.selection;
+      final maxOffset = newQuery.length;
+
+      final selection = currentSelection.isValid
+          ? TextSelection(
+              baseOffset: currentSelection.baseOffset.clamp(0, maxOffset),
+              extentOffset: currentSelection.extentOffset.clamp(0, maxOffset),
+            )
+          : TextSelection.collapsed(offset: maxOffset);
+
+      _controller.value = TextEditingValue(
+        text: newQuery,
+        selection: selection,
+      );
     }
   }
 
