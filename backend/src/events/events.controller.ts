@@ -11,6 +11,9 @@ import {
   UseInterceptors,
   UploadedFile,
   Req,
+  Query,
+  ParseIntPipe,
+  DefaultValuePipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -20,6 +23,7 @@ import {
   ApiBody,
   ApiBearerAuth,
   ApiConsumes,
+  ApiQuery,
 } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { EventsService } from './events.service';
@@ -49,15 +53,36 @@ export class EventsController {
   ) {
     const userId = (req.user as { id: string }).id;
     if (file) createEventDto.coverImage = file.path;
-    console.log('body ', createEventDto);
     return this.eventsService.create(userId, createEventDto);
   }
 
   @Get()
   @ApiOperation({ summary: 'Get all events' })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Page number (default 1)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Items per page (default 10)',
+  })
+  @ApiQuery({
+    name: 'name',
+    required: false,
+    type: String,
+    description: 'Search events by name',
+  })
   @ApiResponse({ status: 200, description: 'List of events.' })
-  findAll() {
-    return this.eventsService.findAll();
+  findAll(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query('name') name?: string,
+  ) {
+    return this.eventsService.findAll({ page, limit, name });
   }
 
   @Get(':id')
@@ -70,20 +95,25 @@ export class EventsController {
   }
 
   @Patch(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @UseInterceptors(FileInterceptor('coverImage'))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Update an event by ID' })
   @ApiParam({ name: 'id', type: String })
   @ApiBody({ type: UpdateEventDto })
   @ApiResponse({ status: 200, description: 'Event updated.' })
+  @ApiResponse({ status: 403, description: 'Forbidden.' })
   @ApiResponse({ status: 404, description: 'Event not found.' })
   update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updateEventDto: UpdateEventDto,
+    @Req() req: Request,
     @UploadedFile() file?: Express.Multer.File,
   ) {
+    const userId = (req.user as { id: string }).id;
     if (file) updateEventDto.coverImage = file.path;
-    return this.eventsService.update(id, updateEventDto);
+    return this.eventsService.update(id, userId, updateEventDto);
   }
 
   @Post(':id/tracks')
@@ -101,11 +131,18 @@ export class EventsController {
   }
 
   @Delete(':id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete an event by ID' })
   @ApiParam({ name: 'id', type: String })
   @ApiResponse({ status: 200, description: 'Event deleted.' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden. Only the host can delete this event.',
+  })
   @ApiResponse({ status: 404, description: 'Event not found.' })
-  remove(@Param('id', ParseUUIDPipe) id: string) {
-    return this.eventsService.remove(id);
+  remove(@Param('id', ParseUUIDPipe) id: string, @Req() req: Request) {
+    const userId = (req.user as { id: string }).id;
+    return this.eventsService.remove(id, userId);
   }
 }

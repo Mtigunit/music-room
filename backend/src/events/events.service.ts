@@ -11,23 +11,23 @@ export class EventsService {
     return this.eventsRepository.create(userId, createEventDto);
   }
 
-  findAll() {
-    return this.eventsRepository.findAll();
+  findAll(options: { page: number; limit: number; name?: string }) {
+    return this.eventsRepository.findAll(options);
   }
 
   findOne(id: string) {
     return this.eventsRepository.findOne(id);
   }
 
-  update(id: string, updateEventDto: UpdateEventDto) {
-    return this.eventsRepository.update(id, updateEventDto);
+  update(id: string, userId: string, updateEventDto: UpdateEventDto) {
+    return this.eventsRepository.update(id, userId, updateEventDto);
   }
 
   appendTracks(id: string, trackIds: string[]) {
     return this.eventsRepository.appendTracks(id, trackIds);
   }
 
-  remove(id: string) {
-    return this.eventsRepository.remove(id);
+  remove(id: string, userId: string) {
+    return this.eventsRepository.remove(id, userId);
   }
 }

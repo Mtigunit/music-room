@@ -5,13 +5,11 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { Logger, ValidationPipe } from '@nestjs/common';
 import { RedisIoAdapter } from './websockets/socket-io.adapter';
-import { EventVisibility } from '@prisma/client';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
   const app = await NestFactory.create(AppModule);
   const configService = app.get(ConfigService);
-  console.log(EventVisibility);
 
   const redisIoAdapter = new RedisIoAdapter(app, configService);
   await redisIoAdapter.connectToRedis();

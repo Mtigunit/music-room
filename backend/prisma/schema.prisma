@@ -188,7 +188,7 @@ model Event {
   
   // Event metadata 
   name        String
-  descritpion String?
+  description String?
   coverImage  String
   status      EventStatus    @default(ACTIVE)
   visibility  EventVisibility   @default(PUBLIC)

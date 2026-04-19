@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { PrismaService } from '../prisma/prisma.service';
@@ -26,13 +30,16 @@ export class EventsRepository {
     return this.prisma.$transaction(async (tx) => {
       // 0. Validate playlistIds and trackIds before creating anything
       if (playlistIds && playlistIds.length > 0) {
+        const uniquePlaylistIds = Array.from(new Set(playlistIds));
         const playlists = await tx.playlist.findMany({
-          where: { id: { in: playlistIds } },
+          where: { id: { in: uniquePlaylistIds } },
           select: { id: true },
         });
-        if (playlists.length !== playlistIds.length) {
+        if (playlists.length !== uniquePlaylistIds.length) {
           const foundIds = playlists.map((p) => p.id);
-          const missingIds = playlistIds.filter((id) => !foundIds.includes(id));
+          const missingIds = uniquePlaylistIds.filter(
+            (id) => !foundIds.includes(id),
+          );
           throw new NotFoundException(
             `Playlists not found: ${missingIds.join(', ')}`,
           );
@@ -40,13 +47,16 @@ export class EventsRepository {
       }
 
       if (trackIds && trackIds.length > 0) {
+        const uniqueTrackIds = Array.from(new Set(trackIds));
         const tracks = await tx.track.findMany({
-          where: { id: { in: trackIds } },
+          where: { id: { in: uniqueTrackIds } },
           select: { id: true },
         });
-        if (tracks.length !== trackIds.length) {
+        if (tracks.length !== uniqueTrackIds.length) {
           const foundIds = tracks.map((t) => t.id);
-          const missingIds = trackIds.filter((id) => !foundIds.includes(id));
+          const missingIds = uniqueTrackIds.filter(
+            (id) => !foundIds.includes(id),
+          );
           throw new NotFoundException(
             `Tracks not found: ${missingIds.join(', ')}`,
           );
@@ -57,7 +67,7 @@ export class EventsRepository {
       const event = await tx.event.create({
         data: {
           name,
-          descritpion: description, // Mapping the typo from Prisma schema
+          description,
           coverImage: coverImage || '',
           visibility,
           invitingOnly,
@@ -116,8 +126,37 @@ export class EventsRepository {
     });
   }
 
-  findAll() {
-    return this.prisma.event.findMany();
+  async findAll(options: { page: number; limit: number; name?: string }) {
+    const { page, limit, name } = options;
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.EventWhereInput = {};
+    if (name) {
+      where.name = {
+        contains: name,
+        mode: 'insensitive',
+      };
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.event.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.event.count({ where }),
+    ]);
+
+    return {
+      data,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async findOne(id: string) {
@@ -132,7 +171,7 @@ export class EventsRepository {
     return event;
   }
 
-  async update(id: string, updateEventDto: UpdateEventDto) {
+  async update(id: string, userId: string, updateEventDto: UpdateEventDto) {
     const {
       name,
       description,
@@ -153,16 +192,24 @@ export class EventsRepository {
       if (!existingEvent) {
         throw new NotFoundException(`Event with ID ${id} not found`);
       }
+      if (existingEvent.hostId !== userId) {
+        throw new ForbiddenException(
+          `You are not authorized to update this event`,
+        );
+      }
 
       // 1. Validate playlistIds and trackIds before creating anything
       if (playlistIds && playlistIds.length > 0) {
+        const uniquePlaylistIds = Array.from(new Set(playlistIds));
         const playlists = await tx.playlist.findMany({
-          where: { id: { in: playlistIds } },
+          where: { id: { in: uniquePlaylistIds } },
           select: { id: true },
         });
-        if (playlists.length !== playlistIds.length) {
+        if (playlists.length !== uniquePlaylistIds.length) {
           const foundIds = playlists.map((p) => p.id);
-          const missingIds = playlistIds.filter((id) => !foundIds.includes(id));
+          const missingIds = uniquePlaylistIds.filter(
+            (id) => !foundIds.includes(id),
+          );
           throw new NotFoundException(
             `Playlists not found: ${missingIds.join(', ')}`,
           );
@@ -170,13 +217,16 @@ export class EventsRepository {
       }
 
       if (trackIds && trackIds.length > 0) {
+        const uniqueTrackIds = Array.from(new Set(trackIds));
         const tracks = await tx.track.findMany({
-          where: { id: { in: trackIds } },
+          where: { id: { in: uniqueTrackIds } },
           select: { id: true },
         });
-        if (tracks.length !== trackIds.length) {
+        if (tracks.length !== uniqueTrackIds.length) {
           const foundIds = tracks.map((t) => t.id);
-          const missingIds = trackIds.filter((id) => !foundIds.includes(id));
+          const missingIds = uniqueTrackIds.filter(
+            (id) => !foundIds.includes(id),
+          );
           throw new NotFoundException(
             `Tracks not found: ${missingIds.join(', ')}`,
           );
@@ -188,7 +238,7 @@ export class EventsRepository {
         where: { id },
         data: {
           name,
-          ...(description !== undefined && { descritpion: description }), // Mapping typo
+          ...(description !== undefined && { description }), // Mapping typo
           ...(coverImage !== undefined && { coverImage }),
           visibility,
           invitingOnly,
@@ -257,22 +307,22 @@ export class EventsRepository {
 
       // 1. Verify tracks exist
       if (trackIds && trackIds.length > 0) {
+        const uniqueTrackIds = Array.from(new Set(trackIds));
         const tracks = await tx.track.findMany({
-          where: { id: { in: trackIds } },
+          where: { id: { in: uniqueTrackIds } },
           select: { id: true },
         });
-        if (tracks.length !== trackIds.length) {
+        if (tracks.length !== uniqueTrackIds.length) {
           const foundIds = tracks.map((t) => t.id);
-          const missingIds = trackIds.filter((tId) => !foundIds.includes(tId));
+          const missingIds = uniqueTrackIds.filter(
+            (tId) => !foundIds.includes(tId),
+          );
           throw new NotFoundException(
             `Tracks not found: ${missingIds.join(', ')}`,
           );
         }
 
-        // 2. Deduplicate track IDs
-        const uniqueTrackIds = Array.from(new Set(trackIds));
-
-        // 3. Create EventTrack records, bypassing existing ones safely via `skipDuplicates`
+        // 2. Create EventTrack records, bypassing existing ones safely via `skipDuplicates`
         const eventTracksData = uniqueTrackIds.map((trackId) => ({
           eventId: id,
           trackId,
@@ -292,14 +342,33 @@ export class EventsRepository {
     });
   }
 
-  async remove(id: string) {
+  async remove(id: string, userId: string) {
+    const event = await this.prisma.event.findUnique({
+      where: { id },
+      select: { hostId: true },
+    });
+
+    if (!event) {
+      throw new NotFoundException(`Event with ID ${id} not found`);
+    }
+
+    if (event.hostId !== userId) {
+      throw new ForbiddenException('Only the host can delete this event');
+    }
+
     try {
       await this.prisma.event.delete({
         where: { id },
       });
       return { message: 'Event successfully deleted' };
-    } catch {
-      throw new NotFoundException(`Event with ID ${id} not found`);
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        throw new NotFoundException(`Event with ID ${id} not found`);
+      }
+      throw error;
     }
   }
 }
