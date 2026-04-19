@@ -207,6 +207,9 @@ class _SearchPageState extends State<SearchPage> {
       return;
     }
 
+    _debounce?.cancel();
+    _requestId++;
+
     setState(() {
       _selectedFilter = filter;
       _results = const <SearchResultItem>[];
