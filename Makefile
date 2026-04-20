@@ -118,7 +118,7 @@ backend: docker-up
 .PHONY: backend-lint
 backend-lint:
 	@if [ -f $(BACKEND_DIR)/package.json ]; then \
-		cd $(BACKEND_DIR) && npm run lint; \
+		cd $(BACKEND_DIR) && npm run lint:fix; \
 	else \
 		printf "%b\\n" "$(COLOR_WARN)No backend lint$(COLOR_RESET)"; \
 	fi
@@ -141,6 +141,10 @@ backend-format:
 		printf "%b\\n" "$(COLOR_WARN)No backend format$(COLOR_RESET)"; \
 	fi
 	@printf "%b\n" "$(COLOR_SUCCESS)Done: backend formatting completed.$(COLOR_RESET)"
+
+.PHONY: prisma-reset
+prisma-reset:
+	@node scripts/prisma-reset.js
 
 # ========================
 # DOCKER COMPOSE (ROOT)
