@@ -32,13 +32,9 @@ try {
     fs.rmSync(migrationsDir, { recursive: true, force: true });
   }
 
-  // Drop the database and push current schema state without relying on migrations history
-  run('npx prisma db push --force-reset');
-  
-  // Re-initialize the migration file cleanly
+  // Run the prisma commands, bypassing prompts
+  run('npx prisma migrate reset --force');
   run('npx prisma migrate dev --name init');
-  
-  // Refresh Prisma client
   run('npx prisma generate');
 
   console.log(`${COLOR_SUCCESS}Done: prisma reset completed.${COLOR_RESET}`);
