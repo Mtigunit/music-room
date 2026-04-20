@@ -35,6 +35,8 @@ help:
 	@printf "%b\n" "  $(COLOR_CMD)make backend-test$(COLOR_RESET)    Run backend tests"
 	@printf "%b\n" "  $(COLOR_CMD)make ci$(COLOR_RESET)              Run full CI locally"
 	@printf "%b\n" "  $(COLOR_CMD)make clean$(COLOR_RESET)           Clean build files"
+	@printf "%b\n" "  $(COLOR_CMD)make backend-prepare$(COLOR_RESET) Prepare backend environment for commit"
+	@printf "%b\n" "  $(COLOR_CMD)make prisma-reset$(COLOR_RESET)    Reset backend database schema cleanly"
 
 # ========================
 # INSTALL

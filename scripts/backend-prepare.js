@@ -14,7 +14,11 @@ const packageJsonPath = path.join(backendDir, 'package.json');
 function run(cmd) {
   console.log(`${COLOR_CMD}> ${cmd}${COLOR_RESET}...`);
   try {
-    execSync(cmd, { stdio: 'pipe', cwd: backendDir });
+    execSync(cmd, { 
+      stdio: 'pipe', 
+      cwd: backendDir,
+      maxBuffer: 10 * 1024 * 1024 // 10MB buffer to prevent ENOBUFS
+    });
     console.log(`${COLOR_SUCCESS}  ✓ Success${COLOR_RESET}`);
   } catch (error) {
     console.error(`\x1b[1;31m  ✗ Failed\x1b[0m\n`);
