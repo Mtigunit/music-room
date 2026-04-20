@@ -142,6 +142,10 @@ backend-format:
 	fi
 	@printf "%b\n" "$(COLOR_SUCCESS)Done: backend formatting completed.$(COLOR_RESET)"
 
+.PHONY: backend-prepare
+backend-prepare:
+	@node scripts/backend-prepare.js
+
 .PHONY: prisma-reset
 prisma-reset:
 	@node scripts/prisma-reset.js
