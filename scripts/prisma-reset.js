@@ -26,19 +26,26 @@ if (!fs.existsSync(packageJsonPath)) {
 try {
   console.log(`${COLOR_INFO}Starting prisma reset...${COLOR_RESET}`);
 
+  // 1. Wipe local migrations so we start fresh
   if (fs.existsSync(migrationsDir)) {
     console.log(`${COLOR_INFO}Deleting migration files...${COLOR_RESET}`);
-    // fs.rmSync is available in Node 14.14.0+
     fs.rmSync(migrationsDir, { recursive: true, force: true });
   }
 
-  // Drop the database and push current schema state without relying on migrations history
-  run('npx prisma db push --force-reset');
+  // 2. Recreate an empty migrations folder explicitly. 
+  // This ensures `prisma migrate reset` doesn't crash on fresh checkouts complaining about the missing folder,
+  // but importantly forces it to apply ZERO migrations, leaving the DB completely empty.
+  if (!fs.existsSync(migrationsDir)) {
+    fs.mkdirSync(migrationsDir, { recursive: true });
+  }
+
+  // 3. Drop and reset the database. Because the migrations folder is empty, the DB is left naked.
+  run('npx prisma migrate reset --force');
   
-  // Re-initialize the migration file cleanly
+  // 4. Generate the new initial migration from the Prisma schema against our empty DB. No drift errors!
   run('npx prisma migrate dev --name init');
   
-  // Refresh Prisma client
+  // 5. Refresh Prisma client
   run('npx prisma generate');
 
   console.log(`${COLOR_SUCCESS}Done: prisma reset completed.${COLOR_RESET}`);
