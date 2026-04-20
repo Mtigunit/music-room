@@ -14,8 +14,8 @@ const packageJsonPath = path.join(backendDir, 'package.json');
 function run(cmd) {
   console.log(`${COLOR_CMD}> ${cmd}${COLOR_RESET}...`);
   try {
-    execSync(cmd, { 
-      stdio: 'pipe', 
+    execSync(cmd, {
+      stdio: 'pipe',
       cwd: backendDir,
       maxBuffer: 10 * 1024 * 1024 // 10MB buffer to prevent ENOBUFS
     });
