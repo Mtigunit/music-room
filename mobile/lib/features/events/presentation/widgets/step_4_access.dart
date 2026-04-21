@@ -30,7 +30,8 @@ class Step4Access extends StatefulWidget {
     required this.onStartTimeChanged,
     required this.onEndDateChanged,
     required this.onEndTimeChanged,
-    required this.onNext,
+    required this.onSubmit,
+    required this.isSubmitting,
     super.key,
   });
 
@@ -51,7 +52,8 @@ class Step4Access extends StatefulWidget {
   final ValueChanged<TimeOfDay?> onStartTimeChanged;
   final ValueChanged<DateTime?> onEndDateChanged;
   final ValueChanged<TimeOfDay?> onEndTimeChanged;
-  final VoidCallback onNext;
+  final VoidCallback onSubmit;
+  final bool isSubmitting;
 
   @override
   State<Step4Access> createState() => _Step4AccessState();
@@ -337,11 +339,11 @@ class _Step4AccessState extends State<Step4Access> {
           ),
         ),
 
-        // ── Continue button ───────────────────────────────────────────
+        // ── Start Event button ────────────────────────────────────────
         Padding(
           padding: const EdgeInsets.only(left: 24, right: 24, bottom: 24),
           child: ElevatedButton(
-            onPressed: widget.onNext,
+            onPressed: widget.isSubmitting ? null : widget.onSubmit,
             style: ElevatedButton.styleFrom(
               backgroundColor: theme.colorScheme.primary,
               foregroundColor: theme.colorScheme.onPrimary,
@@ -355,7 +357,16 @@ class _Step4AccessState extends State<Step4Access> {
                 fontWeight: FontWeight.w700,
               ),
             ),
-            child: const Text('Continue'),
+            child: widget.isSubmitting
+                ? SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: theme.colorScheme.onPrimary,
+                    ),
+                  )
+                : const Text('Start Event'),
           ),
         ),
       ],

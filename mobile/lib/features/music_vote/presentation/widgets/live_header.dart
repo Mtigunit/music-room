@@ -11,12 +11,18 @@ import 'package:music_room/features/music_vote/presentation/widgets/modals/invit
 /// Displays: back button · room title · LIVE badge · guest avatar stack ·
 /// listener count · invite button · overflow menu.
 class LiveHeader extends StatelessWidget {
-  const LiveHeader({super.key});
+  const LiveHeader({
+    super.key,
+    this.eventId,
+  });
+
+  final String? eventId;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final roomTitle = _resolveRoomTitle(eventId);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -38,7 +44,7 @@ class LiveHeader extends StatelessWidget {
                   children: [
                     Flexible(
                       child: Text(
-                        'Friday Night Vi...',
+                        roomTitle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: textTheme.titleMedium?.copyWith(
@@ -86,6 +92,15 @@ class LiveHeader extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  String _resolveRoomTitle(String? roomId) {
+    if (roomId == null || roomId.isEmpty) {
+      return 'Friday Night Vi...';
+    }
+
+    final shortId = roomId.length > 8 ? roomId.substring(0, 8) : roomId;
+    return 'Room $shortId';
   }
 
   void _showInviteSheet(BuildContext context) {

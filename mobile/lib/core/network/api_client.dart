@@ -28,7 +28,17 @@ class ApiClient {
           if (token != null) {
             options.headers['Authorization'] = 'Bearer $token';
           }
-          options.headers['Content-Type'] = 'application/json';
+
+          final hasExplicitContentType = options.headers.keys.any(
+            (key) => key.toLowerCase() == 'content-type',
+          );
+
+          if (options.data is FormData) {
+            options.headers.remove('Content-Type');
+          } else if (!hasExplicitContentType) {
+            options.headers['Content-Type'] = 'application/json';
+          }
+
           return handler.next(options);
         },
         onError: (error, handler) async {
