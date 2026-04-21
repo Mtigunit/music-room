@@ -43,8 +43,6 @@ class _CreateEventPageState extends State<CreateEventPage> {
   DateTime? endDate;
   TimeOfDay? endTime;
 
-  List<String> invitedUsers = [];
-
   @override
   void dispose() {
     _pageController.dispose();
@@ -178,7 +176,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                     Text('Genre', style: _stepLabelStyle(1, theme)),
                     Text('Music', style: _stepLabelStyle(2, theme)),
                     Text('Access', style: _stepLabelStyle(3, theme)),
-                    Text('Invite', style: _stepLabelStyle(4, theme)),
+                    Text('Summary', style: _stepLabelStyle(4, theme)),
                   ],
                 ),
                 const SizedBox(height: 8),
@@ -253,9 +251,6 @@ class _CreateEventPageState extends State<CreateEventPage> {
                     visibility: visibility,
                     votingRule: votingRule,
                     trackCount: selectedTracks.length,
-                    invitedUsers: invitedUsers,
-                    onInvitesChanged: (val) =>
-                        setState(() => invitedUsers = val),
                     onSubmit: _submitEvent,
                   ),
                 ],
