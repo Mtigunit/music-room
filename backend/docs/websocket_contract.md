@@ -77,6 +77,38 @@ This is an example “feature gateway” that demonstrates validated payloads, r
 - **Server → Client (broadcast)**: `track:vote:updated` `{ roomId, trackId, upVotes, downVotes, score, updatedAt }`
   - Broadcasted to everyone in `roomId`.
 
+### Playlists (`PlaylistsGateway`)
+
+The playlists gateway handles real-time updates for collaborative playlist editing (Phase 1).
+
+> **Note on Data Integrity:** The backend enforces track uniqueness per playlist at the database level. Any operation that violates this (e.g., adding a duplicate track) will return a `409 Conflict` error.
+
+#### `playlist:join`
+
+- **Client → Server**: `playlist:join`
+- **Payload**: `{ playlistId: string }`
+- **Server Verification**: Verifies the playlist exists and the user has visibility/collaboration rights.
+- **Server → Client (success ack)**: `{ event: 'joined', playlistId }`
+- **Server → Client (error)**: Throws `WsException` if missing ID, playlist not found, or user is forbidden.
+
+#### `playlist:leave`
+
+- **Client → Server**: `playlist:leave`
+- **Payload**: `{ playlistId: string }`
+- **Server → Client (success ack)**: `{ event: 'left', playlistId }`
+
+#### `playlist:track:added`
+
+Broadcasted immediately after a new track is added to the playlist via the REST API (`POST /playlists/:id/tracks`).
+- **Server → Client (broadcast)**: `playlist:track:added`
+- **Payload**: A full `PlaylistTrack` object including nested `track` dictionary data and `position`.
+
+#### `playlist:track:removed`
+
+Broadcasted immediately after a track is removed via the REST API (`DELETE /playlists/:id/tracks/:playlistTrackId`).
+- **Server → Client (broadcast)**: `playlist:track:removed`
+- **Payload**: `{ trackId: string }` where `trackId` is the removed `PlaylistTrack.id` (the same identifier passed as `:playlistTrackId` in the REST route), not the nested `Track.id`.
+
 ## Errors & Disconnects
 
 ### Handshake rejection
@@ -90,6 +122,13 @@ If authentication fails during the handshake, the client will get:
 If `roomId` is missing/blank for join/leave:
 
 - `room:error` `{ message: string }`
+
+### Data Integrity Conflicts
+
+If an operation (such as adding a track) violates a database constraint (e.g., duplicate track in a playlist):
+
+- **Status Code**: `409 Conflict`
+- **WS Behavior**: Throws a `WsException` which is caught by the global filter and returned as an error event if categorized as such, or handled via REST if initiated there.
 
 ## Smoke Test
 

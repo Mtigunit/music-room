@@ -63,6 +63,34 @@ export class YoutubeService {
     }
   }
 
+  async getTrackDetails(
+    providerTrackId: string,
+  ): Promise<TrackSearchResultDto | null> {
+    try {
+      const videosResponse = await this.youtube.videos.list({
+        part: ['contentDetails', 'snippet'],
+        id: [providerTrackId],
+      });
+
+      const videoItems = videosResponse.data.items ?? [];
+      if (videoItems.length === 0) {
+        return null;
+      }
+
+      return this.mapVideoToTrackResult(videoItems[0]);
+    } catch (error) {
+      const trace =
+        error instanceof Error
+          ? error.stack
+          : `Unknown error: ${String(error)}`;
+
+      this.logger.error('YouTube API details request failed', trace);
+      throw new InternalServerErrorException(
+        'Failed to fetch YouTube track details',
+      );
+    }
+  }
+
   private mapVideoToTrackResult(
     item: youtube_v3.Schema$Video,
   ): TrackSearchResultDto | null {

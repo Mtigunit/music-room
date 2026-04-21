@@ -148,6 +148,9 @@ model PlaylistTrack {
   // This constraint guarantees that two tracks can NEVER occupy the exact same position
   // in the same playlist. This forces the PostgreSQL row-level locks to do their job!
   @@unique([playlistId, position])
+
+  // Enforces that the exact same Track cannot be added multiple times to the same playlist.
+  @@unique([playlistId, trackId])
 }
 
 model PlaylistCollaborator {
@@ -164,7 +167,7 @@ model PlaylistCollaborator {
 
 model PlaylistCounter {
   playlistId   String @id
-  nextPosition Int    @default(0)
+  nextPosition Int    @default(-1)
 
   playlist Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
 }
@@ -180,8 +183,8 @@ enum EventStatus {
 // ======================================================
 model Event {
   id          String   @id @default(uuid())
-  
-  // Event metadata 
+
+  // Event metadata
   name        String
   description String?
   coverImage  String
@@ -194,7 +197,7 @@ model Event {
   locationLat     Float?
   locationLng     Float?
 
-  // Track 
+  // Track
   playbackStatus           PlaybackStatus @default(STOPPED)
   currentTrackStartedAt    DateTime?
   pausedPlaybackPositionMs Int?

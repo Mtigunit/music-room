@@ -136,9 +136,19 @@ export class PlaylistsController {
   @ApiParam({ name: 'id', type: String, format: 'uuid' })
   @ApiBody({ type: AddTrackToPlaylistDto })
   @ApiResponse({ status: 201, description: 'Track added to playlist.' })
-  @ApiResponse({ status: 400, description: 'Invalid request.' })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid request or Playlist capacity reached.',
+  })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
-  @ApiResponse({ status: 404, description: 'Playlist not found.' })
+  @ApiResponse({
+    status: 404,
+    description: 'Playlist or Provider Track not found.',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Track already exists in the playlist.',
+  })
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   addTrackToPlaylist(
     @Param('id', ParseUUIDPipe) playlistId: string,
@@ -148,7 +158,30 @@ export class PlaylistsController {
     return this.playlistsService.addTrackToPlaylist(
       playlistId,
       req.user!.id,
-      payload.track,
+      payload.providerTrackId,
+    );
+  }
+
+  @Delete(':id/tracks/:playlistTrackId')
+  @ApiOperation({ summary: 'Remove a track from a playlist' })
+  @ApiParam({ name: 'id', type: String, format: 'uuid' })
+  @ApiParam({ name: 'playlistTrackId', type: String, format: 'uuid' })
+  @ApiResponse({ status: 200, description: 'Track removed from playlist.' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden. Not the owner or the user who added it.',
+  })
+  @ApiResponse({ status: 404, description: 'Playlist or Track not found.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  removeTrackFromPlaylist(
+    @Param('id', ParseUUIDPipe) playlistId: string,
+    @Param('playlistTrackId', ParseUUIDPipe) playlistTrackId: string,
+    @Request() req: Express.Request,
+  ) {
+    return this.playlistsService.removeTrackFromPlaylist(
+      playlistId,
+      playlistTrackId,
+      req.user!.id,
     );
   }
 }
