@@ -44,6 +44,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
 
   EventLocation? allowedLocation;
   double allowedRadius = 10;
+  bool isRestricted = false;
   DateTime? startDate;
   TimeOfDay? startTime;
   DateTime? endDate;
@@ -104,6 +105,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
         selectedTracks: selectedTracks,
         visibility: visibility,
         votingRule: votingRule,
+        isRestricted: isRestricted,
         allowedLocation: allowedLocation,
         allowedRadius: allowedRadius,
         startDate: startDate,
@@ -277,16 +279,28 @@ class _CreateEventPageState extends State<CreateEventPage> {
                         return Step4Access(
                           visibility: visibility,
                           votingRule: votingRule,
+                          isRestricted: isRestricted,
                           allowedLocation: allowedLocation,
                           allowedRadius: allowedRadius,
                           startDate: startDate,
                           startTime: startTime,
                           endDate: endDate,
                           endTime: endTime,
-                          onVisibilityChanged: (val) =>
-                              setState(() => visibility = val),
+                          onVisibilityChanged: (val) {
+                            setState(() {
+                              visibility = val;
+                              // If Private, force Everyone can vote to false
+                              // which means force Invited Only to true
+                              if (val == 'Private' &&
+                                  votingRule == 'Everyone') {
+                                votingRule = 'Invited Only';
+                              }
+                            });
+                          },
                           onVotingRuleChanged: (val) =>
                               setState(() => votingRule = val),
+                          onRestrictedChanged: (val) =>
+                              setState(() => isRestricted = val),
                           onLocationChanged: (val) =>
                               setState(() => allowedLocation = val),
                           onRadiusChanged: (val) =>

@@ -43,6 +43,7 @@ class CreateEventCubit extends Cubit<CreateEventState> {
     required List<TrackModel> selectedTracks,
     required String visibility,
     required String votingRule,
+    required bool isRestricted,
     required EventLocation? allowedLocation,
     required double allowedRadius,
     required DateTime? startDate,
@@ -74,13 +75,13 @@ class CreateEventCubit extends Cubit<CreateEventState> {
       return;
     }
 
-    final isLocationTimeRestricted = votingRule == 'Location & Time';
-
-    List<EventPolicyModel>? policies;
+    var policies = <EventPolicyModel>[];
     double? locationLat;
     double? locationLng;
+    final isPrivate = mappedVisibility == 'PRIVATE';
+    final invitingOnly = votingRule == 'Invited Only' || isPrivate;
 
-    if (isLocationTimeRestricted) {
+    if (isRestricted) {
       if (allowedLocation == null) {
         emit(CreateEventError('Please set a location for restricted access.'));
         return;
@@ -125,7 +126,7 @@ class CreateEventCubit extends Cubit<CreateEventState> {
       name: trimmedName,
       tags: tags,
       visibility: mappedVisibility,
-      invitingOnly: mappedVisibility == 'PRIVATE' || votingRule != 'Everyone',
+      invitingOnly: invitingOnly,
       description: description.trim().isEmpty ? null : description.trim(),
       locationLat: locationLat,
       locationLng: locationLng,

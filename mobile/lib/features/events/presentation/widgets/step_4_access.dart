@@ -16,6 +16,7 @@ class Step4Access extends StatefulWidget {
   const Step4Access({
     required this.visibility,
     required this.votingRule,
+    required this.isRestricted,
     required this.allowedLocation,
     required this.allowedRadius,
     required this.startDate,
@@ -24,6 +25,7 @@ class Step4Access extends StatefulWidget {
     required this.endTime,
     required this.onVisibilityChanged,
     required this.onVotingRuleChanged,
+    required this.onRestrictedChanged,
     required this.onLocationChanged,
     required this.onRadiusChanged,
     required this.onStartDateChanged,
@@ -37,6 +39,7 @@ class Step4Access extends StatefulWidget {
 
   final String visibility;
   final String votingRule;
+  final bool isRestricted;
   final EventLocation? allowedLocation;
   final double allowedRadius;
   final DateTime? startDate;
@@ -46,6 +49,7 @@ class Step4Access extends StatefulWidget {
 
   final ValueChanged<String> onVisibilityChanged;
   final ValueChanged<String> onVotingRuleChanged;
+  final ValueChanged<bool> onRestrictedChanged;
   final ValueChanged<EventLocation?> onLocationChanged;
   final ValueChanged<double> onRadiusChanged;
   final ValueChanged<DateTime?> onStartDateChanged;
@@ -206,7 +210,10 @@ class _Step4AccessState extends State<Step4Access> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final showDynamicUI = widget.votingRule == 'Location & Time';
+    final isPrivate = widget.visibility == 'Private';
+    final isEveryone = widget.votingRule == 'Everyone' && !isPrivate;
+    final isInvitedOnly = widget.votingRule == 'Invited Only' || isPrivate;
+    final showDynamicUI = widget.isRestricted;
     final radius = widget.allowedRadius.clamp(10.0, 500.0);
 
     return Column(
@@ -276,22 +283,23 @@ class _Step4AccessState extends State<Step4Access> {
                       ),
                       const SizedBox(height: 18),
 
-                      // Everyone (disabled when Private)
+                      // Everyone can vote (Disabled when Private)
                       Opacity(
-                        opacity: widget.visibility == 'Private' ? 0.4 : 1.0,
-                        child: IgnorePointer(
-                          ignoring: widget.visibility == 'Private',
-                          child: _buildToggleRow(
-                            title: 'Everyone can vote',
-                            subtitle: 'All listeners can upvote tracks',
-                            value: widget.votingRule == 'Everyone',
-                            onChanged: (enabled) {
-                              if (enabled) {
-                                widget.onVotingRuleChanged('Everyone');
-                              }
-                            },
-                            theme: theme,
-                          ),
+                        opacity: isPrivate ? 0.4 : 1.0,
+                        child: _buildToggleRow(
+                          title: 'Everyone can vote',
+                          subtitle: 'All listeners can upvote tracks',
+                          value: isEveryone,
+                          onChanged: isPrivate
+                              ? null
+                              : (enabled) {
+                                  if (enabled) {
+                                    widget.onVotingRuleChanged('Everyone');
+                                  } else {
+                                    widget.onVotingRuleChanged('Invited Only');
+                                  }
+                                },
+                          theme: theme,
                         ),
                       ),
                       const SizedBox(height: 14),
@@ -300,12 +308,16 @@ class _Step4AccessState extends State<Step4Access> {
                       _buildToggleRow(
                         title: 'Invited Only',
                         subtitle: 'Only explicitly invited users can vote',
-                        value: widget.votingRule == 'Invited Only',
-                        onChanged: (enabled) {
-                          if (enabled) {
-                            widget.onVotingRuleChanged('Invited Only');
-                          }
-                        },
+                        value: isInvitedOnly,
+                        onChanged: isPrivate
+                            ? null
+                            : (enabled) {
+                                if (enabled) {
+                                  widget.onVotingRuleChanged('Invited Only');
+                                } else {
+                                  widget.onVotingRuleChanged('Everyone');
+                                }
+                              },
                         theme: theme,
                       ),
                       const SizedBox(height: 14),
@@ -316,9 +328,7 @@ class _Step4AccessState extends State<Step4Access> {
                         subtitle: 'Strict access requirements',
                         value: showDynamicUI,
                         onChanged: (enabled) {
-                          widget.onVotingRuleChanged(
-                            enabled ? 'Location & Time' : 'Everyone',
-                          );
+                          widget.onRestrictedChanged(enabled);
                         },
                         theme: theme,
                       ),
@@ -705,7 +715,7 @@ class _Step4AccessState extends State<Step4Access> {
     required String title,
     required String subtitle,
     required bool value,
-    required ValueChanged<bool> onChanged,
+    required ValueChanged<bool>? onChanged,
     required ThemeData theme,
   }) {
     return Row(
