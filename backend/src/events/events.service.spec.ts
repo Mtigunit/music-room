@@ -36,27 +36,6 @@ describe('EventsService', () => {
     expect(service).toBeDefined();
   });
 
-  describe('appendTracks', () => {
-    it('should call eventsRepository.appendTracks with correct parameters', async () => {
-      const eventId = '740777df-e348-40b6-925e-4c0f020cf68c';
-      const userId = 'user-1';
-      const tracks = [
-        {
-          providerTrackId: 'zaGHlRk1Aq0',
-          title: 'A MESSAGE TO DIE FOR',
-          durationMs: 362000,
-        },
-      ];
-      const spy = jest
-        .spyOn(repository, 'appendTracks')
-        .mockResolvedValue(undefined as never);
-
-      await service.appendTracks(eventId, userId, tracks);
-
-      expect(spy).toHaveBeenCalledWith(eventId, userId, tracks);
-    });
-  });
-
   describe('inviteUser', () => {
     it('should call eventsRepository.inviteUser with correct parameters', async () => {
       const eventId = '740777df-e348-40b6-925e-4c0f020cf68c';
@@ -70,6 +49,21 @@ describe('EventsService', () => {
       await service.inviteUser(eventId, hostId, invitedUserId);
 
       expect(spy).toHaveBeenCalledWith(eventId, hostId, invitedUserId);
+    });
+  });
+
+  describe('getTracks', () => {
+    it('should call eventsRepository.getTracks with correct parameters', async () => {
+      const eventId = '740777df-e348-40b6-925e-4c0f020cf68c';
+      const userId = 'user-1';
+
+      const spy = jest
+        .spyOn(repository, 'getTracks')
+        .mockResolvedValue([] as never);
+
+      await service.getTracks(eventId, userId);
+
+      expect(spy).toHaveBeenCalledWith(eventId, userId);
     });
   });
 });

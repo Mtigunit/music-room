@@ -1,13 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsArray,
-  ArrayMinSize,
-  ValidateNested,
-  IsString,
-  IsInt,
-  IsOptional,
-} from 'class-validator';
-import { Type } from 'class-transformer';
+import { IsString, IsInt, IsOptional } from 'class-validator';
 
 export class AppendedTrackDto {
   @ApiProperty()
@@ -31,13 +23,4 @@ export class AppendedTrackDto {
   @IsOptional()
   @IsString()
   thumbnailUrl?: string;
-}
-
-export class AppendTracksDto {
-  @ApiProperty({ type: [AppendedTrackDto] })
-  @IsArray()
-  @ArrayMinSize(1)
-  @ValidateNested({ each: true })
-  @Type(() => AppendedTrackDto)
-  tracks: AppendedTrackDto[];
 }

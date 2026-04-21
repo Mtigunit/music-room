@@ -387,89 +387,6 @@ export class EventsRepository {
     });
   }
 
-  async appendTracks(
-    id: string,
-    userId: string,
-    tracksInput: {
-      providerTrackId: string;
-      title: string;
-      artist?: string;
-      durationMs: number;
-      thumbnailUrl?: string;
-    }[],
-  ) {
-    return this.prisma.$transaction(async (tx) => {
-      // 0. Check event exists and access rules
-      const existingEvent = await tx.event.findUnique({
-        where: { id },
-        include: { invites: true },
-      });
-      if (!existingEvent) {
-        throw new NotFoundException(`Event with ID ${id} not found`);
-      }
-
-      if (
-        existingEvent.visibility !== Visibility.PUBLIC &&
-        existingEvent.hostId !== userId &&
-        !existingEvent.invites.some((i) => i.userId === userId)
-      ) {
-        throw new ForbiddenException(
-          'You do not have permission to append tracks to this event',
-        );
-      }
-
-      // 1. Process tracks
-      if (tracksInput && tracksInput.length > 0) {
-        const uniqueProviderTrackIds = Array.from(
-          new Set(tracksInput.map((t) => t.providerTrackId)),
-        );
-
-        // Deduplicate input tracks based on providerTrackId
-        const uniqueTracksToInsert = uniqueProviderTrackIds.map(
-          (provideId) =>
-            tracksInput.find((t) => t.providerTrackId === provideId)!,
-        );
-
-        // Insert new tracks or find existing ones safely via `skipDuplicates`
-        await tx.track.createMany({
-          data: uniqueTracksToInsert.map((t) => ({
-            providerTrackId: t.providerTrackId,
-            title: t.title,
-            artist: t.artist || '',
-            durationMs: t.durationMs,
-            thumbnailUrl: t.thumbnailUrl || '',
-          })),
-          skipDuplicates: true, // Requires Postgres DB connector
-        });
-
-        // Fetch inserted / existing Track IDs
-        const tracks = await tx.track.findMany({
-          where: { providerTrackId: { in: uniqueProviderTrackIds } },
-          select: { id: true },
-        });
-
-        const uniqueTrackIds = tracks.map((t) => t.id);
-
-        // 2. Create EventTrack records
-        const eventTracksData = uniqueTrackIds.map((trackId) => ({
-          eventId: id,
-          trackId,
-          status: TrackStatus.QUEUED,
-        }));
-
-        await tx.eventTrack.createMany({
-          data: eventTracksData,
-          skipDuplicates: true, // Requires Postgres DB connector
-        });
-      }
-
-      return tx.event.findUnique({
-        where: { id },
-        include: { tracks: true },
-      });
-    });
-  }
-
   async inviteUser(eventId: string, hostId: string, invitedUserId: string) {
     const event = await this.prisma.event.findUnique({
       where: { id: eventId },
@@ -517,6 +434,39 @@ export class EventsRepository {
         status: 'pending',
       },
     });
+  }
+
+  async getTracks(id: string, userId: string) {
+    const existingEvent = await this.prisma.event.findUnique({
+      where: { id },
+      include: {
+        invites: true,
+        tracks: {
+          include: {
+            track: true,
+          },
+          orderBy: {
+            voteScore: 'desc',
+          },
+        },
+      },
+    });
+
+    if (!existingEvent) {
+      throw new NotFoundException(`Event with ID ${id} not found`);
+    }
+
+    if (
+      existingEvent.visibility !== 'PUBLIC' &&
+      existingEvent.hostId !== userId &&
+      !existingEvent.invites.some((i) => i.userId === userId)
+    ) {
+      throw new ForbiddenException(
+        'You do not have permission to view tracks for this event',
+      );
+    }
+
+    return existingEvent.tracks;
   }
 
   async remove(id: string, userId: string) {

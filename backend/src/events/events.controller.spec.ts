@@ -3,7 +3,6 @@ import { EventsController } from './events.controller';
 import { EventsService } from './events.service';
 import { EventsRepository } from './events.repository';
 import { PrismaService } from '../prisma/prisma.service';
-import { AppendTracksDto } from './dto/append-tracks.dto';
 import type { Request } from 'express';
 
 describe('EventsController', () => {
@@ -40,32 +39,6 @@ describe('EventsController', () => {
     expect(controller).toBeDefined();
   });
 
-  describe('appendTracks', () => {
-    it('should call eventsService.appendTracks with correct parameters', async () => {
-      const eventId = '740777df-e348-40b6-925e-4c0f020cf68c';
-      const userId = 'user-1';
-      const tracks = [
-        {
-          providerTrackId: 'zaGHlRk1Aq0',
-          title: 'A MESSAGE TO DIE FOR',
-          durationMs: 362000,
-        },
-      ];
-      const req = { user: { id: userId } } as unknown as Request;
-      const spy = jest
-        .spyOn(service, 'appendTracks')
-        .mockResolvedValue(undefined as never);
-
-      await controller.appendTracks(
-        eventId,
-        { tracks } as AppendTracksDto,
-        req,
-      );
-
-      expect(spy).toHaveBeenCalledWith(eventId, userId, tracks);
-    });
-  });
-
   describe('inviteUser', () => {
     it('should call eventsService.inviteUser with correct parameters', async () => {
       const eventId = '740777df-e348-40b6-925e-4c0f020cf68c';
@@ -82,6 +55,23 @@ describe('EventsController', () => {
       await controller.inviteUser(eventId, dto, req);
 
       expect(spy).toHaveBeenCalledWith(eventId, hostId, invitedUserId);
+    });
+  });
+
+  describe('getTracks', () => {
+    it('should call eventsService.getTracks with correct parameters', async () => {
+      const eventId = '740777df-e348-40b6-925e-4c0f020cf68c';
+      const userId = 'user-1';
+
+      const req = { user: { id: userId } } as unknown as Request;
+
+      const spy = jest
+        .spyOn(service, 'getTracks')
+        .mockResolvedValue([] as never);
+
+      await controller.getTracks(eventId, req);
+
+      expect(spy).toHaveBeenCalledWith(eventId, userId);
     });
   });
 });

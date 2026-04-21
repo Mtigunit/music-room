@@ -29,7 +29,6 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { EventsService } from './events.service';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
-import { AppendTracksDto } from './dto/append-tracks.dto';
 import { InviteUserDto } from './dto/invite-user.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { Request } from 'express';
@@ -154,25 +153,6 @@ export class EventsController {
     return this.eventsService.update(id, userId, updateEventDto);
   }
 
-  @Post(':id/tracks')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Append tracks to an event' })
-  @ApiParam({ name: 'id', type: String })
-  @ApiConsumes('application/json')
-  @ApiBody({ type: AppendTracksDto })
-  @ApiResponse({ status: 201, description: 'Tracks appended successfully.' })
-  @ApiResponse({ status: 403, description: 'Forbidden. No access to event.' })
-  @ApiResponse({ status: 404, description: 'Event not found.' })
-  appendTracks(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() appendTracksDto: AppendTracksDto,
-    @Req() req: Request,
-  ) {
-    const userId = (req.user as { id: string }).id;
-    return this.eventsService.appendTracks(id, userId, appendTracksDto.tracks);
-  }
-
   @Post(':id/invites')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -193,6 +173,19 @@ export class EventsController {
   ) {
     const hostId = (req.user as { id: string }).id;
     return this.eventsService.inviteUser(id, hostId, inviteUserDto.userId);
+  }
+
+  @Get(':id/tracks')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get tracks of an event' })
+  @ApiParam({ name: 'id', type: String })
+  @ApiResponse({ status: 200, description: 'Event tracks retrieved.' })
+  @ApiResponse({ status: 403, description: 'Forbidden. No access to event.' })
+  @ApiResponse({ status: 404, description: 'Event not found.' })
+  getTracks(@Param('id', ParseUUIDPipe) id: string, @Req() req: Request) {
+    const userId = (req.user as { id: string }).id;
+    return this.eventsService.getTracks(id, userId);
   }
 
   @Delete(':id')
