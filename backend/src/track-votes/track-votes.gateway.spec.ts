@@ -74,7 +74,11 @@ describe('TrackVotesGateway', () => {
       } as unknown as Socket;
 
       // Act
-      const result = await gateway.handleTrackVote(mockClient, payload);
+      const result = await gateway.handleTrackVote(
+        mockClient,
+        payload,
+        mockClient.data.user,
+      );
 
       // Assert
       expect(service.recordVote).toHaveBeenCalledWith(payload, 'user-123');

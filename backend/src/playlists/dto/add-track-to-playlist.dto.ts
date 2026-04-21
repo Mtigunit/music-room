@@ -1,12 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsDefined, ValidateNested } from 'class-validator';
-import { TrackSearchResultDto } from '../../tracks/dto/track-search-result.dto';
+import { IsNotEmpty, IsString } from 'class-validator';
 
 export class AddTrackToPlaylistDto {
-  @ApiProperty({ type: TrackSearchResultDto })
-  @IsDefined()
-  @ValidateNested()
-  @Type(() => TrackSearchResultDto)
-  track!: TrackSearchResultDto;
+  @ApiProperty({
+    example: 'dQw4w9WgXcQ',
+    description:
+      'The unique ID of the track from the provider (e.g. YouTube video ID)',
+  })
+  @IsString()
+  @IsNotEmpty()
+  providerTrackId!: string;
 }

@@ -109,40 +109,24 @@ mobile-lockfile:
 # ========================
 
 .PHONY: backend
-backend: docker-up
-	@if [ -f $(BACKEND_DIR)/package.json ]; then \
-		cd $(BACKEND_DIR) && npm run start:dev; \
-	else \
-		printf "%b\\n" "$(COLOR_WARN)No backend yet$(COLOR_RESET)"; \
-	fi
-	@printf "%b\n" "$(COLOR_SUCCESS)Done: backend run command check completed.$(COLOR_RESET)"
+backend:
+	cd $(BACKEND_DIR) && npm run start:dev
 
 .PHONY: backend-lint
 backend-lint:
-	@if [ -f $(BACKEND_DIR)/package.json ]; then \
-		cd $(BACKEND_DIR) && npm run lint:fix; \
-	else \
-		printf "%b\\n" "$(COLOR_WARN)No backend lint$(COLOR_RESET)"; \
-	fi
-	@printf "%b\n" "$(COLOR_SUCCESS)Done: backend lint check completed.$(COLOR_RESET)"
+	cd $(BACKEND_DIR) && npm run lint:fix
 
 .PHONY: backend-test
 backend-test:
-	@if [ -f $(BACKEND_DIR)/package.json ]; then \
-		cd $(BACKEND_DIR) && npm run test; \
-	else \
-		printf "%b\\n" "$(COLOR_WARN)No backend tests$(COLOR_RESET)"; \
-	fi
-	@printf "%b\n" "$(COLOR_SUCCESS)Done: backend test check completed.$(COLOR_RESET)"
+	cd $(BACKEND_DIR) && npm run test
+
+.PHONY: backend-test-e2e
+backend-test-e2e:
+	cd $(BACKEND_DIR) && npm run test:e2e
 
 .PHONY: backend-format
 backend-format:
-	@if [ -f $(BACKEND_DIR)/package.json ]; then \
-		cd $(BACKEND_DIR) && npm run format; \
-	else \
-		printf "%b\\n" "$(COLOR_WARN)No backend format$(COLOR_RESET)"; \
-	fi
-	@printf "%b\n" "$(COLOR_SUCCESS)Done: backend formatting completed.$(COLOR_RESET)"
+	cd $(BACKEND_DIR) && npm run format
 
 .PHONY: backend-prepare
 backend-prepare:

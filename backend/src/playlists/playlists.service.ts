@@ -3,17 +3,24 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
 } from '@nestjs/common';
+import { PlaylistsGateway } from './playlists.gateway';
 import { CreatePlaylistDto } from './dto/create-playlist.dto';
 import { UpdatePlaylistDto } from './dto/update-playlist.dto';
 import { PlaylistsRepository } from './playlists.repository';
-import { TrackSearchResultDto } from '../tracks/dto/track-search-result.dto';
 import { PaginationDto } from '../common/dto/pagination.dto';
-import { PlaylistEditLicense, Tags, Visibility } from '@prisma/client';
+import { PlaylistAuthData } from './interfaces/playlist-auth-data.interface';
+import { PlaylistEditLicense, Prisma, Tags, Visibility } from '@prisma/client';
+import { YoutubeService } from '../tracks/youtube.service';
 
 @Injectable()
 export class PlaylistsService {
-  constructor(private readonly playlistsRepository: PlaylistsRepository) {}
+  constructor(
+    private readonly playlistsRepository: PlaylistsRepository,
+    private readonly playlistsGateway: PlaylistsGateway,
+    private readonly youtubeService: YoutubeService,
+  ) {}
 
   async create(userId: string, createPlaylistDto: CreatePlaylistDto) {
     return this.playlistsRepository.createPlaylist(userId, createPlaylistDto);
@@ -121,10 +128,39 @@ export class PlaylistsService {
     return this.playlistsRepository.addCollaborator(playlistId, targetUserId);
   }
 
+  private verifyEditAccess(playlist: PlaylistAuthData, requesterId: string) {
+    const isOwner = playlist.ownerId === requesterId;
+    const isCollaborator = playlist.collaborators.some(
+      (c) => c.userId === requesterId,
+    );
+
+    // 1. VISIBILITY FIREWALL: Can the user even see this playlist anymore?
+    if (
+      playlist.visibility === Visibility.PRIVATE &&
+      !isOwner &&
+      !isCollaborator
+    ) {
+      throw new ForbiddenException(
+        'You do not have permission to interact with this private playlist',
+      );
+    }
+
+    // 2. RESTRICTED FIREWALL: Is the playlist locked against non-collaborator edits?
+    if (
+      playlist.editLicense === PlaylistEditLicense.RESTRICTED &&
+      !isOwner &&
+      !isCollaborator
+    ) {
+      throw new ForbiddenException(
+        'This playlist is restricted to collaborators only.',
+      );
+    }
+  }
+
   async addTrackToPlaylist(
     playlistId: string,
     addedById: string,
-    track: TrackSearchResultDto,
+    providerTrackId: string,
   ) {
     const playlist =
       await this.playlistsRepository.findPlaylistForAuth(playlistId);
@@ -132,32 +168,99 @@ export class PlaylistsService {
       throw new NotFoundException('Playlist not found');
     }
 
-    const isOwner = playlist.ownerId === addedById;
-    const isCollaborator = playlist.collaborators.some(
-      (c) => c.userId === addedById,
-    );
+    // Shared Firewall: Blocks unauthorized interaction with Private or Restricted lists.
+    this.verifyEditAccess(playlist, addedById);
 
-    if (playlist.visibility === Visibility.PRIVATE) {
-      if (!isOwner && !isCollaborator) {
-        throw new ForbiddenException(
-          'You do not have permission to add tracks to this private playlist',
-        );
-      }
+    // Constraint 1: Hard Cap
+    if (playlist._count.tracks >= 300) {
+      throw new BadRequestException(
+        'Playlist has reached the maximum capacity of 300 tracks.',
+      );
     }
 
-    // Validate editLicense restrictions
-    if (playlist.editLicense === PlaylistEditLicense.RESTRICTED) {
-      if (!isOwner && !isCollaborator) {
-        throw new ForbiddenException(
-          'You do not have permission to add tracks to this playlist',
-        );
-      }
+    // Constraint 2: Source of Truth (Spoofing prevention)
+    const trackDetails =
+      await this.youtubeService.getTrackDetails(providerTrackId);
+    if (!trackDetails) {
+      throw new NotFoundException('Track not found from provider');
     }
 
-    return this.playlistsRepository.addTrackToPlaylist(
+    // Constraint 3: Unique tracks per playlist
+    const isDuplicate = await this.playlistsRepository.isTrackInPlaylist(
       playlistId,
-      addedById,
-      track,
+      providerTrackId,
     );
+    if (isDuplicate) {
+      throw new ConflictException('This track is already in the playlist');
+    }
+
+    try {
+      const result = await this.playlistsRepository.addTrackToPlaylist(
+        playlistId,
+        addedById,
+        trackDetails,
+      );
+
+      this.playlistsGateway.server
+        ?.to(`playlist_${playlistId}`)
+        ?.emit('playlist:track:added', result);
+
+      return result;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException('This track is already in the playlist');
+      }
+      throw error;
+    }
+  }
+
+  async removeTrackFromPlaylist(
+    playlistId: string,
+    trackId: string,
+    requesterId: string,
+  ) {
+    const playlist =
+      await this.playlistsRepository.findPlaylistForAuth(playlistId);
+    if (!playlist) {
+      throw new NotFoundException('Playlist not found');
+    }
+
+    // Shared Firewall: Blocks unauthorized interaction with Private or Restricted lists.
+    // Meaning even if they are 'addedById', they cannot delete if they lost broad access.
+    this.verifyEditAccess(playlist, requesterId);
+
+    const playlistTrack = await this.playlistsRepository.findPlaylistTrack(
+      playlistId,
+      trackId,
+    );
+    if (!playlistTrack) {
+      throw new NotFoundException('Track not found in playlist');
+    }
+
+    // 3. TRACK OWNERSHIP CHECK: Are you allowed to delete THIS specific track?
+    if (
+      playlist.ownerId !== requesterId &&
+      playlistTrack.addedById !== requesterId
+    ) {
+      throw new ForbiddenException(
+        'You can only remove tracks you added, unless you are the playlist owner',
+      );
+    }
+
+    const deleted = await this.playlistsRepository.removeTrackFromPlaylist(
+      playlistId,
+      trackId,
+    );
+
+    if (deleted) {
+      this.playlistsGateway.server
+        ?.to(`playlist_${playlistId}`)
+        ?.emit('playlist:track:removed', { trackId });
+    }
+
+    return deleted;
   }
 }

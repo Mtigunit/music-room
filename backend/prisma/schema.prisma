@@ -148,6 +148,9 @@ model PlaylistTrack {
   // This constraint guarantees that two tracks can NEVER occupy the exact same position
   // in the same playlist. This forces the PostgreSQL row-level locks to do their job!
   @@unique([playlistId, position])
+  
+  // Enforces that the exact same Track cannot be added multiple times to the same playlist.
+  @@unique([playlistId, trackId])
 }
 
 model PlaylistCollaborator {
