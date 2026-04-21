@@ -445,9 +445,14 @@ export class EventsRepository {
           include: {
             track: true,
           },
-          orderBy: {
-            voteScore: 'desc',
-          },
+          orderBy: [
+            {
+              voteScore: 'desc',
+            },
+            {
+              id: 'asc',
+            },
+          ],
         },
       },
     });
@@ -457,7 +462,7 @@ export class EventsRepository {
     }
 
     if (
-      existingEvent.visibility !== 'PUBLIC' &&
+      existingEvent.visibility !== Visibility.PUBLIC &&
       existingEvent.hostId !== userId &&
       !existingEvent.invites.some((i) => i.userId === userId)
     ) {
