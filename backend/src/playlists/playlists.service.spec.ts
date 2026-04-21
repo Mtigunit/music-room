@@ -454,7 +454,11 @@ describe('PlaylistsService', () => {
 
       const prismaError = new Prisma.PrismaClientKnownRequestError(
         'Unique constraint failed',
-        { code: 'P2002', clientVersion: '5.0.0' },
+        {
+          code: 'P2002',
+          clientVersion: '5.0.0',
+          meta: { target: ['trackId'] },
+        },
       );
       repository.addTrackToPlaylist.mockRejectedValue(prismaError);
 
@@ -470,6 +474,32 @@ describe('PlaylistsService', () => {
         .addTrackToPlaylist(PLAYLIST_ID, OWNER_ID, sampleTrack.providerTrackId)
         .catch((e) => e);
       expect(error.message).toBe('This track is already in the playlist');
+    });
+
+    it('should rethrow a P2002 error if it targets a different field (e.g., position collision)', async () => {
+      repository.findPlaylistForAuth.mockResolvedValueOnce(
+        buildPlaylist() as PlaylistAuthData,
+      );
+      youtubeService.getTrackDetails.mockResolvedValueOnce(sampleTrack);
+      repository.isTrackInPlaylist.mockResolvedValueOnce(false);
+
+      const prismaError = new Prisma.PrismaClientKnownRequestError(
+        'Unique constraint failed on position',
+        {
+          code: 'P2002',
+          clientVersion: '5.0.0',
+          meta: { target: ['position'] },
+        },
+      );
+      repository.addTrackToPlaylist.mockRejectedValueOnce(prismaError);
+
+      await expect(
+        service.addTrackToPlaylist(
+          PLAYLIST_ID,
+          OWNER_ID,
+          sampleTrack.providerTrackId,
+        ),
+      ).rejects.toThrow(Prisma.PrismaClientKnownRequestError);
     });
 
     it('should propagate InternalServerErrorException when provider service fails', async () => {
@@ -495,11 +525,11 @@ describe('PlaylistsService', () => {
   // ─── removeTrackFromPlaylist ──────────────────────────────
 
   describe('removeTrackFromPlaylist', () => {
-    const TRACK_ID = 'track-entry-uuid';
+    const PLAYLIST_TRACK_ID = 'track-entry-uuid';
     const ADDER_ID = 'adder-uuid';
 
     const mockPlaylistTrack = {
-      id: TRACK_ID,
+      id: PLAYLIST_TRACK_ID,
       playlistId: PLAYLIST_ID,
       trackId: 'track-dict-uuid',
       position: 2,
@@ -519,7 +549,11 @@ describe('PlaylistsService', () => {
       repository.findPlaylistForAuth.mockResolvedValueOnce(null);
 
       await expect(
-        service.removeTrackFromPlaylist(PLAYLIST_ID, TRACK_ID, OWNER_ID),
+        service.removeTrackFromPlaylist(
+          PLAYLIST_ID,
+          PLAYLIST_TRACK_ID,
+          OWNER_ID,
+        ),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -530,8 +564,30 @@ describe('PlaylistsService', () => {
       repository.findPlaylistTrack.mockResolvedValueOnce(null);
 
       await expect(
-        service.removeTrackFromPlaylist(PLAYLIST_ID, TRACK_ID, OWNER_ID),
+        service.removeTrackFromPlaylist(
+          PLAYLIST_ID,
+          PLAYLIST_TRACK_ID,
+          OWNER_ID,
+        ),
       ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw NotFoundException when track exists but belongs to a different playlist', async () => {
+      repository.findPlaylistForAuth.mockResolvedValueOnce(
+        buildPlaylist({ id: PLAYLIST_ID }) as PlaylistAuthData,
+      );
+      // Repository returns null because it now scopes the lookup by playlistId
+      repository.findPlaylistTrack.mockResolvedValueOnce(null);
+
+      await expect(
+        service.removeTrackFromPlaylist(
+          PLAYLIST_ID,
+          'track-from-another-playlist',
+          OWNER_ID,
+        ),
+      ).rejects.toThrow(NotFoundException);
+
+      expect(repository.removeTrackFromPlaylist).not.toHaveBeenCalled();
     });
 
     it('should allow the playlist owner to remove any track', async () => {
@@ -547,13 +603,13 @@ describe('PlaylistsService', () => {
 
       const result = await service.removeTrackFromPlaylist(
         PLAYLIST_ID,
-        TRACK_ID,
+        PLAYLIST_TRACK_ID,
         OWNER_ID,
       );
 
       expect(repository.removeTrackFromPlaylist).toHaveBeenCalledWith(
         PLAYLIST_ID,
-        TRACK_ID,
+        PLAYLIST_TRACK_ID,
       );
       expect(result).toEqual(mockPlaylistTrack);
     });
@@ -571,13 +627,13 @@ describe('PlaylistsService', () => {
 
       const result = await service.removeTrackFromPlaylist(
         PLAYLIST_ID,
-        TRACK_ID,
+        PLAYLIST_TRACK_ID,
         ADDER_ID,
       );
 
       expect(repository.removeTrackFromPlaylist).toHaveBeenCalledWith(
         PLAYLIST_ID,
-        TRACK_ID,
+        PLAYLIST_TRACK_ID,
       );
       expect(result).toEqual(mockPlaylistTrack);
     });
@@ -591,7 +647,11 @@ describe('PlaylistsService', () => {
       );
 
       await expect(
-        service.removeTrackFromPlaylist(PLAYLIST_ID, TRACK_ID, OTHER_USER_ID),
+        service.removeTrackFromPlaylist(
+          PLAYLIST_ID,
+          PLAYLIST_TRACK_ID,
+          OTHER_USER_ID,
+        ),
       ).rejects.toThrow(ForbiddenException);
 
       expect(repository.removeTrackFromPlaylist).not.toHaveBeenCalled();
@@ -622,12 +682,16 @@ describe('PlaylistsService', () => {
         mockPlaylistTrack as never,
       );
 
-      await svc.removeTrackFromPlaylist(PLAYLIST_ID, TRACK_ID, OWNER_ID);
+      await svc.removeTrackFromPlaylist(
+        PLAYLIST_ID,
+        PLAYLIST_TRACK_ID,
+        OWNER_ID,
+      );
 
       expect(gateway.server.to).toHaveBeenCalledWith(`playlist_${PLAYLIST_ID}`);
       expect(gateway.server.emit).toHaveBeenCalledWith(
         'playlist:track:removed',
-        { trackId: TRACK_ID },
+        { trackId: PLAYLIST_TRACK_ID },
       );
     });
 
@@ -653,7 +717,11 @@ describe('PlaylistsService', () => {
       );
       repository.removeTrackFromPlaylist.mockResolvedValueOnce(null);
 
-      await svc.removeTrackFromPlaylist(PLAYLIST_ID, TRACK_ID, OWNER_ID);
+      await svc.removeTrackFromPlaylist(
+        PLAYLIST_ID,
+        PLAYLIST_TRACK_ID,
+        OWNER_ID,
+      );
 
       expect(gateway.server.to).not.toHaveBeenCalled();
       expect(gateway.server.emit).not.toHaveBeenCalled();

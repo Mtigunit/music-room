@@ -9,7 +9,7 @@ import { SocketUser } from '../socket-auth.service';
  * Falls back to throwing a WsException if the user is missing.
  */
 export const WsUser = createParamDecorator(
-  (data: unknown, ctx: ExecutionContext): SocketUser => {
+  (_data: unknown, ctx: ExecutionContext): SocketUser => {
     const client = ctx.switchToWs().getClient<Socket>();
     const user = (client.data as { user?: SocketUser })?.user;
 

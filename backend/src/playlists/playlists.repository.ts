@@ -242,18 +242,18 @@ export class PlaylistsRepository {
     return !!playlistTrack;
   }
 
-  async findPlaylistTrack(playlistId: string, trackId: string) {
-    return this.prisma.playlistTrack.findUnique({
-      where: { id: trackId },
+  async findPlaylistTrack(playlistId: string, playlistTrackId: string) {
+    return this.prisma.playlistTrack.findFirst({
+      where: { id: playlistTrackId, playlistId },
       include: { track: true },
     });
   }
 
-  async removeTrackFromPlaylist(playlistId: string, trackId: string) {
+  async removeTrackFromPlaylist(playlistId: string, playlistTrackId: string) {
     return this.prisma.$transaction(async (tx) => {
-      // 1. Find the track to know its position
-      const track = await tx.playlistTrack.findUnique({
-        where: { id: trackId },
+      // 1. Find the track to know its position, scoped to the playlist
+      const track = await tx.playlistTrack.findFirst({
+        where: { id: playlistTrackId, playlistId },
         select: { position: true },
       });
 
@@ -261,9 +261,9 @@ export class PlaylistsRepository {
         return null;
       }
 
-      // 2. Delete the track
+      // 2. Delete the track, scoped to context
       const deletedTrack = await tx.playlistTrack.delete({
-        where: { id: trackId },
+        where: { id: playlistTrackId, playlistId },
         include: { track: true },
       });
 

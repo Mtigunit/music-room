@@ -211,7 +211,10 @@ export class PlaylistsService {
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002'
       ) {
-        throw new ConflictException('This track is already in the playlist');
+        const target = error.meta?.target as string[] | undefined;
+        if (target?.includes('trackId')) {
+          throw new ConflictException('This track is already in the playlist');
+        }
       }
       throw error;
     }
@@ -219,7 +222,7 @@ export class PlaylistsService {
 
   async removeTrackFromPlaylist(
     playlistId: string,
-    trackId: string,
+    playlistTrackId: string,
     requesterId: string,
   ) {
     const playlist =
@@ -234,7 +237,7 @@ export class PlaylistsService {
 
     const playlistTrack = await this.playlistsRepository.findPlaylistTrack(
       playlistId,
-      trackId,
+      playlistTrackId,
     );
     if (!playlistTrack) {
       throw new NotFoundException('Track not found in playlist');
@@ -252,13 +255,13 @@ export class PlaylistsService {
 
     const deleted = await this.playlistsRepository.removeTrackFromPlaylist(
       playlistId,
-      trackId,
+      playlistTrackId,
     );
 
     if (deleted) {
       this.playlistsGateway.server
         ?.to(`playlist_${playlistId}`)
-        ?.emit('playlist:track:removed', { trackId });
+        ?.emit('playlist:track:removed', { trackId: playlistTrackId });
     }
 
     return deleted;

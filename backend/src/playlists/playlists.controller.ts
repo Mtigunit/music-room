@@ -162,10 +162,10 @@ export class PlaylistsController {
     );
   }
 
-  @Delete(':id/tracks/:trackId')
+  @Delete(':id/tracks/:playlistTrackId')
   @ApiOperation({ summary: 'Remove a track from a playlist' })
   @ApiParam({ name: 'id', type: String, format: 'uuid' })
-  @ApiParam({ name: 'trackId', type: String, format: 'uuid' })
+  @ApiParam({ name: 'playlistTrackId', type: String, format: 'uuid' })
   @ApiResponse({ status: 200, description: 'Track removed from playlist.' })
   @ApiResponse({
     status: 403,
@@ -175,12 +175,12 @@ export class PlaylistsController {
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   removeTrackFromPlaylist(
     @Param('id', ParseUUIDPipe) playlistId: string,
-    @Param('trackId', ParseUUIDPipe) trackId: string,
+    @Param('playlistTrackId', ParseUUIDPipe) playlistTrackId: string,
     @Request() req: Express.Request,
   ) {
     return this.playlistsService.removeTrackFromPlaylist(
       playlistId,
-      trackId,
+      playlistTrackId,
       req.user!.id,
     );
   }
