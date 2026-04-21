@@ -717,11 +717,9 @@ describe('PlaylistsService', () => {
       );
       repository.removeTrackFromPlaylist.mockResolvedValueOnce(null);
 
-      await svc.removeTrackFromPlaylist(
-        PLAYLIST_ID,
-        PLAYLIST_TRACK_ID,
-        OWNER_ID,
-      );
+      await expect(
+        svc.removeTrackFromPlaylist(PLAYLIST_ID, PLAYLIST_TRACK_ID, OWNER_ID),
+      ).rejects.toThrow(NotFoundException);
 
       expect(gateway.server.to).not.toHaveBeenCalled();
       expect(gateway.server.emit).not.toHaveBeenCalled();
