@@ -258,12 +258,13 @@ export class PlaylistsService {
       playlistTrackId,
     );
 
-    if (deleted) {
-      this.playlistsGateway.server
-        ?.to(`playlist_${playlistId}`)
-        ?.emit('playlist:track:removed', { trackId: playlistTrackId });
+    if (!deleted) {
+      throw new NotFoundException('Track not found in playlist');
     }
 
+    this.playlistsGateway.server
+      ?.to(`playlist_${playlistId}`)
+      ?.emit('playlist:track:removed', { trackId: playlistTrackId });
     return deleted;
   }
 }
