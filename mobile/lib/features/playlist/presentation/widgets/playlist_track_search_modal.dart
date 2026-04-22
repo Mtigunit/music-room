@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:music_room/core/widgets/app_back_button.dart';
+import 'package:music_room/core/widgets/dynamic_search_bottom_sheet.dart';
 import 'package:music_room/features/playlist/data/datasources/playlist_remote_datasource.dart';
 import 'package:music_room/features/playlist/domain/entities/playlist_entity.dart';
 
@@ -24,9 +24,8 @@ class PlaylistTrackSearchModal extends StatefulWidget {
 class _PlaylistTrackSearchModalState extends State<PlaylistTrackSearchModal> {
   static const Duration _debounceDuration = Duration(milliseconds: 350);
 
-  final TextEditingController _searchController = TextEditingController();
-
   Timer? _debounce;
+  String _query = '';
   List<TrackSearchEntity> _results = const <TrackSearchEntity>[];
   bool _isLoading = false;
   String? _errorMessage;
@@ -36,7 +35,6 @@ class _PlaylistTrackSearchModalState extends State<PlaylistTrackSearchModal> {
   @override
   void dispose() {
     _debounce?.cancel();
-    _searchController.dispose();
     super.dispose();
   }
 
@@ -46,12 +44,17 @@ class _PlaylistTrackSearchModalState extends State<PlaylistTrackSearchModal> {
     final query = value.trim();
     if (query.isEmpty) {
       setState(() {
+        _query = '';
         _results = const <TrackSearchEntity>[];
         _errorMessage = null;
         _isLoading = false;
       });
       return;
     }
+
+    setState(() {
+      _query = query;
+    });
 
     _debounce = Timer(_debounceDuration, () {
       if (!mounted) {
@@ -128,90 +131,16 @@ class _PlaylistTrackSearchModalState extends State<PlaylistTrackSearchModal> {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final sheetBg = isDark ? const Color(0xFF151520) : colorScheme.surface;
-
-    return DraggableScrollableSheet(
-      expand: false,
-      initialChildSize: 0.92,
-      minChildSize: 0.5,
-      maxChildSize: 0.95,
-      builder: (context, scrollController) {
-        return Container(
-          decoration: BoxDecoration(
-            color: sheetBg,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Center(
-                child: Container(
-                  margin: const EdgeInsets.only(top: 12),
-                  width: 36,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: colorScheme.onSurface.withValues(alpha: 0.2),
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  children: [
-                    AppBackButton(
-                      padding: EdgeInsets.zero,
-                      onPressed: () => Navigator.of(context).pop(),
-                    ),
-                    const SizedBox(width: 14),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'Add a Song',
-                          style: textTheme.titleLarge?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            fontSize: 20,
-                          ),
-                        ),
-                        Text(
-                          'Search YouTube tracks and add to playlist',
-                          style: textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurface.withValues(alpha: 0.5),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: _ModalSearchField(
-                  controller: _searchController,
-                  isDark: isDark,
-                  colorScheme: colorScheme,
-                  onChanged: _onQueryChanged,
-                ),
-              ),
-              const SizedBox(height: 16),
-              Expanded(
-                child: _buildBody(scrollController),
-              ),
-            ],
-          ),
-        );
-      },
+    return DynamicSearchBottomSheet(
+      title: 'Add a Song',
+      subtitle: 'Search YouTube tracks and add to playlist',
+      searchHintText: 'Song, artist, or album...',
+      onSearchChanged: _onQueryChanged,
+      content: _buildBody(),
     );
   }
 
-  Widget _buildBody(ScrollController scrollController) {
+  Widget _buildBody() {
     if (_isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -228,7 +157,7 @@ class _PlaylistTrackSearchModalState extends State<PlaylistTrackSearchModal> {
       );
     }
 
-    final hasQuery = _searchController.text.trim().isNotEmpty;
+    final hasQuery = _query.isNotEmpty;
     if (!hasQuery) {
       return const Center(child: Text('Search for a song to add.'));
     }
@@ -240,7 +169,6 @@ class _PlaylistTrackSearchModalState extends State<PlaylistTrackSearchModal> {
     }
 
     return ListView.separated(
-      controller: scrollController,
       padding: const EdgeInsets.symmetric(horizontal: 20),
       itemCount: _results.length,
       separatorBuilder: (_, index) => const SizedBox(height: 4),
@@ -255,70 +183,6 @@ class _PlaylistTrackSearchModalState extends State<PlaylistTrackSearchModal> {
           },
         );
       },
-    );
-  }
-}
-
-class _ModalSearchField extends StatelessWidget {
-  const _ModalSearchField({
-    required this.controller,
-    required this.isDark,
-    required this.colorScheme,
-    required this.onChanged,
-  });
-
-  final TextEditingController controller;
-  final bool isDark;
-  final ColorScheme colorScheme;
-  final ValueChanged<String> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final fieldBg = isDark
-        ? Colors.white.withValues(alpha: 0.06)
-        : Colors.black.withValues(alpha: 0.05);
-
-    return Container(
-      decoration: BoxDecoration(
-        color: fieldBg,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: colorScheme.onSurface.withValues(alpha: 0.1),
-        ),
-      ),
-      child: Row(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14),
-            child: Icon(
-              Icons.search,
-              size: 20,
-              color: colorScheme.onSurface.withValues(alpha: 0.4),
-            ),
-          ),
-          Expanded(
-            child: TextField(
-              controller: controller,
-              onChanged: onChanged,
-              textInputAction: TextInputAction.search,
-              style: TextStyle(
-                color: colorScheme.onSurface,
-                fontSize: 15,
-              ),
-              decoration: InputDecoration(
-                hintText: 'Song, artist, or album...',
-                hintStyle: TextStyle(
-                  color: colorScheme.onSurface.withValues(alpha: 0.35),
-                  fontSize: 15,
-                ),
-                border: InputBorder.none,
-                isDense: true,
-                contentPadding: const EdgeInsets.symmetric(vertical: 14),
-              ),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
