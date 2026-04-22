@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ForbiddenException,
   ConflictException,
+  BadRequestException,
 } from '@nestjs/common';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
@@ -87,16 +88,12 @@ export class EventsRepository {
       }
 
       if (tracks && tracks.length > 0) {
-        const uniqueProviderTrackIds = Array.from(
-          new Set(tracks.map((t) => t.providerTrackId)),
-        );
+        const uniqueProviderTrackIds = Array.from(new Set(tracks));
 
-        const uniqueTracksToInsert = uniqueProviderTrackIds.map(
-          (provideId) => tracks.find((t) => t.providerTrackId === provideId)!,
-        );
+        const fetchedMetadata = this.fetchTrackMetadata(uniqueProviderTrackIds);
 
         await tx.track.createMany({
-          data: uniqueTracksToInsert.map((t) => ({
+          data: fetchedMetadata.map((t) => ({
             providerTrackId: t.providerTrackId,
             title: t.title,
             artist: t.artist || '',
@@ -122,6 +119,7 @@ export class EventsRepository {
         const eventTracksData = finalTrackIds.map((trackId) => ({
           eventId: event.id,
           trackId,
+          addedById: hostId,
           status: TrackStatus.QUEUED,
         }));
 
@@ -341,16 +339,14 @@ export class EventsRepository {
         }
 
         if (tracks && tracks.length > 0) {
-          const uniqueProviderTrackIds = Array.from(
-            new Set(tracks.map((t) => t.providerTrackId)),
-          );
+          const uniqueProviderTrackIds = Array.from(new Set(tracks));
 
-          const uniqueTracksToInsert = uniqueProviderTrackIds.map(
-            (provideId) => tracks.find((t) => t.providerTrackId === provideId)!,
+          const fetchedMetadata = this.fetchTrackMetadata(
+            uniqueProviderTrackIds,
           );
 
           await tx.track.createMany({
-            data: uniqueTracksToInsert.map((t) => ({
+            data: fetchedMetadata.map((t) => ({
               providerTrackId: t.providerTrackId,
               title: t.title,
               artist: t.artist || '',
@@ -374,6 +370,7 @@ export class EventsRepository {
           const eventTracksData = finalTrackIds.map((trackId) => ({
             eventId: id,
             trackId,
+            addedById: userId,
             status: TrackStatus.QUEUED,
           }));
 
@@ -502,5 +499,176 @@ export class EventsRepository {
       }
       throw error;
     }
+  }
+
+  async appendTrack(
+    eventId: string,
+    userId: string,
+    providerTrackIds: string[],
+  ) {
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+      include: {
+        invites: true,
+      },
+    });
+
+    if (!event) {
+      throw new NotFoundException(`Event with ID ${eventId} not found`);
+    }
+
+    if (
+      event.visibility !== Visibility.PUBLIC &&
+      event.hostId !== userId &&
+      !event.invites.some((i) => i.userId === userId)
+    ) {
+      throw new ForbiddenException(
+        'You do not have permission to append tracks to this event',
+      );
+    }
+
+    const uniqueProviderTrackIds = Array.from(
+      new Set(providerTrackIds.map((id) => id.trim()).filter((id) => id)),
+    );
+
+    if (uniqueProviderTrackIds.length === 0) {
+      throw new BadRequestException(
+        'At least one provider track ID is required',
+      );
+    }
+
+    const fetchedMetadata = this.fetchTrackMetadata(uniqueProviderTrackIds);
+
+    const tracks = await Promise.all(
+      fetchedMetadata.map((trackDetails) =>
+        this.prisma.track.upsert({
+          where: { providerTrackId: trackDetails.providerTrackId },
+          create: {
+            providerTrackId: trackDetails.providerTrackId,
+            title: trackDetails.title,
+            artist: trackDetails.artist || '',
+            durationMs: trackDetails.durationMs,
+            thumbnailUrl: trackDetails.thumbnailUrl || '',
+          },
+          update: {
+            title: trackDetails.title,
+            artist: trackDetails.artist || '',
+            durationMs: trackDetails.durationMs,
+            thumbnailUrl: trackDetails.thumbnailUrl || '',
+          },
+        }),
+      ),
+    );
+
+    const trackIds = tracks.map((track) => track.id);
+
+    const existingEventTracks = await this.prisma.eventTrack.findMany({
+      where: {
+        eventId,
+        trackId: { in: trackIds },
+      },
+      include: {
+        track: {
+          select: {
+            providerTrackId: true,
+          },
+        },
+      },
+    });
+
+    if (existingEventTracks.length > 0) {
+      const existingProviderIds = existingEventTracks.map(
+        (eventTrack) => eventTrack.track.providerTrackId,
+      );
+      throw new ConflictException(
+        `Tracks are already attached to this event: ${existingProviderIds.join(', ')}`,
+      );
+    }
+
+    await this.prisma.eventTrack.createMany({
+      data: trackIds.map((trackId) => ({
+        eventId,
+        trackId,
+        addedById: userId,
+        status: TrackStatus.QUEUED,
+      })),
+    });
+
+    return this.prisma.eventTrack.findMany({
+      where: {
+        eventId,
+        trackId: { in: trackIds },
+      },
+      include: {
+        track: true,
+      },
+      orderBy: {
+        id: 'asc',
+      },
+    });
+  }
+
+  async removeTrack(eventId: string, providerTrackId: string, userId: string) {
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+      select: { hostId: true },
+    });
+
+    if (!event) {
+      throw new NotFoundException(`Event with ID ${eventId} not found`);
+    }
+
+    const eventTrack = await this.prisma.eventTrack.findFirst({
+      where: {
+        eventId,
+        track: {
+          providerTrackId,
+        },
+      },
+      select: {
+        id: true,
+        trackId: true,
+        addedById: true,
+        track: {
+          select: {
+            providerTrackId: true,
+          },
+        },
+      },
+    });
+
+    if (!eventTrack) {
+      throw new NotFoundException(
+        `Track with provider ID ${providerTrackId} not found in event`,
+      );
+    }
+
+    if (event.hostId !== userId && eventTrack.addedById !== userId) {
+      throw new ForbiddenException(
+        'Only the event host or the user who added this track can remove it',
+      );
+    }
+
+    await this.prisma.eventTrack.delete({
+      where: {
+        id: eventTrack.id,
+      },
+    });
+
+    return {
+      trackId: eventTrack.trackId,
+      providerTrackId: eventTrack.track.providerTrackId,
+    };
+  }
+
+  private fetchTrackMetadata(providerTrackIds: string[]) {
+    // Placeholder for actual external provider integration
+    return providerTrackIds.map((id) => ({
+      providerTrackId: id,
+      title: 'A MESSAGE TO DIE FOR - A Die Remix',
+      artist: 'lubario',
+      durationMs: 362000,
+      thumbnailUrl: `https://i.ytimg.com/vi/${id}/maxresdefault.jpg`,
+    }));
   }
 }

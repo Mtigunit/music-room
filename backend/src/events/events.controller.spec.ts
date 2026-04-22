@@ -3,6 +3,7 @@ import { EventsController } from './events.controller';
 import { EventsService } from './events.service';
 import { EventsRepository } from './events.repository';
 import { PrismaService } from '../prisma/prisma.service';
+import { SocketIoGateway } from '../websockets/socket-io.gateway';
 import type { Request } from 'express';
 
 describe('EventsController', () => {
@@ -25,6 +26,15 @@ describe('EventsController', () => {
               findUnique: jest.fn(),
               update: jest.fn(),
               delete: jest.fn(),
+            },
+          },
+        },
+        {
+          provide: SocketIoGateway,
+          useValue: {
+            server: {
+              to: jest.fn().mockReturnThis(),
+              emit: jest.fn(),
             },
           },
         },

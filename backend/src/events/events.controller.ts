@@ -14,6 +14,7 @@ import {
   Query,
   ParseIntPipe,
   DefaultValuePipe,
+  ParseArrayPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -202,5 +203,49 @@ export class EventsController {
   remove(@Param('id', ParseUUIDPipe) id: string, @Req() req: Request) {
     const userId = (req.user as { id: string }).id;
     return this.eventsService.remove(id, userId);
+  }
+
+  @Post(':eventId/tracks')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Append tracks to an event' })
+  @ApiParam({ name: 'eventId', type: String })
+  @ApiBody({
+    schema: {
+      type: 'array',
+      items: {
+        type: 'string',
+      },
+      example: ['zaGHlRk1Aq0'],
+    },
+  })
+  @ApiResponse({ status: 201, description: 'Tracks added successfully.' })
+  @ApiResponse({ status: 403, description: 'Forbidden.' })
+  @ApiResponse({ status: 404, description: 'Event not found.' })
+  appendTrack(
+    @Param('eventId', ParseUUIDPipe) eventId: string,
+    @Body(new ParseArrayPipe({ items: String })) providerTrackIds: string[],
+    @Req() req: Request,
+  ) {
+    const userId = (req.user as { id: string }).id;
+    return this.eventsService.appendTrack(eventId, userId, providerTrackIds);
+  }
+
+  @Delete(':eventId/tracks/:providerTrackId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Remove a track from an event by provider ID' })
+  @ApiParam({ name: 'eventId', type: String })
+  @ApiParam({ name: 'providerTrackId', type: String })
+  @ApiResponse({ status: 200, description: 'Track removed successfully.' })
+  @ApiResponse({ status: 403, description: 'Forbidden.' })
+  @ApiResponse({ status: 404, description: 'Event or Track not found.' })
+  removeTrack(
+    @Param('eventId', ParseUUIDPipe) eventId: string,
+    @Param('providerTrackId') providerTrackId: string,
+    @Req() req: Request,
+  ) {
+    const userId = (req.user as { id: string }).id;
+    return this.eventsService.removeTrack(eventId, providerTrackId, userId);
   }
 }

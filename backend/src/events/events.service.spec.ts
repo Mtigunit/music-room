@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { EventsService } from './events.service';
 import { EventsRepository } from './events.repository';
 import { PrismaService } from '../prisma/prisma.service';
+import { SocketIoGateway } from '../websockets/socket-io.gateway';
 
 describe('EventsService', () => {
   let service: EventsService;
@@ -22,6 +23,15 @@ describe('EventsService', () => {
               findUnique: jest.fn(),
               update: jest.fn(),
               delete: jest.fn(),
+            },
+          },
+        },
+        {
+          provide: SocketIoGateway,
+          useValue: {
+            server: {
+              to: jest.fn().mockReturnThis(),
+              emit: jest.fn(),
             },
           },
         },
