@@ -8,6 +8,8 @@
 	<string>This app needs access to your photo library to let you upload event covers and profile pictures.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>This app needs camera access to let you take a photo for event covers and profile pictures.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>This app uses your location to help you set the event access area on the map.</string>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
@@ -28,6 +30,8 @@
 	<string>????</string>
 	<key>CFBundleVersion</key>
 	<string>$(FLUTTER_BUILD_NUMBER)</string>
+	<key>GoogleMapsAPIKey</key>
+	<string>$(Maps_API_KEY)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>UIApplicationSceneManifest</key>

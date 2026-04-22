@@ -19,7 +19,7 @@ class AppRouter {
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     final routeName = settings.name ?? RouteNames.home;
 
-    final page = _pageForRoute(routeName);
+    final page = _pageForRoute(routeName, arguments: settings.arguments);
 
     return MaterialPageRoute<void>(
       builder: (_) => page,
@@ -35,7 +35,7 @@ class AppRouter {
     );
   }
 
-  static Widget _pageForRoute(String routeName) {
+  static Widget _pageForRoute(String routeName, {Object? arguments}) {
     if (routeName == RouteNames.onboarding) {
       return const OnboardingPage();
     }
@@ -53,7 +53,9 @@ class AppRouter {
     }
 
     if (routeName == RouteNames.musicVote) {
-      return const MusicVotePage();
+      return MusicVotePage(
+        eventId: arguments is String ? arguments : null,
+      );
     }
 
     if (routeName == RouteNames.playlist) {

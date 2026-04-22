@@ -9,31 +9,36 @@ import 'package:music_room/features/music_vote/presentation/widgets/queue_sectio
 /// All data is mock/hardcoded at this stage. Real WebSocket and API
 /// integration will be layered on top in a subsequent phase.
 class MusicVoteView extends StatelessWidget {
-  const MusicVoteView({super.key});
+  const MusicVoteView({
+    super.key,
+    this.eventId,
+  });
+
+  final String? eventId;
 
   @override
   Widget build(BuildContext context) {
-    return const CustomScrollView(
-      physics: BouncingScrollPhysics(),
+    return CustomScrollView(
+      physics: const BouncingScrollPhysics(),
       slivers: [
         // ── Sticky header ──────────────────────────────────────────────────
         SliverPersistentHeader(
           pinned: true,
           delegate: _StickyHeaderDelegate(
             child: _HeaderBackground(
-              child: LiveHeader(),
+              child: LiveHeader(eventId: eventId),
             ),
           ),
         ),
 
         // ── Player card ────────────────────────────────────────────────────
-        SliverToBoxAdapter(child: SizedBox(height: 8)),
-        SliverToBoxAdapter(child: PlayerCard()),
-        SliverToBoxAdapter(child: SizedBox(height: 24)),
+        const SliverToBoxAdapter(child: SizedBox(height: 8)),
+        const SliverToBoxAdapter(child: PlayerCard()),
+        const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
         // ── Queue / Up Next ────────────────────────────────────────────────
-        SliverToBoxAdapter(child: QueueSection()),
-        SliverToBoxAdapter(child: SizedBox(height: 32)),
+        const SliverToBoxAdapter(child: QueueSection()),
+        const SliverToBoxAdapter(child: SizedBox(height: 32)),
       ],
     );
   }

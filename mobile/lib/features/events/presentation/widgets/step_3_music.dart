@@ -1,4 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:music_room/core/widgets/dynamic_search_bottom_sheet.dart';
+import 'package:music_room/di/injection_container.dart';
+import 'package:music_room/features/events/data/models/track_model.dart';
+import 'package:music_room/features/events/presentation/state/track_search_cubit.dart';
 
 class Step3Music extends StatelessWidget {
   const Step3Music({
@@ -7,35 +12,149 @@ class Step3Music extends StatelessWidget {
     required this.onNext,
     super.key,
   });
-  final List<String> selectedTracks;
-  final ValueChanged<List<String>> onTracksChanged;
+
+  final List<TrackModel> selectedTracks;
+  final ValueChanged<List<TrackModel>> onTracksChanged;
   final VoidCallback onNext;
 
-  void _addMockTrack() {
-    final updatedTracks = List<String>.from(selectedTracks)
-      ..add('Dummy Track ${selectedTracks.length + 1} - Dummy Artist');
-    onTracksChanged(updatedTracks);
+  @override
+  Widget build(BuildContext context) {
+    return BlocProvider(
+      create: (_) => TrackSearchCubit(
+        remoteDataSource: InjectionContainer().trackRemoteDataSource,
+      ),
+      child: _Step3MusicBody(
+        selectedTracks: selectedTracks,
+        onTracksChanged: onTracksChanged,
+        onNext: onNext,
+      ),
+    );
   }
+}
+
+class _Step3MusicBody extends StatefulWidget {
+  const _Step3MusicBody({
+    required this.selectedTracks,
+    required this.onTracksChanged,
+    required this.onNext,
+  });
+
+  final List<TrackModel> selectedTracks;
+  final ValueChanged<List<TrackModel>> onTracksChanged;
+  final VoidCallback onNext;
+
+  @override
+  State<_Step3MusicBody> createState() => _Step3MusicBodyState();
+}
+
+class _Step3MusicBodyState extends State<_Step3MusicBody> {
+  String _playlistSearchQuery = '';
 
   void _removeTrack(int index) {
-    final updatedTracks = List<String>.from(selectedTracks)..removeAt(index);
-    onTracksChanged(updatedTracks);
+    final updatedTracks = List<TrackModel>.from(widget.selectedTracks)
+      ..removeAt(index);
+    widget.onTracksChanged(updatedTracks);
+  }
+
+  void _handleAddTrack(TrackModel track) {
+    if (!widget.selectedTracks.any(
+      (t) => t.providerTrackId == track.providerTrackId,
+    )) {
+      final updatedTracks = List<TrackModel>.from(widget.selectedTracks)
+        ..add(track);
+      widget.onTracksChanged(updatedTracks);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Track added!'),
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _showImportPlaylistModal(BuildContext context) async {
+    setState(() => _playlistSearchQuery = '');
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setModalState) {
+          return DynamicSearchBottomSheet(
+            title: 'Import Playlist',
+            subtitle: 'Choose from your saved collections',
+            searchHintText: 'Search playlists or tags...',
+            onSearchChanged: (val) {
+              setModalState(() => _playlistSearchQuery = val);
+            },
+            content: _PlaylistImportResults(
+              searchQuery: _playlistSearchQuery,
+              onPlaylistSelected: (name) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text('Importing $name...')),
+                );
+                Navigator.of(context).pop();
+              },
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _showAddTracksModal(BuildContext context) async {
+    final searchCubit = context.read<TrackSearchCubit>()
+      ..searchTracks(''); // Clear previous results
+
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => BlocProvider.value(
+        value: searchCubit,
+        child: StatefulBuilder(
+          builder: (context, setModalState) {
+            return DynamicSearchBottomSheet(
+              title: 'Search Tracks',
+              subtitle: 'Find a specific song for your event',
+              searchHintText: 'Search for songs, artists...',
+              onSearchChanged: searchCubit.searchTracks,
+              onActionPressed: () => Navigator.of(context).pop(),
+              content: BlocBuilder<TrackSearchCubit, TrackSearchState>(
+                builder: (context, state) {
+                  return _TrackSearchResults(
+                    state: state,
+                    selectedTracks: widget.selectedTracks,
+                    onAddTrack: (track) {
+                      _handleAddTrack(track);
+                      // Refresh modal to show check icon
+                      setModalState(() {});
+                    },
+                  );
+                },
+              ),
+            );
+          },
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final selectedCount = selectedTracks.length;
+    final selectedCount = widget.selectedTracks.length;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Expanded(
           child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 24,
-              vertical: 16,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -46,65 +165,58 @@ class Step3Music extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 16),
-
-                TextField(
-                  decoration: InputDecoration(
-                    hintText: 'Search for tracks to add...',
-                    hintStyle: TextStyle(
-                      color: theme.colorScheme.onSurface.withValues(
-                        alpha: 0.35,
-                      ),
-                    ),
-                    prefixIcon: Icon(
-                      Icons.search,
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
-                    ),
-                    filled: true,
-                    fillColor: theme.colorScheme.surface,
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: BorderSide(
-                        color: theme.colorScheme.onSurface.withValues(
-                          alpha: 0.1,
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () => _showAddTracksModal(context),
+                        icon: const Icon(Icons.search),
+                        label: const Text('Add Tracks'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: theme.colorScheme.primary,
+                          foregroundColor: theme.colorScheme.onPrimary,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          elevation: 0,
+                          textStyle: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
                         ),
                       ),
                     ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: BorderSide(color: theme.colorScheme.primary),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () => _showImportPlaylistModal(context),
+                        icon: const Icon(Icons.playlist_add),
+                        label: const Text(
+                          'Import Playlist',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          side: BorderSide(
+                            color: theme.colorScheme.primary.withValues(
+                              alpha: 0.55,
+                            ),
+                          ),
+                          foregroundColor: theme.colorScheme.primary,
+                          textStyle: theme.textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
                     ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 16,
-                    ),
-                  ),
-                  onSubmitted: (value) {
-                    if (value.isNotEmpty) {
-                      final updated = List<String>.from(selectedTracks)
-                        ..add(value);
-                      onTracksChanged(updated);
-                    }
-                  },
-                ),
-                const SizedBox(height: 16),
-
-                OutlinedButton.icon(
-                  onPressed: _addMockTrack,
-                  icon: const Icon(Icons.playlist_add),
-                  label: const Text('Add Demo Track'),
-                  style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    side: BorderSide(
-                      color: theme.colorScheme.primary.withValues(alpha: 0.55),
-                    ),
-                    foregroundColor: theme.colorScheme.primary,
-                    textStyle: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
+                  ],
                 ),
                 const SizedBox(height: 24),
 
@@ -119,7 +231,7 @@ class Step3Music extends StatelessWidget {
                 const SizedBox(height: 8),
 
                 Expanded(
-                  child: selectedTracks.isEmpty
+                  child: widget.selectedTracks.isEmpty
                       ? Center(
                           child: Text(
                             'No tracks selected yet.',
@@ -131,37 +243,45 @@ class Step3Music extends StatelessWidget {
                           ),
                         )
                       : ListView.builder(
-                          itemCount: selectedTracks.length,
+                          itemCount: widget.selectedTracks.length,
                           itemBuilder: (context, index) {
-                            final parts = selectedTracks[index].split(' - ');
-                            final trackTitle = parts.first;
-                            final artistName = parts.length > 1
-                                ? parts.sublist(1).join(' - ')
-                                : 'Dummy Artist';
+                            final track = widget.selectedTracks[index];
 
                             return ListTile(
                               contentPadding: EdgeInsets.zero,
                               minVerticalPadding: 8,
-                              leading: Container(
-                                width: 48,
-                                height: 48,
-                                decoration: BoxDecoration(
-                                  color: theme.colorScheme.primaryContainer,
-                                  borderRadius: BorderRadius.circular(10),
-                                ),
-                                child: Icon(
-                                  Icons.music_note,
-                                  color: theme.colorScheme.primary,
+                              leading: ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: Image.network(
+                                  track.thumbnailUrl,
+                                  width: 48,
+                                  height: 48,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (context, error, stackTrace) {
+                                    return Container(
+                                      width: 48,
+                                      height: 48,
+                                      color: theme.colorScheme.primaryContainer,
+                                      child: Icon(
+                                        Icons.music_note,
+                                        color: theme.colorScheme.primary,
+                                      ),
+                                    );
+                                  },
                                 ),
                               ),
                               title: Text(
-                                trackTitle,
+                                track.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                 style: theme.textTheme.titleMedium?.copyWith(
                                   fontWeight: FontWeight.w700,
                                 ),
                               ),
                               subtitle: Text(
-                                artistName,
+                                track.artist,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                 style: theme.textTheme.bodyMedium?.copyWith(
                                   color: theme.colorScheme.onSurface.withValues(
                                     alpha: 0.7,
@@ -186,7 +306,7 @@ class Step3Music extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.only(left: 24, right: 24, bottom: 24),
           child: ElevatedButton(
-            onPressed: onNext,
+            onPressed: widget.onNext,
             style: ElevatedButton.styleFrom(
               backgroundColor: theme.colorScheme.primary,
               foregroundColor: theme.colorScheme.onPrimary,
@@ -204,6 +324,202 @@ class Step3Music extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _TrackSearchResults extends StatelessWidget {
+  const _TrackSearchResults({
+    required this.state,
+    required this.selectedTracks,
+    required this.onAddTrack,
+  });
+
+  final TrackSearchState state;
+  final List<TrackModel> selectedTracks;
+  final ValueChanged<TrackModel> onAddTrack;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    if (state is TrackSearchInitial) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.search_rounded,
+              size: 64,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.2),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'Search for songs or artists...',
+              style: TextStyle(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                fontWeight: FontWeight.w500,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      );
+    } else if (state is TrackSearchLoading) {
+      return const Center(child: CircularProgressIndicator());
+    } else if (state is TrackSearchError) {
+      return Center(
+        child: Text(
+          (state as TrackSearchError).message,
+          style: TextStyle(color: theme.colorScheme.error),
+          textAlign: TextAlign.center,
+        ),
+      );
+    } else if (state is TrackSearchLoaded) {
+      final tracks = (state as TrackSearchLoaded).tracks;
+      if (tracks.isEmpty) {
+        return const Center(child: Text('No tracks found.'));
+      }
+      return ListView.builder(
+        itemCount: tracks.length,
+        itemBuilder: (context, index) {
+          final track = tracks[index];
+          final isAdded = selectedTracks.any(
+            (t) => t.providerTrackId == track.providerTrackId,
+          );
+          return ListTile(
+            contentPadding: EdgeInsets.zero,
+            leading: ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: Image.network(
+                track.thumbnailUrl,
+                width: 48,
+                height: 48,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => Container(
+                  width: 48,
+                  height: 48,
+                  color: theme.colorScheme.surfaceContainerHighest,
+                  child: const Icon(Icons.music_note),
+                ),
+              ),
+            ),
+            title: Text(
+              track.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+            subtitle: Text(
+              track.artist,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            trailing: IconButton(
+              icon: Icon(
+                isAdded ? Icons.check : Icons.add_circle_outline,
+                color: isAdded
+                    ? theme.colorScheme.primary
+                    : theme.colorScheme.onSurface.withValues(alpha: 0.5),
+              ),
+              onPressed: isAdded ? null : () => onAddTrack(track),
+            ),
+          );
+        },
+      );
+    }
+    return const SizedBox.shrink();
+  }
+}
+
+class _PlaylistImportResults extends StatelessWidget {
+  const _PlaylistImportResults({
+    required this.searchQuery,
+    required this.onPlaylistSelected,
+  });
+
+  final String searchQuery;
+  final ValueChanged<String> onPlaylistSelected;
+
+  static const List<Map<String, dynamic>> _mockPlaylists = [
+    {
+      'name': 'Late Night Driving',
+      'tags': <String>['electronic', 'chill', 'synthwave'],
+      'trackCount': 42,
+    },
+    {
+      'name': 'Summer Techno',
+      'tags': <String>['techno', 'dance', 'upbeat'],
+      'trackCount': 108,
+    },
+    {
+      'name': 'Moroccan Hits',
+      'tags': <String>['pop', 'arabic', 'trending'],
+      'trackCount': 25,
+    },
+    {
+      'name': 'Gym Motivation',
+      'tags': <String>['workout', 'hardstyle', 'bass'],
+      'trackCount': 60,
+    },
+    {
+      'name': 'Lo-fi Study',
+      'tags': <String>['lo-fi', 'study', 'relax'],
+      'trackCount': 200,
+    },
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final filtered = _mockPlaylists.where((pl) {
+      final q = searchQuery.toLowerCase();
+      if (q.isEmpty) return true;
+      final nameMatches = (pl['name'] as String).toLowerCase().contains(q);
+      final tagsMatch = (pl['tags'] as List<String>).any(
+        (t) => t.toLowerCase().contains(q),
+      );
+      return nameMatches || tagsMatch;
+    }).toList();
+
+    if (filtered.isEmpty) {
+      return const Center(child: Text('No playlists found.'));
+    }
+
+    return ListView.separated(
+      itemCount: filtered.length,
+      separatorBuilder: (context, index) => const SizedBox(height: 8),
+      itemBuilder: (context, index) {
+        final pl = filtered[index];
+        final name = pl['name'] as String;
+        final tags = (pl['tags'] as List<String>).join(', ');
+        final count = pl['trackCount'] as int;
+
+        return ListTile(
+          onTap: () => onPlaylistSelected(name),
+          leading: Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.primaryContainer,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(Icons.queue_music, color: theme.colorScheme.primary),
+          ),
+          title: Text(
+            name,
+            style: const TextStyle(fontWeight: FontWeight.w600),
+          ),
+          subtitle: Text(
+            '$count tracks • $tags',
+            style: TextStyle(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+              fontSize: 13,
+            ),
+          ),
+          trailing: const Icon(Icons.chevron_right),
+        );
+      },
     );
   }
 }

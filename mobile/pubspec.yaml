@@ -48,6 +48,10 @@ dependencies:
 
   # Environment
 
+  # Location & Maps
+  geolocator: ^14.0.2
+  google_maps_flutter: ^2.12.3
+
   # JSON Serialization
   image_picker: ^1.2.1
   intl: ^0.20.2

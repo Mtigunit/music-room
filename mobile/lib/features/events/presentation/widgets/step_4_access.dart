@@ -1,11 +1,22 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
 import 'package:music_room/features/events/domain/entities/event_location.dart';
+
+// ---------------------------------------------------------------------------
+// Step 4 – Access & Licenses
+// ---------------------------------------------------------------------------
 
 class Step4Access extends StatefulWidget {
   const Step4Access({
     required this.visibility,
     required this.votingRule,
+    required this.isRestricted,
     required this.allowedLocation,
     required this.allowedRadius,
     required this.startDate,
@@ -14,17 +25,21 @@ class Step4Access extends StatefulWidget {
     required this.endTime,
     required this.onVisibilityChanged,
     required this.onVotingRuleChanged,
+    required this.onRestrictedChanged,
     required this.onLocationChanged,
     required this.onRadiusChanged,
     required this.onStartDateChanged,
     required this.onStartTimeChanged,
     required this.onEndDateChanged,
     required this.onEndTimeChanged,
-    required this.onNext,
+    required this.onSubmit,
+    required this.isSubmitting,
     super.key,
   });
+
   final String visibility;
   final String votingRule;
+  final bool isRestricted;
   final EventLocation? allowedLocation;
   final double allowedRadius;
   final DateTime? startDate;
@@ -34,68 +49,218 @@ class Step4Access extends StatefulWidget {
 
   final ValueChanged<String> onVisibilityChanged;
   final ValueChanged<String> onVotingRuleChanged;
+  final ValueChanged<bool> onRestrictedChanged;
   final ValueChanged<EventLocation?> onLocationChanged;
   final ValueChanged<double> onRadiusChanged;
   final ValueChanged<DateTime?> onStartDateChanged;
   final ValueChanged<TimeOfDay?> onStartTimeChanged;
   final ValueChanged<DateTime?> onEndDateChanged;
   final ValueChanged<TimeOfDay?> onEndTimeChanged;
-  final VoidCallback onNext;
+  final VoidCallback onSubmit;
+  final bool isSubmitting;
 
   @override
   State<Step4Access> createState() => _Step4AccessState();
 }
 
 class _Step4AccessState extends State<Step4Access> {
-  Future<void> _pickDate(BuildContext context, {required bool isStart}) async {
+  // ------------------------------------------------------------------
+  // Map state
+  // ------------------------------------------------------------------
+  static const LatLng _defaultCenter = LatLng(48.8566, 2.3522); // Paris
+
+  GoogleMapController? _googleMapController;
+  LatLng _centerPin = _defaultCenter;
+  bool _locationLoading = false;
+  DateTime _lastCameraUiSyncAt = DateTime.fromMillisecondsSinceEpoch(0);
+
+  static const Duration _cameraUiSyncThrottle = Duration(milliseconds: 80);
+
+  final Set<Factory<OneSequenceGestureRecognizer>> _mapGestureRecognizers = {
+    const Factory<OneSequenceGestureRecognizer>(EagerGestureRecognizer.new),
+  };
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Seed pin from previously selected location, if any.
+    if (widget.allowedLocation != null) {
+      _centerPin = LatLng(
+        widget.allowedLocation!.latitude,
+        widget.allowedLocation!.longitude,
+      );
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant Step4Access oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    final selectedLocation = widget.allowedLocation;
+    if (selectedLocation != null) {
+      _centerPin = LatLng(
+        selectedLocation.latitude,
+        selectedLocation.longitude,
+      );
+    }
+
+    final enabledRestriction = !oldWidget.isRestricted && widget.isRestricted;
+    if (enabledRestriction && widget.allowedLocation == null) {
+      unawaited(_fetchGpsLocation());
+    }
+  }
+
+  @override
+  void dispose() {
+    _googleMapController?.dispose();
+    super.dispose();
+  }
+
+  // ------------------------------------------------------------------
+  // GPS
+  // ------------------------------------------------------------------
+  Future<void> _fetchGpsLocation() async {
+    setState(() => _locationLoading = true);
+
+    try {
+      var permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+      }
+
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        return;
+      }
+
+      final position = await Geolocator.getCurrentPosition(
+        locationSettings: const LocationSettings(
+          accuracy: LocationAccuracy.high,
+        ),
+      );
+
+      if (!mounted) return;
+
+      final latLng = LatLng(position.latitude, position.longitude);
+
+      final mapController = _googleMapController;
+      if (mapController != null) {
+        unawaited(
+          mapController.animateCamera(
+            CameraUpdate.newCameraPosition(
+              CameraPosition(target: latLng, zoom: 15),
+            ),
+          ),
+        );
+      }
+
+      setState(() => _centerPin = latLng);
+      widget.onLocationChanged(
+        EventLocation(position.latitude, position.longitude),
+      );
+    } on Exception catch (_) {
+      // Silently fall back to default center – not a fatal error.
+    } finally {
+      if (mounted) setState(() => _locationLoading = false);
+    }
+  }
+
+  // ------------------------------------------------------------------
+  // Combined Date + Time picker
+  // ------------------------------------------------------------------
+  Future<void> _pickDateTime(
+    BuildContext context, {
+    required bool isStart,
+  }) async {
     final now = DateTime.now();
-    final current = isStart ? widget.startDate : widget.endDate;
-    final initialDate = (current != null && current.isAfter(now))
-        ? current
+    final existingDate = isStart ? widget.startDate : widget.endDate;
+    final existingTime = isStart ? widget.startTime : widget.endTime;
+
+    final initialDate = (existingDate != null && existingDate.isAfter(now))
+        ? existingDate
         : now;
 
-    final picked = await showDatePicker(
+    // 1️⃣ Pick date first.
+    final pickedDate = await showDatePicker(
       context: context,
       initialDate: initialDate,
       firstDate: now,
       lastDate: now.add(const Duration(days: 365)),
     );
 
-    if (picked == null) {
-      return;
-    }
+    if (pickedDate == null || !mounted) return;
 
-    if (isStart) {
-      widget.onStartDateChanged(picked);
-    } else {
-      widget.onEndDateChanged(picked);
-    }
-  }
-
-  Future<void> _pickTime(BuildContext context, {required bool isStart}) async {
-    final picked = await showTimePicker(
+    // 2️⃣ Immediately open time picker, using the local context captured
+    // before the async gap to satisfy the linter.
+    if (!context.mounted) return;
+    final pickedTime = await showTimePicker(
       context: context,
-      initialTime: isStart
-          ? (widget.startTime ?? TimeOfDay.now())
-          : (widget.endTime ?? TimeOfDay.now()),
+      initialTime: existingTime ?? TimeOfDay.now(),
     );
 
-    if (picked == null) {
-      return;
-    }
+    if (pickedTime == null || !mounted) return;
 
+    // 3️⃣ Propagate both to parent.
     if (isStart) {
-      widget.onStartTimeChanged(picked);
+      widget.onStartDateChanged(pickedDate);
+      widget.onStartTimeChanged(pickedTime);
     } else {
-      widget.onEndTimeChanged(picked);
+      widget.onEndDateChanged(pickedDate);
+      widget.onEndTimeChanged(pickedTime);
     }
   }
 
+  // ------------------------------------------------------------------
+  // Helpers
+  // ------------------------------------------------------------------
+
+  void _handleCameraMove(CameraPosition position) {
+    _centerPin = position.target;
+
+    final now = DateTime.now();
+    if (now.difference(_lastCameraUiSyncAt) < _cameraUiSyncThrottle) {
+      return;
+    }
+
+    _lastCameraUiSyncAt = now;
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
+  /// Builds a human-readable label: "Apr 23, 2026 • 04:30 PM" or a placeholder.
+  String _formatDateTime(
+    DateTime? date,
+    TimeOfDay? time,
+    String placeholder,
+  ) {
+    if (date == null) return placeholder;
+
+    final datePart = DateFormat('MMM d, yyyy').format(date);
+    if (time == null) return datePart;
+
+    final dt = DateTime(
+      date.year,
+      date.month,
+      date.day,
+      time.hour,
+      time.minute,
+    );
+    return '$datePart • ${DateFormat('hh:mm a').format(dt)}';
+  }
+
+  // ------------------------------------------------------------------
+  // Build
+  // ------------------------------------------------------------------
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final showDynamicUI = widget.votingRule == 'Location & Time';
-    final mockRadius = widget.allowedRadius.clamp(10.0, 250.0);
+    final isPrivate = widget.visibility == 'Private';
+    final isEveryone = widget.votingRule == 'Everyone' && !isPrivate;
+    final isInvitedOnly = widget.votingRule == 'Invited Only' || isPrivate;
+    final showDynamicUI = widget.isRestricted;
+    final radius = widget.allowedRadius.clamp(10.0, 500.0);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -113,6 +278,8 @@ class _Step4AccessState extends State<Step4Access> {
                   ),
                 ),
                 const SizedBox(height: 24),
+
+                // ── Visibility cards ──────────────────────────────────
                 _buildSelectionCard(
                   title: 'Public',
                   subtitle: 'Anyone can discover and join your event',
@@ -136,6 +303,8 @@ class _Step4AccessState extends State<Step4Access> {
                   theme: theme,
                 ),
                 const SizedBox(height: 20),
+
+                // ── Voting permissions card ───────────────────────────
                 Container(
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
@@ -159,127 +328,63 @@ class _Step4AccessState extends State<Step4Access> {
                         ),
                       ),
                       const SizedBox(height: 18),
+
+                      // Everyone can vote (Disabled when Private)
                       Opacity(
-                        opacity: widget.visibility == 'Private' ? 0.4 : 1.0,
-                        child: IgnorePointer(
-                          ignoring: widget.visibility == 'Private',
-                          child: _buildToggleRow(
-                            title: 'Everyone can vote',
-                            subtitle: 'All listeners can upvote tracks',
-                            value: widget.votingRule == 'Everyone',
-                            onChanged: (enabled) {
-                              if (enabled) {
-                                widget.onVotingRuleChanged('Everyone');
-                              }
-                            },
-                            theme: theme,
-                          ),
+                        opacity: isPrivate ? 0.4 : 1.0,
+                        child: _buildToggleRow(
+                          title: 'Everyone can vote',
+                          subtitle: 'All listeners can upvote tracks',
+                          value: isEveryone,
+                          onChanged: isPrivate
+                              ? null
+                              : (enabled) {
+                                  if (enabled) {
+                                    widget.onVotingRuleChanged('Everyone');
+                                  } else {
+                                    widget.onVotingRuleChanged('Invited Only');
+                                  }
+                                },
+                          theme: theme,
                         ),
                       ),
                       const SizedBox(height: 14),
+
+                      // Invited Only
                       _buildToggleRow(
                         title: 'Invited Only',
                         subtitle: 'Only explicitly invited users can vote',
-                        value: widget.votingRule == 'Invited Only',
-                        onChanged: (enabled) {
-                          if (enabled) {
-                            widget.onVotingRuleChanged('Invited Only');
-                          }
-                        },
+                        value: isInvitedOnly,
+                        onChanged: isPrivate
+                            ? null
+                            : (enabled) {
+                                if (enabled) {
+                                  widget.onVotingRuleChanged('Invited Only');
+                                } else {
+                                  widget.onVotingRuleChanged('Everyone');
+                                }
+                              },
                         theme: theme,
                       ),
                       const SizedBox(height: 14),
+
+                      // Location & Time Restricted
                       _buildToggleRow(
                         title: 'Location & Time Restricted',
                         subtitle: 'Strict access requirements',
                         value: showDynamicUI,
                         onChanged: (enabled) {
-                          widget.onVotingRuleChanged(
-                            enabled ? 'Location & Time' : 'Everyone',
-                          );
+                          widget.onRestrictedChanged(enabled);
                         },
                         theme: theme,
                       ),
+
+                      // ── Dynamic section ───────────────────────────
                       if (showDynamicUI) ...[
+                        const SizedBox(height: 20),
+                        _buildDateTimeSection(theme),
                         const SizedBox(height: 18),
-                        _buildMockMap(theme, mockRadius),
-                        const SizedBox(height: 10),
-                        Text(
-                          'Mock Radius: ${mockRadius.toInt()}m',
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurface.withValues(
-                              alpha: 0.75,
-                            ),
-                          ),
-                        ),
-                        Slider(
-                          value: mockRadius,
-                          min: 10,
-                          max: 250,
-                          divisions: 24,
-                          label: '${mockRadius.toInt()}m',
-                          activeColor: theme.colorScheme.primary,
-                          inactiveColor: theme.colorScheme.onSurface.withValues(
-                            alpha: 0.15,
-                          ),
-                          onChanged: widget.onRadiusChanged,
-                        ),
-                        const SizedBox(height: 4),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildPickerButton(
-                                context,
-                                label: widget.startDate == null
-                                    ? 'Start Date'
-                                    : DateFormat(
-                                        'MMM d, yyyy',
-                                      ).format(widget.startDate!),
-                                icon: Icons.calendar_today_outlined,
-                                onTap: () => _pickDate(context, isStart: true),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: _buildPickerButton(
-                                context,
-                                label: widget.startTime == null
-                                    ? 'Start Time'
-                                    : widget.startTime!.format(context),
-                                icon: Icons.schedule_outlined,
-                                onTap: () => _pickTime(context, isStart: true),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildPickerButton(
-                                context,
-                                label: widget.endDate == null
-                                    ? 'End Date'
-                                    : DateFormat(
-                                        'MMM d, yyyy',
-                                      ).format(widget.endDate!),
-                                icon: Icons.calendar_today_outlined,
-                                onTap: () => _pickDate(context, isStart: false),
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: _buildPickerButton(
-                                context,
-                                label: widget.endTime == null
-                                    ? 'End Time'
-                                    : widget.endTime!.format(context),
-                                icon: Icons.schedule_outlined,
-                                onTap: () => _pickTime(context, isStart: false),
-                              ),
-                            ),
-                          ],
-                        ),
+                        _buildMapSection(theme, radius),
                       ],
                     ],
                   ),
@@ -289,10 +394,12 @@ class _Step4AccessState extends State<Step4Access> {
             ),
           ),
         ),
+
+        // ── Start Event button ────────────────────────────────────────
         Padding(
           padding: const EdgeInsets.only(left: 24, right: 24, bottom: 24),
           child: ElevatedButton(
-            onPressed: widget.onNext,
+            onPressed: widget.isSubmitting ? null : widget.onSubmit,
             style: ElevatedButton.styleFrom(
               backgroundColor: theme.colorScheme.primary,
               foregroundColor: theme.colorScheme.onPrimary,
@@ -306,105 +413,277 @@ class _Step4AccessState extends State<Step4Access> {
                 fontWeight: FontWeight.w700,
               ),
             ),
-            child: const Text('Continue'),
+            child: widget.isSubmitting
+                ? SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: theme.colorScheme.onPrimary,
+                    ),
+                  )
+                : const Text('Start Event'),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildMockMap(ThemeData theme, double radius) {
-    final normalized = (radius - 10) / 240;
-    final circleSize = 44 + (normalized * 90);
-
-    return Container(
-      height: 160,
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
+  // ------------------------------------------------------------------
+  // GoogleMap + center-pin overlay + Circle geofence
+  // ------------------------------------------------------------------
+  Widget _buildMapSection(ThemeData theme, double radius) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Access Location',
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: theme.colorScheme.onSurface,
+          ),
         ),
-      ),
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          Positioned.fill(
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest.withValues(
-                    alpha: 0.35,
+        const SizedBox(height: 4),
+        Text(
+          'Drag the map and keep the center pin on your target point.',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.65),
+          ),
+        ),
+        const SizedBox(height: 10),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(16),
+          child: SizedBox(
+            height: 280,
+            child: Stack(
+              children: [
+                GoogleMap(
+                  gestureRecognizers: _mapGestureRecognizers,
+                  initialCameraPosition: CameraPosition(
+                    target: _centerPin,
+                    zoom: 15,
                   ),
-                  borderRadius: BorderRadius.circular(12),
+                  onMapCreated: (controller) {
+                    _googleMapController = controller;
+                  },
+                  onCameraMove: _handleCameraMove,
+                  onCameraIdle: () {
+                    if (!mounted) return;
+                    setState(() {});
+                    widget.onLocationChanged(
+                      EventLocation(_centerPin.latitude, _centerPin.longitude),
+                    );
+                  },
+                  myLocationButtonEnabled: false,
+                  zoomControlsEnabled: false,
+                  rotateGesturesEnabled: false,
+                  circles: {
+                    Circle(
+                      circleId: const CircleId('geofence-radius'),
+                      center: _centerPin,
+                      radius: radius,
+                      fillColor: theme.colorScheme.primary.withValues(
+                        alpha: 0.2,
+                      ),
+                      strokeColor: theme.colorScheme.primary,
+                      strokeWidth: 2,
+                    ),
+                  },
+                ),
+
+                Center(
+                  child: IgnorePointer(
+                    child: Icon(
+                      Icons.location_on,
+                      color: theme.colorScheme.primary,
+                      size: 42,
+                    ),
+                  ),
+                ),
+
+                // GPS button (top-right corner).
+                Positioned(
+                  top: 10,
+                  right: 10,
+                  child: _GpsButton(
+                    loading: _locationLoading,
+                    onPressed: _fetchGpsLocation,
+                    theme: theme,
+                  ),
+                ),
+
+                // Coordinates label (bottom-left corner).
+                Positioned(
+                  left: 10,
+                  bottom: 10,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surface.withValues(alpha: 0.88),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      '${_centerPin.latitude.toStringAsFixed(5)}, '
+                      '${_centerPin.longitude.toStringAsFixed(5)}',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        fontFeatures: const [],
+                        color: theme.colorScheme.onSurface,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 10),
+
+        // -- Radius label -------------------------------------------
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              'Geofence Radius',
+              style: theme.textTheme.bodySmall?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.75),
+              ),
+            ),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.primary.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                '${radius.toInt()} m',
+                style: theme.textTheme.labelMedium?.copyWith(
+                  color: theme.colorScheme.primary,
+                  fontWeight: FontWeight.bold,
                 ),
               ),
             ),
-          ),
-          Container(
-            width: circleSize,
-            height: circleSize,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: theme.colorScheme.primary.withValues(alpha: 0.12),
-              border: Border.all(color: theme.colorScheme.primary, width: 2),
-            ),
-          ),
-          Icon(
-            Icons.place,
-            size: 20,
-            color: theme.colorScheme.primary,
-          ),
-          Positioned(
-            left: 16,
-            top: 12,
-            child: Text(
-              'Mock map preview',
-              style: theme.textTheme.labelMedium?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
-              ),
-            ),
-          ),
-        ],
-      ),
+          ],
+        ),
+
+        // -- Radius slider ------------------------------------------
+        Slider(
+          value: radius,
+          min: 10,
+          max: 500,
+          divisions: 49,
+          label: '${radius.toInt()} m',
+          activeColor: theme.colorScheme.primary,
+          inactiveColor: theme.colorScheme.onSurface.withValues(alpha: 0.15),
+          onChanged: widget.onRadiusChanged,
+        ),
+      ],
     );
   }
+
+  // ------------------------------------------------------------------
+  // Condensed 2-field date + time pickers
+  // ------------------------------------------------------------------
+  Widget _buildDateTimeSection(ThemeData theme) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Access Time Window',
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: theme.colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 10),
+        _buildPickerButton(
+          context,
+          label: _formatDateTime(
+            widget.startDate,
+            widget.startTime,
+            'Start Date & Time',
+          ),
+          icon: Icons.play_circle_outline_rounded,
+          isSet: widget.startDate != null,
+          onTap: () => _pickDateTime(context, isStart: true),
+          theme: theme,
+        ),
+        const SizedBox(height: 10),
+        _buildPickerButton(
+          context,
+          label: _formatDateTime(
+            widget.endDate,
+            widget.endTime,
+            'End Date & Time',
+          ),
+          icon: Icons.stop_circle_outlined,
+          isSet: widget.endDate != null,
+          onTap: () => _pickDateTime(context, isStart: false),
+          theme: theme,
+        ),
+      ],
+    );
+  }
+
+  // ------------------------------------------------------------------
+  // Sub-widgets (unchanged helpers kept clean)
+  // ------------------------------------------------------------------
 
   Widget _buildPickerButton(
     BuildContext context, {
     required String label,
     required IconData icon,
+    required bool isSet,
     required VoidCallback onTap,
+    required ThemeData theme,
   }) {
-    final theme = Theme.of(context);
-
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(22),
+      borderRadius: BorderRadius.circular(14),
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: BorderRadius.circular(22),
+          color: isSet
+              ? theme.colorScheme.primary.withValues(alpha: 0.08)
+              : theme.colorScheme.surface,
+          borderRadius: BorderRadius.circular(14),
           border: Border.all(
-            color: theme.colorScheme.onSurface.withValues(alpha: 0.25),
+            color: isSet
+                ? theme.colorScheme.primary.withValues(alpha: 0.6)
+                : theme.colorScheme.onSurface.withValues(alpha: 0.2),
+            width: isSet ? 1.5 : 1.0,
           ),
         ),
         child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 16, color: theme.colorScheme.primary),
-            const SizedBox(width: 8),
-            Flexible(
+            Icon(
+              icon,
+              size: 20,
+              color: isSet
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.onSurface.withValues(alpha: 0.5),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
               child: Text(
                 label,
                 overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  color: theme.colorScheme.primary,
-                  fontWeight: FontWeight.w700,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: isSet
+                      ? theme.colorScheme.onSurface
+                      : theme.colorScheme.onSurface.withValues(alpha: 0.45),
+                  fontWeight: isSet ? FontWeight.w600 : FontWeight.normal,
                 ),
               ),
+            ),
+            Icon(
+              Icons.chevron_right_rounded,
+              size: 18,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.35),
             ),
           ],
         ),
@@ -499,7 +778,7 @@ class _Step4AccessState extends State<Step4Access> {
     required String title,
     required String subtitle,
     required bool value,
-    required ValueChanged<bool> onChanged,
+    required ValueChanged<bool>? onChanged,
     required ThemeData theme,
   }) {
     return Row(
@@ -537,6 +816,53 @@ class _Step4AccessState extends State<Step4Access> {
           inactiveTrackColor: theme.colorScheme.surfaceContainerHighest,
         ),
       ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Private sub-widgets
+// ---------------------------------------------------------------------------
+
+/// Floating GPS button shown in the top-right of the map.
+class _GpsButton extends StatelessWidget {
+  const _GpsButton({
+    required this.loading,
+    required this.onPressed,
+    required this.theme,
+  });
+
+  final bool loading;
+  final VoidCallback onPressed;
+  final ThemeData theme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: theme.colorScheme.surface,
+      borderRadius: BorderRadius.circular(10),
+      elevation: 2,
+      child: InkWell(
+        onTap: loading ? null : onPressed,
+        borderRadius: BorderRadius.circular(10),
+        child: Padding(
+          padding: const EdgeInsets.all(8),
+          child: loading
+              ? SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: theme.colorScheme.primary,
+                  ),
+                )
+              : Icon(
+                  Icons.my_location_rounded,
+                  size: 20,
+                  color: theme.colorScheme.primary,
+                ),
+        ),
+      ),
     );
   }
 }

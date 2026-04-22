@@ -6,13 +6,18 @@ import 'package:music_room/features/music_vote/presentation/widgets/music_vote_v
 /// Wraps [MusicVoteView] inside a [SafeArea]-bounded [Scaffold].
 /// This page is the tab-level widget mounted inside the app scaffold.
 class MusicVotePage extends StatelessWidget {
-  const MusicVotePage({super.key});
+  const MusicVotePage({
+    super.key,
+    this.eventId,
+  });
+
+  final String? eventId;
 
   @override
   Widget build(BuildContext context) {
-    return const Scaffold(
+    return Scaffold(
       body: SafeArea(
-        child: MusicVoteView(),
+        child: MusicVoteView(eventId: eventId),
       ),
     );
   }

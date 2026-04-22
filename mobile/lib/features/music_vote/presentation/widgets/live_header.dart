@@ -1,22 +1,29 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:music_room/core/widgets/app_back_button.dart';
+import 'package:music_room/core/widgets/invite_bottom_sheet.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/mock_data.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/modals/delegation_bottom_sheet.dart';
-import 'package:music_room/features/music_vote/presentation/widgets/modals/invite_bottom_sheet.dart';
 
 /// The top header for the Live Room page.
 ///
 /// Displays: back button · room title · LIVE badge · guest avatar stack ·
 /// listener count · invite button · overflow menu.
 class LiveHeader extends StatelessWidget {
-  const LiveHeader({super.key});
+  const LiveHeader({
+    super.key,
+    this.eventId,
+  });
+
+  final String? eventId;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final roomTitle = _resolveRoomTitle(eventId);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -38,7 +45,7 @@ class LiveHeader extends StatelessWidget {
                   children: [
                     Flexible(
                       child: Text(
-                        'Friday Night Vi...',
+                        roomTitle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: textTheme.titleMedium?.copyWith(
@@ -88,7 +95,32 @@ class LiveHeader extends StatelessWidget {
     );
   }
 
+  String _resolveRoomTitle(String? roomId) {
+    if (roomId == null || roomId.isEmpty) {
+      return 'Friday Night Vi...';
+    }
+
+    final shortId = roomId.length > 8 ? roomId.substring(0, 8) : roomId;
+    return 'Room $shortId';
+  }
+
   void _showInviteSheet(BuildContext context) {
+    final resolvedEventId = (eventId != null && eventId!.isNotEmpty)
+        ? eventId!
+        : 'room-1';
+    final shareLink = 'musicroom.app/join/$resolvedEventId';
+    final friends = mockFriends
+        .map(
+          (friend) => InviteFriendData(
+            id: friend.username,
+            name: friend.name,
+            username: friend.username,
+            colorHex: friend.colorHex,
+            isInvited: friend.isInvited,
+          ),
+        )
+        .toList(growable: false);
+
     unawaited(
       showModalBottomSheet<void>(
         context: context,
@@ -96,7 +128,31 @@ class LiveHeader extends StatelessWidget {
         useSafeArea: true,
         barrierColor: Colors.black.withValues(alpha: 0.7),
         backgroundColor: Colors.transparent,
-        builder: (_) => const InviteBottomSheet(),
+        builder: (_) => InviteBottomSheet(
+          eventId: resolvedEventId,
+          shareLink: shareLink,
+          friends: friends,
+          onCopyLink: () {
+            if (kDebugMode) {
+              debugPrint('Copied invite link for room: $resolvedEventId');
+            }
+          },
+          onShareTapped: (action) {
+            if (kDebugMode) {
+              debugPrint(
+                'Share action tapped (${action.id}) for room: $resolvedEventId',
+              );
+            }
+          },
+          onFriendInviteChanged: (change) {
+            if (kDebugMode) {
+              debugPrint(
+                '${change.isInvited ? 'Invited' : 'Uninvited'} friend: '
+                '${change.friend.username}',
+              );
+            }
+          },
+        ),
       ),
     );
   }
