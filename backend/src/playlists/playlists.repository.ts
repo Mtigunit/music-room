@@ -1,5 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { Tags, Visibility, type PlaylistTrack, Prisma } from '@prisma/client';
+import {
+  Tags,
+  Visibility,
+  type PlaylistTrack,
+  type Track,
+  Prisma,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { TrackSearchResultDto } from '../tracks/dto/track-search-result.dto';
 import { CreatePlaylistDto } from './dto/create-playlist.dto';
@@ -187,7 +193,7 @@ export class PlaylistsRepository {
     playlistId: string,
     addedById: string,
     track: TrackSearchResultDto,
-  ): Promise<PlaylistTrack> {
+  ): Promise<PlaylistTrack & { track: Track }> {
     return this.prisma.$transaction(async (tx) => {
       const counter = await tx.playlistCounter.update({
         where: { playlistId },
@@ -305,6 +311,9 @@ export class PlaylistsRepository {
         select: {
           id: true,
           position: true,
+        },
+        orderBy: {
+          position: 'asc',
         },
       });
 
