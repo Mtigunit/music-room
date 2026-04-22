@@ -1,0 +1,567 @@
+{
+  "info": {
+    "_postman_id": "eabfb9a3-46c6-4df6-8c15-9100dd85101b",
+    "name": "Music Room - Auth & WS API",
+    "description": "Endpoints to test registration, login, and obtaining JWT authentication tokens for WebSockets.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "30025877",
+    "_collection_link": "https://go.postman.co/collection/30025877-eabfb9a3-46c6-4df6-8c15-9100dd85101b?source=collection_link"
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "1. Send OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"ayoubmentag21@gmail.com\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/send-otp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "send-otp"
+              ]
+            },
+            "description": "Sends a 6-digit code to the user's email."
+          },
+          "response": []
+        },
+        {
+          "name": "2. Verify OTP",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"ayoubmentag21@gmail.com\",\n    \"code\": \"495805\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/verify-otp",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "verify-otp"
+              ]
+            },
+            "description": "Returns a short-lived `emailVerificationToken`."
+          },
+          "response": []
+        },
+        {
+          "name": "3. Register",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"ayoubmentag21@gmail.com\",\n    \"username\": \"amentag\",\n    \"password\": \"Password123!\",\n    \"emailVerificationToken\": \"{{vault:json-web-token}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/register",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "4. Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.access_token) {",
+                  "    pm.collectionVariables.set('access_token', json.access_token);",
+                  "    console.log('✅ access_token saved to collection variable');",
+                  "} else {",
+                  "    console.error('❌ access_token not found in response');",
+                  "}"
+                ],
+                "type": "text/javascript",
+                "packages": {},
+                "requests": {}
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"identifier\": \"ayoubmentag21@gmail.com\",\n    \"password\": \"Password123!\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/auth/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "login"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "5. Get Profile (Protected)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/auth/profile",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "auth",
+                "profile"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Events",
+      "item": [
+        {
+          "name": "Create Event",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "3ayta",
+                  "type": "text"
+                },
+                {
+                  "key": "visibility",
+                  "value": "PRIVATE",
+                  "type": "text"
+                },
+                {
+                  "key": "tags",
+                  "value": "[\"POP\", \"HIP_HOP\", \"RNB\"]",
+                  "type": "text"
+                },
+                {
+                  "key": "coverImage",
+                  "type": "file",
+                  "src": "/Users/ayoubmentag/Downloads/cloud.png"
+                },
+                {
+                  "key": "status",
+                  "value": "ENDED",
+                  "type": "text",
+                  "uuid": "88c4bc1c-64c0-4085-9302-7e442affe03b"
+                },
+                {
+                  "key": "locationLat",
+                  "value": "1,5",
+                  "type": "text",
+                  "uuid": "5c549627-9e1c-4dff-80f8-b232e5a744c4",
+                  "contentType": ""
+                },
+                {
+                  "key": "locationLng",
+                  "value": "1,5",
+                  "type": "text",
+                  "uuid": "5207d848-45c4-4315-957a-5ec28ee36319"
+                },
+                {
+                  "key": "playlistIds",
+                  "value": "[\"3277cb33-c8dc-4310-9209-4123eca85b44\"]",
+                  "type": "text",
+                  "uuid": "380ddebe-1b66-417f-b28a-bd4d9ff269f3"
+                },
+                {
+                  "key": "tracks",
+                  "value": "[{ \"providerTrackId\": \"zaGHlRk1Aq0\",\"title\": \"A MESSAGE TO DIE FOR - A Die Remix\",\"artist\": \"lubario\",\"durationMs\": 362000,\"thumbnailUrl\": \"https://i.ytimg.com/vi/zaGHlRk1Aq0/maxresdefault.jpg\"}]",
+                  "type": "text",
+                  "uuid": "9ca5a287-a455-483e-a60d-4750d1b4cb02"
+                },
+                {
+                  "key": "policies",
+                  "value": "[{\"policyType\":\"GEOFENCE\",\"config\":{\"distance\":100}},{\"policyType\":\"TIME_WINDOW\",\"config\":{\"startDate\":\"2025-01-01T00:00:00Z\",\"endDate\":\"2025-12-31T00:00:00Z\"}}]",
+                  "type": "text",
+                  "uuid": "b48f0f32-cc23-434f-99ce-b203eb8e0ef1"
+                },
+                {
+                  "key": "invitingOnly",
+                  "value": "false",
+                  "type": "text",
+                  "uuid": "49f41ae6-fb16-4e59-abdb-9d302e29ef2d"
+                },
+                {
+                  "key": "description",
+                  "value": "Description",
+                  "type": "text",
+                  "uuid": "012b8e59-e618-423f-8dd0-fc05d4d5d9e0"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/events",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "events"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Invite friends",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n\t\"userId\": \"070ec5f3-704f-4123-9d47-9d76eefddb6b\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/events/26025066-282c-40eb-84bc-ff7133c852f5/invites",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "events",
+                "26025066-282c-40eb-84bc-ff7133c852f5",
+                "invites"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Event",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "Awesome Party 1",
+                  "type": "text"
+                },
+                {
+                  "key": "visibility",
+                  "value": "PRIVATE",
+                  "type": "text"
+                },
+                {
+                  "key": "tags",
+                  "value": "[]",
+                  "type": "text",
+                  "disabled": true
+                },
+                {
+                  "key": "coverImage",
+                  "type": "file",
+                  "src": "/Users/ayoubmentag/Downloads/cloud.jpg"
+                },
+                {
+                  "key": "status",
+                  "value": "ENDED",
+                  "type": "text",
+                  "uuid": "88c4bc1c-64c0-4085-9302-7e442affe03b"
+                },
+                {
+                  "key": "locationLat",
+                  "value": "1,5",
+                  "type": "text",
+                  "uuid": "5c549627-9e1c-4dff-80f8-b232e5a744c4",
+                  "contentType": ""
+                },
+                {
+                  "key": "locationLng",
+                  "value": "1,5",
+                  "type": "text",
+                  "uuid": "5207d848-45c4-4315-957a-5ec28ee36319"
+                },
+                {
+                  "key": "playlistIds",
+                  "value": "740777df-e348-40b6-925e-4c0f020cf68c",
+                  "type": "text",
+                  "uuid": "380ddebe-1b66-417f-b28a-bd4d9ff269f3",
+                  "disabled": true
+                },
+                {
+                  "key": "trackIds",
+                  "value": "740777df-e348-40b6-925e-4c0f020cf68c",
+                  "type": "text",
+                  "uuid": "9ca5a287-a455-483e-a60d-4750d1b4cb02",
+                  "disabled": true
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/events/9d6ce181-3194-4119-9152-1fba1209b969",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "events",
+                "9d6ce181-3194-4119-9152-1fba1209b969"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get All Events",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/events",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "events"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Explored Events",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/events/explore",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "events",
+                "explore"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Event By ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/events/8743edd1-f7fb-4edd-8d74-8d078f0bb729",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "events",
+                "8743edd1-f7fb-4edd-8d74-8d078f0bb729"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get tracks of event",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/events/8743edd1-f7fb-4edd-8d74-8d078f0bb729/tracks",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "events",
+                "8743edd1-f7fb-4edd-8d74-8d078f0bb729",
+                "tracks"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Event",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/events/a15f0803-a326-49fd-8b5a-9e9ac497d8cd",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "events",
+                "a15f0803-a326-49fd-8b5a-9e9ac497d8cd"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Append Track to Event",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"providerTrackId\": \"zaGHlRk1Aq0\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/events/8743edd1-f7fb-4edd-8d74-8d078f0bb729/tracks",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "events",
+                "8743edd1-f7fb-4edd-8d74-8d078f0bb729",
+                "tracks"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Remove Track from Event",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/events/8743edd1-f7fb-4edd-8d74-8d078f0bb729/tracks/zaGHlRk1Aq0",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "events",
+                "8743edd1-f7fb-4edd-8d74-8d078f0bb729",
+                "tracks",
+                "zaGHlRk1Aq0"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "access_token",
+      "value": ""
+    }
+  ]
+}

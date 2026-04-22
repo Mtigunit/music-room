@@ -14,6 +14,11 @@ import { HandshakeMiddleware } from './handshake.middleware';
     WsAuthGuard,
     HandshakeMiddleware,
   ],
-  exports: [SocketAuthService, WsAuthGuard, HandshakeMiddleware],
+  exports: [
+    SocketAuthService,
+    WsAuthGuard,
+    HandshakeMiddleware,
+    SocketIoGateway,
+  ],
 })
 export class WebsocketsModule {}

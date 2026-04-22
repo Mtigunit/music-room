@@ -91,6 +91,38 @@ export class YoutubeService {
     }
   }
 
+  async getTrackDetailsBatch(
+    providerTrackIds: string[],
+  ): Promise<(TrackSearchResultDto | null)[]> {
+    try {
+      const videosResponse = await this.youtube.videos.list({
+        part: ['contentDetails', 'snippet'],
+        id: providerTrackIds,
+      });
+
+      const videoItems = videosResponse.data.items ?? [];
+
+      // Build a map for O(1) lookup by video ID
+      const videoMap = new Map(videoItems.map((item) => [item.id, item]));
+
+      // Preserve input order and inject null for missing/unavailable videos
+      return providerTrackIds.map((id) => {
+        const item = videoMap.get(id);
+        return item ? this.mapVideoToTrackResult(item) : null;
+      });
+    } catch (error) {
+      const trace =
+        error instanceof Error
+          ? error.stack
+          : `Unknown error: ${String(error)}`;
+
+      this.logger.error('YouTube API batch details request failed', trace);
+      throw new InternalServerErrorException(
+        'Failed to fetch YouTube track details',
+      );
+    }
+  }
+
   private mapVideoToTrackResult(
     item: youtube_v3.Schema$Video,
   ): TrackSearchResultDto | null {

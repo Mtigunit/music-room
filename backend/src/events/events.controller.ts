@@ -29,8 +29,8 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { EventsService } from './events.service';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
-import { AppendTracksDto } from './dto/append-tracks.dto';
 import { InviteUserDto } from './dto/invite-user.dto';
+import { AppendedTrackDto } from './dto/append-tracks.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { Request } from 'express';
 
@@ -154,25 +154,6 @@ export class EventsController {
     return this.eventsService.update(id, userId, updateEventDto);
   }
 
-  @Post(':id/tracks')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Append tracks to an event' })
-  @ApiParam({ name: 'id', type: String })
-  @ApiConsumes('application/json')
-  @ApiBody({ type: AppendTracksDto })
-  @ApiResponse({ status: 201, description: 'Tracks appended successfully.' })
-  @ApiResponse({ status: 403, description: 'Forbidden. No access to event.' })
-  @ApiResponse({ status: 404, description: 'Event not found.' })
-  appendTracks(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() appendTracksDto: AppendTracksDto,
-    @Req() req: Request,
-  ) {
-    const userId = (req.user as { id: string }).id;
-    return this.eventsService.appendTracks(id, userId, appendTracksDto.tracks);
-  }
-
   @Post(':id/invites')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -195,6 +176,36 @@ export class EventsController {
     return this.eventsService.inviteUser(id, hostId, inviteUserDto.userId);
   }
 
+  @Get(':id/tracks')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get tracks of an event' })
+  @ApiParam({ name: 'id', type: String })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Page number (default 1)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Items per page (default 10)',
+  })
+  @ApiResponse({ status: 200, description: 'Event tracks retrieved.' })
+  @ApiResponse({ status: 403, description: 'Forbidden. No access to event.' })
+  @ApiResponse({ status: 404, description: 'Event not found.' })
+  getTracks(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+  ) {
+    const userId = (req.user as { id: string }).id;
+    return this.eventsService.getTracks(id, userId, { page, limit });
+  }
+
   @Delete(':id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
@@ -209,5 +220,45 @@ export class EventsController {
   remove(@Param('id', ParseUUIDPipe) id: string, @Req() req: Request) {
     const userId = (req.user as { id: string }).id;
     return this.eventsService.remove(id, userId);
+  }
+
+  @Post(':eventId/tracks')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Append a track to an event' })
+  @ApiParam({ name: 'eventId', type: String })
+  @ApiBody({ type: AppendedTrackDto })
+  @ApiResponse({ status: 201, description: 'Track added successfully.' })
+  @ApiResponse({ status: 403, description: 'Forbidden.' })
+  @ApiResponse({ status: 404, description: 'Event not found.' })
+  appendTrack(
+    @Param('eventId', ParseUUIDPipe) eventId: string,
+    @Body() appendedTrackDto: AppendedTrackDto,
+    @Req() req: Request,
+  ) {
+    const userId = (req.user as { id: string }).id;
+    return this.eventsService.appendTrack(
+      eventId,
+      userId,
+      appendedTrackDto.providerTrackId,
+    );
+  }
+
+  @Delete(':eventId/tracks/:providerTrackId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Remove a track from an event by provider ID' })
+  @ApiParam({ name: 'eventId', type: String })
+  @ApiParam({ name: 'providerTrackId', type: String })
+  @ApiResponse({ status: 200, description: 'Track removed successfully.' })
+  @ApiResponse({ status: 403, description: 'Forbidden.' })
+  @ApiResponse({ status: 404, description: 'Event or Track not found.' })
+  removeTrack(
+    @Param('eventId', ParseUUIDPipe) eventId: string,
+    @Param('providerTrackId') providerTrackId: string,
+    @Req() req: Request,
+  ) {
+    const userId = (req.user as { id: string }).id;
+    return this.eventsService.removeTrack(eventId, providerTrackId, userId);
   }
 }

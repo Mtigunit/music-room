@@ -1,12 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
-import { AppendedTrackDto } from './dto/append-tracks.dto';
 import { EventsRepository } from './events.repository';
+import { SocketIoGateway } from '../websockets/socket-io.gateway';
 
 @Injectable()
 export class EventsService {
-  constructor(private readonly eventsRepository: EventsRepository) {}
+  constructor(
+    private readonly eventsRepository: EventsRepository,
+    private readonly socketIoGateway: SocketIoGateway,
+  ) {}
 
   create(userId: string, createEventDto: CreateEventDto) {
     return this.eventsRepository.create(userId, createEventDto);
@@ -34,15 +37,43 @@ export class EventsService {
     return this.eventsRepository.update(id, userId, updateEventDto);
   }
 
-  appendTracks(id: string, userId: string, tracks: AppendedTrackDto[]) {
-    return this.eventsRepository.appendTracks(id, userId, tracks);
-  }
-
   inviteUser(eventId: string, hostId: string, invitedUserId: string) {
     return this.eventsRepository.inviteUser(eventId, hostId, invitedUserId);
   }
 
+  getTracks(
+    id: string,
+    userId: string,
+    options: { page: number; limit: number },
+  ) {
+    return this.eventsRepository.getTracks(id, userId, options);
+  }
+
   remove(id: string, userId: string) {
     return this.eventsRepository.remove(id, userId);
+  }
+
+  async appendTrack(eventId: string, userId: string, providerTrackId: string) {
+    const newTrack = await this.eventsRepository.appendTrack(
+      eventId,
+      userId,
+      providerTrackId,
+    );
+
+    this.socketIoGateway.server.to(eventId).emit('track:added', newTrack);
+
+    return newTrack;
+  }
+
+  async removeTrack(eventId: string, providerTrackId: string, userId: string) {
+    const result = await this.eventsRepository.removeTrack(
+      eventId,
+      providerTrackId,
+      userId,
+    );
+    this.socketIoGateway.server
+      .to(eventId)
+      .emit('track:removed', { providerTrackId: result.providerTrackId });
+    return result;
   }
 }

@@ -18,12 +18,13 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
-    "test-vote": "node scripts/run-votes-simulation.js",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "ws:smoke": "node scripts/ws-smoke-test.js",
     "ws:multi": "node scripts/ws-multi-instance-test.js",
-    "test:realtime": "ts-node -r tsconfig-paths/register scripts/test-realtime-sync.ts"
+    "test:realtime": "ts-node -r tsconfig-paths/register scripts/test-realtime-sync.ts",
+    "test:track-event-vote": "ts-node scripts/run-votes-simulation.ts",
+    "test:track-event-append-remove": "ts-node -r tsconfig-paths/register scripts/test-realtime-sync.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
