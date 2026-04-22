@@ -597,9 +597,10 @@ describe('PlaylistsService', () => {
       repository.findPlaylistTrack.mockResolvedValueOnce(
         mockPlaylistTrack as never,
       );
-      repository.removeTrackFromPlaylist.mockResolvedValueOnce(
-        mockPlaylistTrack as never,
-      );
+      repository.removeTrackFromPlaylist.mockResolvedValueOnce({
+        deletedTrack: mockPlaylistTrack,
+        updates: [],
+      } as never);
 
       const result = await service.removeTrackFromPlaylist(
         PLAYLIST_ID,
@@ -621,9 +622,10 @@ describe('PlaylistsService', () => {
       repository.findPlaylistTrack.mockResolvedValueOnce(
         mockPlaylistTrack as never,
       );
-      repository.removeTrackFromPlaylist.mockResolvedValueOnce(
-        mockPlaylistTrack as never,
-      );
+      repository.removeTrackFromPlaylist.mockResolvedValueOnce({
+        deletedTrack: mockPlaylistTrack,
+        updates: [],
+      } as never);
 
       const result = await service.removeTrackFromPlaylist(
         PLAYLIST_ID,
@@ -678,9 +680,10 @@ describe('PlaylistsService', () => {
       repository.findPlaylistTrack.mockResolvedValueOnce(
         mockPlaylistTrack as never,
       );
-      repository.removeTrackFromPlaylist.mockResolvedValueOnce(
-        mockPlaylistTrack as never,
-      );
+      repository.removeTrackFromPlaylist.mockResolvedValueOnce({
+        deletedTrack: mockPlaylistTrack,
+        updates: [{ trackId: 'uuid1', position: 3 }],
+      } as never);
 
       await svc.removeTrackFromPlaylist(
         PLAYLIST_ID,
@@ -691,7 +694,11 @@ describe('PlaylistsService', () => {
       expect(gateway.server.to).toHaveBeenCalledWith(`playlist_${PLAYLIST_ID}`);
       expect(gateway.server.emit).toHaveBeenCalledWith(
         'playlist:track:removed',
-        { trackId: PLAYLIST_TRACK_ID },
+        {
+          playlistId: PLAYLIST_ID,
+          deletedTrackId: PLAYLIST_TRACK_ID,
+          updates: [{ trackId: 'uuid1', position: 3 }],
+        },
       );
     });
 

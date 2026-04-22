@@ -107,7 +107,17 @@ Broadcasted immediately after a new track is added to the playlist via the REST 
 
 Broadcasted immediately after a track is removed via the REST API (`DELETE /playlists/:id/tracks/:playlistTrackId`).
 - **Server → Client (broadcast)**: `playlist:track:removed`
-- **Payload**: `{ trackId: string }` where `trackId` is the removed `PlaylistTrack.id` (the same identifier passed as `:playlistTrackId` in the REST route), not the nested `Track.id`.
+- **Payload**:
+  ```json
+  {
+    "playlistId": "string",
+    "deletedTrackId": "string",
+    "updates": [
+      { "trackId": "string", "position": number }
+    ]
+  }
+  ```
+- **Note**: `deletedTrackId` is the removed `PlaylistTrack.id`. `updates` contains the new absolute positions for all tracks that were shifted down to fill the gap.
 
 ## Errors & Disconnects
 

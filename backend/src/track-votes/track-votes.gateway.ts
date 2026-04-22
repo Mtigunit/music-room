@@ -48,7 +48,7 @@ export class TrackVotesGateway {
     }
 
     const result = await this.trackVotesService.recordVote(payload, userId);
-    this.server?.to(payload.eventId)?.emit('track:vote:updated', result);
+    this.server.to(payload.eventId).emit('track:vote:updated', result);
 
     this.logger.log(
       `Vote recorded: client=${client.id} userId=${userId} event=${payload.eventId} track=${payload.trackId} vote=${payload.vote}`,

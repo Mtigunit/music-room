@@ -1,5 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { Tags, Visibility, type PlaylistTrack, Prisma } from '@prisma/client';
+import {
+  Tags,
+  Visibility,
+  type PlaylistTrack,
+  type Track,
+  Prisma,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { TrackSearchResultDto } from '../tracks/dto/track-search-result.dto';
 import { CreatePlaylistDto } from './dto/create-playlist.dto';
@@ -187,12 +193,17 @@ export class PlaylistsRepository {
     playlistId: string,
     addedById: string,
     track: TrackSearchResultDto,
-  ): Promise<PlaylistTrack> {
+  ): Promise<PlaylistTrack & { track: Track }> {
     return this.prisma.$transaction(async (tx) => {
       const counter = await tx.playlistCounter.update({
         where: { playlistId },
         data: { nextPosition: { increment: 1 } },
         select: { nextPosition: true },
+      });
+
+      await tx.playlist.update({
+        where: { id: playlistId },
+        data: { updatedAt: new Date() },
       });
 
       return tx.playlistTrack.create({
@@ -213,6 +224,7 @@ export class PlaylistsRepository {
             },
           },
         },
+        include: { track: true },
       });
     });
   }
@@ -284,7 +296,31 @@ export class PlaylistsRepository {
         data: { nextPosition: { decrement: 1 } },
       });
 
-      return deletedTrack;
+      // 5. Bump the Playlist updatedAt timestamp for Optimistic Concurrency Control
+      await tx.playlist.update({
+        where: { id: playlistId },
+        data: { updatedAt: new Date() },
+      });
+
+      // 6. Fetch the updated tracks that were shifted to broadcast their new absolute positions
+      const updates = await tx.playlistTrack.findMany({
+        where: {
+          playlistId,
+          position: { gte: track.position }, // `track.position` is the deleted track's original position; after decrementing subsequent tracks, shifted tracks now occupy positions starting from this value
+        },
+        select: {
+          id: true,
+          position: true,
+        },
+        orderBy: {
+          position: 'asc',
+        },
+      });
+
+      return {
+        deletedTrack,
+        updates: updates.map((u) => ({ trackId: u.id, position: u.position })),
+      };
     });
   }
 
