@@ -472,6 +472,22 @@ export class EventsRepository {
     options: { page: number; limit: number },
   ) {
     const { page, limit } = options;
+    const MAX_PAGE_SIZE = 100;
+    if (!Number.isInteger(page) || page < 1) {
+      throw new BadRequestException(
+        '`page` must be an integer greater than or equal to 1',
+      );
+    }
+    if (!Number.isInteger(limit) || limit < 1) {
+      throw new BadRequestException(
+        '`limit` must be an integer greater than or equal to 1',
+      );
+    }
+    if (limit > MAX_PAGE_SIZE) {
+      throw new BadRequestException(
+        `\`limit\` must be less than or equal to ${MAX_PAGE_SIZE}`,
+      );
+    }
     const skip = (page - 1) * limit;
 
     const existingEvent = await this.prisma.event.findUnique({
@@ -651,7 +667,7 @@ export class EventsRepository {
         track: true,
       },
     });
-    return newTrack!;
+    return newTrack;
   }
 
   async removeTrack(eventId: string, providerTrackId: string, userId: string) {
