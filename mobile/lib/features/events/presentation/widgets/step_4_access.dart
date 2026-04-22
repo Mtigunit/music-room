@@ -1,11 +1,11 @@
 import 'dart:async';
-import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
-import 'package:latlong2/latlong.dart';
 import 'package:music_room/features/events/domain/entities/event_location.dart';
 
 // ---------------------------------------------------------------------------
@@ -69,14 +69,16 @@ class _Step4AccessState extends State<Step4Access> {
   // ------------------------------------------------------------------
   static const LatLng _defaultCenter = LatLng(48.8566, 2.3522); // Paris
 
-  late final MapController _mapController;
+  GoogleMapController? _googleMapController;
   LatLng _centerPin = _defaultCenter;
   bool _locationLoading = false;
+  final Set<Factory<OneSequenceGestureRecognizer>> _mapGestureRecognizers = {
+    const Factory<OneSequenceGestureRecognizer>(EagerGestureRecognizer.new),
+  };
 
   @override
   void initState() {
     super.initState();
-    _mapController = MapController();
 
     // Seed pin from previously selected location, if any.
     if (widget.allowedLocation != null) {
@@ -92,7 +94,7 @@ class _Step4AccessState extends State<Step4Access> {
 
   @override
   void dispose() {
-    _mapController.dispose();
+    _googleMapController?.dispose();
     super.dispose();
   }
 
@@ -122,7 +124,18 @@ class _Step4AccessState extends State<Step4Access> {
       if (!mounted) return;
 
       final latLng = LatLng(position.latitude, position.longitude);
-      _mapController.move(latLng, 15);
+
+      final mapController = _googleMapController;
+      if (mapController != null) {
+        unawaited(
+          mapController.animateCamera(
+            CameraUpdate.newCameraPosition(
+              CameraPosition(target: latLng, zoom: 15),
+            ),
+          ),
+        );
+      }
+
       setState(() => _centerPin = latLng);
       widget.onLocationChanged(
         EventLocation(position.latitude, position.longitude),
@@ -336,9 +349,9 @@ class _Step4AccessState extends State<Step4Access> {
                       // ── Dynamic section ───────────────────────────
                       if (showDynamicUI) ...[
                         const SizedBox(height: 20),
-                        _buildMapSection(theme, radius),
-                        const SizedBox(height: 16),
                         _buildDateTimeSection(theme),
+                        const SizedBox(height: 18),
+                        _buildMapSection(theme, radius),
                       ],
                     ],
                   ),
@@ -384,67 +397,75 @@ class _Step4AccessState extends State<Step4Access> {
   }
 
   // ------------------------------------------------------------------
-  // Real FlutterMap + center-pin + CircleLayer
+  // GoogleMap + center-pin overlay + Circle geofence
   // ------------------------------------------------------------------
   Widget _buildMapSection(ThemeData theme, double radius) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // -- Map container ------------------------------------------
+        Text(
+          'Access Location',
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: theme.colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Drag the map and keep the center pin on your target point.',
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.65),
+          ),
+        ),
+        const SizedBox(height: 10),
         ClipRRect(
           borderRadius: BorderRadius.circular(16),
           child: SizedBox(
-            height: 250,
+            height: 280,
             child: Stack(
               children: [
-                // Real OSM map
-                FlutterMap(
-                  mapController: _mapController,
-                  options: MapOptions(
-                    initialCenter: _centerPin,
-                    initialZoom: 15,
-                    // Update pin & notify parent on every camera move.
-                    onPositionChanged: (camera, hasGesture) {
-                      if (!hasGesture) return;
-                      setState(() => _centerPin = camera.center);
-                      widget.onLocationChanged(
-                        EventLocation(
-                          camera.center.latitude,
-                          camera.center.longitude,
-                        ),
-                      );
-                    },
+                GoogleMap(
+                  gestureRecognizers: _mapGestureRecognizers,
+                  initialCameraPosition: CameraPosition(
+                    target: _centerPin,
+                    zoom: 15,
                   ),
-                  children: [
-                    // Free OSM tile layer – no API key required.
-                    TileLayer(
-                      urlTemplate:
-                          'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                      userAgentPackageName: 'com.music_room.app',
+                  onMapCreated: (controller) {
+                    _googleMapController = controller;
+                  },
+                  onCameraMove: (position) {
+                    setState(() => _centerPin = position.target);
+                  },
+                  onCameraIdle: () {
+                    widget.onLocationChanged(
+                      EventLocation(_centerPin.latitude, _centerPin.longitude),
+                    );
+                  },
+                  myLocationButtonEnabled: false,
+                  zoomControlsEnabled: false,
+                  rotateGesturesEnabled: false,
+                  circles: {
+                    Circle(
+                      circleId: const CircleId('geofence-radius'),
+                      center: _centerPin,
+                      radius: radius,
+                      fillColor: theme.colorScheme.primary.withValues(
+                        alpha: 0.2,
+                      ),
+                      strokeColor: theme.colorScheme.primary,
+                      strokeWidth: 2,
                     ),
-                    // Dynamic geofence circle.
-                    CircleLayer(
-                      circles: [
-                        CircleMarker(
-                          point: _centerPin,
-                          // radius in metres → flutter_map uses logical pixels
-                          // at zoom 15: 1 metre ≈ 0.075 px, so keep as-is.
-                          radius: radius,
-                          useRadiusInMeter: true,
-                          color: theme.colorScheme.primary.withValues(
-                            alpha: 0.18,
-                          ),
-                          borderColor: theme.colorScheme.primary,
-                          borderStrokeWidth: 2,
-                        ),
-                      ],
-                    ),
-                  ],
+                  },
                 ),
 
-                // Static center-pin icon (always centered on the Stack).
-                const Center(
-                  child: _CenterPin(),
+                Center(
+                  child: IgnorePointer(
+                    child: Icon(
+                      Icons.location_on,
+                      color: theme.colorScheme.primary,
+                      size: 42,
+                    ),
+                  ),
                 ),
 
                 // GPS button (top-right corner).
@@ -536,7 +557,16 @@ class _Step4AccessState extends State<Step4Access> {
   // ------------------------------------------------------------------
   Widget _buildDateTimeSection(ThemeData theme) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        Text(
+          'Access Time Window',
+          style: theme.textTheme.titleSmall?.copyWith(
+            fontWeight: FontWeight.w700,
+            color: theme.colorScheme.onSurface,
+          ),
+        ),
+        const SizedBox(height: 10),
         _buildPickerButton(
           context,
           label: _formatDateTime(
@@ -760,62 +790,6 @@ class _Step4AccessState extends State<Step4Access> {
 // ---------------------------------------------------------------------------
 // Private sub-widgets
 // ---------------------------------------------------------------------------
-
-/// Static pin icon always rendered at the center of the map stack.
-class _CenterPin extends StatelessWidget {
-  const _CenterPin();
-
-  @override
-  Widget build(BuildContext context) {
-    final primary = Theme.of(context).colorScheme.primary;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Container(
-          decoration: BoxDecoration(
-            color: primary,
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: primary.withValues(alpha: 0.4),
-                blurRadius: 8,
-                spreadRadius: 2,
-              ),
-            ],
-          ),
-          padding: const EdgeInsets.all(6),
-          child: const Icon(Icons.place, color: Colors.white, size: 22),
-        ),
-        // Tiny pointer triangle below the circle.
-        CustomPaint(
-          size: const Size(12, 8),
-          painter: _TrianglePainter(primary),
-        ),
-      ],
-    );
-  }
-}
-
-/// Draws a downward-pointing triangle for the pin's tail.
-class _TrianglePainter extends CustomPainter {
-  const _TrianglePainter(this.color);
-  final Color color;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final paint = Paint()..color = color;
-    // Use the dart:ui Path directly to avoid the latlong2 Path name clash.
-    final path = ui.Path()
-      ..moveTo(0, 0)
-      ..lineTo(size.width, 0)
-      ..lineTo(size.width / 2, size.height)
-      ..close();
-    canvas.drawPath(path, paint);
-  }
-
-  @override
-  bool shouldRepaint(_TrianglePainter old) => old.color != color;
-}
 
 /// Floating GPS button shown in the top-right of the map.
 class _GpsButton extends StatelessWidget {
