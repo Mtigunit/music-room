@@ -202,8 +202,8 @@ export class PlaylistsService {
       );
 
       this.playlistsGateway.server
-        ?.to(`playlist_${playlistId}`)
-        ?.emit('playlist:track:added', result);
+        .to(`playlist_${playlistId}`)
+        .emit('playlist:track:added', result);
 
       return result;
     } catch (error) {
@@ -253,18 +253,22 @@ export class PlaylistsService {
       );
     }
 
-    const deleted = await this.playlistsRepository.removeTrackFromPlaylist(
+    const result = await this.playlistsRepository.removeTrackFromPlaylist(
       playlistId,
       playlistTrackId,
     );
 
-    if (!deleted) {
+    if (!result || !result.deletedTrack) {
       throw new NotFoundException('Track not found in playlist');
     }
 
     this.playlistsGateway.server
-      ?.to(`playlist_${playlistId}`)
-      ?.emit('playlist:track:removed', { trackId: playlistTrackId });
-    return deleted;
+      .to(`playlist_${playlistId}`)
+      .emit('playlist:track:removed', {
+        playlistId,
+        deletedTrackId: result.deletedTrack.id,
+        updates: result.updates,
+      });
+    return result.deletedTrack;
   }
 }

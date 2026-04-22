@@ -195,6 +195,11 @@ export class PlaylistsRepository {
         select: { nextPosition: true },
       });
 
+      await tx.playlist.update({
+        where: { id: playlistId },
+        data: { updatedAt: new Date() },
+      });
+
       return tx.playlistTrack.create({
         data: {
           playlist: { connect: { id: playlistId } },
@@ -213,6 +218,7 @@ export class PlaylistsRepository {
             },
           },
         },
+        include: { track: true },
       });
     });
   }
@@ -284,7 +290,28 @@ export class PlaylistsRepository {
         data: { nextPosition: { decrement: 1 } },
       });
 
-      return deletedTrack;
+      // 5. Bump the Playlist updatedAt timestamp for Optimistic Concurrency Control
+      await tx.playlist.update({
+        where: { id: playlistId },
+        data: { updatedAt: new Date() },
+      });
+
+      // 6. Fetch the updated tracks that were shifted to broadcast their new absolute positions
+      const updates = await tx.playlistTrack.findMany({
+        where: {
+          playlistId,
+          position: { gte: track.position }, // `track.position` is the deleted track's original position; after decrementing subsequent tracks, shifted tracks now occupy positions starting from this value
+        },
+        select: {
+          id: true,
+          position: true,
+        },
+      });
+
+      return {
+        deletedTrack,
+        updates: updates.map((u) => ({ trackId: u.id, position: u.position })),
+      };
     });
   }
 
