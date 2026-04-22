@@ -8,6 +8,7 @@ import 'package:music_room/features/auth/domain/repositories/auth_repository.dar
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
 import 'package:music_room/features/events/data/datasources/event_remote_datasource.dart';
 import 'package:music_room/features/events/data/datasources/track_remote_datasource.dart';
+import 'package:music_room/features/playlist/data/datasources/playlist_remote_datasource.dart';
 import 'package:music_room/features/search/data/datasources/search_remote_datasource.dart';
 import 'package:music_room/features/search/data/services/search_query_service.dart';
 
@@ -25,6 +26,7 @@ class InjectionContainer {
   late ApiClient _apiClient;
   late IAuthRemoteDataSource _authRemoteDataSource;
   late ISearchRemoteDataSource _searchRemoteDataSource;
+  late IPlaylistRemoteDataSource _playlistRemoteDataSource;
   late SearchQueryService _searchQueryService;
   late AuthRepository _authRepository;
   late ITrackRemoteDataSource _trackRemoteDataSource;
@@ -50,6 +52,7 @@ class InjectionContainer {
     _searchRemoteDataSource = SearchRemoteDataSource(apiClient: _apiClient);
     _trackRemoteDataSource = TrackRemoteDataSource(apiClient: _apiClient);
     _eventRemoteDataSource = EventRemoteDataSource(apiClient: _apiClient);
+    _playlistRemoteDataSource = PlaylistRemoteDataSource(apiClient: _apiClient);
 
     // Repositories
     _authRepository = AuthRepositoryImpl(
@@ -63,6 +66,8 @@ class InjectionContainer {
   ApiClient get apiClient => _apiClient;
   IAuthRemoteDataSource get authRemoteDataSource => _authRemoteDataSource;
   ISearchRemoteDataSource get searchRemoteDataSource => _searchRemoteDataSource;
+  IPlaylistRemoteDataSource get playlistRemoteDataSource =>
+      _playlistRemoteDataSource;
   SearchQueryService get searchQueryService => _searchQueryService;
   AuthRepository get authRepository => _authRepository;
   ITrackRemoteDataSource get trackRemoteDataSource => _trackRemoteDataSource;
