@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -138,10 +136,9 @@ class CreateEventCubit extends Cubit<CreateEventState> {
     emit(CreateEventSubmitting());
 
     try {
-      final imageFile = coverImage == null ? null : File(coverImage.path);
       final createdEventId = await _remoteDataSource.createEvent(
         event,
-        imageFile,
+        coverImage,
       );
 
       emit(CreateEventSuccess(createdEventId));

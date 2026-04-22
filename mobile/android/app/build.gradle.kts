@@ -14,8 +14,10 @@ val localProperties = Properties().apply {
     }
 }
 
-val mapsApiKey = localProperties.getProperty("Maps_api_key")
+val mapsApiKey = localProperties.getProperty("MAPS_API_KEY")
+    ?: localProperties.getProperty("Maps_API_KEY")
     ?: localProperties.getProperty("google_maps_api_key")
+    ?: localProperties.getProperty("Maps_api_key")
     ?: ""
 
 android {

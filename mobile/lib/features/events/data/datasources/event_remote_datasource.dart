@@ -1,14 +1,15 @@
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:music_room/core/config/app_config.dart';
 import 'package:music_room/core/network/api_client.dart';
 import 'package:music_room/features/events/data/models/event_model.dart';
 
 // ignore: one_member_abstracts, reason: Interfaces for Repositories/Datasources often start with one method
 abstract class IEventRemoteDataSource {
-  Future<String> createEvent(EventModel event, File? coverImage);
+  Future<String> createEvent(EventModel event, XFile? coverImage);
 }
 
 class EventRemoteDataSource implements IEventRemoteDataSource {
@@ -18,7 +19,7 @@ class EventRemoteDataSource implements IEventRemoteDataSource {
   final ApiClient _apiClient;
 
   @override
-  Future<String> createEvent(EventModel event, File? coverImage) async {
+  Future<String> createEvent(EventModel event, XFile? coverImage) async {
     try {
       final formData = FormData.fromMap(
         await _buildFormDataMap(event, coverImage),
@@ -42,7 +43,7 @@ class EventRemoteDataSource implements IEventRemoteDataSource {
 
   Future<Map<String, dynamic>> _buildFormDataMap(
     EventModel event,
-    File? coverImage,
+    XFile? coverImage,
   ) async {
     final formData = <String, dynamic>{
       'name': event.name,
@@ -86,10 +87,17 @@ class EventRemoteDataSource implements IEventRemoteDataSource {
     }
 
     if (coverImage != null) {
-      formData['coverImage'] = await MultipartFile.fromFile(
-        coverImage.path,
-        filename: coverImage.uri.pathSegments.last,
-      );
+      if (kIsWeb) {
+        formData['coverImage'] = MultipartFile.fromBytes(
+          await coverImage.readAsBytes(),
+          filename: coverImage.name,
+        );
+      } else {
+        formData['coverImage'] = await MultipartFile.fromFile(
+          coverImage.path,
+          filename: coverImage.name,
+        );
+      }
     }
 
     return formData;
