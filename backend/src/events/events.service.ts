@@ -41,30 +41,28 @@ export class EventsService {
     return this.eventsRepository.inviteUser(eventId, hostId, invitedUserId);
   }
 
-  getTracks(id: string, userId: string) {
-    return this.eventsRepository.getTracks(id, userId);
+  getTracks(
+    id: string,
+    userId: string,
+    options: { page: number; limit: number },
+  ) {
+    return this.eventsRepository.getTracks(id, userId, options);
   }
 
   remove(id: string, userId: string) {
     return this.eventsRepository.remove(id, userId);
   }
 
-  async appendTrack(
-    eventId: string,
-    userId: string,
-    providerTrackIds: string[],
-  ) {
-    const newTracks = await this.eventsRepository.appendTrack(
+  async appendTrack(eventId: string, userId: string, providerTrackId: string) {
+    const newTrack = await this.eventsRepository.appendTrack(
       eventId,
       userId,
-      providerTrackIds,
+      providerTrackId,
     );
 
-    for (const newTrack of newTracks) {
-      this.socketIoGateway.server.to(eventId).emit('track:added', newTrack);
-    }
+    this.socketIoGateway.server.to(eventId).emit('track:added', newTrack);
 
-    return newTracks;
+    return newTrack;
   }
 
   async removeTrack(eventId: string, providerTrackId: string, userId: string) {

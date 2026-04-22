@@ -14,7 +14,6 @@ import {
   Query,
   ParseIntPipe,
   DefaultValuePipe,
-  ParseArrayPipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -31,6 +30,7 @@ import { EventsService } from './events.service';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { InviteUserDto } from './dto/invite-user.dto';
+import { AppendedTrackDto } from './dto/append-tracks.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import type { Request } from 'express';
 
@@ -181,12 +181,29 @@ export class EventsController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get tracks of an event' })
   @ApiParam({ name: 'id', type: String })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Page number (default 1)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Items per page (default 10)',
+  })
   @ApiResponse({ status: 200, description: 'Event tracks retrieved.' })
   @ApiResponse({ status: 403, description: 'Forbidden. No access to event.' })
   @ApiResponse({ status: 404, description: 'Event not found.' })
-  getTracks(@Param('id', ParseUUIDPipe) id: string, @Req() req: Request) {
+  getTracks(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+  ) {
     const userId = (req.user as { id: string }).id;
-    return this.eventsService.getTracks(id, userId);
+    return this.eventsService.getTracks(id, userId, { page, limit });
   }
 
   @Delete(':id')
@@ -208,27 +225,23 @@ export class EventsController {
   @Post(':eventId/tracks')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Append tracks to an event' })
+  @ApiOperation({ summary: 'Append a track to an event' })
   @ApiParam({ name: 'eventId', type: String })
-  @ApiBody({
-    schema: {
-      type: 'array',
-      items: {
-        type: 'string',
-      },
-      example: ['zaGHlRk1Aq0'],
-    },
-  })
-  @ApiResponse({ status: 201, description: 'Tracks added successfully.' })
+  @ApiBody({ type: AppendedTrackDto })
+  @ApiResponse({ status: 201, description: 'Track added successfully.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   @ApiResponse({ status: 404, description: 'Event not found.' })
   appendTrack(
     @Param('eventId', ParseUUIDPipe) eventId: string,
-    @Body(new ParseArrayPipe({ items: String })) providerTrackIds: string[],
+    @Body() appendedTrackDto: AppendedTrackDto,
     @Req() req: Request,
   ) {
     const userId = (req.user as { id: string }).id;
-    return this.eventsService.appendTrack(eventId, userId, providerTrackIds);
+    return this.eventsService.appendTrack(
+      eventId,
+      userId,
+      appendedTrackDto.providerTrackId,
+    );
   }
 
   @Delete(':eventId/tracks/:providerTrackId')

@@ -4,6 +4,7 @@ import { EventsService } from './events.service';
 import { EventsRepository } from './events.repository';
 import { PrismaService } from '../prisma/prisma.service';
 import { SocketIoGateway } from '../websockets/socket-io.gateway';
+import { YoutubeService } from '../tracks/youtube.service';
 import type { Request } from 'express';
 
 describe('EventsController', () => {
@@ -16,6 +17,12 @@ describe('EventsController', () => {
       providers: [
         EventsService,
         EventsRepository,
+        {
+          provide: YoutubeService,
+          useValue: {
+            getTrackDetails: jest.fn(),
+          },
+        },
         {
           provide: PrismaService,
           useValue: {
@@ -72,16 +79,19 @@ describe('EventsController', () => {
     it('should call eventsService.getTracks with correct parameters', async () => {
       const eventId = '740777df-e348-40b6-925e-4c0f020cf68c';
       const userId = 'user-1';
+      const page = 1;
+      const limit = 10;
 
       const req = { user: { id: userId } } as unknown as Request;
 
-      const spy = jest
-        .spyOn(service, 'getTracks')
-        .mockResolvedValue([] as never);
+      const spy = jest.spyOn(service, 'getTracks').mockResolvedValue({
+        data: [],
+        pagination: { total: 0, page, limit, totalPages: 0 },
+      } as never);
 
-      await controller.getTracks(eventId, req);
+      await controller.getTracks(eventId, req, page, limit);
 
-      expect(spy).toHaveBeenCalledWith(eventId, userId);
+      expect(spy).toHaveBeenCalledWith(eventId, userId, { page, limit });
     });
   });
 });

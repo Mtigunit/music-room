@@ -9,10 +9,14 @@ import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { TrackStatus, Prisma, Visibility, Tags } from '@prisma/client';
+import { YoutubeService } from '../tracks/youtube.service';
 
 @Injectable()
 export class EventsRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly youtubeService: YoutubeService,
+  ) {}
 
   async create(hostId: string, createEventDto: CreateEventDto) {
     const {
@@ -90,19 +94,21 @@ export class EventsRepository {
       if (tracks && tracks.length > 0) {
         const uniqueProviderTrackIds = Array.from(new Set(tracks));
 
-        const fetchedMetadata = this.fetchTrackMetadata(uniqueProviderTrackIds);
-
+        const fetchedMetadata = await this.youtubeService.getTrackDetailsBatch(
+          uniqueProviderTrackIds,
+        );
         await tx.track.createMany({
-          data: fetchedMetadata.map((t) => ({
-            providerTrackId: t.providerTrackId,
-            title: t.title,
-            artist: t.artist || '',
-            durationMs: t.durationMs,
-            thumbnailUrl: t.thumbnailUrl || '',
-          })),
+          data: fetchedMetadata
+            .filter((t) => t !== null)
+            .map((t) => ({
+              providerTrackId: t.providerTrackId,
+              title: t.title,
+              artist: t.artist || '',
+              durationMs: t.durationMs,
+              thumbnailUrl: t.thumbnailUrl || '',
+            })),
           skipDuplicates: true,
         });
-
         const createdTracks = await tx.track.findMany({
           where: { providerTrackId: { in: uniqueProviderTrackIds } },
           select: { id: true },
@@ -243,13 +249,37 @@ export class EventsRepository {
   async findOne(id: string) {
     const event = await this.prisma.event.findUnique({
       where: { id },
+      include: {
+        tracks: {
+          include: { track: true },
+          take: 10,
+          orderBy: [{ voteScore: 'desc' }, { id: 'asc' }],
+        },
+      },
     });
 
     if (!event) {
       throw new NotFoundException(`Event with ID ${id} not found`);
     }
 
-    return event;
+    const { tracks, ...eventData } = event;
+    const formattedTracks = tracks.map((et) => ({
+      id: et.id,
+      trackId: et.trackId,
+      addedById: et.addedById,
+      voteScore: et.voteScore,
+      status: et.status,
+      providerTrackId: et.track.providerTrackId,
+      title: et.track.title,
+      artist: et.track.artist,
+      durationMs: et.track.durationMs,
+      thumbnailUrl: et.track.thumbnailUrl,
+    }));
+
+    return {
+      ...eventData,
+      tracks: formattedTracks,
+    };
   }
 
   async update(id: string, userId: string, updateEventDto: UpdateEventDto) {
@@ -341,18 +371,21 @@ export class EventsRepository {
         if (tracks && tracks.length > 0) {
           const uniqueProviderTrackIds = Array.from(new Set(tracks));
 
-          const fetchedMetadata = this.fetchTrackMetadata(
-            uniqueProviderTrackIds,
-          );
+          const fetchedMetadata =
+            await this.youtubeService.getTrackDetailsBatch(
+              uniqueProviderTrackIds,
+            );
 
           await tx.track.createMany({
-            data: fetchedMetadata.map((t) => ({
-              providerTrackId: t.providerTrackId,
-              title: t.title,
-              artist: t.artist || '',
-              durationMs: t.durationMs,
-              thumbnailUrl: t.thumbnailUrl || '',
-            })),
+            data: fetchedMetadata
+              .filter((t) => t !== null)
+              .map((t) => ({
+                providerTrackId: t.providerTrackId,
+                title: t.title,
+                artist: t.artist || '',
+                durationMs: t.durationMs,
+                thumbnailUrl: t.thumbnailUrl || '',
+              })),
             skipDuplicates: true,
           });
 
@@ -433,24 +466,18 @@ export class EventsRepository {
     });
   }
 
-  async getTracks(id: string, userId: string) {
+  async getTracks(
+    id: string,
+    userId: string,
+    options: { page: number; limit: number },
+  ) {
+    const { page, limit } = options;
+    const skip = (page - 1) * limit;
+
     const existingEvent = await this.prisma.event.findUnique({
       where: { id },
       include: {
         invites: true,
-        tracks: {
-          include: {
-            track: true,
-          },
-          orderBy: [
-            {
-              voteScore: 'desc',
-            },
-            {
-              id: 'asc',
-            },
-          ],
-        },
       },
     });
 
@@ -468,7 +495,43 @@ export class EventsRepository {
       );
     }
 
-    return existingEvent.tracks;
+    const where: Prisma.EventTrackWhereInput = { eventId: id };
+
+    const [tracks, total] = await Promise.all([
+      this.prisma.eventTrack.findMany({
+        where,
+        include: {
+          track: true,
+        },
+        orderBy: [{ voteScore: 'desc' }, { id: 'asc' }],
+        skip,
+        take: limit,
+      }),
+      this.prisma.eventTrack.count({ where }),
+    ]);
+
+    const formattedTracks = tracks.map((et) => ({
+      id: et.id,
+      trackId: et.trackId,
+      addedById: et.addedById,
+      voteScore: et.voteScore,
+      status: et.status,
+      providerTrackId: et.track.providerTrackId,
+      title: et.track.title,
+      artist: et.track.artist,
+      durationMs: et.track.durationMs,
+      thumbnailUrl: et.track.thumbnailUrl,
+    }));
+
+    return {
+      data: formattedTracks,
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 
   async remove(id: string, userId: string) {
@@ -501,11 +564,7 @@ export class EventsRepository {
     }
   }
 
-  async appendTrack(
-    eventId: string,
-    userId: string,
-    providerTrackIds: string[],
-  ) {
+  async appendTrack(eventId: string, userId: string, providerTrackId: string) {
     const event = await this.prisma.event.findUnique({
       where: { id: eventId },
       include: {
@@ -527,45 +586,37 @@ export class EventsRepository {
       );
     }
 
-    const uniqueProviderTrackIds = Array.from(
-      new Set(providerTrackIds.map((id) => id.trim()).filter((id) => id)),
-    );
-
-    if (uniqueProviderTrackIds.length === 0) {
-      throw new BadRequestException(
-        'At least one provider track ID is required',
-      );
+    if (!providerTrackId || !providerTrackId.trim()) {
+      throw new BadRequestException('Provider track ID is required');
     }
 
-    const fetchedMetadata = this.fetchTrackMetadata(uniqueProviderTrackIds);
+    const trackDetails =
+      await this.youtubeService.getTrackDetails(providerTrackId);
+    if (!trackDetails) {
+      throw new NotFoundException('Track metadata not found');
+    }
 
-    const tracks = await Promise.all(
-      fetchedMetadata.map((trackDetails) =>
-        this.prisma.track.upsert({
-          where: { providerTrackId: trackDetails.providerTrackId },
-          create: {
-            providerTrackId: trackDetails.providerTrackId,
-            title: trackDetails.title,
-            artist: trackDetails.artist || '',
-            durationMs: trackDetails.durationMs,
-            thumbnailUrl: trackDetails.thumbnailUrl || '',
-          },
-          update: {
-            title: trackDetails.title,
-            artist: trackDetails.artist || '',
-            durationMs: trackDetails.durationMs,
-            thumbnailUrl: trackDetails.thumbnailUrl || '',
-          },
-        }),
-      ),
-    );
+    const track = await this.prisma.track.upsert({
+      where: { providerTrackId: trackDetails.providerTrackId },
+      create: {
+        providerTrackId: trackDetails.providerTrackId,
+        title: trackDetails.title,
+        artist: trackDetails.artist || '',
+        durationMs: trackDetails.durationMs,
+        thumbnailUrl: trackDetails.thumbnailUrl || '',
+      },
+      update: {
+        title: trackDetails.title,
+        artist: trackDetails.artist || '',
+        durationMs: trackDetails.durationMs,
+        thumbnailUrl: trackDetails.thumbnailUrl || '',
+      },
+    });
 
-    const trackIds = tracks.map((track) => track.id);
-
-    const existingEventTracks = await this.prisma.eventTrack.findMany({
+    const existingEventTrack = await this.prisma.eventTrack.findFirst({
       where: {
         eventId,
-        trackId: { in: trackIds },
+        trackId: track.id,
       },
       include: {
         track: {
@@ -576,36 +627,31 @@ export class EventsRepository {
       },
     });
 
-    if (existingEventTracks.length > 0) {
-      const existingProviderIds = existingEventTracks.map(
-        (eventTrack) => eventTrack.track.providerTrackId,
-      );
+    if (existingEventTrack) {
       throw new ConflictException(
-        `Tracks are already attached to this event: ${existingProviderIds.join(', ')}`,
+        `Track is already attached to this event: ${existingEventTrack.track.providerTrackId}`,
       );
     }
 
-    await this.prisma.eventTrack.createMany({
-      data: trackIds.map((trackId) => ({
+    await this.prisma.eventTrack.create({
+      data: {
         eventId,
-        trackId,
+        trackId: track.id,
         addedById: userId,
         status: TrackStatus.QUEUED,
-      })),
+      },
     });
 
-    return this.prisma.eventTrack.findMany({
+    const newTrack = await this.prisma.eventTrack.findFirst({
       where: {
         eventId,
-        trackId: { in: trackIds },
+        trackId: track.id,
       },
       include: {
         track: true,
       },
-      orderBy: {
-        id: 'asc',
-      },
     });
+    return newTrack!;
   }
 
   async removeTrack(eventId: string, providerTrackId: string, userId: string) {
@@ -659,16 +705,5 @@ export class EventsRepository {
       trackId: eventTrack.trackId,
       providerTrackId: eventTrack.track.providerTrackId,
     };
-  }
-
-  private fetchTrackMetadata(providerTrackIds: string[]) {
-    // Placeholder for actual external provider integration
-    return providerTrackIds.map((id) => ({
-      providerTrackId: id,
-      title: 'A MESSAGE TO DIE FOR - A Die Remix',
-      artist: 'lubario',
-      durationMs: 362000,
-      thumbnailUrl: `https://i.ytimg.com/vi/${id}/maxresdefault.jpg`,
-    }));
   }
 }

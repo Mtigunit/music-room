@@ -4,17 +4,17 @@ This plan updates the payload requirements to strictly use `providerTrackId` for
 
 **Steps**
 1. **Refactor DTO**: Update [backend/src/events/dto/append-tracks.dto.ts](backend/src/events/dto/append-tracks.dto.ts) to only contain the `providerTrackId` property (removing `title`, `artist`, `durationMs`, and `thumbnailUrl`). This implicitly updates `CreateEventDto` to expect only the external ID as well.
-2. **Metadata Placeholder**: Add a private placeholder method `fetchTrackMetadata(providerTrackIds: string[])` in [backend/src/events/events.repository.ts](backend/src/events/events.repository.ts) (or `EventsService`) that mocks and returns the track metadata array as you specified (`{ providerTrackId, title, artist, durationMs, thumbnailUrl }`).
+2. **Metadata Placeholder**: Add a private placeholder method `getTracksDetails(providerTrackIds: string[])` in [backend/src/events/events.repository.ts](backend/src/events/events.repository.ts) (or `EventsService`) that mocks and returns the track metadata array as you specified (`{ providerTrackId, title, artist, durationMs, thumbnailUrl }`).
 3. **Extend Repository for Appending**: Add `appendTrack(id, userId, dto: AppendedTrackDto)` in [backend/src/events/events.repository.ts](backend/src/events/events.repository.ts).
    - Verify event permissions (must be public, host, or invited).
-   - Check if the track exists in the DB. If not, call the `fetchTrackMetadata` placeholder and `prisma.track.create` it.
+   - Check if the track exists in the DB. If not, call the `getTracksDetails` placeholder and `prisma.track.create` it.
    - Attach the track to the event via `prisma.eventTrack.create` (throwing a `ConflictException` if it's already queued).
 - **Extend Repository for Removing**: Add `removeTrack(eventId: string, trackId: string, userId: string)` in [backend/src/events/events.repository.ts](backend/src/events/events.repository.ts).
    - Verify event permissions (must be public, host, or invited).
    - Check if the `EventTrack` exists for the given `eventId` and `trackId`. Throw `NotFoundException` if it doesn't.
    - Detach the track from the event via `prisma.eventTrack.delete`.
 
-4. **Update `create` Event Flow**: Modify the existing `create` method in `EventsRepository` to use the `fetchTrackMetadata` placeholder for the `tracks` array before running the Prisma transaction to create the event and its tracks. 
+4. **Update `create` Event Flow**: Modify the existing `create` method in `EventsRepository` to use the `getTracksDetails` placeholder for the `tracks` array before running the Prisma transaction to create the event and its tracks. 
 5. **WebSocket & Controller Export**: 
    - Export `SocketIoGateway` from [backend/src/websockets/websockets.module.ts](backend/src/websockets/websockets.module.ts) and import `WebsocketsModule` into `EventsModule`.
    - Inject the Gateway into [backend/src/events/events.service.ts](backend/src/events/events.service.ts).
@@ -31,7 +31,7 @@ This plan updates the payload requirements to strictly use `providerTrackId` for
 
 **Decisions**
 - `AppendedTrackDto` was kept as an object (`{ providerTrackId: string }`) instead of raw strings to allow for easy extensibility in the future (e.g., adding user-specific tags or track sources) without breaking clients.
-- The `fetchTrackMetadata` placeholder returns an array to easily accommodate both single append and multiple track initialization during event creation.
+- The `getTracksDetails` placeholder returns an array to easily accommodate both single append and multiple track initialization during event creation.
 
 
 

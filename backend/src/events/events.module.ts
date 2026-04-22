@@ -8,11 +8,13 @@ import { EventsController } from './events.controller';
 import { EventsRepository } from './events.repository';
 import { PrismaModule } from '../prisma/prisma.module';
 import { WebsocketsModule } from '../websockets/websockets.module';
+import { TracksModule } from '../tracks/tracks.module';
 
 @Module({
   imports: [
     PrismaModule,
     WebsocketsModule,
+    TracksModule,
     MulterModule.register({
       limits: {
         fileSize: 2 * 1024 * 1024, // 2MB limit

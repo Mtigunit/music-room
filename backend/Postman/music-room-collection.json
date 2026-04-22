@@ -435,13 +435,13 @@
               }
             ],
             "url": {
-              "raw": "{{base_url}}/events/explore",
+              "raw": "{{base_url}}/events/8743edd1-f7fb-4edd-8d74-8d078f0bb729",
               "host": [
                 "{{base_url}}"
               ],
               "path": [
                 "events",
-                "explore"
+                "8743edd1-f7fb-4edd-8d74-8d078f0bb729"
               ]
             }
           },
@@ -489,6 +489,63 @@
               "path": [
                 "events",
                 "a15f0803-a326-49fd-8b5a-9e9ac497d8cd"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Append Track to Event",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"providerTrackId\": \"zaGHlRk1Aq0\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/events/8743edd1-f7fb-4edd-8d74-8d078f0bb729/tracks",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "events",
+                "8743edd1-f7fb-4edd-8d74-8d078f0bb729",
+                "tracks"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Remove Track from Event",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/events/8743edd1-f7fb-4edd-8d74-8d078f0bb729/tracks/zaGHlRk1Aq0",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "events",
+                "8743edd1-f7fb-4edd-8d74-8d078f0bb729",
+                "tracks",
+                "zaGHlRk1Aq0"
               ]
             }
           },

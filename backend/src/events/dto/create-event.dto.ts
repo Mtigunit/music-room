@@ -56,7 +56,7 @@ export class GeofenceConfigDto {
 
   @ApiProperty()
   @IsNumber()
-  distance: number;
+  distance!: number;
 }
 
 export class TimeWindowConfigDto {
@@ -64,17 +64,17 @@ export class TimeWindowConfigDto {
 
   @ApiProperty()
   @IsDateString()
-  startDate: string;
+  startDate!: string;
 
   @ApiProperty()
   @IsDateString()
-  endDate: string;
+  endDate!: string;
 }
 
 export class LicensePolicyDto {
   @ApiProperty({ enum: PolicyType })
   @IsEnum(PolicyType)
-  policyType: PolicyType;
+  policyType!: PolicyType;
 
   @ApiProperty({
     description: 'Configuration matching the policyType',
@@ -88,13 +88,13 @@ export class LicensePolicyDto {
         ? TimeWindowConfigDto
         : Object,
   )
-  config: GeofenceConfigDto | TimeWindowConfigDto;
+  config!: GeofenceConfigDto | TimeWindowConfigDto;
 }
 
 export class CreateEventDto {
   @ApiProperty()
   @IsString()
-  name: string;
+  name!: string;
 
   @ApiProperty({ enum: Tags, isArray: true, minItems: 1, maxItems: 3 })
   @IsArray()
@@ -117,11 +117,11 @@ export class CreateEventDto {
     }
     return Array.isArray(value) ? (value as Tags[]) : [value as Tags];
   })
-  tags: Tags[];
+  tags!: Tags[];
 
   @ApiProperty({ enum: Visibility })
   @IsEnum(Visibility)
-  visibility: Visibility;
+  visibility!: Visibility;
 
   @ApiPropertyOptional()
   @IsOptional()

@@ -4,5 +4,5 @@ import { IsString } from 'class-validator';
 export class AppendedTrackDto {
   @ApiProperty()
   @IsString()
-  providerTrackId: string;
+  providerTrackId!: string;
 }

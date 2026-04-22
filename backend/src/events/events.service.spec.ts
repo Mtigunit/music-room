@@ -3,6 +3,7 @@ import { EventsService } from './events.service';
 import { EventsRepository } from './events.repository';
 import { PrismaService } from '../prisma/prisma.service';
 import { SocketIoGateway } from '../websockets/socket-io.gateway';
+import { YoutubeService } from '../tracks/youtube.service';
 
 describe('EventsService', () => {
   let service: EventsService;
@@ -13,6 +14,12 @@ describe('EventsService', () => {
       providers: [
         EventsService,
         EventsRepository,
+        {
+          provide: YoutubeService,
+          useValue: {
+            getTrackDetails: jest.fn(),
+          },
+        },
         {
           provide: PrismaService,
           useValue: {
@@ -66,14 +73,16 @@ describe('EventsService', () => {
     it('should call eventsRepository.getTracks with correct parameters', async () => {
       const eventId = '740777df-e348-40b6-925e-4c0f020cf68c';
       const userId = 'user-1';
+      const options = { page: 1, limit: 10 };
 
-      const spy = jest
-        .spyOn(repository, 'getTracks')
-        .mockResolvedValue([] as never);
+      const spy = jest.spyOn(repository, 'getTracks').mockResolvedValue({
+        data: [],
+        pagination: { total: 0, page: 1, limit: 10, totalPages: 0 },
+      } as never);
 
-      await service.getTracks(eventId, userId);
+      await service.getTracks(eventId, userId, options);
 
-      expect(spy).toHaveBeenCalledWith(eventId, userId);
+      expect(spy).toHaveBeenCalledWith(eventId, userId, options);
     });
   });
 });
