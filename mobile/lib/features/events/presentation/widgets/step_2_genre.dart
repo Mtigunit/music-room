@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:music_room/core/widgets/genre_selection_grid.dart';
 import 'package:music_room/features/events/domain/entities/event_tag.dart';
 
 class Step2Genre extends StatelessWidget {
@@ -54,54 +55,19 @@ class Step2Genre extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 24),
-                Wrap(
-                  spacing: 12,
-                  runSpacing: 12,
-                  children: availableGenres.map((genre) {
-                    final isSelected = selectedGenres.contains(genre);
-                    final isLimitReached = selectedGenres.length >= 3;
-                    final isDisabled = isLimitReached && !isSelected;
-
-                    return Opacity(
-                      opacity: isDisabled ? 0.45 : 1,
-                      child: ChoiceChip(
-                        label: Text(genre.label),
-                        selected: isSelected,
-                        showCheckmark: false,
-                        onSelected: isDisabled
-                            ? null
-                            : (_) => _toggleGenre(genre),
-                        labelStyle: TextStyle(
-                          color: isSelected
-                              ? theme.colorScheme.onPrimary
-                              : theme.colorScheme.onSurface.withValues(
-                                  alpha: 0.7,
-                                ),
-                          fontWeight: FontWeight.w500,
-                        ),
-                        selectedColor: theme.colorScheme.primary,
-                        backgroundColor: theme.colorScheme.surface,
-                        elevation: isSelected ? 4 : 0,
-                        shadowColor: theme.colorScheme.primary.withValues(
-                          alpha: 0.4,
-                        ),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(24),
-                          side: BorderSide(
-                            color: isSelected
-                                ? Colors.transparent
-                                : theme.colorScheme.onSurface.withValues(
-                                    alpha: 0.1,
-                                  ),
-                          ),
-                        ),
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
-                        ),
-                      ),
+                GenreSelectionGrid(
+                  genres: availableGenres
+                      .map((tag) => tag.label)
+                      .toList(growable: false),
+                  selectedGenres: selectedGenres
+                      .map((tag) => tag.label)
+                      .toList(growable: false),
+                  onGenreTapped: (label) {
+                    final genre = availableGenres.firstWhere(
+                      (tag) => tag.label == label,
                     );
-                  }).toList(),
+                    _toggleGenre(genre);
+                  },
                 ),
                 const SizedBox(height: 32),
                 if (selectedGenres.isNotEmpty)

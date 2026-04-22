@@ -27,7 +27,6 @@ class EventRemoteDataSource implements IEventRemoteDataSource {
       final response = await _apiClient.post<Map<String, dynamic>>(
         AppConfig.eventsEndpoint,
         data: formData,
-        options: Options(contentType: 'multipart/form-data'),
       );
 
       return _parseCreateEventResponse(response);

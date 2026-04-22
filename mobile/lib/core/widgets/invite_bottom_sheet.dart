@@ -3,15 +3,105 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:music_room/features/music_vote/presentation/widgets/mock_data.dart';
 
-/// Invite Friends bottom sheet.
+class InviteFriendData {
+  const InviteFriendData({
+    required this.id,
+    required this.name,
+    required this.username,
+    required this.colorHex,
+    this.isInvited = false,
+  });
+
+  final String id;
+  final String name;
+  final String username;
+  final int colorHex;
+  final bool isInvited;
+}
+
+class InviteShareAction {
+  const InviteShareAction({
+    required this.id,
+    required this.label,
+    required this.icon,
+    required this.color,
+  });
+
+  final String id;
+  final String label;
+  final IconData icon;
+  final Color color;
+}
+
+class InviteFriendInviteChange {
+  const InviteFriendInviteChange({
+    required this.friend,
+    required this.isInvited,
+  });
+
+  final InviteFriendData friend;
+  final bool isInvited;
+}
+
+/// Reusable invite sheet with share link, social actions, and friends list.
 ///
-/// Displays: shareable room link · social share icons · friends list.
+/// This widget is feature-agnostic and receives all runtime data via
+/// constructor parameters.
 class InviteBottomSheet extends StatelessWidget {
-  const InviteBottomSheet({super.key});
+  const InviteBottomSheet({
+    required this.eventId,
+    required this.shareLink,
+    required this.friends,
+    this.title = 'Invite Friends',
+    this.subtitle = 'Share this room with your friends',
+    this.socialActions,
+    this.onCopyLink,
+    this.onShareTapped,
+    this.onFriendInviteChanged,
+    this.onClosePressed,
+    super.key,
+  });
 
-  static const String _mockRoomLink = 'musicroom.app/join/room-1';
+  final String eventId;
+  final String shareLink;
+  final List<InviteFriendData> friends;
+
+  final String title;
+  final String subtitle;
+
+  final List<InviteShareAction>? socialActions;
+  final VoidCallback? onCopyLink;
+  final ValueChanged<InviteShareAction>? onShareTapped;
+  final ValueChanged<InviteFriendInviteChange>? onFriendInviteChanged;
+  final VoidCallback? onClosePressed;
+
+  static const List<InviteShareAction> _defaultSocialActions = [
+    InviteShareAction(
+      id: 'whatsapp',
+      label: 'WhatsApp',
+      icon: Icons.chat_bubble_outline,
+      color: Color(0xFF25D366),
+    ),
+    InviteShareAction(
+      id: 'instagram',
+      label: 'Instagram',
+      icon: Icons.camera_alt_outlined,
+      color: Color(0xFFE1306C),
+    ),
+    InviteShareAction(
+      id: 'twitter',
+      label: 'Twitter',
+      icon: Icons.close,
+      color: Color(0xFF1DA1F2),
+    ),
+    InviteShareAction(
+      id: 'copy',
+      label: 'Copy',
+      icon: Icons.link_rounded,
+      color: Color(0xFF7A7A7A),
+    ),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -20,6 +110,7 @@ class InviteBottomSheet extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final sheetBg = isDark ? const Color(0xFF1A1A27) : colorScheme.surface;
+    final resolvedActions = socialActions ?? _defaultSocialActions;
 
     return DraggableScrollableSheet(
       expand: false,
@@ -35,7 +126,6 @@ class InviteBottomSheet extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // ── Drag handle ────────────────────────────────────────────
               Center(
                 child: Container(
                   margin: const EdgeInsets.only(top: 12),
@@ -47,57 +137,79 @@ class InviteBottomSheet extends StatelessWidget {
                   ),
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
 
-              // ── Header ─────────────────────────────────────────────────
+              // Header with title/subtitle and close action.
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
+                child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      'Invite Friends',
-                      style: textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 22,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            title,
+                            style: textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 22,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            subtitle,
+                            style: textTheme.bodyMedium?.copyWith(
+                              color: colorScheme.onSurface.withValues(
+                                alpha: 0.5,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      'Share this room with your friends',
-                      style: textTheme.bodyMedium?.copyWith(
-                        color: colorScheme.onSurface.withValues(alpha: 0.5),
+                    const SizedBox(width: 8),
+                    IconButton(
+                      onPressed:
+                          onClosePressed ?? () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close),
+                      style: IconButton.styleFrom(
+                        backgroundColor: colorScheme.onSurface.withValues(
+                          alpha: 0.06,
+                        ),
                       ),
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 18),
 
-              // ── Room link box ──────────────────────────────────────────
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: _RoomLinkBox(
-                  link: _mockRoomLink,
+                  eventId: eventId,
+                  link: shareLink,
                   colorScheme: colorScheme,
                   isDark: isDark,
+                  onCopy: onCopyLink,
                 ),
               ),
               const SizedBox(height: 20),
 
-              // ── Social share icons ────────────────────────────────────
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: _SocialShareRow(
-                  link: _mockRoomLink,
+                  link: shareLink,
+                  actions: resolvedActions,
                   colorScheme: colorScheme,
                   isDark: isDark,
+                  onCopy: onCopyLink,
+                  onShareTapped: onShareTapped,
                 ),
               ),
               const SizedBox(height: 24),
 
-              // ── Friends list ──────────────────────────────────────────
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Text(
@@ -112,20 +224,38 @@ class InviteBottomSheet extends StatelessWidget {
               const SizedBox(height: 12),
 
               Expanded(
-                child: ListView.separated(
-                  controller: scrollController,
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  itemCount: mockFriends.length,
-                  separatorBuilder: (_, separator) => const SizedBox(height: 8),
-                  itemBuilder: (context, index) {
-                    final friend = mockFriends[index];
-                    return _FriendInviteItem(
-                      friend: friend,
-                      colorScheme: colorScheme,
-                      isDark: isDark,
-                    );
-                  },
-                ),
+                child: friends.isEmpty
+                    ? Center(
+                        child: Text(
+                          'No friends available to invite yet.',
+                          style: textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.onSurface.withValues(alpha: 0.5),
+                          ),
+                        ),
+                      )
+                    : ListView.separated(
+                        controller: scrollController,
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        itemCount: friends.length,
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(height: 8),
+                        itemBuilder: (context, index) {
+                          final friend = friends[index];
+                          return _FriendInviteItem(
+                            friend: friend,
+                            colorScheme: colorScheme,
+                            isDark: isDark,
+                            onInviteChanged: (isInvited) {
+                              onFriendInviteChanged?.call(
+                                InviteFriendInviteChange(
+                                  friend: friend,
+                                  isInvited: isInvited,
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
               ),
 
               const SizedBox(height: 20),
@@ -137,20 +267,20 @@ class InviteBottomSheet extends StatelessWidget {
   }
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// Room link box
-// ────────────────────────────────────────────────────────────────────────────
-
 class _RoomLinkBox extends StatefulWidget {
   const _RoomLinkBox({
+    required this.eventId,
     required this.link,
     required this.colorScheme,
     required this.isDark,
+    required this.onCopy,
   });
 
+  final String eventId;
   final String link;
   final ColorScheme colorScheme;
   final bool isDark;
+  final VoidCallback? onCopy;
 
   @override
   State<_RoomLinkBox> createState() => _RoomLinkBoxState();
@@ -162,10 +292,13 @@ class _RoomLinkBoxState extends State<_RoomLinkBox> {
 
   Future<void> _copy() async {
     await Clipboard.setData(ClipboardData(text: widget.link));
+    widget.onCopy?.call();
     _copyTimer?.cancel();
     setState(() => _copied = true);
     _copyTimer = Timer(const Duration(seconds: 2), () {
-      if (mounted) setState(() => _copied = false);
+      if (mounted) {
+        setState(() => _copied = false);
+      }
     });
   }
 
@@ -213,6 +346,13 @@ class _RoomLinkBoxState extends State<_RoomLinkBox> {
                     letterSpacing: 0.2,
                   ),
                 ),
+                const SizedBox(height: 2),
+                Text(
+                  'Event: ${widget.eventId}',
+                  style: textTheme.labelSmall?.copyWith(
+                    color: widget.colorScheme.onSurface.withValues(alpha: 0.45),
+                  ),
+                ),
               ],
             ),
           ),
@@ -249,137 +389,114 @@ class _RoomLinkBoxState extends State<_RoomLinkBox> {
   }
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// Social share icons row
-// ────────────────────────────────────────────────────────────────────────────
-
 class _SocialShareRow extends StatelessWidget {
   const _SocialShareRow({
     required this.link,
+    required this.actions,
     required this.colorScheme,
     required this.isDark,
+    required this.onCopy,
+    required this.onShareTapped,
   });
 
   final String link;
+  final List<InviteShareAction> actions;
   final ColorScheme colorScheme;
   final bool isDark;
+  final VoidCallback? onCopy;
+  final ValueChanged<InviteShareAction>? onShareTapped;
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final items = [
-      const _SocialItem(
-        label: 'WhatsApp',
-        icon: Icons.chat_bubble_outline,
-        color: Color(0xFF25D366),
-      ),
-      const _SocialItem(
-        label: 'Instagram',
-        icon: Icons.camera_alt_outlined,
-        color: Color(0xFFE1306C),
-      ),
-      const _SocialItem(
-        label: 'Twitter',
-        icon: Icons.close,
-        color: Color(0xFF1DA1F2),
-      ),
-      _SocialItem(
-        label: 'Copy',
-        icon: Icons.link_rounded,
-        color: colorScheme.onSurface.withValues(alpha: 0.6),
-      ),
-    ];
     final btnBg = isDark
         ? Colors.white.withValues(alpha: 0.07)
         : Colors.black.withValues(alpha: 0.05);
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: items.map((item) {
-        return Expanded(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Semantics(
-                  button: true,
-                  label: 'Share via ${item.label}',
-                  child: GestureDetector(
-                    onTap: () async {
-                      if (item.label == 'Copy') {
-                        await Clipboard.setData(ClipboardData(text: link));
-                        if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Link copied to clipboard'),
-                              duration: Duration(seconds: 2),
+      children: actions
+          .map((action) {
+            return Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 4),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Semantics(
+                      button: true,
+                      label: 'Share via ${action.label}',
+                      child: GestureDetector(
+                        onTap: () async {
+                          if (action.id == 'copy') {
+                            await Clipboard.setData(ClipboardData(text: link));
+                            onCopy?.call();
+                            if (context.mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text('Link copied to clipboard'),
+                                  duration: Duration(seconds: 2),
+                                ),
+                              );
+                            }
+                          }
+
+                          onShareTapped?.call(action);
+                          if (kDebugMode) {
+                            debugPrint('Share via ${action.label}');
+                          }
+                        },
+                        child: Container(
+                          width: 56,
+                          height: 56,
+                          decoration: BoxDecoration(
+                            color: btnBg,
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: colorScheme.onSurface.withValues(
+                                alpha: 0.08,
+                              ),
                             ),
-                          );
-                        }
-                      }
-                      if (kDebugMode) {
-                        debugPrint('Share via ${item.label}');
-                      }
-                    },
-                    child: Container(
-                      width: 56,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        color: btnBg,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: colorScheme.onSurface.withValues(alpha: 0.08),
+                          ),
+                          child: Icon(
+                            action.icon,
+                            size: 24,
+                            color: action.color,
+                          ),
                         ),
                       ),
-                      child: Icon(item.icon, size: 24, color: item.color),
                     ),
-                  ),
+                    const SizedBox(height: 6),
+                    Text(
+                      action.label,
+                      style: textTheme.bodySmall?.copyWith(
+                        fontSize: 11,
+                        color: colorScheme.onSurface.withValues(alpha: 0.55),
+                      ),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 6),
-                Text(
-                  item.label,
-                  style: textTheme.bodySmall?.copyWith(
-                    fontSize: 11,
-                    color: colorScheme.onSurface.withValues(alpha: 0.55),
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-          ),
-        );
-      }).toList(),
+              ),
+            );
+          })
+          .toList(growable: false),
     );
   }
 }
-
-class _SocialItem {
-  const _SocialItem({
-    required this.label,
-    required this.icon,
-    required this.color,
-  });
-
-  final String label;
-  final IconData icon;
-  final Color color;
-}
-
-// ────────────────────────────────────────────────────────────────────────────
-// Friend invite row
-// ────────────────────────────────────────────────────────────────────────────
 
 class _FriendInviteItem extends StatefulWidget {
   const _FriendInviteItem({
     required this.friend,
     required this.colorScheme,
     required this.isDark,
+    required this.onInviteChanged,
   });
 
-  final MockFriend friend;
+  final InviteFriendData friend;
   final ColorScheme colorScheme;
   final bool isDark;
+  final ValueChanged<bool> onInviteChanged;
 
   @override
   State<_FriendInviteItem> createState() => _FriendInviteItemState();
@@ -409,7 +526,6 @@ class _FriendInviteItemState extends State<_FriendInviteItem> {
       ),
       child: Row(
         children: [
-          // Avatar
           Container(
             width: 44,
             height: 44,
@@ -429,8 +545,6 @@ class _FriendInviteItemState extends State<_FriendInviteItem> {
             ),
           ),
           const SizedBox(width: 12),
-
-          // Name + username
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -451,8 +565,6 @@ class _FriendInviteItemState extends State<_FriendInviteItem> {
               ],
             ),
           ),
-
-          // Invite button
           Semantics(
             button: true,
             label: _invited
@@ -461,6 +573,7 @@ class _FriendInviteItemState extends State<_FriendInviteItem> {
             child: GestureDetector(
               onTap: () {
                 setState(() => _invited = !_invited);
+                widget.onInviteChanged(_invited);
                 if (kDebugMode) {
                   debugPrint('Invited: ${widget.friend.name}');
                 }

@@ -67,7 +67,6 @@ class _DynamicSearchBottomSheetState extends State<DynamicSearchBottomSheet> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Drag handle pill
             Center(
               child: Container(
                 width: 40,
@@ -79,8 +78,6 @@ class _DynamicSearchBottomSheetState extends State<DynamicSearchBottomSheet> {
               ),
             ),
             const SizedBox(height: 20),
-
-            // Header Row: Title & Close Button
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
@@ -106,8 +103,6 @@ class _DynamicSearchBottomSheetState extends State<DynamicSearchBottomSheet> {
                 ),
               ],
             ),
-
-            // Subtitle
             Text(
               widget.subtitle,
               style: theme.textTheme.bodyMedium?.copyWith(
@@ -115,8 +110,6 @@ class _DynamicSearchBottomSheetState extends State<DynamicSearchBottomSheet> {
               ),
             ),
             const SizedBox(height: 20),
-
-            // Search TextField
             TextField(
               focusNode: _focusNode,
               onChanged: widget.onSearchChanged,
@@ -150,11 +143,7 @@ class _DynamicSearchBottomSheetState extends State<DynamicSearchBottomSheet> {
               ),
             ),
             const SizedBox(height: 20),
-
-            // Content Area
-            Expanded(
-              child: widget.content,
-            ),
+            Expanded(child: widget.content),
           ],
         ),
       ),

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:music_room/core/widgets/dynamic_search_bottom_sheet.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/events/data/models/track_model.dart';
 import 'package:music_room/features/events/presentation/state/track_search_cubit.dart';
-import 'package:music_room/features/events/presentation/widgets/dynamic_search_bottom_sheet.dart';
 
 class Step3Music extends StatelessWidget {
   const Step3Music({

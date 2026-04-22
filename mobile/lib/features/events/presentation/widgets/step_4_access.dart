@@ -72,6 +72,10 @@ class _Step4AccessState extends State<Step4Access> {
   GoogleMapController? _googleMapController;
   LatLng _centerPin = _defaultCenter;
   bool _locationLoading = false;
+  DateTime _lastCameraUiSyncAt = DateTime.fromMillisecondsSinceEpoch(0);
+
+  static const Duration _cameraUiSyncThrottle = Duration(milliseconds: 80);
+
   final Set<Factory<OneSequenceGestureRecognizer>> _mapGestureRecognizers = {
     const Factory<OneSequenceGestureRecognizer>(EagerGestureRecognizer.new),
   };
@@ -86,8 +90,23 @@ class _Step4AccessState extends State<Step4Access> {
         widget.allowedLocation!.latitude,
         widget.allowedLocation!.longitude,
       );
-    } else {
-      // Attempt GPS fetch on first open.
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant Step4Access oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    final selectedLocation = widget.allowedLocation;
+    if (selectedLocation != null) {
+      _centerPin = LatLng(
+        selectedLocation.latitude,
+        selectedLocation.longitude,
+      );
+    }
+
+    final enabledRestriction = !oldWidget.isRestricted && widget.isRestricted;
+    if (enabledRestriction && widget.allowedLocation == null) {
       unawaited(_fetchGpsLocation());
     }
   }
@@ -195,6 +214,20 @@ class _Step4AccessState extends State<Step4Access> {
   // ------------------------------------------------------------------
   // Helpers
   // ------------------------------------------------------------------
+
+  void _handleCameraMove(CameraPosition position) {
+    _centerPin = position.target;
+
+    final now = DateTime.now();
+    if (now.difference(_lastCameraUiSyncAt) < _cameraUiSyncThrottle) {
+      return;
+    }
+
+    _lastCameraUiSyncAt = now;
+    if (mounted) {
+      setState(() {});
+    }
+  }
 
   /// Builds a human-readable label: "Apr 23, 2026 • 04:30 PM" or a placeholder.
   String _formatDateTime(
@@ -433,10 +466,10 @@ class _Step4AccessState extends State<Step4Access> {
                   onMapCreated: (controller) {
                     _googleMapController = controller;
                   },
-                  onCameraMove: (position) {
-                    setState(() => _centerPin = position.target);
-                  },
+                  onCameraMove: _handleCameraMove,
                   onCameraIdle: () {
+                    if (!mounted) return;
+                    setState(() {});
                     widget.onLocationChanged(
                       EventLocation(_centerPin.latitude, _centerPin.longitude),
                     );
@@ -539,7 +572,7 @@ class _Step4AccessState extends State<Step4Access> {
 
         // -- Radius slider ------------------------------------------
         Slider(
-          value: widget.allowedRadius.clamp(10.0, 500.0),
+          value: radius,
           min: 10,
           max: 500,
           divisions: 49,

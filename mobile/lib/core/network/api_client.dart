@@ -29,14 +29,23 @@ class ApiClient {
             options.headers['Authorization'] = 'Bearer $token';
           }
 
-          final hasExplicitContentType = options.headers.keys.any(
-            (key) => key.toLowerCase() == 'content-type',
-          );
+          final isFormDataRequest = options.data is FormData;
 
-          if (options.data is FormData) {
-            options.headers.remove('Content-Type');
-          } else if (!hasExplicitContentType) {
-            options.headers['Content-Type'] = 'application/json';
+          if (isFormDataRequest) {
+            options.contentType = null;
+            options.headers.removeWhere(
+              (key, _) => key.toLowerCase() == 'content-type',
+            );
+          } else {
+            final hasExplicitContentType =
+                options.contentType != null ||
+                options.headers.keys.any(
+                  (key) => key.toLowerCase() == 'content-type',
+                );
+
+            if (!hasExplicitContentType) {
+              options.headers['Content-Type'] = 'application/json';
+            }
           }
 
           return handler.next(options);
