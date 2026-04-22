@@ -3,11 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:music_room/core/widgets/app_back_button.dart';
 import 'package:music_room/core/widgets/app_button.dart';
 import 'package:music_room/core/widgets/app_snackbar.dart';
+import 'package:music_room/core/widgets/genre_selection_grid.dart';
 import 'package:music_room/di/injection_container.dart';
-import 'package:music_room/features/events/presentation/widgets/genre_chip_group.dart';
 import 'package:music_room/features/events/presentation/widgets/selection_card.dart';
 import 'package:music_room/features/playlist/data/datasources/playlist_remote_datasource.dart';
 import 'package:music_room/features/playlist/domain/entities/playlist_entity.dart';
+import 'package:music_room/features/playlist/domain/types/playlist_tags.dart';
 
 class CreatePlaylistPage extends StatefulWidget {
   const CreatePlaylistPage({
@@ -284,11 +285,27 @@ class _CreatePlaylistPageState extends State<CreatePlaylistPage> {
                 const SizedBox(height: 20),
                 const _SectionLabel(text: 'GENRE'),
                 const SizedBox(height: 10),
-                GenreChipGroup(
-                  selectedGenres: _selectedGenres,
-                  onGenresChanged: (genres) {
+                GenreSelectionGrid(
+                  genres: PlaylistTag.all
+                      .map((tag) => tag.displayLabel)
+                      .toList(growable: false),
+                  selectedGenres: _selectedGenres
+                      .map(
+                        (value) => PlaylistTag.fromValue(value)?.displayLabel,
+                      )
+                      .whereType<String>()
+                      .toList(growable: false),
+                  onGenreTapped: (displayLabel) {
+                    final tag = PlaylistTag.all.firstWhere(
+                      (item) => item.displayLabel == displayLabel,
+                    );
+
                     setState(() {
-                      _selectedGenres = genres;
+                      if (_selectedGenres.contains(tag.value)) {
+                        _selectedGenres.remove(tag.value);
+                      } else {
+                        _selectedGenres.add(tag.value);
+                      }
                       _genreError = null;
                     });
                   },

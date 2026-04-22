@@ -7,6 +7,7 @@ import 'package:music_room/core/widgets/app_snackbar.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/playlist/data/datasources/playlist_remote_datasource.dart';
 import 'package:music_room/features/playlist/domain/entities/playlist_entity.dart';
+import 'package:music_room/features/playlist/domain/types/playlist_tags.dart';
 import 'package:music_room/features/playlist/presentation/pages/create_playlist_page.dart';
 import 'package:music_room/features/playlist/presentation/widgets/playlist_track_search_modal.dart';
 import 'package:music_room/features/playlist/presentation/widgets/playlist_user_invite_bottom_sheet.dart';
@@ -154,7 +155,10 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage>
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (_) => const PlaylistUserInviteBottomSheet(),
+      builder: (_) => PlaylistUserInviteBottomSheet(
+        playlistId: widget.playlistId,
+        playlistName: widget.playlistName,
+      ),
     );
   }
 
@@ -466,12 +470,12 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage>
     final tracks = _visibleTracks;
     final description = details.description?.trim();
     final hasDescription = description != null && description.isNotEmpty;
-    final normalizedTags = details.tags
-        .map((tag) => tag.trim().toUpperCase())
-        .where((tag) => tag.isNotEmpty)
+    final parsedTags = details.tags
+        .map(PlaylistTag.fromValue)
+        .whereType<PlaylistTag>() // removes nulls (invalid tags)
         .toList(growable: false);
-    const fallbackTags = <String>['POP', 'JAZZ', 'ELECTRONIC'];
-    final tags = normalizedTags.isEmpty ? fallbackTags : normalizedTags;
+
+    final tags = parsedTags.isEmpty ? <PlaylistTag>[] : parsedTags;
     final artworkUrl = _playlistArtworkUrl(details);
     final safeAreaTop = MediaQuery.paddingOf(context).top;
     final heroHeight = (MediaQuery.sizeOf(context).width * 0.56).clamp(
@@ -517,9 +521,24 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage>
                       runSpacing: 6,
                       children: tags
                           .map(
-                            (tag) => _GenrePill(
-                              label: tag,
-                              isHighlighted: normalizedTags.contains(tag),
+                            (tag) => Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 6,
+                              ),
+                              decoration: BoxDecoration(
+                                color: colorScheme.primary.withValues(
+                                  alpha: 0.1,
+                                ),
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                              child: Text(
+                                tag.displayLabel,
+                                style: theme.textTheme.bodyMedium?.copyWith(
+                                  color: colorScheme.primary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                             ),
                           )
                           .toList(growable: false),
@@ -1004,55 +1023,6 @@ class _PlaylistHeroImage extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _GenrePill extends StatelessWidget {
-  const _GenrePill({
-    required this.label,
-    required this.isHighlighted,
-  });
-
-  final String label;
-  final bool isHighlighted;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    final background = isHighlighted
-        ? colorScheme.primaryContainer
-        : colorScheme.surfaceContainer;
-    final foreground = isHighlighted
-        ? colorScheme.onPrimaryContainer
-        : colorScheme.onSurface.withValues(alpha: 0.7);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: background,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: colorScheme.primary.withValues(alpha: 0.25),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: colorScheme.primary.withValues(alpha: 0.14),
-            blurRadius: 16,
-            spreadRadius: 1,
-          ),
-        ],
-      ),
-      child: Text(
-        label,
-        style: theme.textTheme.labelSmall?.copyWith(
-          color: foreground,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.2,
-        ),
       ),
     );
   }
