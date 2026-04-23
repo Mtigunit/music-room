@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import {
+  OccStaleException,
+  TrackNotFoundInTransactionException,
+} from './exceptions';
+import {
   Tags,
   Visibility,
   type PlaylistTrack,
@@ -126,6 +130,7 @@ export class PlaylistsRepository {
         ownerId: true,
         visibility: true,
         editLicense: true,
+        updatedAt: true,
         collaborators: {
           select: { userId: true },
         },
@@ -193,7 +198,10 @@ export class PlaylistsRepository {
     playlistId: string,
     addedById: string,
     track: TrackSearchResultDto,
-  ): Promise<PlaylistTrack & { track: Track }> {
+  ): Promise<{
+    newUpdatedAt: string;
+    playlistTrack: PlaylistTrack & { track: Track };
+  }> {
     return this.prisma.$transaction(async (tx) => {
       const counter = await tx.playlistCounter.update({
         where: { playlistId },
@@ -201,15 +209,16 @@ export class PlaylistsRepository {
         select: { nextPosition: true },
       });
 
-      await tx.playlist.update({
+      const updatedPlaylist = await tx.playlist.update({
         where: { id: playlistId },
         data: { updatedAt: new Date() },
+        select: { updatedAt: true },
       });
 
-      return tx.playlistTrack.create({
+      const playlistTrack = await tx.playlistTrack.create({
         data: {
           playlist: { connect: { id: playlistId } },
-          position: counter.nextPosition, // Atomic increment returns the post-increment value; counter starts at -1 so this is exactly the 0-based position
+          position: counter.nextPosition,
           addedBy: { connect: { id: addedById } },
           track: {
             connectOrCreate: {
@@ -226,6 +235,11 @@ export class PlaylistsRepository {
         },
         include: { track: true },
       });
+
+      return {
+        newUpdatedAt: updatedPlaylist.updatedAt.toISOString(),
+        playlistTrack,
+      };
     });
   }
 
@@ -297,9 +311,10 @@ export class PlaylistsRepository {
       });
 
       // 5. Bump the Playlist updatedAt timestamp for Optimistic Concurrency Control
-      await tx.playlist.update({
+      const updatedPlaylist = await tx.playlist.update({
         where: { id: playlistId },
         data: { updatedAt: new Date() },
+        select: { updatedAt: true },
       });
 
       // 6. Fetch the updated tracks that were shifted to broadcast their new absolute positions
@@ -318,7 +333,104 @@ export class PlaylistsRepository {
       });
 
       return {
+        newUpdatedAt: updatedPlaylist.updatedAt.toISOString(),
         deletedTrack,
+        updates: updates.map((u) => ({ trackId: u.id, position: u.position })),
+      };
+    });
+  }
+
+  async reorderTrack(
+    playlistId: string,
+    playlistTrackId: string,
+    newPosition: number,
+    baseUpdatedAt: string,
+  ): Promise<{
+    newUpdatedAt: string;
+    updates: { trackId: string; position: number }[];
+  }> {
+    return this.prisma.$transaction(async (tx) => {
+      // ATOMIC OCC FIREWALL
+      const newUpdateStamp = new Date();
+      const occUpdate = await tx.playlist.updateMany({
+        where: {
+          id: playlistId,
+          updatedAt: new Date(baseUpdatedAt),
+        },
+        data: {
+          updatedAt: newUpdateStamp,
+        },
+      });
+
+      if (occUpdate.count === 0) {
+        throw new OccStaleException();
+      }
+
+      // 1. Retrieve the track's current position
+      const track = await tx.playlistTrack.findFirst({
+        where: { id: playlistTrackId, playlistId },
+        select: { position: true },
+      });
+
+      if (!track) {
+        throw new TrackNotFoundInTransactionException();
+      }
+
+      const oldPosition = track.position;
+
+      // Optimization: No change
+      if (oldPosition === newPosition) {
+        return {
+          newUpdatedAt: newUpdateStamp.toISOString(),
+          updates: [{ trackId: playlistTrackId, position: newPosition }],
+        };
+      }
+
+      // PostgreSQL DEFERRABLE constraints defer unique-index validation until
+      // transaction commit, allowing intermediate position overlaps during shifts.
+
+      // 2. Shift the surrounding tracks dynamically
+      if (oldPosition < newPosition) {
+        // Moving down the list
+        await tx.playlistTrack.updateMany({
+          where: {
+            playlistId,
+            position: { gt: oldPosition, lte: newPosition },
+          },
+          data: { position: { decrement: 1 } },
+        });
+      } else {
+        // Moving up the list
+        await tx.playlistTrack.updateMany({
+          where: {
+            playlistId,
+            position: { gte: newPosition, lt: oldPosition },
+          },
+          data: { position: { increment: 1 } },
+        });
+      }
+
+      // 3. Drop into the exact new position
+      await tx.playlistTrack.update({
+        where: { id: playlistTrackId },
+        data: { position: newPosition },
+      });
+
+      // 4. Fetch shifted tracks to broadcast
+      const affectedStart = Math.min(oldPosition, newPosition);
+      const affectedEnd = Math.max(oldPosition, newPosition);
+
+      const updates = await tx.playlistTrack.findMany({
+        where: {
+          playlistId,
+          position: { gte: affectedStart, lte: affectedEnd },
+        },
+        select: { id: true, position: true },
+        orderBy: { position: 'asc' },
+      });
+
+      return {
+        newUpdatedAt: newUpdateStamp.toISOString(),
         updates: updates.map((u) => ({ trackId: u.id, position: u.position })),
       };
     });

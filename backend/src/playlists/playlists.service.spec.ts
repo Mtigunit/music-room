@@ -77,6 +77,7 @@ describe('PlaylistsService', () => {
             addTrackToPlaylist: jest.fn(),
             checkUserExists: jest.fn(),
             isTrackInPlaylist: jest.fn(),
+            reorderTrack: jest.fn(),
           },
         },
         {
@@ -598,6 +599,7 @@ describe('PlaylistsService', () => {
         mockPlaylistTrack as never,
       );
       repository.removeTrackFromPlaylist.mockResolvedValueOnce({
+        newUpdatedAt: new Date().toISOString(),
         deletedTrack: mockPlaylistTrack,
         updates: [],
       } as never);
@@ -612,7 +614,10 @@ describe('PlaylistsService', () => {
         PLAYLIST_ID,
         PLAYLIST_TRACK_ID,
       );
-      expect(result).toEqual(mockPlaylistTrack);
+      expect(result).toEqual({
+        newUpdatedAt: expect.any(String),
+        deletedTrack: mockPlaylistTrack,
+      });
     });
 
     it('should allow the user who added the track to remove it', async () => {
@@ -623,6 +628,7 @@ describe('PlaylistsService', () => {
         mockPlaylistTrack as never,
       );
       repository.removeTrackFromPlaylist.mockResolvedValueOnce({
+        newUpdatedAt: new Date().toISOString(),
         deletedTrack: mockPlaylistTrack,
         updates: [],
       } as never);
@@ -637,7 +643,10 @@ describe('PlaylistsService', () => {
         PLAYLIST_ID,
         PLAYLIST_TRACK_ID,
       );
-      expect(result).toEqual(mockPlaylistTrack);
+      expect(result).toEqual({
+        newUpdatedAt: expect.any(String),
+        deletedTrack: mockPlaylistTrack,
+      });
     });
 
     it('should throw ForbiddenException when a non-owner tries to remove a track they did not add', async () => {
@@ -730,6 +739,135 @@ describe('PlaylistsService', () => {
 
       expect(gateway.server.to).not.toHaveBeenCalled();
       expect(gateway.server.emit).not.toHaveBeenCalled();
+    });
+  });
+
+  // ─── reorderTrack ──────────────────────────────────────────
+
+  describe('reorderTrack', () => {
+    const TRACK_ENTRY_ID = 'track-uuid';
+    const BASE_TIMESTAMP = '2026-04-23T10:00:00.000Z';
+
+    it('should throw NotFoundException when playlist does not exist', async () => {
+      repository.findPlaylistForAuth.mockResolvedValueOnce(null);
+
+      await expect(
+        service.reorderTrack(PLAYLIST_ID, TRACK_ENTRY_ID, OWNER_ID, {
+          newPosition: 5,
+          baseUpdatedAt: BASE_TIMESTAMP,
+        }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should normalize negative position to 0', async () => {
+      repository.findPlaylistForAuth.mockResolvedValueOnce(
+        buildPlaylist({ _count: { tracks: 10 } }) as PlaylistAuthData,
+      );
+      repository.reorderTrack.mockResolvedValueOnce({
+        newUpdatedAt: '2026-04-23T10:00:01.000Z',
+        updates: [],
+      } as any);
+
+      await service.reorderTrack(PLAYLIST_ID, TRACK_ENTRY_ID, OWNER_ID, {
+        newPosition: -5,
+        baseUpdatedAt: BASE_TIMESTAMP,
+      });
+
+      expect(repository.reorderTrack).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(String),
+        0, // Normalized from -5
+        expect.any(String),
+      );
+    });
+
+    it('should normalize position exceeding maxIndex to maxIndex', async () => {
+      // 10 tracks -> maxIndex = 9
+      repository.findPlaylistForAuth.mockResolvedValueOnce(
+        buildPlaylist({ _count: { tracks: 10 } }) as PlaylistAuthData,
+      );
+      repository.reorderTrack.mockResolvedValueOnce({
+        newUpdatedAt: '2026-04-23T10:00:01.000Z',
+        updates: [],
+      } as any);
+
+      await service.reorderTrack(PLAYLIST_ID, TRACK_ENTRY_ID, OWNER_ID, {
+        newPosition: 99,
+        baseUpdatedAt: BASE_TIMESTAMP,
+      });
+
+      expect(repository.reorderTrack).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(String),
+        9, // Normalized from 99 to maxIndex(10-1)
+        expect.any(String),
+      );
+    });
+
+    it('should maintain zero position when valid', async () => {
+      repository.findPlaylistForAuth.mockResolvedValueOnce(
+        buildPlaylist({ _count: { tracks: 10 } }) as PlaylistAuthData,
+      );
+      repository.reorderTrack.mockResolvedValueOnce({
+        newUpdatedAt: '2026-04-23T10:00:01.000Z',
+        updates: [],
+      } as any);
+
+      await service.reorderTrack(PLAYLIST_ID, TRACK_ENTRY_ID, OWNER_ID, {
+        newPosition: 0,
+        baseUpdatedAt: BASE_TIMESTAMP,
+      });
+
+      expect(repository.reorderTrack).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(String),
+        0,
+        expect.any(String),
+      );
+    });
+
+    it('should maintain maxIndex position when valid', async () => {
+      repository.findPlaylistForAuth.mockResolvedValueOnce(
+        buildPlaylist({ _count: { tracks: 5 } }) as PlaylistAuthData,
+      );
+      repository.reorderTrack.mockResolvedValueOnce({
+        newUpdatedAt: '2026-04-23T10:00:01.000Z',
+        updates: [],
+      } as any);
+
+      await service.reorderTrack(PLAYLIST_ID, TRACK_ENTRY_ID, OWNER_ID, {
+        newPosition: 4,
+        baseUpdatedAt: BASE_TIMESTAMP,
+      });
+
+      expect(repository.reorderTrack).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(String),
+        4, // maxIndex for 5 tracks
+        expect.any(String),
+      );
+    });
+
+    it('should maintain in-bounds position', async () => {
+      repository.findPlaylistForAuth.mockResolvedValueOnce(
+        buildPlaylist({ _count: { tracks: 10 } }) as PlaylistAuthData,
+      );
+      repository.reorderTrack.mockResolvedValueOnce({
+        newUpdatedAt: '2026-04-23T10:00:01.000Z',
+        updates: [],
+      } as any);
+
+      await service.reorderTrack(PLAYLIST_ID, TRACK_ENTRY_ID, OWNER_ID, {
+        newPosition: 3,
+        baseUpdatedAt: BASE_TIMESTAMP,
+      });
+
+      expect(repository.reorderTrack).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.any(String),
+        3,
+        expect.any(String),
+      );
     });
   });
 });

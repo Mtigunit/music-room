@@ -13,6 +13,10 @@ import { PaginationDto } from '../common/dto/pagination.dto';
 import { PlaylistAuthData } from './interfaces/playlist-auth-data.interface';
 import { PlaylistEditLicense, Prisma, Tags, Visibility } from '@prisma/client';
 import { YoutubeService } from '../tracks/youtube.service';
+import {
+  OccStaleException,
+  TrackNotFoundInTransactionException,
+} from './exceptions';
 
 @Injectable()
 export class PlaylistsService {
@@ -203,9 +207,12 @@ export class PlaylistsService {
 
       this.playlistsGateway.server
         .to(`playlist_${playlistId}`)
-        .emit('playlist:track:added', result);
+        .emit('playlist:track:added', result.playlistTrack);
 
-      return result;
+      return {
+        newUpdatedAt: result.newUpdatedAt,
+        track: result.playlistTrack,
+      };
     } catch (error) {
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
@@ -269,6 +276,64 @@ export class PlaylistsService {
         deletedTrackId: result.deletedTrack.id,
         updates: result.updates,
       });
-    return result.deletedTrack;
+
+    return {
+      newUpdatedAt: result.newUpdatedAt,
+      deletedTrack: result.deletedTrack,
+    };
+  }
+
+  async reorderTrack(
+    playlistId: string,
+    playlistTrackId: string,
+    requesterId: string,
+    payload: { newPosition: number; baseUpdatedAt: string },
+  ) {
+    const playlist =
+      await this.playlistsRepository.findPlaylistForAuth(playlistId);
+
+    if (!playlist) {
+      throw new NotFoundException('Playlist not found');
+    }
+
+    this.verifyEditAccess(playlist, requesterId);
+
+    // OCC is enforced atomically at the database level via updateMany in the
+    // repository to prevent race conditions under concurrent reorder requests.
+
+    const maxIndex = Math.max(0, playlist._count.tracks - 1);
+    const normalizedPosition = Math.min(
+      Math.max(0, payload.newPosition),
+      maxIndex,
+    );
+
+    let result;
+    try {
+      result = await this.playlistsRepository.reorderTrack(
+        playlistId,
+        playlistTrackId,
+        normalizedPosition,
+        payload.baseUpdatedAt,
+      );
+    } catch (error) {
+      if (error instanceof OccStaleException) {
+        throw new ConflictException(
+          'Playlist has been modified by another user. Please refresh to sync.',
+        );
+      }
+      if (error instanceof TrackNotFoundInTransactionException) {
+        throw new NotFoundException('Track not found in playlist');
+      }
+      throw error;
+    }
+
+    this.playlistsGateway.server
+      .to(`playlist_${playlistId}`)
+      .emit('playlist:track:reordered', {
+        playlistId,
+        updates: result.updates,
+      });
+
+    return { newUpdatedAt: result.newUpdatedAt };
   }
 }

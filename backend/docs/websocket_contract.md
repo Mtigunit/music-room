@@ -119,6 +119,21 @@ Broadcasted immediately after a track is removed via the REST API (`DELETE /play
   ```
 - **Note**: `deletedTrackId` is the removed `PlaylistTrack.id`. `updates` contains the new absolute positions for all tracks that were shifted down to fill the gap.
 
+#### `playlist:track:reordered`
+
+Broadcasted immediately after a track is reordered via the REST API (`PATCH /playlists/:id/tracks/:playlistTrackId/reorder`).
+- **Server → Client (broadcast)**: `playlist:track:reordered`
+- **Payload**:
+  ```json
+  {
+    "playlistId": "string",
+    "updates": [
+      { "trackId": "string", "position": number }
+    ]
+  }
+  ```
+- **Note**: `updates` contains the exact absolute mathematical positions for all tracks that had to move to accommodate the slide operation, including the actively dragged track!
+
 ## Errors & Disconnects
 
 ### Handshake rejection

@@ -7,6 +7,7 @@ const COLOR_INFO = '\x1b[1;36m';
 const COLOR_SUCCESS = '\x1b[1;32m';
 const COLOR_WARN = '\x1b[1;33m';
 const COLOR_CMD = '\x1b[1;34m';
+const COLOR_ERROR = '\x1b[1;31m';
 const COLOR_RESET = '\x1b[0m';
 
 const backendDir = path.join(__dirname, '..', 'backend');
@@ -42,9 +43,34 @@ try {
   // 3. Drop and reset the database. Because the migrations folder is empty, the DB is left naked.
   run('npx prisma migrate reset --force');
   
-  // 4. Generate the new initial migration from the Prisma schema against our empty DB. No drift errors!
-  run('npx prisma migrate dev --name init');
+  // 4a. Generate the new initial migration WITHOUT applying it
+  run('npx prisma migrate dev --name init --create-only');
   
+  // 4b. Inject the PostgreSQL DEFERRABLE constraint manually into the generated init migration
+  console.log(`${COLOR_INFO}Injecting DEFERRABLE constraint logic into init migration...${COLOR_RESET}`);
+  const migrationFolders = fs.readdirSync(migrationsDir).filter(f => fs.statSync(path.join(migrationsDir, f)).isDirectory());
+  const initFolder = migrationFolders.find(f => f.endsWith('_init'));
+  if (initFolder) {
+    const migrationSqlPath = path.join(migrationsDir, initFolder, 'migration.sql');
+    let sqlContent = fs.readFileSync(migrationSqlPath, 'utf8');
+    
+    // Replace the default Prisma unique index with a mathematically identical Deferrable Constraint
+    const targetQuery = 'CREATE UNIQUE INDEX "PlaylistTrack_playlistId_position_key" ON "PlaylistTrack"("playlistId", "position");';
+    const replacementQuery = 'ALTER TABLE "PlaylistTrack" ADD CONSTRAINT "PlaylistTrack_playlistId_position_key" UNIQUE ("playlistId", "position") DEFERRABLE INITIALLY DEFERRED;';
+    
+    if (sqlContent.includes(targetQuery)) {
+      sqlContent = sqlContent.replace(targetQuery, replacementQuery);
+      fs.writeFileSync(migrationSqlPath, sqlContent);
+      console.log(`${COLOR_SUCCESS}Successfully injected DEFERRABLE constraint!${COLOR_RESET}`);
+    } else {
+       console.error(`${COLOR_ERROR}FATAL: Target CREATE UNIQUE INDEX query not found in init migration! The DEFERRABLE constraint is critical for reorder functionality.${COLOR_RESET}`);
+       process.exit(1);
+    }
+  }
+
+  // 4c. Apply the strictly modified initial migration
+  run('npx prisma migrate dev');
+
   // 5. Refresh Prisma client
   run('npx prisma generate');
 

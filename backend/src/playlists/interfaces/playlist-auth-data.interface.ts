@@ -5,6 +5,7 @@ export interface PlaylistAuthData {
   ownerId: string;
   visibility: Visibility;
   editLicense: PlaylistEditLicense;
+  updatedAt: Date;
   collaborators: {
     userId: string;
   }[];
