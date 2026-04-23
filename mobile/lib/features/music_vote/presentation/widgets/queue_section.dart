@@ -2,12 +2,27 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:music_room/features/music_vote/presentation/widgets/mock_data.dart';
-import 'package:music_room/features/music_vote/presentation/widgets/modals/add_song_bottom_sheet.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:music_room/core/widgets/dynamic_search_bottom_sheet.dart';
+import 'package:music_room/di/injection_container.dart';
+import 'package:music_room/features/events/data/models/track_model.dart';
+import 'package:music_room/features/events/presentation/state/track_search_cubit.dart';
+import 'package:music_room/features/music_vote/data/models/event_track_model.dart';
+import 'package:music_room/features/music_vote/presentation/state/music_vote_cubit.dart';
 
 /// The "Up Next" queue section with vote chips and controls.
+///
+/// Receives real [tracks] from the parent [BlocBuilder] and the [eventId]
+/// for the "Add Song" CTA.
 class QueueSection extends StatefulWidget {
-  const QueueSection({super.key});
+  const QueueSection({
+    required this.tracks,
+    super.key,
+    this.eventId,
+  });
+
+  final List<EventTrackModel> tracks;
+  final String? eventId;
 
   @override
   State<QueueSection> createState() => _QueueSectionState();
@@ -15,15 +30,16 @@ class QueueSection extends StatefulWidget {
 
 class _QueueSectionState extends State<QueueSection> {
   /// Track which items the user has voted for (by track ID).
-  final Set<int> _votedIds = {};
+  final Set<String> _votedIds = {};
 
   /// Local mutable copy of vote counts for UI responsiveness.
-  final Map<int, int> _voteCounts = {};
+  final Map<String, int> _voteCounts = {};
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final tracks = widget.tracks;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -32,11 +48,14 @@ class _QueueSectionState extends State<QueueSection> {
         // ── Full-width Add Song CTA ─────────────────────────────────────
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: _AddSongButton(colorScheme: colorScheme),
+          child: _AddSongButton(
+            colorScheme: colorScheme,
+            eventId: widget.eventId,
+          ),
         ),
         const SizedBox(height: 20),
 
-        // ── Section header ──────────────────────────────────────────────────
+        // ── Section header ──────────────────────────────────────────────
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
@@ -50,7 +69,7 @@ class _QueueSectionState extends State<QueueSection> {
                 ),
               ),
               Text(
-                '${mockQueueTracks.length} tracks',
+                '${tracks.length} tracks',
                 style: textTheme.bodySmall?.copyWith(
                   color: colorScheme.onSurface.withValues(alpha: 0.45),
                 ),
@@ -60,54 +79,75 @@ class _QueueSectionState extends State<QueueSection> {
         ),
         const SizedBox(height: 12),
 
-        // ── Queue list ──────────────────────────────────────────────────────
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: List.generate(mockQueueTracks.length, (index) {
-              final track = mockQueueTracks[index];
-              return Padding(
-                padding: EdgeInsets.only(
-                  bottom: index == mockQueueTracks.length - 1 ? 0 : 8,
+        // ── Queue list ──────────────────────────────────────────────────
+        if (tracks.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 24),
+            child: Center(
+              child: Text(
+                'No tracks in queue yet.\nTap "+ Add Song" to get started!',
+                textAlign: TextAlign.center,
+                style: textTheme.bodyMedium?.copyWith(
+                  color: colorScheme.onSurface.withValues(alpha: 0.45),
                 ),
-                child: QueueTrackItem(
-                  track: track,
-                  voteCount: _voteCounts[track.id] ?? track.votes,
-                  hasVoted: _votedIds.contains(track.id),
-                  onVote: () {
-                    setState(() {
-                      final recomputedHasVoted = _votedIds.contains(track.id);
-                      final currentVotes = _voteCounts[track.id] ?? track.votes;
-                      if (recomputedHasVoted) {
-                        _votedIds.remove(track.id);
-                        _voteCounts[track.id] = currentVotes - 1;
-                      } else {
-                        _votedIds.add(track.id);
-                        _voteCounts[track.id] = currentVotes + 1;
+              ),
+            ),
+          )
+        else
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: List.generate(tracks.length, (index) {
+                final track = tracks[index];
+                return Padding(
+                  padding: EdgeInsets.only(
+                    bottom: index == tracks.length - 1 ? 0 : 8,
+                  ),
+                  child: QueueTrackItem(
+                    track: track,
+                    rank: index + 1,
+                    voteCount: _voteCounts[track.id] ?? track.voteScore,
+                    hasVoted: _votedIds.contains(track.id),
+                    onVote: () {
+                      setState(() {
+                        final recomputedHasVoted = _votedIds.contains(track.id);
+                        final currentVotes =
+                            _voteCounts[track.id] ?? track.voteScore;
+                        if (recomputedHasVoted) {
+                          _votedIds.remove(track.id);
+                          _voteCounts[track.id] = currentVotes - 1;
+                        } else {
+                          _votedIds.add(track.id);
+                          _voteCounts[track.id] = currentVotes + 1;
+                        }
+                      });
+                      if (kDebugMode) {
+                        debugPrint('Voted for: ${track.title}');
                       }
-                    });
-                    if (kDebugMode) {
-                      debugPrint('Voted for: ${track.title}');
-                    }
-                  },
-                ),
-              );
-            }),
+                    },
+                  ),
+                );
+              }),
+            ),
           ),
-        ),
       ],
     );
   }
 }
+
 // ────────────────────────────────────────────────────────────────────────────
 // Full-width Add Song CTA button
 // ────────────────────────────────────────────────────────────────────────────
 
 class _AddSongButton extends StatelessWidget {
-  const _AddSongButton({required this.colorScheme});
+  const _AddSongButton({
+    required this.colorScheme,
+    this.eventId,
+  });
 
   final ColorScheme colorScheme;
+  final String? eventId;
 
   @override
   Widget build(BuildContext context) {
@@ -120,18 +160,7 @@ class _AddSongButton extends StatelessWidget {
         color: Colors.transparent,
         child: InkWell(
           borderRadius: borderRadius,
-          onTap: () {
-            unawaited(
-              showModalBottomSheet<void>(
-                context: context,
-                isScrollControlled: true,
-                useSafeArea: true,
-                barrierColor: Colors.black.withValues(alpha: 0.7),
-                backgroundColor: Colors.transparent,
-                builder: (_) => const AddSongBottomSheet(),
-              ),
-            );
-          },
+          onTap: () => _showAddSongSheet(context),
           child: Ink(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 14),
@@ -174,6 +203,250 @@ class _AddSongButton extends StatelessWidget {
       ),
     );
   }
+
+  void _showAddSongSheet(BuildContext context) {
+    final musicVoteCubit = context.read<MusicVoteCubit>();
+    final resolvedEventId = eventId;
+
+    unawaited(
+      showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        barrierColor: Colors.black.withValues(alpha: 0.7),
+        backgroundColor: Colors.transparent,
+        builder: (_) => BlocProvider(
+          create: (_) => TrackSearchCubit(
+            remoteDataSource: InjectionContainer().trackRemoteDataSource,
+          ),
+          child: _AddSongSearchSheet(
+            eventId: resolvedEventId,
+            musicVoteCubit: musicVoteCubit,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Add Song Sheet using DynamicSearchBottomSheet + TrackSearchCubit
+// ────────────────────────────────────────────────────────────────────────────
+
+class _AddSongSearchSheet extends StatelessWidget {
+  const _AddSongSearchSheet({
+    required this.musicVoteCubit,
+    this.eventId,
+  });
+
+  final String? eventId;
+  final MusicVoteCubit musicVoteCubit;
+
+  @override
+  Widget build(BuildContext context) {
+    return DynamicSearchBottomSheet(
+      title: 'Add a Song',
+      subtitle: 'Search and add to the room',
+      searchHintText: 'Song, artist, or album...',
+      onSearchChanged: (query) {
+        context.read<TrackSearchCubit>().searchTracks(query);
+      },
+      content: BlocBuilder<TrackSearchCubit, TrackSearchState>(
+        builder: (context, state) {
+          if (state is TrackSearchLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
+          if (state is TrackSearchError) {
+            return Center(
+              child: Text(
+                state.message,
+                style: TextStyle(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.error.withValues(alpha: 0.7),
+                ),
+              ),
+            );
+          }
+
+          if (state is TrackSearchLoaded) {
+            if (state.tracks.isEmpty) {
+              return Center(
+                child: Text(
+                  'No results found.',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                ),
+              );
+            }
+
+            return ListView.separated(
+              padding: EdgeInsets.zero,
+              itemCount: state.tracks.length,
+              separatorBuilder: (context, separatorIndex) =>
+                  const SizedBox(height: 4),
+              itemBuilder: (context, index) {
+                final track = state.tracks[index];
+                return _SearchResultItem(
+                  track: track,
+                  onAdd: () {
+                    final id = eventId;
+                    if (id != null && id.isNotEmpty) {
+                      unawaited(
+                        musicVoteCubit.addTrack(
+                          id,
+                          track.providerTrackId,
+                        ),
+                      );
+                      Navigator.of(context).pop();
+                    }
+                  },
+                );
+              },
+            );
+          }
+
+          // Initial state — prompt
+          return Center(
+            child: Text(
+              'Start typing to search for tracks',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.4),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Search result row used inside the Add Song sheet
+// ────────────────────────────────────────────────────────────────────────────
+
+class _SearchResultItem extends StatelessWidget {
+  const _SearchResultItem({
+    required this.track,
+    required this.onAdd,
+  });
+
+  final TrackModel track;
+  final VoidCallback onAdd;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+
+    final rowBg = isDark
+        ? Colors.white.withValues(alpha: 0.04)
+        : Colors.black.withValues(alpha: 0.02);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: rowBg,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Row(
+        children: [
+          // Thumbnail
+          ClipRRect(
+            borderRadius: BorderRadius.circular(10),
+            child: track.thumbnailUrl.isNotEmpty
+                ? Image.network(
+                    track.thumbnailUrl,
+                    width: 52,
+                    height: 52,
+                    fit: BoxFit.cover,
+                    errorBuilder: (ctx, err, stack) => _ThumbnailFallback(
+                      colorScheme: colorScheme,
+                    ),
+                  )
+                : _ThumbnailFallback(colorScheme: colorScheme),
+          ),
+          const SizedBox(width: 12),
+
+          // Track info
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  track.title,
+                  style: textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  track.artist,
+                  style: textTheme.bodySmall?.copyWith(
+                    fontWeight: FontWeight.w500,
+                    color: colorScheme.onSurface.withValues(alpha: 0.7),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+
+          // Add button
+          Semantics(
+            button: true,
+            label: 'Add to queue',
+            child: GestureDetector(
+              onTap: onAdd,
+              child: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: colorScheme.onSurface.withValues(alpha: 0.1),
+                ),
+                child: Icon(
+                  Icons.add,
+                  size: 18,
+                  color: colorScheme.onSurface.withValues(alpha: 0.7),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ThumbnailFallback extends StatelessWidget {
+  const _ThumbnailFallback({required this.colorScheme});
+
+  final ColorScheme colorScheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 52,
+      height: 52,
+      color: colorScheme.primary.withValues(alpha: 0.2),
+      child: Icon(
+        Icons.music_note,
+        color: colorScheme.primary,
+        size: 24,
+      ),
+    );
+  }
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -183,13 +456,15 @@ class _AddSongButton extends StatelessWidget {
 class QueueTrackItem extends StatelessWidget {
   const QueueTrackItem({
     required this.track,
+    required this.rank,
     required this.hasVoted,
     required this.voteCount,
     required this.onVote,
     super.key,
   });
 
-  final MockTrack track;
+  final EventTrackModel track;
+  final int rank;
   final bool hasVoted;
   final int voteCount;
   final VoidCallback onVote;
@@ -217,7 +492,7 @@ class QueueTrackItem extends StatelessWidget {
           SizedBox(
             width: 22,
             child: Text(
-              '${track.rank}',
+              '$rank',
               textAlign: TextAlign.center,
               style: textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.w800,
@@ -228,7 +503,7 @@ class QueueTrackItem extends StatelessWidget {
           const SizedBox(width: 12),
 
           // Album art thumbnail
-          _TrackThumbnail(colorHex: track.colorHex),
+          _QueueTrackThumbnail(thumbnailUrl: track.thumbnailUrl),
           const SizedBox(width: 12),
 
           // Track info
@@ -256,7 +531,7 @@ class QueueTrackItem extends StatelessWidget {
                     const SizedBox(width: 3),
                     Flexible(
                       child: Text(
-                        '${track.artist} · ${track.addedBy}',
+                        '${track.artist} · ${track.formattedDuration}',
                         style: textTheme.bodySmall?.copyWith(
                           color: colorScheme.onSurface.withValues(alpha: 0.5),
                           fontSize: 11,
@@ -285,25 +560,40 @@ class QueueTrackItem extends StatelessWidget {
   }
 }
 
-/// Small album thumbnail with colored background.
-class _TrackThumbnail extends StatelessWidget {
-  const _TrackThumbnail({required this.colorHex});
+/// Queue track thumbnail — shows the real image from [thumbnailUrl],
+/// or a music note icon if the URL is empty / fails to load.
+class _QueueTrackThumbnail extends StatelessWidget {
+  const _QueueTrackThumbnail({required this.thumbnailUrl});
 
-  final int colorHex;
+  final String thumbnailUrl;
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return ClipRRect(
       borderRadius: BorderRadius.circular(10),
-      child: Container(
-        width: 48,
-        height: 48,
-        color: Color(colorHex),
-        child: const Icon(
-          Icons.music_note,
-          size: 22,
-          color: Colors.white,
-        ),
+      child: thumbnailUrl.isNotEmpty
+          ? Image.network(
+              thumbnailUrl,
+              width: 48,
+              height: 48,
+              fit: BoxFit.cover,
+              errorBuilder: (ctx, err, stack) => _fallback(colorScheme),
+            )
+          : _fallback(colorScheme),
+    );
+  }
+
+  Widget _fallback(ColorScheme colorScheme) {
+    return Container(
+      width: 48,
+      height: 48,
+      color: colorScheme.primary.withValues(alpha: 0.2),
+      child: Icon(
+        Icons.music_note,
+        size: 22,
+        color: colorScheme.primary,
       ),
     );
   }

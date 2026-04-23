@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import 'package:music_room/features/events/presentation/widgets/image_helper/image_helper.dart';
 
 class Step1Details extends StatelessWidget {
@@ -7,18 +8,22 @@ class Step1Details extends StatelessWidget {
     required this.eventName,
     required this.eventDescription,
     required this.eventCover,
+    required this.scheduledStartTime,
     required this.onNameChanged,
     required this.onDescriptionChanged,
     required this.onCoverChanged,
+    required this.onScheduledStartTimeChanged,
     required this.onNext,
     super.key,
   });
   final String eventName;
   final String eventDescription;
   final XFile? eventCover;
+  final DateTime scheduledStartTime;
   final ValueChanged<String> onNameChanged;
   final ValueChanged<String> onDescriptionChanged;
   final ValueChanged<XFile?> onCoverChanged;
+  final ValueChanged<DateTime> onScheduledStartTimeChanged;
   final VoidCallback onNext;
 
   Future<void> _pickImage() async {
@@ -26,6 +31,39 @@ class Step1Details extends StatelessWidget {
     final pickedFile = await picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       onCoverChanged(pickedFile);
+    }
+  }
+
+  Future<void> _selectDateTime(BuildContext context) async {
+    final date = await showDatePicker(
+      context: context,
+      initialDate: scheduledStartTime,
+      firstDate: DateTime.now().subtract(const Duration(days: 1)),
+      lastDate: DateTime.now().add(const Duration(days: 365)),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: Theme.of(context).colorScheme.copyWith(
+              primary: Theme.of(context).colorScheme.primary,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (date != null) {
+      if (!context.mounted) return;
+      final time = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.fromDateTime(scheduledStartTime),
+      );
+
+      if (time != null) {
+        onScheduledStartTimeChanged(
+          DateTime(date.year, date.month, date.day, time.hour, time.minute),
+        );
+      }
     }
   }
 
@@ -45,10 +83,7 @@ class Step1Details extends StatelessWidget {
       children: [
         Expanded(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 24,
-              vertical: 16,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -126,6 +161,61 @@ class Step1Details extends StatelessWidget {
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 16,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                Text(
+                  'EVENT DATE & TIME',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    letterSpacing: 1.2,
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                InkWell(
+                  onTap: () => _selectDateTime(context),
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 16,
+                    ),
+                    decoration: BoxDecoration(
+                      color: theme.colorScheme.surface,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.1,
+                        ),
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.calendar_today_outlined,
+                          size: 20,
+                          color: theme.colorScheme.primary,
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          DateFormat('EEEE, MMM d · hh:mm a').format(
+                            scheduledStartTime,
+                          ),
+                          style: theme.textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        const Spacer(),
+                        Icon(
+                          Icons.arrow_drop_down,
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.4,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ),

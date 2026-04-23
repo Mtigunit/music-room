@@ -49,6 +49,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
   TimeOfDay? startTime;
   DateTime? endDate;
   TimeOfDay? endTime;
+  DateTime scheduledStartTime = DateTime.now();
 
   @override
   void initState() {
@@ -112,6 +113,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
         startTime: startTime,
         endDate: endDate,
         endTime: endTime,
+        scheduledStartTime: scheduledStartTime,
       ),
     );
   }
@@ -237,11 +239,14 @@ class _CreateEventPageState extends State<CreateEventPage> {
                       eventName: eventName,
                       eventDescription: eventDescription,
                       eventCover: eventCover,
+                      scheduledStartTime: scheduledStartTime,
                       onNameChanged: (val) => setState(() => eventName = val),
                       onDescriptionChanged: (val) =>
                           setState(() => eventDescription = val),
                       onCoverChanged: (file) =>
                           setState(() => eventCover = file),
+                      onScheduledStartTimeChanged: (val) =>
+                          setState(() => scheduledStartTime = val),
                       onNext: _nextStep,
                     ),
                     Step2Genre(

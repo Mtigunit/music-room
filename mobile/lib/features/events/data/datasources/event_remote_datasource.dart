@@ -75,7 +75,11 @@ class EventRemoteDataSource implements IEventRemoteDataSource {
     final tracks = event.tracks;
     if (tracks != null && tracks.isNotEmpty) {
       formData['tracks'] = jsonEncode(
-        tracks.map((track) => track.toJson()).toList(growable: false),
+        tracks
+            .map(
+              (track) => {'providerTrackId': track.providerTrackId},
+            )
+            .toList(growable: false),
       );
     }
 
@@ -84,6 +88,10 @@ class EventRemoteDataSource implements IEventRemoteDataSource {
       formData['policies'] = jsonEncode(
         policies.map((policy) => policy.toJson()).toList(growable: false),
       );
+    }
+
+    if (event.scheduledAt != null) {
+      formData['scheduledAt'] = event.scheduledAt;
     }
 
     if (coverImage != null) {

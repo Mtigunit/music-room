@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:music_room/features/events/presentation/pages/my_events_page.dart';
 import 'package:music_room/features/home/presentation/pages/home_page.dart';
-import 'package:music_room/features/music_vote/presentation/pages/music_vote_page.dart';
 import 'package:music_room/features/playlist/presentation/pages/playlist_page.dart';
 import 'package:music_room/features/profile/presentation/pages/profile_page.dart';
 
 class AppTabs {
   static const int home = 0;
-  static const int room = 1;
+  static const int events = 1;
   static const int playlist = 2;
   static const int profile = 3;
 }
@@ -30,7 +30,7 @@ class AppScaffoldState extends State<AppScaffold> {
 
   final List<Widget> _pages = const [
     HomePage(),
-    MusicVotePage(),
+    MyEventsPage(),
     PlaylistPage(),
     ProfilePage(),
   ];
@@ -89,15 +89,21 @@ class AppScaffoldState extends State<AppScaffold> {
               label: 'Home',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.sensors, size: 28),
-              label: 'Room',
+              icon: Icon(
+                Icons.sensors,
+                size: 28,
+              ),
+              label: 'Events',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.queue_music, size: 28),
               label: 'Playlist',
             ),
             BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline, size: 28),
+              icon: Icon(
+                Icons.person_outline,
+                size: 28,
+              ),
               label: 'Profile',
             ),
           ],
