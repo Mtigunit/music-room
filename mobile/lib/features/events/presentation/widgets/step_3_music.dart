@@ -150,163 +150,159 @@ class _Step3MusicBodyState extends State<_Step3MusicBody> {
     final theme = Theme.of(context);
     final selectedCount = widget.selectedTracks.length;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Expanded(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  'Set up the initial music queue.',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.75),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: () => _showAddTracksModal(context),
-                        icon: const Icon(Icons.search),
-                        label: const Text('Add Tracks'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: theme.colorScheme.primary,
-                          foregroundColor: theme.colorScheme.onPrimary,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          elevation: 0,
-                          textStyle: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      child: OutlinedButton.icon(
-                        onPressed: () => _showImportPlaylistModal(context),
-                        icon: const Icon(Icons.playlist_add),
-                        label: const Text(
-                          'Import Playlist',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
-                          ),
-                          side: BorderSide(
-                            color: theme.colorScheme.primary.withValues(
-                              alpha: 0.55,
-                            ),
-                          ),
-                          foregroundColor: theme.colorScheme.primary,
-                          textStyle: theme.textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 24),
-
-                Text(
-                  'SELECTED TRACKS ($selectedCount)',
-                  style: theme.textTheme.labelSmall?.copyWith(
-                    letterSpacing: 1.2,
-                    fontWeight: FontWeight.bold,
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                  ),
-                ),
-                const SizedBox(height: 8),
-
-                Expanded(
-                  child: widget.selectedTracks.isEmpty
-                      ? Center(
-                          child: Text(
-                            'No tracks selected yet.',
-                            style: TextStyle(
-                              color: theme.colorScheme.onSurface.withValues(
-                                alpha: 0.5,
-                              ),
-                            ),
-                          ),
-                        )
-                      : ListView.builder(
-                          itemCount: widget.selectedTracks.length,
-                          itemBuilder: (context, index) {
-                            final track = widget.selectedTracks[index];
-
-                            return ListTile(
-                              contentPadding: EdgeInsets.zero,
-                              minVerticalPadding: 8,
-                              leading: ClipRRect(
-                                borderRadius: BorderRadius.circular(10),
-                                child: Image.network(
-                                  track.thumbnailUrl,
-                                  width: 48,
-                                  height: 48,
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stackTrace) {
-                                    return Container(
-                                      width: 48,
-                                      height: 48,
-                                      color: theme.colorScheme.primaryContainer,
-                                      child: Icon(
-                                        Icons.music_note,
-                                        color: theme.colorScheme.primary,
-                                      ),
-                                    );
-                                  },
-                                ),
-                              ),
-                              title: Text(
-                                track.title,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              subtitle: Text(
-                                track.artist,
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: theme.colorScheme.onSurface.withValues(
-                                    alpha: 0.7,
-                                  ),
-                                ),
-                              ),
-                              trailing: IconButton(
-                                icon: const Icon(Icons.remove_circle_outline),
-                                onPressed: () => _removeTrack(index),
-                                color: theme.colorScheme.onSurface.withValues(
-                                  alpha: 0.35,
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                ),
-              ],
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Set up the initial music queue.',
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.75),
             ),
           ),
-        ),
-        Padding(
-          padding: const EdgeInsets.only(left: 24, right: 24, bottom: 24),
-          child: ElevatedButton(
+          const SizedBox(height: 16),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => _showAddTracksModal(context),
+                  icon: const Icon(Icons.search),
+                  label: const Text('Add Tracks'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: theme.colorScheme.primary,
+                    foregroundColor: theme.colorScheme.onPrimary,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    elevation: 0,
+                    textStyle: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => _showImportPlaylistModal(context),
+                  icon: const Icon(Icons.playlist_add),
+                  label: const Text(
+                    'Import Playlist',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  style: OutlinedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    side: BorderSide(
+                      color: theme.colorScheme.primary.withValues(
+                        alpha: 0.55,
+                      ),
+                    ),
+                    foregroundColor: theme.colorScheme.primary,
+                    textStyle: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+
+          Text(
+            'SELECTED TRACKS ($selectedCount)',
+            style: theme.textTheme.labelSmall?.copyWith(
+              letterSpacing: 1.2,
+              fontWeight: FontWeight.bold,
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          if (widget.selectedTracks.isEmpty)
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 32),
+                child: Text(
+                  'No tracks selected yet.',
+                  style: TextStyle(
+                    color: theme.colorScheme.onSurface.withValues(
+                      alpha: 0.5,
+                    ),
+                  ),
+                ),
+              ),
+            )
+          else
+            ListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: widget.selectedTracks.length,
+              itemBuilder: (context, index) {
+                final track = widget.selectedTracks[index];
+
+                return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  minVerticalPadding: 8,
+                  leading: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.network(
+                      track.thumbnailUrl,
+                      width: 48,
+                      height: 48,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) {
+                        return Container(
+                          width: 48,
+                          height: 48,
+                          color: theme.colorScheme.primaryContainer,
+                          child: Icon(
+                            Icons.music_note,
+                            color: theme.colorScheme.primary,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                  title: Text(
+                    track.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleMedium?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  subtitle: Text(
+                    track.artist,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: theme.colorScheme.onSurface.withValues(
+                        alpha: 0.7,
+                      ),
+                    ),
+                  ),
+                  trailing: IconButton(
+                    icon: const Icon(Icons.remove_circle_outline),
+                    onPressed: () => _removeTrack(index),
+                    color: theme.colorScheme.onSurface.withValues(
+                      alpha: 0.35,
+                    ),
+                  ),
+                );
+              },
+            ),
+          const SizedBox(height: 32),
+
+          ElevatedButton(
             onPressed: widget.onNext,
             style: ElevatedButton.styleFrom(
               backgroundColor: theme.colorScheme.primary,
@@ -323,8 +319,9 @@ class _Step3MusicBodyState extends State<_Step3MusicBody> {
             ),
             child: const Text('Continue'),
           ),
-        ),
-      ],
+          const SizedBox(height: 32),
+        ],
+      ),
     );
   }
 }
