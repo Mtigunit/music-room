@@ -28,6 +28,7 @@ class DynamicSearchBottomSheet extends StatefulWidget {
 class _DynamicSearchBottomSheetState extends State<DynamicSearchBottomSheet> {
   final FocusNode _focusNode = FocusNode();
   double _heightFactor = 0.5;
+  bool _hasExpanded = false;
 
   @override
   void initState() {
@@ -44,9 +45,12 @@ class _DynamicSearchBottomSheetState extends State<DynamicSearchBottomSheet> {
   }
 
   void _onFocusChange() {
-    setState(() {
-      _heightFactor = _focusNode.hasFocus ? 0.8 : 0.5;
-    });
+    if (_focusNode.hasFocus && !_hasExpanded) {
+      setState(() {
+        _heightFactor = 0.9;
+        _hasExpanded = true;
+      });
+    }
   }
 
   @override
@@ -62,89 +66,94 @@ class _DynamicSearchBottomSheetState extends State<DynamicSearchBottomSheet> {
         color: theme.colorScheme.surface,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(2),
+      child: Material(
+        color: Colors.transparent,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              // Drag Handle
+              Center(
+                child: Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(2),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Expanded(
-                  child: Text(
-                    widget.title,
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: theme.colorScheme.onSurface,
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.title,
+                      style: theme.textTheme.headlineSmall?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: theme.colorScheme.onSurface,
+                      ),
                     ),
                   ),
-                ),
-                IconButton(
-                  onPressed:
-                      widget.onActionPressed ??
-                      () => Navigator.of(context).pop(),
-                  icon: Icon(widget.actionIcon),
-                  style: IconButton.styleFrom(
-                    backgroundColor: theme.colorScheme.onSurface.withValues(
-                      alpha: 0.05,
+                  IconButton(
+                    onPressed:
+                        widget.onActionPressed ??
+                        () => Navigator.of(context).pop(),
+                    icon: Icon(widget.actionIcon),
+                    style: IconButton.styleFrom(
+                      backgroundColor: theme.colorScheme.onSurface.withValues(
+                        alpha: 0.05,
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
-            Text(
-              widget.subtitle,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
+                ],
               ),
-            ),
-            const SizedBox(height: 20),
-            TextField(
-              focusNode: _focusNode,
-              onChanged: widget.onSearchChanged,
-              decoration: InputDecoration(
-                hintText: widget.searchHintText,
-                hintStyle: TextStyle(
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.35),
+              Text(
+                widget.subtitle,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
                 ),
-                prefixIcon: Icon(
-                  Icons.search,
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
-                ),
-                filled: true,
-                fillColor: theme.colorScheme.surfaceContainerHighest.withValues(
-                  alpha: 0.3,
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
+              ),
+              const SizedBox(height: 20),
+              TextField(
+                focusNode: _focusNode,
+                onChanged: widget.onSearchChanged,
+                decoration: InputDecoration(
+                  hintText: widget.searchHintText,
+                  hintStyle: TextStyle(
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.35),
+                  ),
+                  prefixIcon: Icon(
+                    Icons.search,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                  ),
+                  filled: true,
+                  fillColor: theme.colorScheme.surfaceContainerHighest
+                      .withValues(
+                        alpha: 0.3,
+                      ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
+                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(color: theme.colorScheme.primary),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
                   ),
                 ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(color: theme.colorScheme.primary),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 16,
-                  vertical: 16,
-                ),
               ),
-            ),
-            const SizedBox(height: 20),
-            Expanded(child: widget.content),
-          ],
+              const SizedBox(height: 20),
+              Expanded(child: widget.content),
+            ],
+          ),
         ),
       ),
     );

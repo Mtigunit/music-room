@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/widgets/dynamic_search_bottom_sheet.dart';
+import 'package:music_room/core/widgets/track_search_list_tile.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/events/data/models/track_model.dart';
 import 'package:music_room/features/events/presentation/state/track_search_cubit.dart';
@@ -121,7 +122,7 @@ class _Step3MusicBodyState extends State<_Step3MusicBody> {
             return DynamicSearchBottomSheet(
               title: 'Search Tracks',
               subtitle: 'Find a specific song for your event',
-              searchHintText: 'Search for songs, artists...',
+              searchHintText: 'Search for songs, artists, or albums...',
               onSearchChanged: searchCubit.searchTracks,
               onActionPressed: () => Navigator.of(context).pop(),
               content: BlocBuilder<TrackSearchCubit, TrackSearchState>(
@@ -380,50 +381,21 @@ class _TrackSearchResults extends StatelessWidget {
       if (tracks.isEmpty) {
         return const Center(child: Text('No tracks found.'));
       }
-      return ListView.builder(
+      return ListView.separated(
+        padding: EdgeInsets.zero,
         itemCount: tracks.length,
+        separatorBuilder: (context, _) => const SizedBox(height: 4),
         itemBuilder: (context, index) {
           final track = tracks[index];
           final isAdded = selectedTracks.any(
             (t) => t.providerTrackId == track.providerTrackId,
           );
-          return ListTile(
-            contentPadding: EdgeInsets.zero,
-            leading: ClipRRect(
-              borderRadius: BorderRadius.circular(8),
-              child: Image.network(
-                track.thumbnailUrl,
-                width: 48,
-                height: 48,
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => Container(
-                  width: 48,
-                  height: 48,
-                  color: theme.colorScheme.surfaceContainerHighest,
-                  child: const Icon(Icons.music_note),
-                ),
-              ),
-            ),
-            title: Text(
-              track.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-            subtitle: Text(
-              track.artist,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-            trailing: IconButton(
-              icon: Icon(
-                isAdded ? Icons.check : Icons.add_circle_outline,
-                color: isAdded
-                    ? theme.colorScheme.primary
-                    : theme.colorScheme.onSurface.withValues(alpha: 0.5),
-              ),
-              onPressed: isAdded ? null : () => onAddTrack(track),
-            ),
+          return TrackSearchListTile(
+            track: track,
+            isAlreadyAdded: isAdded,
+            onAddTapped: (addedTrack) async {
+              onAddTrack(addedTrack);
+            },
           );
         },
       );

@@ -4,8 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/widgets/dynamic_search_bottom_sheet.dart';
+import 'package:music_room/core/widgets/track_search_list_tile.dart';
 import 'package:music_room/di/injection_container.dart';
-import 'package:music_room/features/events/data/models/track_model.dart';
 import 'package:music_room/features/events/presentation/state/track_search_cubit.dart';
 import 'package:music_room/features/music_vote/data/models/event_track_model.dart';
 import 'package:music_room/features/music_vote/presentation/state/music_vote_cubit.dart';
@@ -245,9 +245,9 @@ class _AddSongSearchSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return DynamicSearchBottomSheet(
-      title: 'Add a Song',
-      subtitle: 'Search and add to the room',
-      searchHintText: 'Song, artist, or album...',
+      title: 'Search Tracks',
+      subtitle: 'Find a specific song for your event',
+      searchHintText: 'Search for songs, artists, or albums...',
       onSearchChanged: (query) {
         context.read<TrackSearchCubit>().searchTracks(query);
       },
@@ -291,18 +291,17 @@ class _AddSongSearchSheet extends StatelessWidget {
                   const SizedBox(height: 4),
               itemBuilder: (context, index) {
                 final track = state.tracks[index];
-                return _SearchResultItem(
+                return TrackSearchListTile(
                   track: track,
-                  onAdd: () {
+                  onAddTapped: (addedTrack) async {
                     final id = eventId;
                     if (id != null && id.isNotEmpty) {
-                      unawaited(
-                        musicVoteCubit.addTrack(
-                          id,
-                          track.providerTrackId,
-                        ),
+                      await musicVoteCubit.addTrack(
+                        id,
+                        addedTrack.providerTrackId,
                       );
-                      Navigator.of(context).pop();
+                      // Don't pop immediately so the user can see
+                      // the success state
                     }
                   },
                 );
@@ -322,128 +321,6 @@ class _AddSongSearchSheet extends StatelessWidget {
             ),
           );
         },
-      ),
-    );
-  }
-}
-
-// ────────────────────────────────────────────────────────────────────────────
-// Search result row used inside the Add Song sheet
-// ────────────────────────────────────────────────────────────────────────────
-
-class _SearchResultItem extends StatelessWidget {
-  const _SearchResultItem({
-    required this.track,
-    required this.onAdd,
-  });
-
-  final TrackModel track;
-  final VoidCallback onAdd;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-
-    final rowBg = isDark
-        ? Colors.white.withValues(alpha: 0.04)
-        : Colors.black.withValues(alpha: 0.02);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: rowBg,
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: Row(
-        children: [
-          // Thumbnail
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: track.thumbnailUrl.isNotEmpty
-                ? Image.network(
-                    track.thumbnailUrl,
-                    width: 52,
-                    height: 52,
-                    fit: BoxFit.cover,
-                    errorBuilder: (ctx, err, stack) => _ThumbnailFallback(
-                      colorScheme: colorScheme,
-                    ),
-                  )
-                : _ThumbnailFallback(colorScheme: colorScheme),
-          ),
-          const SizedBox(width: 12),
-
-          // Track info
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  track.title,
-                  style: textTheme.bodyMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  track.artist,
-                  style: textTheme.bodySmall?.copyWith(
-                    fontWeight: FontWeight.w500,
-                    color: colorScheme.onSurface.withValues(alpha: 0.7),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-
-          // Add button
-          Semantics(
-            button: true,
-            label: 'Add to queue',
-            child: GestureDetector(
-              onTap: onAdd,
-              child: Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: colorScheme.onSurface.withValues(alpha: 0.1),
-                ),
-                child: Icon(
-                  Icons.add,
-                  size: 18,
-                  color: colorScheme.onSurface.withValues(alpha: 0.7),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _ThumbnailFallback extends StatelessWidget {
-  const _ThumbnailFallback({required this.colorScheme});
-
-  final ColorScheme colorScheme;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 52,
-      height: 52,
-      color: colorScheme.primary.withValues(alpha: 0.2),
-      child: Icon(
-        Icons.music_note,
-        color: colorScheme.primary,
-        size: 24,
       ),
     );
   }
