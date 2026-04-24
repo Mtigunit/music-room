@@ -68,7 +68,7 @@ export class EventsService {
     );
 
     const roomName = `event_${eventId}`;
-    this.eventsGateway.server.to(roomName).emit('track:added', newTrack);
+    this.eventsGateway.server.to(roomName).emit('track:add', newTrack);
 
     return newTrack;
   }
@@ -82,7 +82,7 @@ export class EventsService {
     const roomName = `event_${eventId}`;
     this.eventsGateway.server
       .to(roomName)
-      .emit('track:removed', { providerTrackId: result.providerTrackId });
+      .emit('track:remove', { providerTrackId: result.providerTrackId });
     return result;
   }
 
@@ -98,7 +98,7 @@ export class EventsService {
     const event = await this.eventsRepository.endEvent(eventId, userId);
 
     const roomName = `event_${eventId}`;
-    this.eventsGateway.server.to(roomName).emit('event:ended', { eventId });
+    this.eventsGateway.server.to(roomName).emit('event:end', { eventId });
     this.eventsGateway.server.in(roomName).socketsLeave(roomName);
 
     return event;

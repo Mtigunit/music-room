@@ -89,15 +89,15 @@ async function main() {
         });
 
         // Listen for track added
-        participantSocket.on('track:added', (payload) => {
-            wsEvents.push({ type: 'track:added', payload });
-            console.log('   🎵 WebSocket received track:added ->', payload.track.title);
+        participantSocket.on('track:add', (payload) => {
+            wsEvents.push({ type: 'track:add', payload });
+            console.log('   🎵 WebSocket received track:add ->', payload.track.title);
         });
 
         // Listen for track removed
-        participantSocket.on('track:removed', (payload) => {
-            wsEvents.push({ type: 'track:removed', payload });
-            console.log('   🗑️ WebSocket received track:removed ->', payload.providerTrackId);
+        participantSocket.on('track:remove', (payload) => {
+            wsEvents.push({ type: 'track:remove', payload });
+            console.log('   🗑️ WebSocket received track:remove ->', payload.providerTrackId);
         });
 
         // Let the participant join the event room
@@ -114,9 +114,9 @@ async function main() {
 
         await sleep(1000); // Let WS propagation happen
 
-        const trackAddedEvent = wsEvents.find((e) => e.type === 'track:added');
+        const trackAddedEvent = wsEvents.find((e) => e.type === 'track:add');
         if (!trackAddedEvent || trackAddedEvent.payload.track.providerTrackId !== testProviderId) {
-            throw new Error('❌ Failed to receive correct track:added WS event!');
+            throw new Error('❌ Failed to receive correct track:add WS event!');
         }
         console.log('✅ Appended track event successfully caught via WS.');
 
@@ -126,9 +126,9 @@ async function main() {
 
         await sleep(1000); // Let WS propagation happen
 
-        const trackRemovedEvent = wsEvents.find((e) => e.type === 'track:removed');
+        const trackRemovedEvent = wsEvents.find((e) => e.type === 'track:remove');
         if (!trackRemovedEvent || trackRemovedEvent.payload.providerTrackId !== testProviderId) {
-            throw new Error('❌ Failed to receive correct track:removed WS event!');
+            throw new Error('❌ Failed to receive correct track:remove WS event!');
         }
         console.log('✅ Removed track event successfully caught via WS.');
 

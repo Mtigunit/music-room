@@ -143,6 +143,77 @@ Broadcasted immediately after a track is reordered via the REST API (`PATCH /pla
   ```
 - **Note**: `updates` contains the exact absolute mathematical positions for all tracks that had to move to accommodate the slide operation, including the actively dragged track!
 
+### Events (`EventsGateway`)
+
+The events gateway handles real-time updates and synchronization for live events.
+
+#### `event:join`
+
+- **Client → Server**: `event:join`
+- **Payload**: `{ eventId: string }`
+- **Server Verification**: Verifies the event exists, is currently `LIVE`, the user is NOT the host (host must use the REST start endpoint), and the user has visibility/invitation rights if the event is private.
+- **Server → Client (success ack)**: `{ event: 'joined', eventId: string }`
+- **Server → Client (error)**: Throws `WsException` if validation fails.
+
+#### `event:leave`
+
+- **Client → Server**: `event:leave`
+- **Payload**: `{ eventId: string }`
+- **Server Verification**: Verifies the event exists, is currently `LIVE`, and the user is NOT the host.
+- **Server → Client (success ack)**: `{ event: 'left', eventId: string }`
+- **Server → Client (error)**: Throws `WsException` if validation fails.
+
+#### `event:start`
+
+Broadcasted immediately after an event is started via the REST API (`POST /events/:id/start`).
+- **Server → Client (broadcast)**: `event:started`
+- **Payload**:
+  ```json
+  {
+    "eventId": "string"
+  }
+  ```
+
+#### `event:end`
+
+Broadcasted immediately after an event is ended via the REST API (`POST /events/:id/end`). After this event is emitted, all connected sockets in the room are forcefully disconnected/left.
+- **Server → Client (broadcast)**: `event:end`
+- **Payload**:
+  ```json
+  {
+    "eventId": "string"
+  }
+  ```
+
+#### `track:add`
+
+Broadcasted immediately after a track is appended to an event via the REST API (`POST /events/:eventId/tracks`).
+- **Server → Client (broadcast)**: `track:add`
+- **Payload**: The newly created `EventTrack` object.
+
+#### `track:remove`
+
+Broadcasted immediately after a track is removed from an event via the REST API (`DELETE /events/:eventId/tracks/:providerTrackId`).
+- **Server → Client (broadcast)**: `track:remove`
+- **Payload**:
+  ```json
+  {
+    "providerTrackId": "string"
+  }
+  ```
+
+#### `room:count`
+
+Broadcasted automatically to all clients in a room whenever someone joins or leaves.
+- **Server → Client (broadcast)**: `room:count`
+- **Payload**:
+  ```json
+  {
+    "room": "string",
+    "count": number
+  }
+  ```
+
 ## Errors & Disconnects
 
 ### Handshake rejection
