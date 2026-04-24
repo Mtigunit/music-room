@@ -121,7 +121,7 @@ jobs:
               WHERE con.contype = 'u'
                 AND NOT con.condeferrable
                 AND ns.nspname = current_schema()
-                AND cols.column_names = ARRAY['playlistId', 'position']
+                AND cols.column_names = ARRAY['playlistId', 'position']::name[]
             LOOP
               EXECUTE format(
                 'ALTER TABLE %I.%I DROP CONSTRAINT %I',
