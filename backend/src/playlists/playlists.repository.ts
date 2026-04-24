@@ -432,10 +432,20 @@ export class PlaylistsRepository {
         }
 
         // 3. Drop into the exact new position
-        await tx.playlistTrack.update({
-          where: { id: playlistTrackId },
-          data: { position: newPosition },
-        });
+        try {
+          await tx.playlistTrack.update({
+            where: { id: playlistTrackId },
+            data: { position: newPosition },
+          });
+        } catch (error) {
+          if (
+            error instanceof Prisma.PrismaClientKnownRequestError &&
+            error.code === 'P2025'
+          ) {
+            throw new TrackNotFoundInTransactionException();
+          }
+          throw error;
+        }
 
         // 4. Fetch shifted tracks to broadcast
         const affectedStart = Math.min(oldPosition, newPosition);
