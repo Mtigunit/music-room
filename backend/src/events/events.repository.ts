@@ -31,6 +31,7 @@ export class EventsRepository {
       policies,
       playlistIds,
       tracks,
+      startDate,
     } = createEventDto;
 
     return this.prisma.$transaction(async (tx) => {
@@ -73,6 +74,7 @@ export class EventsRepository {
                 })),
               }
             : undefined,
+          startDate,
         },
       });
 
@@ -250,6 +252,12 @@ export class EventsRepository {
     const event = await this.prisma.event.findUnique({
       where: { id },
       include: {
+        host: {
+          select: {
+            id: true,
+            username: true,
+          },
+        },
         tracks: {
           include: { track: true },
           take: 10,
@@ -257,12 +265,11 @@ export class EventsRepository {
         },
       },
     });
-
     if (!event) {
       throw new NotFoundException(`Event with ID ${id} not found`);
     }
 
-    const { tracks, ...eventData } = event;
+    const { tracks, host, ...eventData } = event;
     const formattedTracks = tracks.map((et) => ({
       id: et.id,
       trackId: et.trackId,
@@ -278,6 +285,8 @@ export class EventsRepository {
 
     return {
       ...eventData,
+      hostname: host.username,
+      hostId: host.id,
       tracks: formattedTracks,
     };
   }

@@ -10,7 +10,7 @@ import { Logger, UseGuards } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { WsAuthGuard } from '../websockets/guards/ws-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
-import { Visibility } from '@prisma/client';
+import { Visibility, EventStatus } from '@prisma/client';
 import { WsUser } from '../websockets/decorators/ws-user.decorator';
 import type { SocketUser } from '../websockets/socket-auth.service';
 
@@ -127,6 +127,11 @@ export class EventsGateway {
       throw new WsException('Forbidden: Only host can start the room');
     }
 
+    await this.prisma.event.update({
+      where: { id: eventId },
+      data: { status: EventStatus.LIVE, startDate: new Date() },
+    });
+
     const roomName = `event_${eventId}`;
     await client.join(roomName);
     this.logger.log(`Host ${user.id} started/joined room ${roomName}`);
@@ -160,6 +165,11 @@ export class EventsGateway {
     if (event.hostId !== user.id) {
       throw new WsException('Forbidden: Only host can end the event');
     }
+
+    await this.prisma.event.update({
+      where: { id: eventId },
+      data: { status: EventStatus.ENDED },
+    });
 
     const roomName = `event_${eventId}`;
 
