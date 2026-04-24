@@ -17,7 +17,7 @@ import {
   OccStaleException,
   TrackNotFoundInTransactionException,
 } from './exceptions';
-import { TrackSearchResultDto } from '../tracks/dto/track-search-result.dto';
+import type { TrackSearchResultDto } from '../tracks/dto/track-search-result.dto';
 
 @Injectable()
 export class PlaylistsService {

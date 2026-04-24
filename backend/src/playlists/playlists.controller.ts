@@ -222,6 +222,7 @@ export class PlaylistsController {
   @ApiOperation({ summary: 'Reorder a track in a playlist' })
   @ApiParam({ name: 'id', type: String, format: 'uuid' })
   @ApiParam({ name: 'playlistTrackId', type: String, format: 'uuid' })
+  @ApiBody({ type: ReorderTrackDto })
   @ApiResponse({
     status: 200,
     description:

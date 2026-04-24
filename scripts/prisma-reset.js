@@ -50,22 +50,27 @@ try {
   console.log(`${COLOR_INFO}Injecting DEFERRABLE constraint logic into init migration...${COLOR_RESET}`);
   const migrationFolders = fs.readdirSync(migrationsDir).filter(f => fs.statSync(path.join(migrationsDir, f)).isDirectory());
   const initFolder = migrationFolders.find(f => f.endsWith('_init'));
-  if (initFolder) {
-    const migrationSqlPath = path.join(migrationsDir, initFolder, 'migration.sql');
-    let sqlContent = fs.readFileSync(migrationSqlPath, 'utf8');
-    
-    // Replace the default Prisma unique index with a mathematically identical Deferrable Constraint
-    const targetQuery = 'CREATE UNIQUE INDEX "PlaylistTrack_playlistId_position_key" ON "PlaylistTrack"("playlistId", "position");';
-    const replacementQuery = 'ALTER TABLE "PlaylistTrack" ADD CONSTRAINT "PlaylistTrack_playlistId_position_key" UNIQUE ("playlistId", "position") DEFERRABLE INITIALLY DEFERRED;';
-    
-    if (sqlContent.includes(targetQuery)) {
-      sqlContent = sqlContent.replace(targetQuery, replacementQuery);
-      fs.writeFileSync(migrationSqlPath, sqlContent);
-      console.log(`${COLOR_SUCCESS}Successfully injected DEFERRABLE constraint!${COLOR_RESET}`);
-    } else {
-       console.error(`${COLOR_ERROR}FATAL: Target CREATE UNIQUE INDEX query not found in init migration! The DEFERRABLE constraint is critical for reorder functionality.${COLOR_RESET}`);
-       process.exit(1);
-    }
+  if (!initFolder) {
+    console.error(`${COLOR_ERROR}FATAL: Generated init migration folder not found. Expected a migration directory ending with "_init", but none was created. Aborting to avoid applying a non-deferrable (playlistId, position) constraint that would break reorder functionality.${COLOR_RESET}`);
+    process.exit(1);
+  }
+
+  const migrationSqlPath = path.join(migrationsDir, initFolder, 'migration.sql');
+  let sqlContent = fs.readFileSync(migrationSqlPath, 'utf8');
+  
+  // Replace the default Prisma unique index with a mathematically identical Deferrable Constraint
+  // Prisma sometimes emits different formatting/schema qualifiers, so we use a resilient regex
+  const targetQueryRegex = /CREATE\s+UNIQUE\s+INDEX\s+"PlaylistTrack_playlistId_position_key"\s+ON\s+(?:"[^"]+"\.)?"PlaylistTrack"\s*\(\s*"playlistId"\s*,\s*"position"\s*\)\s*;/i;
+  const replacementQuery = 'ALTER TABLE "PlaylistTrack" ADD CONSTRAINT "PlaylistTrack_playlistId_position_key" UNIQUE ("playlistId", "position") DEFERRABLE INITIALLY DEFERRED;';
+  
+  const updatedSqlContent = sqlContent.replace(targetQueryRegex, replacementQuery);
+  
+  if (updatedSqlContent !== sqlContent && updatedSqlContent.includes(replacementQuery)) {
+    fs.writeFileSync(migrationSqlPath, updatedSqlContent);
+    console.log(`${COLOR_SUCCESS}Successfully injected DEFERRABLE constraint!${COLOR_RESET}`);
+  } else {
+     console.error(`${COLOR_ERROR}FATAL: Target CREATE UNIQUE INDEX query not found in init migration, or DEFERRABLE constraint injection failed verification. The DEFERRABLE constraint is critical for reorder functionality.${COLOR_RESET}`);
+     process.exit(1);
   }
 
   // 4c. Apply the strictly modified initial migration

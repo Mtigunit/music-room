@@ -95,6 +95,71 @@ jobs:
       - name: 🏗️ Push Temporary Schema
         run: npx prisma db push
 
+      - name: 🔧 Inject DEFERRABLE Constraint (mirrors prisma-reset.js)
+        run: |
+          npx prisma db execute --stdin <<'SQL'
+          DO $$
+          DECLARE
+            constraint_record RECORD;
+            index_record RECORD;
+          BEGIN
+            -- Convert any existing non-deferrable unique constraint on (playlistId, position)
+            FOR constraint_record IN
+              SELECT
+                ns.nspname AS schema_name,
+                cls.relname AS table_name,
+                con.conname AS constraint_name
+              FROM pg_constraint con
+              INNER JOIN pg_class cls ON cls.oid = con.conrelid
+              INNER JOIN pg_namespace ns ON ns.oid = cls.relnamespace
+              INNER JOIN LATERAL (
+                SELECT array_agg(att.attname ORDER BY key_cols.ordinality) AS column_names
+                FROM unnest(con.conkey) WITH ORDINALITY AS key_cols(attnum, ordinality)
+                INNER JOIN pg_attribute att
+                  ON att.attrelid = con.conrelid AND att.attnum = key_cols.attnum
+              ) cols ON TRUE
+              WHERE con.contype = 'u'
+                AND NOT con.condeferrable
+                AND ns.nspname = current_schema()
+                AND cols.column_names = ARRAY['playlistId', 'position']
+            LOOP
+              EXECUTE format(
+                'ALTER TABLE %I.%I DROP CONSTRAINT %I',
+                constraint_record.schema_name, constraint_record.table_name, constraint_record.constraint_name
+              );
+              EXECUTE format(
+                'ALTER TABLE %I.%I ADD CONSTRAINT %I UNIQUE ("playlistId", "position") DEFERRABLE INITIALLY DEFERRED',
+                constraint_record.schema_name, constraint_record.table_name, constraint_record.constraint_name
+              );
+            END LOOP;
+
+            -- Convert any standalone unique index (not backed by a constraint)
+            FOR index_record IN
+              SELECT schemaname AS schema_name, tablename AS table_name, indexname AS index_name
+              FROM pg_indexes
+              WHERE schemaname = current_schema()
+                AND indexdef ILIKE 'CREATE UNIQUE INDEX % ON % ("playlistId", "position")%'
+            LOOP
+              IF NOT EXISTS (
+                SELECT 1 FROM pg_constraint con
+                INNER JOIN pg_class cls ON cls.oid = con.conrelid
+                INNER JOIN pg_namespace ns ON ns.oid = cls.relnamespace
+                WHERE con.contype = 'u'
+                  AND con.conname = index_record.index_name
+                  AND cls.relname = index_record.table_name
+                  AND ns.nspname = index_record.schema_name
+              ) THEN
+                EXECUTE format('DROP INDEX %I.%I', index_record.schema_name, index_record.index_name);
+                EXECUTE format(
+                  'ALTER TABLE %I.%I ADD CONSTRAINT %I UNIQUE ("playlistId", "position") DEFERRABLE INITIALLY DEFERRED',
+                  index_record.schema_name, index_record.table_name, index_record.index_name
+                );
+              END IF;
+            END LOOP;
+          END
+          $$;
+          SQL
+
       - name: 🔨 Build Production Application
         run: npm run build
 
