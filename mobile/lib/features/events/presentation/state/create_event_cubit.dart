@@ -48,6 +48,7 @@ class CreateEventCubit extends Cubit<CreateEventState> {
     required TimeOfDay? startTime,
     required DateTime? endDate,
     required TimeOfDay? endTime,
+    required DateTime scheduledStartTime,
     List<String> playlistIds = const [],
   }) async {
     final trimmedName = name.trim();
@@ -131,6 +132,7 @@ class CreateEventCubit extends Cubit<CreateEventState> {
       playlistIds: playlistIds.isEmpty ? null : playlistIds,
       tracks: selectedTracks.isEmpty ? null : selectedTracks,
       policies: policies,
+      scheduledAt: scheduledStartTime.toUtc().toIso8601String(),
     );
 
     emit(CreateEventSubmitting());

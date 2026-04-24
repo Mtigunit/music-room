@@ -1,9 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:music_room/di/injection_container.dart';
+import 'package:music_room/features/music_vote/presentation/state/music_vote_cubit.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/music_vote_view.dart';
 
 /// Entry-point page for the "Live Event / Music Track Vote" feature.
 ///
-/// Wraps [MusicVoteView] inside a [SafeArea]-bounded [Scaffold].
+/// Provides [MusicVoteCubit] and triggers `loadRoom` immediately.
 /// This page is the tab-level widget mounted inside the app scaffold.
 class MusicVotePage extends StatelessWidget {
   const MusicVotePage({
@@ -15,9 +20,21 @@ class MusicVotePage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SafeArea(
-        child: MusicVoteView(eventId: eventId),
+    return BlocProvider(
+      create: (_) {
+        final cubit = MusicVoteCubit(
+          remoteDataSource: InjectionContainer().musicVoteRemoteDataSource,
+        );
+        final id = eventId;
+        if (id != null && id.isNotEmpty) {
+          unawaited(cubit.loadRoom(id));
+        }
+        return cubit;
+      },
+      child: Scaffold(
+        body: SafeArea(
+          child: MusicVoteView(eventId: eventId),
+        ),
       ),
     );
   }

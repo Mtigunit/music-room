@@ -8,6 +8,7 @@ import 'package:music_room/features/auth/domain/repositories/auth_repository.dar
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
 import 'package:music_room/features/events/data/datasources/event_remote_datasource.dart';
 import 'package:music_room/features/events/data/datasources/track_remote_datasource.dart';
+import 'package:music_room/features/music_vote/data/datasources/music_vote_remote_datasource.dart';
 import 'package:music_room/features/playlist/data/datasources/playlist_remote_datasource.dart';
 import 'package:music_room/features/search/data/datasources/search_remote_datasource.dart';
 import 'package:music_room/features/search/data/services/search_query_service.dart';
@@ -31,6 +32,7 @@ class InjectionContainer {
   late AuthRepository _authRepository;
   late ITrackRemoteDataSource _trackRemoteDataSource;
   late IEventRemoteDataSource _eventRemoteDataSource;
+  late IMusicVoteRemoteDataSource _musicVoteRemoteDataSource;
 
   /// Initialize all dependencies
   Future<void> init() async {
@@ -52,6 +54,9 @@ class InjectionContainer {
     _searchRemoteDataSource = SearchRemoteDataSource(apiClient: _apiClient);
     _trackRemoteDataSource = TrackRemoteDataSource(apiClient: _apiClient);
     _eventRemoteDataSource = EventRemoteDataSource(apiClient: _apiClient);
+    _musicVoteRemoteDataSource = MusicVoteRemoteDataSource(
+      apiClient: _apiClient,
+    );
     _playlistRemoteDataSource = PlaylistRemoteDataSource(apiClient: _apiClient);
 
     // Repositories
@@ -72,6 +77,8 @@ class InjectionContainer {
   AuthRepository get authRepository => _authRepository;
   ITrackRemoteDataSource get trackRemoteDataSource => _trackRemoteDataSource;
   IEventRemoteDataSource get eventRemoteDataSource => _eventRemoteDataSource;
+  IMusicVoteRemoteDataSource get musicVoteRemoteDataSource =>
+      _musicVoteRemoteDataSource;
 
   AuthBloc createAuthBloc() {
     return AuthBloc(authRepository: _authRepository);

@@ -262,143 +262,133 @@ class _Step4AccessState extends State<Step4Access> {
     final showDynamicUI = widget.isRestricted;
     final radius = widget.allowedRadius.clamp(10.0, 500.0);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Expanded(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Control who can join and interact in your event.',
+            style: theme.textTheme.titleMedium?.copyWith(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.75),
+            ),
+          ),
+          const SizedBox(height: 24),
+
+          // ── Visibility cards ──────────────────────────────────
+          _buildSelectionCard(
+            title: 'Public',
+            subtitle: 'Anyone can discover and join your event',
+            icon: Icons.public,
+            isSelected: widget.visibility == 'Public',
+            onTap: () => widget.onVisibilityChanged('Public'),
+            theme: theme,
+          ),
+          const SizedBox(height: 12),
+          _buildSelectionCard(
+            title: 'Private',
+            subtitle: 'Only people with an invite link can join',
+            icon: Icons.lock_outline,
+            isSelected: widget.visibility == 'Private',
+            onTap: () {
+              widget.onVisibilityChanged('Private');
+              if (widget.votingRule == 'Everyone') {
+                widget.onVotingRuleChanged('Invited Only');
+              }
+            },
+            theme: theme,
+          ),
+          const SizedBox(height: 20),
+
+          // ── Voting permissions card ───────────────────────────
+          Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface,
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
+              ),
+            ),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Control who can join and interact in your event.',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.75),
+                  'VOTING PERMISSIONS',
+                  style: theme.textTheme.labelSmall?.copyWith(
+                    letterSpacing: 1.2,
+                    fontWeight: FontWeight.bold,
+                    color: theme.colorScheme.onSurface.withValues(
+                      alpha: 0.55,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 18),
 
-                // ── Visibility cards ──────────────────────────────────
-                _buildSelectionCard(
-                  title: 'Public',
-                  subtitle: 'Anyone can discover and join your event',
-                  icon: Icons.public,
-                  isSelected: widget.visibility == 'Public',
-                  onTap: () => widget.onVisibilityChanged('Public'),
+                // Everyone can vote (Disabled when Private)
+                Opacity(
+                  opacity: isPrivate ? 0.4 : 1.0,
+                  child: _buildToggleRow(
+                    title: 'Everyone can vote',
+                    subtitle: 'All listeners can upvote tracks',
+                    value: isEveryone,
+                    onChanged: isPrivate
+                        ? null
+                        : (enabled) {
+                            if (enabled) {
+                              widget.onVotingRuleChanged('Everyone');
+                            } else {
+                              widget.onVotingRuleChanged('Invited Only');
+                            }
+                          },
+                    theme: theme,
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                // Invited Only
+                _buildToggleRow(
+                  title: 'Invited Only',
+                  subtitle: 'Only explicitly invited users can vote',
+                  value: isInvitedOnly,
+                  onChanged: isPrivate
+                      ? null
+                      : (enabled) {
+                          if (enabled) {
+                            widget.onVotingRuleChanged('Invited Only');
+                          } else {
+                            widget.onVotingRuleChanged('Everyone');
+                          }
+                        },
                   theme: theme,
                 ),
-                const SizedBox(height: 12),
-                _buildSelectionCard(
-                  title: 'Private',
-                  subtitle: 'Only people with an invite link can join',
-                  icon: Icons.lock_outline,
-                  isSelected: widget.visibility == 'Private',
-                  onTap: () {
-                    widget.onVisibilityChanged('Private');
-                    if (widget.votingRule == 'Everyone') {
-                      widget.onVotingRuleChanged('Invited Only');
-                    }
+                const SizedBox(height: 14),
+
+                // Location & Time Restricted
+                _buildToggleRow(
+                  title: 'Location & Time Restricted',
+                  subtitle: 'Strict access requirements',
+                  value: showDynamicUI,
+                  onChanged: (enabled) {
+                    widget.onRestrictedChanged(enabled);
                   },
                   theme: theme,
                 ),
-                const SizedBox(height: 20),
 
-                // ── Voting permissions card ───────────────────────────
-                Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: theme.colorScheme.surface,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
-                    ),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'VOTING PERMISSIONS',
-                        style: theme.textTheme.labelSmall?.copyWith(
-                          letterSpacing: 1.2,
-                          fontWeight: FontWeight.bold,
-                          color: theme.colorScheme.onSurface.withValues(
-                            alpha: 0.55,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 18),
-
-                      // Everyone can vote (Disabled when Private)
-                      Opacity(
-                        opacity: isPrivate ? 0.4 : 1.0,
-                        child: _buildToggleRow(
-                          title: 'Everyone can vote',
-                          subtitle: 'All listeners can upvote tracks',
-                          value: isEveryone,
-                          onChanged: isPrivate
-                              ? null
-                              : (enabled) {
-                                  if (enabled) {
-                                    widget.onVotingRuleChanged('Everyone');
-                                  } else {
-                                    widget.onVotingRuleChanged('Invited Only');
-                                  }
-                                },
-                          theme: theme,
-                        ),
-                      ),
-                      const SizedBox(height: 14),
-
-                      // Invited Only
-                      _buildToggleRow(
-                        title: 'Invited Only',
-                        subtitle: 'Only explicitly invited users can vote',
-                        value: isInvitedOnly,
-                        onChanged: isPrivate
-                            ? null
-                            : (enabled) {
-                                if (enabled) {
-                                  widget.onVotingRuleChanged('Invited Only');
-                                } else {
-                                  widget.onVotingRuleChanged('Everyone');
-                                }
-                              },
-                        theme: theme,
-                      ),
-                      const SizedBox(height: 14),
-
-                      // Location & Time Restricted
-                      _buildToggleRow(
-                        title: 'Location & Time Restricted',
-                        subtitle: 'Strict access requirements',
-                        value: showDynamicUI,
-                        onChanged: (enabled) {
-                          widget.onRestrictedChanged(enabled);
-                        },
-                        theme: theme,
-                      ),
-
-                      // ── Dynamic section ───────────────────────────
-                      if (showDynamicUI) ...[
-                        const SizedBox(height: 20),
-                        _buildDateTimeSection(theme),
-                        const SizedBox(height: 18),
-                        _buildMapSection(theme, radius),
-                      ],
-                    ],
-                  ),
-                ),
-                const SizedBox(height: 28),
+                // ── Dynamic section ───────────────────────────
+                if (showDynamicUI) ...[
+                  const SizedBox(height: 20),
+                  _buildDateTimeSection(theme),
+                  const SizedBox(height: 18),
+                  _buildMapSection(theme, radius),
+                ],
               ],
             ),
           ),
-        ),
+          const SizedBox(height: 28),
 
-        // ── Start Event button ────────────────────────────────────────
-        Padding(
-          padding: const EdgeInsets.only(left: 24, right: 24, bottom: 24),
-          child: ElevatedButton(
+          // ── Start Event button ────────────────────────────────────────
+          ElevatedButton(
             onPressed: widget.isSubmitting ? null : widget.onSubmit,
             style: ElevatedButton.styleFrom(
               backgroundColor: theme.colorScheme.primary,
@@ -424,8 +414,9 @@ class _Step4AccessState extends State<Step4Access> {
                   )
                 : const Text('Start Event'),
           ),
-        ),
-      ],
+          const SizedBox(height: 32),
+        ],
+      ),
     );
   }
 

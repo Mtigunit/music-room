@@ -15,15 +15,17 @@ class LiveHeader extends StatelessWidget {
   const LiveHeader({
     super.key,
     this.eventId,
+    this.eventName,
   });
 
   final String? eventId;
+  final String? eventName;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final roomTitle = _resolveRoomTitle(eventId);
+    final roomTitle = _resolveRoomTitle(eventId, eventName);
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -95,7 +97,11 @@ class LiveHeader extends StatelessWidget {
     );
   }
 
-  String _resolveRoomTitle(String? roomId) {
+  String _resolveRoomTitle(String? roomId, String? name) {
+    if (name != null && name.isNotEmpty) {
+      return name;
+    }
+
     if (roomId == null || roomId.isEmpty) {
       return 'Friday Night Vi...';
     }
