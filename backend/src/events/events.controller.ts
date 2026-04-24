@@ -36,12 +36,12 @@ import type { Request } from 'express';
 
 @ApiTags('Events')
 @Controller('events')
+@UseGuards(JwtAuthGuard)
+@ApiBearerAuth()
 export class EventsController {
   constructor(private readonly eventsService: EventsService) {}
 
   @Post()
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @UseInterceptors(FileInterceptor('coverImage'))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Create a new event' })
@@ -57,43 +57,8 @@ export class EventsController {
     return this.eventsService.create(userId, createEventDto);
   }
 
-  @Get('explore')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Explore public events and user events' })
-  @ApiQuery({
-    name: 'page',
-    required: false,
-    type: Number,
-    description: 'Page number (default 1)',
-  })
-  @ApiQuery({
-    name: 'limit',
-    required: false,
-    type: Number,
-    description: 'Items per page (default 10)',
-  })
-  @ApiQuery({
-    name: 'search',
-    required: false,
-    type: String,
-    description: 'Search events by name, tags, or description',
-  })
-  @ApiResponse({ status: 200, description: 'List of events.' })
-  explore(
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
-    @Req() req: Request,
-    @Query('search') search?: string,
-  ) {
-    const userId = (req.user as { id: string }).id;
-    return this.eventsService.explore(userId, { page, limit, search });
-  }
-
   @Get()
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get all events created by or invited to the user' })
+  @ApiOperation({ summary: 'Get all public events' })
   @ApiQuery({
     name: 'page',
     required: false,
@@ -112,7 +77,7 @@ export class EventsController {
     type: String,
     description: 'Search events by name, tags, or description',
   })
-  @ApiResponse({ status: 200, description: 'List of user events.' })
+  @ApiResponse({ status: 200, description: 'List of public events.' })
   findAll(
     @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
     @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
@@ -124,9 +89,7 @@ export class EventsController {
   }
 
   @Get('hosting')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get events created by the user' })
+  @ApiOperation({ summary: 'Get all events created by that user' })
   @ApiQuery({
     name: 'page',
     required: false,
@@ -160,9 +123,7 @@ export class EventsController {
   }
 
   @Get('invited')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get events the user is invited to' })
+  @ApiOperation({ summary: 'Get all events that the user was invited to' })
   @ApiQuery({
     name: 'page',
     required: false,
@@ -205,8 +166,6 @@ export class EventsController {
   }
 
   @Patch(':id')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @UseInterceptors(FileInterceptor('coverImage'))
   @ApiConsumes('multipart/form-data')
   @ApiOperation({ summary: 'Update an event by ID' })
@@ -227,8 +186,6 @@ export class EventsController {
   }
 
   @Post(':id/invites')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Invite a user to an event' })
   @ApiParam({ name: 'id', type: String })
   @ApiBody({ type: InviteUserDto })
@@ -249,8 +206,6 @@ export class EventsController {
   }
 
   @Get(':id/tracks')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Get tracks of an event' })
   @ApiParam({ name: 'id', type: String })
   @ApiQuery({
@@ -279,8 +234,6 @@ export class EventsController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete an event by ID' })
   @ApiParam({ name: 'id', type: String })
   @ApiResponse({ status: 200, description: 'Event deleted.' })
@@ -294,9 +247,35 @@ export class EventsController {
     return this.eventsService.remove(id, userId);
   }
 
+  @Post(':id/start')
+  @ApiOperation({ summary: 'Start an event' })
+  @ApiParam({ name: 'id', type: String })
+  @ApiResponse({ status: 200, description: 'Event started.' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden. Only the host can start this event.',
+  })
+  @ApiResponse({ status: 404, description: 'Event not found.' })
+  startEvent(@Param('id', ParseUUIDPipe) id: string, @Req() req: Request) {
+    const userId = (req.user as { id: string }).id;
+    return this.eventsService.startEvent(id, userId);
+  }
+
+  @Post(':id/end')
+  @ApiOperation({ summary: 'End an event' })
+  @ApiParam({ name: 'id', type: String })
+  @ApiResponse({ status: 200, description: 'Event ended.' })
+  @ApiResponse({
+    status: 403,
+    description: 'Forbidden. Only the host can end this event.',
+  })
+  @ApiResponse({ status: 404, description: 'Event not found.' })
+  endEvent(@Param('id', ParseUUIDPipe) id: string, @Req() req: Request) {
+    const userId = (req.user as { id: string }).id;
+    return this.eventsService.endEvent(id, userId);
+  }
+
   @Post(':eventId/tracks')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Append a track to an event' })
   @ApiParam({ name: 'eventId', type: String })
   @ApiBody({ type: AppendedTrackDto })
@@ -317,8 +296,6 @@ export class EventsController {
   }
 
   @Delete(':eventId/tracks/:providerTrackId')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Remove a track from an event by provider ID' })
   @ApiParam({ name: 'eventId', type: String })
   @ApiParam({ name: 'providerTrackId', type: String })

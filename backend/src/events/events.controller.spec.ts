@@ -3,7 +3,7 @@ import { EventsController } from './events.controller';
 import { EventsService } from './events.service';
 import { EventsRepository } from './events.repository';
 import { PrismaService } from '../prisma/prisma.service';
-import { SocketIoGateway } from '../websockets/socket-io.gateway';
+import { EventsGateway } from './events.gateway';
 import { YoutubeService } from '../tracks/youtube.service';
 import type { Request } from 'express';
 
@@ -37,10 +37,12 @@ describe('EventsController', () => {
           },
         },
         {
-          provide: SocketIoGateway,
+          provide: EventsGateway,
           useValue: {
             server: {
               to: jest.fn().mockReturnThis(),
+              in: jest.fn().mockReturnThis(),
+              socketsLeave: jest.fn(),
               emit: jest.fn(),
             },
           },

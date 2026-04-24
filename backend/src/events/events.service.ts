@@ -2,24 +2,17 @@ import { Injectable } from '@nestjs/common';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { EventsRepository } from './events.repository';
-import { SocketIoGateway } from '../websockets/socket-io.gateway';
+import { EventsGateway } from './events.gateway';
 
 @Injectable()
 export class EventsService {
   constructor(
     private readonly eventsRepository: EventsRepository,
-    private readonly socketIoGateway: SocketIoGateway,
+    private readonly eventsGateway: EventsGateway,
   ) {}
 
   create(userId: string, createEventDto: CreateEventDto) {
     return this.eventsRepository.create(userId, createEventDto);
-  }
-
-  explore(
-    userId: string,
-    options: { page: number; limit: number; search?: string },
-  ) {
-    return this.eventsRepository.explore(userId, options);
   }
 
   findAll(
@@ -74,7 +67,8 @@ export class EventsService {
       providerTrackId,
     );
 
-    this.socketIoGateway.server.to(eventId).emit('track:added', newTrack);
+    const roomName = `event_${eventId}`;
+    this.eventsGateway.server.to(roomName).emit('track:added', newTrack);
 
     return newTrack;
   }
@@ -85,9 +79,28 @@ export class EventsService {
       providerTrackId,
       userId,
     );
-    this.socketIoGateway.server
-      .to(eventId)
+    const roomName = `event_${eventId}`;
+    this.eventsGateway.server
+      .to(roomName)
       .emit('track:removed', { providerTrackId: result.providerTrackId });
     return result;
+  }
+
+  async startEvent(eventId: string, userId: string) {
+    const event = await this.eventsRepository.startEvent(eventId, userId);
+
+    const roomName = `event_${eventId}`;
+    this.eventsGateway.server.to(roomName).emit('event:started', { eventId });
+    return event;
+  }
+
+  async endEvent(eventId: string, userId: string) {
+    const event = await this.eventsRepository.endEvent(eventId, userId);
+
+    const roomName = `event_${eventId}`;
+    this.eventsGateway.server.to(roomName).emit('event:ended', { eventId });
+    this.eventsGateway.server.in(roomName).socketsLeave(roomName);
+
+    return event;
   }
 }

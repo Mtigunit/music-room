@@ -8,7 +8,13 @@ import {
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { PrismaService } from '../prisma/prisma.service';
-import { TrackStatus, Prisma, Visibility, Tags } from '@prisma/client';
+import {
+  TrackStatus,
+  Prisma,
+  Visibility,
+  Tags,
+  EventStatus,
+} from '@prisma/client';
 import { YoutubeService } from '../tracks/youtube.service';
 
 @Injectable()
@@ -138,71 +144,6 @@ export class EventsRepository {
 
       return event;
     });
-  }
-
-  async explore(
-    userId: string,
-    options: { page: number; limit: number; search?: string },
-  ) {
-    const { page, limit, search } = options;
-    const skip = (page - 1) * limit;
-
-    const baseCondition: Prisma.EventWhereInput = {
-      OR: [
-        { visibility: Visibility.PUBLIC },
-        { hostId: userId },
-        { invites: { some: { userId } } },
-      ],
-    };
-
-    const searchConditions: Prisma.EventWhereInput[] = [
-      { name: { contains: search, mode: 'insensitive' } },
-      { description: { contains: search, mode: 'insensitive' } },
-    ];
-
-    if (search && Object.values(Tags).includes(search.toUpperCase() as Tags)) {
-      searchConditions.push({ tags: { has: search.toUpperCase() as Tags } });
-    }
-
-    const where: Prisma.EventWhereInput = search
-      ? {
-          AND: [
-            baseCondition,
-            {
-              OR: searchConditions,
-            },
-          ],
-        }
-      : baseCondition;
-
-    const [data, total] = await Promise.all([
-      this.prisma.event.findMany({
-        where,
-        skip,
-        take: limit,
-        orderBy: { createdAt: 'desc' },
-        include: { host: { select: { id: true, username: true } } },
-      }),
-      this.prisma.event.count({ where }),
-    ]);
-
-    const formattedData = data.map((event) => {
-      const { host, ...rest } = event;
-      return {
-        ...rest,
-        host: host ? { id: host.id, name: host.username } : null,
-      };
-    });
-
-    return {
-      data: formattedData,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
   }
 
   async findAll(
@@ -615,6 +556,52 @@ export class EventsRepository {
         userId: invitedUserId,
         status: 'pending',
       },
+    });
+  }
+
+  async startEvent(eventId: string, userId: string) {
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+    });
+
+    if (!event) {
+      throw new NotFoundException('Event not found');
+    }
+
+    if (event.hostId !== userId) {
+      throw new ForbiddenException('Forbidden: Only host can start the room');
+    }
+
+    if (event.status === EventStatus.LIVE) {
+      throw new ForbiddenException('Forbidden: Event is already live');
+    }
+
+    return this.prisma.event.update({
+      where: { id: eventId },
+      data: { status: EventStatus.LIVE, startDate: new Date() },
+    });
+  }
+
+  async endEvent(eventId: string, userId: string) {
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+    });
+
+    if (!event) {
+      throw new NotFoundException('Event not found');
+    }
+
+    if (event.hostId !== userId) {
+      throw new ForbiddenException('Forbidden: Only host can end the event');
+    }
+
+    if (event.status !== EventStatus.LIVE) {
+      throw new ForbiddenException('Forbidden: Event is not live');
+    }
+
+    return this.prisma.event.update({
+      where: { id: eventId },
+      data: { status: EventStatus.ENDED },
     });
   }
 
