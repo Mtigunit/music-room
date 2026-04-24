@@ -181,12 +181,21 @@ export class EventsRepository {
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
+        include: { host: { select: { id: true, username: true } } },
       }),
       this.prisma.event.count({ where }),
     ]);
 
+    const formattedData = data.map((event) => {
+      const { host, ...rest } = event;
+      return {
+        ...rest,
+        host: host ? { id: host.id, name: host.username } : null,
+      };
+    });
+
     return {
-      data,
+      data: formattedData,
       meta: {
         total,
         page,
@@ -204,7 +213,11 @@ export class EventsRepository {
     const skip = (page - 1) * limit;
 
     const baseCondition: Prisma.EventWhereInput = {
-      OR: [{ hostId: userId }, { invites: { some: { userId } } }],
+      OR: [
+        { visibility: Visibility.PUBLIC },
+        { hostId: userId },
+        { invites: { some: { userId } } },
+      ],
     };
 
     const searchConditions: Prisma.EventWhereInput[] = [
@@ -233,12 +246,143 @@ export class EventsRepository {
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
+        include: { host: { select: { id: true, username: true } } },
       }),
       this.prisma.event.count({ where }),
     ]);
 
+    const formattedData = data.map((event) => {
+      const { host, ...rest } = event;
+      return {
+        ...rest,
+        host: host ? { id: host.id, name: host.username } : null,
+      };
+    });
+
     return {
-      data,
+      data: formattedData,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async findHosting(
+    userId: string,
+    options: { page: number; limit: number; search?: string },
+  ) {
+    const { page, limit, search } = options;
+    const skip = (page - 1) * limit;
+
+    const baseCondition: Prisma.EventWhereInput = {
+      hostId: userId,
+    };
+
+    const searchConditions: Prisma.EventWhereInput[] = [
+      { name: { contains: search, mode: 'insensitive' } },
+      { description: { contains: search, mode: 'insensitive' } },
+    ];
+
+    if (search && Object.values(Tags).includes(search.toUpperCase() as Tags)) {
+      searchConditions.push({ tags: { has: search.toUpperCase() as Tags } });
+    }
+
+    const where: Prisma.EventWhereInput = search
+      ? {
+          AND: [
+            baseCondition,
+            {
+              OR: searchConditions,
+            },
+          ],
+        }
+      : baseCondition;
+
+    const [data, total] = await Promise.all([
+      this.prisma.event.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: { host: { select: { id: true, username: true } } },
+      }),
+      this.prisma.event.count({ where }),
+    ]);
+
+    const formattedData = data.map((event) => {
+      const { host, ...rest } = event;
+      return {
+        ...rest,
+        host: host ? { id: host.id, name: host.username } : null,
+      };
+    });
+
+    return {
+      data: formattedData,
+      meta: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
+  }
+
+  async findInvited(
+    userId: string,
+    options: { page: number; limit: number; search?: string },
+  ) {
+    const { page, limit, search } = options;
+    const skip = (page - 1) * limit;
+
+    const baseCondition: Prisma.EventWhereInput = {
+      invites: { some: { userId } },
+    };
+
+    const searchConditions: Prisma.EventWhereInput[] = [
+      { name: { contains: search, mode: 'insensitive' } },
+      { description: { contains: search, mode: 'insensitive' } },
+    ];
+
+    if (search && Object.values(Tags).includes(search.toUpperCase() as Tags)) {
+      searchConditions.push({ tags: { has: search.toUpperCase() as Tags } });
+    }
+
+    const where: Prisma.EventWhereInput = search
+      ? {
+          AND: [
+            baseCondition,
+            {
+              OR: searchConditions,
+            },
+          ],
+        }
+      : baseCondition;
+
+    const [data, total] = await Promise.all([
+      this.prisma.event.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: { host: { select: { id: true, username: true } } },
+      }),
+      this.prisma.event.count({ where }),
+    ]);
+
+    const formattedData = data.map((event) => {
+      const { host, ...rest } = event;
+      return {
+        ...rest,
+        host: host ? { id: host.id, name: host.username } : null,
+      };
+    });
+
+    return {
+      data: formattedData,
       meta: {
         total,
         page,
@@ -285,8 +429,7 @@ export class EventsRepository {
 
     return {
       ...eventData,
-      hostname: host.username,
-      hostId: host.id,
+      host: host ? { id: host.id, name: host.username } : null,
       tracks: formattedTracks,
     };
   }

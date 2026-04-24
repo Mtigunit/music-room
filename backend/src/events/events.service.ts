@@ -29,6 +29,20 @@ export class EventsService {
     return this.eventsRepository.findAll(userId, options);
   }
 
+  findHosting(
+    userId: string,
+    options: { page: number; limit: number; search?: string },
+  ) {
+    return this.eventsRepository.findHosting(userId, options);
+  }
+
+  findInvited(
+    userId: string,
+    options: { page: number; limit: number; search?: string },
+  ) {
+    return this.eventsRepository.findInvited(userId, options);
+  }
+
   findOne(id: string) {
     return this.eventsRepository.findOne(id);
   }

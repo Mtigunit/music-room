@@ -123,6 +123,78 @@ export class EventsController {
     return this.eventsService.findAll(userId, { page, limit, search });
   }
 
+  @Get('hosting')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get events created by the user' })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Page number (default 1)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Items per page (default 10)',
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Search events by name, tags, or description',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'List of events hosted by the user.',
+  })
+  findHosting(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Req() req: Request,
+    @Query('search') search?: string,
+  ) {
+    const userId = (req.user as { id: string }).id;
+    return this.eventsService.findHosting(userId, { page, limit, search });
+  }
+
+  @Get('invited')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get events the user is invited to' })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Page number (default 1)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Items per page (default 10)',
+  })
+  @ApiQuery({
+    name: 'search',
+    required: false,
+    type: String,
+    description: 'Search events by name, tags, or description',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'List of events the user is invited to.',
+  })
+  findInvited(
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Req() req: Request,
+    @Query('search') search?: string,
+  ) {
+    const userId = (req.user as { id: string }).id;
+    return this.eventsService.findInvited(userId, { page, limit, search });
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get an event by ID' })
   @ApiParam({ name: 'id', type: String })
