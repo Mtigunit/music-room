@@ -38,6 +38,10 @@ pre-push:
       glob: "backend/**"
       run: cd backend && npm run lint
 
+    - name: playlist integration tests
+      glob: "backend/src/playlists/** backend/scripts/e2e/playlist-* backend/scripts/stress/playlist-* backend/prisma/schema.prisma"
+      run: cd backend && npm run test:integration:playlist
+
 commit-msg:
   commands:
     commitlint:

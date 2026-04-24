@@ -69,6 +69,14 @@ export class EnvironmentVariables {
   @IsString()
   @IsNotEmpty()
   YOUTUBE_API_KEY!: string;
+
+  @IsNumber()
+  @Min(1000)
+  DB_TRANSACTION_TIMEOUT: number = 10000;
+
+  @IsNumber()
+  @Min(1000)
+  DB_HEAVY_TRANSACTION_TIMEOUT: number = 20000;
 }
 
 export function validate(config: Record<string, unknown>) {

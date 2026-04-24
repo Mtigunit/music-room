@@ -24,6 +24,7 @@ import { CreatePlaylistDto } from './dto/create-playlist.dto';
 import { UpdatePlaylistDto } from './dto/update-playlist.dto';
 import { AddTrackToPlaylistDto } from './dto/add-track-to-playlist.dto';
 import { AddCollaboratorDto } from './dto/add-collaborator.dto';
+import { ReorderTrackDto } from './dto/reorder-track.dto';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { ExplorePlaylistsQueryDto } from './dto/explore-playlists-query.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -135,11 +136,23 @@ export class PlaylistsController {
   @ApiOperation({ summary: 'Add a track to a playlist' })
   @ApiParam({ name: 'id', type: String, format: 'uuid' })
   @ApiBody({ type: AddTrackToPlaylistDto })
-  @ApiResponse({ status: 201, description: 'Track added to playlist.' })
+  @ApiResponse({
+    status: 201,
+    description:
+      'Track successfully added to the playlist. Returns the newly generated updated timestamp and the track object.',
+    schema: {
+      type: 'object',
+      properties: {
+        newUpdatedAt: { type: 'string', format: 'date-time' },
+        track: { type: 'object' },
+      },
+    },
+  })
   @ApiResponse({
     status: 400,
     description: 'Invalid request or Playlist capacity reached.',
   })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   @ApiResponse({
     status: 404,
@@ -149,7 +162,6 @@ export class PlaylistsController {
     status: 409,
     description: 'Track already exists in the playlist.',
   })
-  @ApiResponse({ status: 401, description: 'Unauthorized.' })
   addTrackToPlaylist(
     @Param('id', ParseUUIDPipe) playlistId: string,
     @Body() payload: AddTrackToPlaylistDto,
@@ -166,13 +178,34 @@ export class PlaylistsController {
   @ApiOperation({ summary: 'Remove a track from a playlist' })
   @ApiParam({ name: 'id', type: String, format: 'uuid' })
   @ApiParam({ name: 'playlistTrackId', type: String, format: 'uuid' })
-  @ApiResponse({ status: 200, description: 'Track removed from playlist.' })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Track successfully removed. Returns the newly generated updated timestamp, the deleted track, and position updates.',
+    schema: {
+      type: 'object',
+      properties: {
+        newUpdatedAt: { type: 'string', format: 'date-time' },
+        deletedTrack: { type: 'object' },
+        updates: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              trackId: { type: 'string' },
+              position: { type: 'number' },
+            },
+          },
+        },
+      },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({
     status: 403,
-    description: 'Forbidden. Not the owner or the user who added it.',
+    description: 'User lacks permission to remove this track.',
   })
   @ApiResponse({ status: 404, description: 'Playlist or Track not found.' })
-  @ApiResponse({ status: 401, description: 'Unauthorized.' })
   removeTrackFromPlaylist(
     @Param('id', ParseUUIDPipe) playlistId: string,
     @Param('playlistTrackId', ParseUUIDPipe) playlistTrackId: string,
@@ -182,6 +215,45 @@ export class PlaylistsController {
       playlistId,
       playlistTrackId,
       req.user!.id,
+    );
+  }
+
+  @Patch(':id/tracks/:playlistTrackId/reorder')
+  @ApiOperation({ summary: 'Reorder a track in a playlist' })
+  @ApiParam({ name: 'id', type: String, format: 'uuid' })
+  @ApiParam({ name: 'playlistTrackId', type: String, format: 'uuid' })
+  @ApiBody({ type: ReorderTrackDto })
+  @ApiResponse({
+    status: 200,
+    description:
+      'Track successfully reordered. Returns the new updated timestamp of the playlist.',
+    schema: {
+      type: 'object',
+      required: ['newUpdatedAt'],
+      properties: { newUpdatedAt: { type: 'string', format: 'date-time' } },
+    },
+  })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  @ApiResponse({
+    status: 403,
+    description: 'User lacks permission to modify this playlist.',
+  })
+  @ApiResponse({ status: 404, description: 'Playlist or Track not found.' })
+  @ApiResponse({
+    status: 409,
+    description: 'Optimistic Concurrency Control failure. Data is stale.',
+  })
+  reorderTrack(
+    @Param('id', ParseUUIDPipe) playlistId: string,
+    @Param('playlistTrackId', ParseUUIDPipe) playlistTrackId: string,
+    @Body() payload: ReorderTrackDto,
+    @Request() req: Express.Request,
+  ) {
+    return this.playlistsService.reorderTrack(
+      playlistId,
+      playlistTrackId,
+      req.user!.id,
+      payload,
     );
   }
 }

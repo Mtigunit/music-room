@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import {
+  OccStaleException,
+  TrackNotFoundInTransactionException,
+} from './exceptions';
+import {
   Tags,
   Visibility,
   type PlaylistTrack,
@@ -12,32 +16,41 @@ import { CreatePlaylistDto } from './dto/create-playlist.dto';
 import { UpdatePlaylistDto } from './dto/update-playlist.dto';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { PlaylistAuthData } from './interfaces/playlist-auth-data.interface';
+import { ConfigService } from '@nestjs/config';
 
 @Injectable()
 export class PlaylistsRepository {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly configService: ConfigService,
+  ) {}
 
   async createPlaylist(userId: string, dto: CreatePlaylistDto) {
-    return this.prisma.$transaction(async (tx) => {
-      const playlist = await tx.playlist.create({
-        data: {
-          name: dto.name,
-          visibility: dto.visibility,
-          editLicense: dto.editLicense,
-          description: dto.description,
-          tags: dto.tags || [],
-          owner: {
-            connect: { id: userId },
-          },
-          counter: {
-            create: {
-              nextPosition: -1,
+    return this.prisma.$transaction(
+      async (tx) => {
+        const playlist = await tx.playlist.create({
+          data: {
+            name: dto.name,
+            visibility: dto.visibility,
+            editLicense: dto.editLicense,
+            description: dto.description,
+            tags: dto.tags || [],
+            owner: {
+              connect: { id: userId },
+            },
+            counter: {
+              create: {
+                nextPosition: -1,
+              },
             },
           },
-        },
-      });
-      return playlist;
-    });
+        });
+        return playlist;
+      },
+      {
+        timeout: this.configService.get<number>('DB_TRANSACTION_TIMEOUT'),
+      },
+    );
   }
 
   async getUserPlaylists(userId: string, paginationDto: PaginationDto) {
@@ -126,6 +139,7 @@ export class PlaylistsRepository {
         ownerId: true,
         visibility: true,
         editLicense: true,
+        updatedAt: true,
         collaborators: {
           select: { userId: true },
         },
@@ -193,40 +207,54 @@ export class PlaylistsRepository {
     playlistId: string,
     addedById: string,
     track: TrackSearchResultDto,
-  ): Promise<PlaylistTrack & { track: Track }> {
-    return this.prisma.$transaction(async (tx) => {
-      const counter = await tx.playlistCounter.update({
-        where: { playlistId },
-        data: { nextPosition: { increment: 1 } },
-        select: { nextPosition: true },
-      });
+  ): Promise<{
+    newUpdatedAt: string;
+    playlistTrack: PlaylistTrack & { track: Track };
+  }> {
+    return this.prisma.$transaction(
+      async (tx) => {
+        const counter = await tx.playlistCounter.update({
+          where: { playlistId },
+          data: { nextPosition: { increment: 1 } },
+          select: { nextPosition: true },
+        });
 
-      await tx.playlist.update({
-        where: { id: playlistId },
-        data: { updatedAt: new Date() },
-      });
+        const updatedPlaylist = await tx.playlist.update({
+          where: { id: playlistId },
+          data: { updatedAt: new Date() },
+          select: { updatedAt: true },
+        });
 
-      return tx.playlistTrack.create({
-        data: {
-          playlist: { connect: { id: playlistId } },
-          position: counter.nextPosition, // Atomic increment returns the post-increment value; counter starts at -1 so this is exactly the 0-based position
-          addedBy: { connect: { id: addedById } },
-          track: {
-            connectOrCreate: {
-              where: { providerTrackId: track.providerTrackId },
-              create: {
-                providerTrackId: track.providerTrackId,
-                title: track.title,
-                artist: track.artist,
-                durationMs: track.durationMs,
-                thumbnailUrl: track.thumbnailUrl,
+        const playlistTrack = await tx.playlistTrack.create({
+          data: {
+            playlist: { connect: { id: playlistId } },
+            position: counter.nextPosition,
+            addedBy: { connect: { id: addedById } },
+            track: {
+              connectOrCreate: {
+                where: { providerTrackId: track.providerTrackId },
+                create: {
+                  providerTrackId: track.providerTrackId,
+                  title: track.title,
+                  artist: track.artist,
+                  durationMs: track.durationMs,
+                  thumbnailUrl: track.thumbnailUrl,
+                },
               },
             },
           },
-        },
-        include: { track: true },
-      });
-    });
+          include: { track: true },
+        });
+
+        return {
+          newUpdatedAt: updatedPlaylist.updatedAt.toISOString(),
+          playlistTrack,
+        };
+      },
+      {
+        timeout: this.configService.get<number>('DB_TRANSACTION_TIMEOUT'),
+      },
+    );
   }
 
   async isTrackInPlaylist(playlistId: string, providerTrackId: string) {
@@ -252,6 +280,12 @@ export class PlaylistsRepository {
     });
 
     return !!playlistTrack;
+  }
+
+  async findTrackByProviderId(providerTrackId: string): Promise<Track | null> {
+    return this.prisma.track.findUnique({
+      where: { providerTrackId },
+    });
   }
 
   async findPlaylistTrack(playlistId: string, playlistTrackId: string) {
@@ -297,9 +331,10 @@ export class PlaylistsRepository {
       });
 
       // 5. Bump the Playlist updatedAt timestamp for Optimistic Concurrency Control
-      await tx.playlist.update({
+      const updatedPlaylist = await tx.playlist.update({
         where: { id: playlistId },
         data: { updatedAt: new Date() },
+        select: { updatedAt: true },
       });
 
       // 6. Fetch the updated tracks that were shifted to broadcast their new absolute positions
@@ -318,10 +353,125 @@ export class PlaylistsRepository {
       });
 
       return {
+        newUpdatedAt: updatedPlaylist.updatedAt.toISOString(),
         deletedTrack,
         updates: updates.map((u) => ({ trackId: u.id, position: u.position })),
       };
     });
+  }
+
+  async reorderTrack(
+    playlistId: string,
+    playlistTrackId: string,
+    newPosition: number,
+    baseUpdatedAt: string,
+  ): Promise<{
+    newUpdatedAt: string;
+    updates: { trackId: string; position: number }[];
+  }> {
+    return this.prisma.$transaction(
+      async (tx) => {
+        // 1. Verify the track exists BEFORE bumping the OCC version.
+        //    This prevents a missing track from needlessly invalidating all clients' baseUpdatedAt.
+        const track = await tx.playlistTrack.findFirst({
+          where: { id: playlistTrackId, playlistId },
+          select: { position: true },
+        });
+
+        if (!track) {
+          throw new TrackNotFoundInTransactionException();
+        }
+
+        // 2. Enforce Optimistic Concurrency Control (OCC) atomically
+        const newUpdateStamp = new Date();
+        const occUpdate = await tx.playlist.updateMany({
+          where: {
+            id: playlistId,
+            updatedAt: new Date(baseUpdatedAt),
+          },
+          data: {
+            updatedAt: newUpdateStamp,
+          },
+        });
+
+        if (occUpdate.count === 0) {
+          throw new OccStaleException();
+        }
+
+        const oldPosition = track.position;
+
+        // No change required if the position is the same
+        if (oldPosition === newPosition) {
+          return {
+            newUpdatedAt: newUpdateStamp.toISOString(),
+            updates: [{ trackId: playlistTrackId, position: newPosition }],
+          };
+        }
+
+        // Note: PostgreSQL DEFERRABLE constraints defer unique-index validation until transaction commit.
+
+        // 2. Shift the surrounding tracks dynamically
+        if (oldPosition < newPosition) {
+          // Moving down the list
+          await tx.playlistTrack.updateMany({
+            where: {
+              playlistId,
+              position: { gt: oldPosition, lte: newPosition },
+            },
+            data: { position: { decrement: 1 } },
+          });
+        } else {
+          // Moving up the list
+          await tx.playlistTrack.updateMany({
+            where: {
+              playlistId,
+              position: { gte: newPosition, lt: oldPosition },
+            },
+            data: { position: { increment: 1 } },
+          });
+        }
+
+        // 3. Drop into the exact new position
+        try {
+          await tx.playlistTrack.update({
+            where: { id: playlistTrackId },
+            data: { position: newPosition },
+          });
+        } catch (error) {
+          if (
+            error instanceof Prisma.PrismaClientKnownRequestError &&
+            error.code === 'P2025'
+          ) {
+            throw new TrackNotFoundInTransactionException();
+          }
+          throw error;
+        }
+
+        // 4. Fetch shifted tracks to broadcast
+        const affectedStart = Math.min(oldPosition, newPosition);
+        const affectedEnd = Math.max(oldPosition, newPosition);
+
+        const updates = await tx.playlistTrack.findMany({
+          where: {
+            playlistId,
+            position: { gte: affectedStart, lte: affectedEnd },
+          },
+          select: { id: true, position: true },
+          orderBy: { position: 'asc' },
+        });
+
+        return {
+          newUpdatedAt: newUpdateStamp.toISOString(),
+          updates: updates.map((u) => ({
+            trackId: u.id,
+            position: u.position,
+          })),
+        };
+      },
+      {
+        timeout: this.configService.get<number>('DB_HEAVY_TRANSACTION_TIMEOUT'),
+      },
+    );
   }
 
   async checkUserExists(userId: string): Promise<boolean> {
