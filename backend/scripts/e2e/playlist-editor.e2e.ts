@@ -47,6 +47,22 @@ async function main() {
       data: { email: COLLAB_EMAIL, username: 'e2e_collab', passwordHash, isEmailVerified: true },
     });
 
+    console.log('🌱 Seeding Audio Dictionary with mock tracks to bypass YouTube API...');
+    const MOCK_TRACK_IDS = ['dQw4w9WgXcQ', '9bZkp7q19f0', 'kJQP7kiw5Fk'];
+    for (const providerTrackId of MOCK_TRACK_IDS) {
+      await prisma.track.upsert({
+        where: { providerTrackId },
+        update: {},
+        create: {
+          providerTrackId,
+          title: `Mock Track ${providerTrackId}`,
+          artist: 'Mock Artist',
+          durationMs: 180000,
+          thumbnailUrl: 'https://i.ytimg.com/vi/dQw4w9WgXcQ/default.jpg',
+        },
+      });
+    }
+
     // 2. AUTHENTICATION
     console.log('\n🔑 [2/7] Logging in to get JWTs...');
     const ownerToken = await login(OWNER_EMAIL, TEST_PASSWORD);
@@ -207,10 +223,9 @@ async function main() {
 
   } catch (error) {
     console.error('\n❌ Test Failed:', error);
-    process.exit(1);
+    process.exitCode = 1;
   } finally {
     await prisma.$disconnect();
-    process.exit(0);
   }
 }
 

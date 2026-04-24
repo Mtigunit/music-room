@@ -20,11 +20,8 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "ws:smoke": "node scripts/ws-smoke-test.js",
-    "ws:multi": "node scripts/ws-multi-instance-test.js",
-    "test:realtime": "ts-node -r tsconfig-paths/register scripts/test-realtime-sync.ts",
-    "test:track-event-vote": "ts-node scripts/run-votes-simulation.ts",
-    "test:track-event-append-remove": "ts-node -r tsconfig-paths/register scripts/test-realtime-sync.ts"
+    "test:integration:run": "npx ts-node --transpileOnly ./scripts/e2e/playlist-editor.e2e.ts && npx ts-node --transpileOnly ./scripts/e2e/playlist-occ-ws-sync.e2e.ts && npx ts-node --transpileOnly ./scripts/stress/playlist-concurrency.load.ts",
+    "test:integration": "npm run build && start-server-and-test start:prod http://127.0.0.1:3000/api/docs test:integration:run"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
@@ -82,13 +79,15 @@
     "prisma": "^7.7.0",
     "socket.io-client": "^4.8.1",
     "source-map-support": "^0.5.21",
+    "start-server-and-test": "^3.0.2",
     "supertest": "^7.0.0",
     "ts-jest": "^29.2.5",
     "ts-loader": "^9.5.2",
     "ts-node": "^10.9.2",
     "tsconfig-paths": "^4.2.0",
     "typescript": "^5.7.3",
-    "typescript-eslint": "^8.20.0"
+    "typescript-eslint": "^8.20.0",
+    "wait-on": "^9.0.5"
   },
   "jest": {
     "moduleFileExtensions": [

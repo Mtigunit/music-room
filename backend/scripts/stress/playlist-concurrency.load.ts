@@ -18,6 +18,9 @@ const prisma = new PrismaClient({ adapter });
 async function main() {
   console.log('🚀 Starting Chaos Concurrency (High-Load) Test...');
 
+  // Warm-up delay to let the server connection pool settle
+  await new Promise(r => setTimeout(r, 1000));
+
   try {
     // 1. CLEANUP & SEED
     console.log('\n🧹 Cleaning up old test data...');
@@ -41,11 +44,11 @@ async function main() {
     // 2. MASS ADD TRACKS (Concurrency Test)
     console.log(`\n🚦 [PHASE 1] Firing 15 Concurrent Track ADDitions simultaneously!`);
     console.log(`   (Validating Postgres atomic locks on PlaylistCounter increment)...`);
-    
+
     // Fetch existing tracks from DB to avoid consuming YouTube quota needlessly
     const existingTracks = await prisma.track.findMany({ select: { providerTrackId: true }, take: 25 });
     let tracksToUse = Array.from(new Set(existingTracks.map(t => t.providerTrackId)));
-    
+
     const HARDCODED_TRACKS = [
         // The Weeknd
         '16jA-6hiSUo', 'M4ZoCHID9GI', 'YykjpeuMNEk', '4NRXx6U8ABQ', 'PALMMqZLAQk',
@@ -54,10 +57,22 @@ async function main() {
         'dI3xkL7qUAc', 'm4_9TFeMfJE', 'YIALlhlyqO4', 'jJdlgKzVsnI', 'pQ9R0w99Y8o',
         'yxW5yuzVi8w', 'mXnJqYwebF8', 'qwtyEKTGGQ8', 'g7X9X6TlrUo'
     ];
-    
+
     if (tracksToUse.length < 15) {
-        for (const fallback of HARDCODED_TRACKS) {
-            if (!tracksToUse.includes(fallback)) tracksToUse.push(fallback);
+        console.log('🌱 Seeding Audio Dictionary with mock tracks to bypass YouTube API...');
+        for (const providerTrackId of HARDCODED_TRACKS) {
+            await prisma.track.upsert({
+                where: { providerTrackId },
+                update: {},
+                create: {
+                    providerTrackId,
+                    title: `Mock Track ${providerTrackId}`,
+                    artist: 'Mock Artist',
+                    durationMs: 180000,
+                    thumbnailUrl: 'https://i.ytimg.com/vi/dQw4w9WgXcQ/default.jpg'
+                }
+            });
+            if (!tracksToUse.includes(providerTrackId)) tracksToUse.push(providerTrackId);
             if (tracksToUse.length >= 15) break;
         }
     }
@@ -79,7 +94,7 @@ async function main() {
         where: { playlistId: playlist.id },
         orderBy: { position: 'asc' }
     });
-    
+
     // There must be exactly 15 tracks mathematically perfectly contiguous (0 to 14).
     assert.strictEqual(finalTracks.length, 15, 'Expected exactly 15 tracks to have been inserted safely.');
     for (let i = 0; i < 15; i++) {
@@ -90,17 +105,16 @@ async function main() {
     // 3. MASS REORDERS (OCC Test)
     console.log(`\n🚦 [PHASE 2] Firing 50 Concurrent Track REORDER transactions simultaneously!`);
     console.log(`   (Validating Optimistic Concurrency Control (OCC) mathematically rejects 49 of them)...`);
-    
+
     // Let's choose the middle track (position 12)
     const targetTrackId = finalTracks[12].id;
-    const baseUpdatedAt = finalTracks[0].playlistId; // wait we need current playlist updatedAt
     const currentPlaylist = await prisma.playlist.findUnique({where: {id: playlist.id}});
     const activeUpdateStamp = currentPlaylist!.updatedAt.toISOString();
 
     const reorderPromises: Promise<any>[] = [];
     for (let i = 0; i < 50; i++) {
         // Fire 50 simultaneous Reorders attempting to move position 12 to Position 'i % 5' (random valid positions)
-        const newPos = i % 24; 
+        const newPos = i % 24;
         const p = fetch(`${API_URL}/playlists/${playlist.id}/tracks/${targetTrackId}/reorder`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${ownerToken}` },
@@ -111,7 +125,7 @@ async function main() {
 
     // Await all 50 HTTP networks calls at once.
     const reorderResults = await Promise.all(reorderPromises);
-    
+
     let successCount = 0;
     let conflictCount = 0;
     for (const res of reorderResults) {
@@ -129,10 +143,9 @@ async function main() {
 
   } catch (error) {
     console.error('\n❌ Chaos Test Failed:', error);
-    process.exit(1);
+    process.exitCode = 1;
   } finally {
     await prisma.$disconnect();
-    process.exit(0);
   }
 }
 

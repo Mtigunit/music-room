@@ -115,9 +115,9 @@ All endpoints require `Authorization: Bearer <jwt>`.
 
 | Event | Payload | When |
 |---|---|---|
-| `playlist:track:added` | Full `PlaylistTrack` object (with nested `track`) | Another user added a track |
-| `playlist:track:removed` | `{ "playlistId", "deletedTrackId", "updates": [{ "trackId", "position" }] }` | Another user removed a track |
-| `playlist:track:reordered` | `{ "playlistId", "updates": [{ "trackId", "position" }] }` | Another user reordered a track |
+| `playlist:track:added` | `{ "playlistId", "newUpdatedAt", "track": { PlaylistTrack object } }` | Another user added a track |
+| `playlist:track:removed` | `{ "playlistId", "newUpdatedAt", "deletedTrackId", "updates": [{ "trackId", "position" }] }` | Another user removed a track |
+| `playlist:track:reordered` | `{ "playlistId", "newUpdatedAt", "updates": [{ "trackId", "position" }] }` | Another user reordered a track |
 
 > [!NOTE]
 > The `updates` array in `removed` and `reordered` events contains the **new absolute positions** for every track that shifted. Apply these by matching `trackId` to your local list and updating their `position` field, then re-sort.

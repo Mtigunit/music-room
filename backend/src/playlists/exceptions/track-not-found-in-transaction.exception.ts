@@ -3,8 +3,8 @@
  * inside an active database transaction (e.g. during reorder).
  */
 export class TrackNotFoundInTransactionException extends Error {
-  constructor() {
-    super('Track not found inside transaction.');
+  constructor(message: string = 'Track not found inside transaction.') {
+    super(message);
     this.name = 'TrackNotFoundInTransactionException';
   }
 }

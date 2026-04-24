@@ -4,8 +4,10 @@
  * current database value, indicating another transaction committed first.
  */
 export class OccStaleException extends Error {
-  constructor() {
-    super('Playlist has been modified by another transaction.');
+  constructor(
+    message: string = 'Playlist has been modified by another transaction.',
+  ) {
+    super(message);
     this.name = 'OccStaleException';
   }
 }

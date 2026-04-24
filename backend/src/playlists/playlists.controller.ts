@@ -152,6 +152,7 @@ export class PlaylistsController {
     status: 400,
     description: 'Invalid request or Playlist capacity reached.',
   })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({ status: 403, description: 'Forbidden.' })
   @ApiResponse({
     status: 404,
@@ -161,7 +162,6 @@ export class PlaylistsController {
     status: 409,
     description: 'Track already exists in the playlist.',
   })
-  @ApiResponse({ status: 401, description: 'Unauthorized.' })
   addTrackToPlaylist(
     @Param('id', ParseUUIDPipe) playlistId: string,
     @Body() payload: AddTrackToPlaylistDto,
@@ -181,15 +181,26 @@ export class PlaylistsController {
   @ApiResponse({
     status: 200,
     description:
-      'Track successfully removed. Returns the newly generated updated timestamp and the deleted track.',
+      'Track successfully removed. Returns the newly generated updated timestamp, the deleted track, and position updates.',
     schema: {
       type: 'object',
       properties: {
         newUpdatedAt: { type: 'string', format: 'date-time' },
         deletedTrack: { type: 'object' },
+        updates: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              trackId: { type: 'string' },
+              position: { type: 'number' },
+            },
+          },
+        },
       },
     },
   })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({
     status: 403,
     description: 'User lacks permission to remove this track.',
@@ -221,6 +232,7 @@ export class PlaylistsController {
       properties: { newUpdatedAt: { type: 'string', format: 'date-time' } },
     },
   })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
   @ApiResponse({
     status: 403,
     description: 'User lacks permission to modify this playlist.',

@@ -15,6 +15,6 @@ export class ReorderTrackDto {
       'The last known updatedAt timestamp of the playlist for Optimistic Concurrency Control',
     example: '2026-04-21T10:05:00.000Z',
   })
-  @IsISO8601()
+  @IsISO8601({ strict: true })
   baseUpdatedAt!: string;
 }

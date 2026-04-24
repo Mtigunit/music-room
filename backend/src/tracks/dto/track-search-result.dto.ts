@@ -22,10 +22,10 @@ export class TrackSearchResultDto {
   @IsNotEmpty()
   title!: string;
 
-  @ApiProperty({ example: 'The Weeknd' })
+  @ApiPropertyOptional({ example: 'The Weeknd' })
   @IsString()
-  @IsNotEmpty()
-  artist!: string;
+  @IsOptional()
+  artist?: string | null;
 
   @ApiProperty({ example: 253000, description: 'Duration in milliseconds.' })
   @IsInt()
@@ -37,5 +37,5 @@ export class TrackSearchResultDto {
   })
   @IsOptional()
   @IsUrl()
-  thumbnailUrl?: string;
+  thumbnailUrl?: string | null;
 }

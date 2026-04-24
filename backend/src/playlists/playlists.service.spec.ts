@@ -8,6 +8,10 @@ import {
 } from '@nestjs/common';
 import { PlaylistsService } from './playlists.service';
 import { PlaylistsRepository } from './playlists.repository';
+import {
+  OccStaleException,
+  TrackNotFoundInTransactionException,
+} from './exceptions';
 import { PlaylistsGateway } from './playlists.gateway';
 import { YoutubeService } from '../tracks/youtube.service';
 import { TrackSearchResultDto } from '../tracks/dto/track-search-result.dto';
@@ -77,6 +81,7 @@ describe('PlaylistsService', () => {
             addTrackToPlaylist: jest.fn(),
             checkUserExists: jest.fn(),
             isTrackInPlaylist: jest.fn(),
+            findTrackByProviderId: jest.fn(),
             reorderTrack: jest.fn(),
           },
         },
@@ -521,6 +526,46 @@ describe('PlaylistsService', () => {
         ),
       ).rejects.toThrow(InternalServerErrorException);
     });
+
+    it('should emit a playlist:track:added event with track and newUpdatedAt', async () => {
+      const gateway = {
+        server: { to: jest.fn().mockReturnThis(), emit: jest.fn() },
+      };
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          PlaylistsService,
+          { provide: PlaylistsRepository, useValue: repository },
+          { provide: PlaylistsGateway, useValue: gateway },
+          { provide: YoutubeService, useValue: youtubeService },
+        ],
+      }).compile();
+      const svc = module.get<PlaylistsService>(PlaylistsService);
+
+      repository.findPlaylistForAuth.mockResolvedValueOnce(
+        buildPlaylist() as PlaylistAuthData,
+      );
+      youtubeService.getTrackDetails.mockResolvedValueOnce(sampleTrack);
+      repository.isTrackInPlaylist.mockResolvedValueOnce(false);
+
+      const mockPlaylistTrack = { id: 'some-track', trackId: 'some-dict-id' };
+      repository.addTrackToPlaylist.mockResolvedValueOnce({
+        newUpdatedAt: '2026-04-23T10:00:01.000Z',
+        playlistTrack: mockPlaylistTrack,
+      } as any);
+
+      await svc.addTrackToPlaylist(
+        PLAYLIST_ID,
+        OWNER_ID,
+        sampleTrack.providerTrackId,
+      );
+
+      expect(gateway.server.to).toHaveBeenCalledWith(`playlist_${PLAYLIST_ID}`);
+      expect(gateway.server.emit).toHaveBeenCalledWith('playlist:track:added', {
+        playlistId: PLAYLIST_ID,
+        newUpdatedAt: '2026-04-23T10:00:01.000Z',
+        track: mockPlaylistTrack,
+      });
+    });
   });
 
   // ─── removeTrackFromPlaylist ──────────────────────────────
@@ -617,6 +662,7 @@ describe('PlaylistsService', () => {
       expect(result).toEqual({
         newUpdatedAt: expect.any(String),
         deletedTrack: mockPlaylistTrack,
+        updates: [],
       });
     });
 
@@ -646,6 +692,7 @@ describe('PlaylistsService', () => {
       expect(result).toEqual({
         newUpdatedAt: expect.any(String),
         deletedTrack: mockPlaylistTrack,
+        updates: [],
       });
     });
 
@@ -845,6 +892,77 @@ describe('PlaylistsService', () => {
         expect.any(String),
         4, // maxIndex for 5 tracks
         expect.any(String),
+      );
+    });
+
+    it('should map OccStaleException to ConflictException', async () => {
+      repository.findPlaylistForAuth.mockResolvedValueOnce(
+        buildPlaylist({ _count: { tracks: 10 } }) as PlaylistAuthData,
+      );
+      repository.reorderTrack.mockRejectedValueOnce(
+        new OccStaleException('Stale data'),
+      );
+
+      await expect(
+        service.reorderTrack(PLAYLIST_ID, TRACK_ENTRY_ID, OWNER_ID, {
+          newPosition: 2,
+          baseUpdatedAt: BASE_TIMESTAMP,
+        }),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('should map TrackNotFoundInTransactionException to NotFoundException', async () => {
+      repository.findPlaylistForAuth.mockResolvedValueOnce(
+        buildPlaylist({ _count: { tracks: 10 } }) as PlaylistAuthData,
+      );
+      repository.reorderTrack.mockRejectedValueOnce(
+        new TrackNotFoundInTransactionException('Not found'),
+      );
+
+      await expect(
+        service.reorderTrack(PLAYLIST_ID, TRACK_ENTRY_ID, OWNER_ID, {
+          newPosition: 2,
+          baseUpdatedAt: BASE_TIMESTAMP,
+        }),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should emit a playlist:track:reordered event with newUpdatedAt and updates', async () => {
+      const gateway = {
+        server: { to: jest.fn().mockReturnThis(), emit: jest.fn() },
+      };
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          PlaylistsService,
+          { provide: PlaylistsRepository, useValue: repository },
+          { provide: PlaylistsGateway, useValue: gateway },
+          { provide: YoutubeService, useValue: youtubeService },
+        ],
+      }).compile();
+      const svc = module.get<PlaylistsService>(PlaylistsService);
+
+      repository.findPlaylistForAuth.mockResolvedValueOnce(
+        buildPlaylist({ _count: { tracks: 5 } }) as PlaylistAuthData,
+      );
+      const fakeUpdates = [{ trackId: 'some-track', position: 3 }];
+      repository.reorderTrack.mockResolvedValueOnce({
+        newUpdatedAt: '2026-04-23T10:00:01.000Z',
+        updates: fakeUpdates,
+      } as any);
+
+      await svc.reorderTrack(PLAYLIST_ID, TRACK_ENTRY_ID, OWNER_ID, {
+        newPosition: 3,
+        baseUpdatedAt: BASE_TIMESTAMP,
+      });
+
+      expect(gateway.server.to).toHaveBeenCalledWith(`playlist_${PLAYLIST_ID}`);
+      expect(gateway.server.emit).toHaveBeenCalledWith(
+        'playlist:track:reordered',
+        {
+          playlistId: PLAYLIST_ID,
+          newUpdatedAt: '2026-04-23T10:00:01.000Z',
+          updates: fakeUpdates,
+        },
       );
     });
 

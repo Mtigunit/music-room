@@ -38,6 +38,10 @@ pre-push:
       glob: "backend/**"
       run: cd backend && npm run lint
 
+    - name: backend integration tests
+      glob: "backend/**"
+      run: cd backend && npm run test:integration
+
 commit-msg:
   commands:
     commitlint:

@@ -101,7 +101,14 @@ The playlists gateway handles real-time updates for collaborative playlist editi
 
 Broadcasted immediately after a new track is added to the playlist via the REST API (`POST /playlists/:id/tracks`).
 - **Server → Client (broadcast)**: `playlist:track:added`
-- **Payload**: A full `PlaylistTrack` object including nested `track` dictionary data and `position`.
+- **Payload**:
+  ```json
+  {
+    "playlistId": "string",
+    "newUpdatedAt": "string (ISO Date)",
+    "track": { /* PlaylistTrack Object */ }
+  }
+  ```
 
 #### `playlist:track:removed`
 
@@ -111,6 +118,7 @@ Broadcasted immediately after a track is removed via the REST API (`DELETE /play
   ```json
   {
     "playlistId": "string",
+    "newUpdatedAt": "string (ISO Date)",
     "deletedTrackId": "string",
     "updates": [
       { "trackId": "string", "position": number }
@@ -127,6 +135,7 @@ Broadcasted immediately after a track is reordered via the REST API (`PATCH /pla
   ```json
   {
     "playlistId": "string",
+    "newUpdatedAt": "string (ISO Date)",
     "updates": [
       { "trackId": "string", "position": number }
     ]
