@@ -36,8 +36,8 @@ export class EventsService {
     return this.eventsRepository.findInvited(userId, options);
   }
 
-  findOne(id: string) {
-    return this.eventsRepository.findOne(id);
+  findOne(id: string, userId: string) {
+    return this.eventsRepository.findOne(id, userId);
   }
 
   update(id: string, userId: string, updateEventDto: UpdateEventDto) {

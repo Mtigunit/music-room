@@ -160,9 +160,11 @@ export class EventsController {
   @ApiOperation({ summary: 'Get an event by ID' })
   @ApiParam({ name: 'id', type: String })
   @ApiResponse({ status: 200, description: 'Event found.' })
+  @ApiResponse({ status: 403, description: 'Forbidden. No access to event.' })
   @ApiResponse({ status: 404, description: 'Event not found.' })
-  findOne(@Param('id', ParseUUIDPipe) id: string) {
-    return this.eventsService.findOne(id);
+  findOne(@Param('id', ParseUUIDPipe) id: string, @Req() req: Request) {
+    const userId = (req.user as { id: string }).id;
+    return this.eventsService.findOne(id, userId);
   }
 
   @Patch(':id')

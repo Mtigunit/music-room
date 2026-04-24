@@ -333,7 +333,7 @@ export class EventsRepository {
     };
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, userId: string) {
     const event = await this.prisma.event.findUnique({
       where: { id },
       include: {
@@ -343,6 +343,7 @@ export class EventsRepository {
             username: true,
           },
         },
+        invites: true,
         tracks: {
           include: { track: true },
           take: 10,
@@ -354,7 +355,17 @@ export class EventsRepository {
       throw new NotFoundException(`Event with ID ${id} not found`);
     }
 
-    const { tracks, host, ...eventData } = event;
+    const { tracks, host, invites, ...eventData } = event;
+    if (
+      event.visibility === Visibility.PRIVATE &&
+      event.hostId !== userId &&
+      !invites.some((i) => i.userId === userId)
+    ) {
+      throw new ForbiddenException(
+        'Forbidden: You do not have access to this event',
+      );
+    }
+
     const formattedTracks = tracks.map((et) => ({
       id: et.id,
       trackId: et.trackId,
