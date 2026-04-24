@@ -49,7 +49,12 @@ try {
   // 4b. Inject the PostgreSQL DEFERRABLE constraint manually into the generated init migration
   console.log(`${COLOR_INFO}Injecting DEFERRABLE constraint logic into init migration...${COLOR_RESET}`);
   const migrationFolders = fs.readdirSync(migrationsDir).filter(f => fs.statSync(path.join(migrationsDir, f)).isDirectory());
-  const initFolder = migrationFolders.find(f => f.endsWith('_init'));
+  const initFolders = migrationFolders.filter(f => f.endsWith('_init')).sort();
+  if (initFolders.length > 1) {
+    console.error(`${COLOR_ERROR}FATAL: Found ${initFolders.length} migration folders ending with "_init": ${initFolders.join(', ')}. Expected exactly one. Clean up stale migrations before running this script.${COLOR_RESET}`);
+    process.exit(1);
+  }
+  const initFolder = initFolders[0];
   if (!initFolder) {
     console.error(`${COLOR_ERROR}FATAL: Generated init migration folder not found. Expected a migration directory ending with "_init", but none was created. Aborting to avoid applying a non-deferrable (playlistId, position) constraint that would break reorder functionality.${COLOR_RESET}`);
     process.exit(1);
@@ -73,8 +78,8 @@ try {
      process.exit(1);
   }
 
-  // 4c. Apply the strictly modified initial migration
-  run('npx prisma migrate dev');
+  // 4c. Apply the strictly modified initial migration (deploy is non-interactive and won't create extra migrations)
+  run('npx prisma migrate deploy');
 
   // 5. Refresh Prisma client
   run('npx prisma generate');

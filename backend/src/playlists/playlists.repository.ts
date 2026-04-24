@@ -371,7 +371,18 @@ export class PlaylistsRepository {
   }> {
     return this.prisma.$transaction(
       async (tx) => {
-        // Enforce Optimistic Concurrency Control (OCC) atomically
+        // 1. Verify the track exists BEFORE bumping the OCC version.
+        //    This prevents a missing track from needlessly invalidating all clients' baseUpdatedAt.
+        const track = await tx.playlistTrack.findFirst({
+          where: { id: playlistTrackId, playlistId },
+          select: { position: true },
+        });
+
+        if (!track) {
+          throw new TrackNotFoundInTransactionException();
+        }
+
+        // 2. Enforce Optimistic Concurrency Control (OCC) atomically
         const newUpdateStamp = new Date();
         const occUpdate = await tx.playlist.updateMany({
           where: {
@@ -385,16 +396,6 @@ export class PlaylistsRepository {
 
         if (occUpdate.count === 0) {
           throw new OccStaleException();
-        }
-
-        // 1. Retrieve the track's current position
-        const track = await tx.playlistTrack.findFirst({
-          where: { id: playlistTrackId, playlistId },
-          select: { position: true },
-        });
-
-        if (!track) {
-          throw new TrackNotFoundInTransactionException();
         }
 
         const oldPosition = track.position;

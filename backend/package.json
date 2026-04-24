@@ -20,7 +20,9 @@
     "test:cov": "jest --coverage",
     "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
     "test:e2e": "jest --config ./test/jest-e2e.json",
-    "test:integration:run": "npx ts-node --transpileOnly ./scripts/e2e/playlist-editor.e2e.ts && npx ts-node --transpileOnly ./scripts/e2e/playlist-occ-ws-sync.e2e.ts && npx ts-node --transpileOnly ./scripts/stress/playlist-concurrency.load.ts",
+    "test:integration:playlist:run": "npx ts-node --transpileOnly ./scripts/e2e/playlist-editor.e2e.ts && npx ts-node --transpileOnly ./scripts/e2e/playlist-occ-ws-sync.e2e.ts && npx ts-node --transpileOnly ./scripts/stress/playlist-concurrency.load.ts",
+    "test:integration:playlist": "npm run build && start-server-and-test start:prod http://127.0.0.1:3000/api/docs test:integration:playlist:run",
+    "test:integration:run": "npm run test:integration:playlist:run",
     "test:integration": "npm run build && start-server-and-test start:prod http://127.0.0.1:3000/api/docs test:integration:run"
   },
   "dependencies": {
