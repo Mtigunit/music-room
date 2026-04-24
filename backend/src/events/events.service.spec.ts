@@ -2,7 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { EventsService } from './events.service';
 import { EventsRepository } from './events.repository';
 import { PrismaService } from '../prisma/prisma.service';
-import { SocketIoGateway } from '../websockets/socket-io.gateway';
+import { EventsGateway } from './events.gateway';
 import { YoutubeService } from '../tracks/youtube.service';
 
 describe('EventsService', () => {
@@ -34,10 +34,12 @@ describe('EventsService', () => {
           },
         },
         {
-          provide: SocketIoGateway,
+          provide: EventsGateway,
           useValue: {
             server: {
               to: jest.fn().mockReturnThis(),
+              in: jest.fn().mockReturnThis(),
+              socketsLeave: jest.fn(),
               emit: jest.fn(),
             },
           },

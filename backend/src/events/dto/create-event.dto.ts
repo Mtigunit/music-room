@@ -11,6 +11,7 @@ import {
   IsUUID,
   IsDateString,
   IsBoolean,
+  IsDate,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import { Visibility, PolicyType, Prisma, Tags } from '@prisma/client';
@@ -237,4 +238,8 @@ export class CreateEventDto {
   @IsString({ each: true })
   @Transform(({ value }) => normalizeProviderTrackIds(value))
   tracks?: string[];
+
+  @ApiProperty()
+  @IsDate()
+  startDate!: Date;
 }
