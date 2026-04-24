@@ -102,7 +102,7 @@ jobs:
         run: |
           npm run start:prod &
           # Install wait-on to pause until the server responds to PINGs
-          npx wait-on -t 30000 http://127.0.0.1:3000/api
+          npx wait-on -t 60000 http://127.0.0.1:3000/
 
       - name: 🧪 Run Standard E2E Tests (Optional, if Jest E2E is set up)
         run: npm run test:e2e
