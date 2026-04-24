@@ -82,10 +82,10 @@ async function main() {
 
         const wsEvents: any[] = [];
 
-        // Listen for room join success
-        participantSocket.on('room:joined', (payload) => {
-            wsEvents.push({ type: 'room:joined', payload });
-            console.log('   ✅ Web socket joined room:', payload.roomId);
+        // Listen for room count updates
+        participantSocket.on('room:count', (payload) => {
+            wsEvents.push({ type: 'room:count', payload });
+            console.log(`   👥 Web socket room count [${payload.room}]:`, payload.count);
         });
 
         // Listen for track added
@@ -102,7 +102,7 @@ async function main() {
 
         // Let the participant join the event room
         console.log('🎧 Participant joining room:', event.id);
-        participantSocket.emit('room:join', { roomId: event.id });
+        participantSocket.emit('event:join', { eventId: event.id });
         await sleep(500); // Give time for join
 
         // 5. APPEND TRACK (Owner)

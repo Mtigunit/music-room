@@ -6,6 +6,7 @@ import * as fs from 'fs';
 import { EventsService } from './events.service';
 import { EventsController } from './events.controller';
 import { EventsRepository } from './events.repository';
+import { EventsGateway } from './events.gateway';
 import { PrismaModule } from '../prisma/prisma.module';
 import { WebsocketsModule } from '../websockets/websockets.module';
 import { TracksModule } from '../tracks/tracks.module';
@@ -48,6 +49,6 @@ import { TracksModule } from '../tracks/tracks.module';
     }),
   ],
   controllers: [EventsController],
-  providers: [EventsService, EventsRepository],
+  providers: [EventsService, EventsRepository, EventsGateway],
 })
 export class EventsModule {}
