@@ -120,6 +120,12 @@ class PlaylistBloc extends Bloc<PlaylistEvent, PlaylistState> {
         playlistId,
         event.track,
       );
+
+      // re-read the freshest state after the await,
+      // in case something changed while we were waiting for the
+      final currentPlaylist = state.playlist;
+      if (currentPlaylist == null) return;
+
       final updatedTracks = List<PlaylistTrackEntity>.from(playlist.tracks)
         ..removeWhere(
           (track) =>
@@ -128,7 +134,7 @@ class PlaylistBloc extends Bloc<PlaylistEvent, PlaylistState> {
         ..add(result.playlistTrack);
       final reindexedTracks = _reindexTracks(updatedTracks);
       final updatedPlaylist = _playlistWithTracks(
-        playlist,
+        currentPlaylist,
         reindexedTracks,
         updatedAt: result.newUpdatedAt,
       );
