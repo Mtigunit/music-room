@@ -4,13 +4,19 @@ import 'package:music_room/core/network/api_client.dart';
 import 'package:music_room/features/playlist/data/models/playlist_model.dart';
 import 'package:music_room/features/playlist/domain/entities/playlist_entity.dart';
 
-class ReorderSyncNotSupportedException implements Exception {
-  const ReorderSyncNotSupportedException(this.message);
+class PlaylistConflictException implements Exception {
+  const PlaylistConflictException(this.message);
 
   final String message;
 
   @override
   String toString() => message;
+}
+
+class PlaylistMutationResult {
+  const PlaylistMutationResult({required this.newUpdatedAt});
+
+  final String newUpdatedAt;
 }
 
 class CreatePlaylistRequest {
@@ -81,18 +87,27 @@ abstract class IPlaylistRemoteDataSource {
     UpdatePlaylistRequest request,
   );
 
+  Future<void> deletePlaylist(String playlistId);
+
   Future<List<TrackSearchEntity>> searchTracks(String query);
 
   Future<void> addTrackToPlaylist(String playlistId, TrackSearchEntity track);
+
+  Future<void> removeTrackFromPlaylist(
+    String playlistId,
+    String playlistTrackId,
+  );
 
   Future<void> addCollaboratorToPlaylist(
     String playlistId,
     String targetUserId,
   );
 
-  Future<void> reorderPlaylistTracks(
+  Future<PlaylistMutationResult> reorderPlaylistTracks(
     String playlistId,
-    List<String> orderedPlaylistTrackIds,
+    String playlistTrackId,
+    int newPosition,
+    String baseUpdatedAt,
   );
 }
 
@@ -172,6 +187,13 @@ class PlaylistRemoteDataSource implements IPlaylistRemoteDataSource {
   }
 
   @override
+  Future<void> deletePlaylist(String playlistId) {
+    return _apiClient.delete<dynamic>(
+      '${AppConfig.playlistsEndpoint}/$playlistId',
+    );
+  }
+
+  @override
   Future<List<TrackSearchEntity>> searchTracks(String query) async {
     final trimmed = query.trim();
     if (trimmed.isEmpty) {
@@ -198,14 +220,18 @@ class PlaylistRemoteDataSource implements IPlaylistRemoteDataSource {
     return _apiClient.post<dynamic>(
       '${AppConfig.playlistsEndpoint}/$playlistId/tracks',
       data: <String, dynamic>{
-        'track': <String, dynamic>{
-          'providerTrackId': track.providerTrackId,
-          'title': track.title,
-          'artist': track.artist ?? '',
-          'durationMs': track.durationMs,
-          if (track.thumbnailUrl != null) 'thumbnailUrl': track.thumbnailUrl,
-        },
+        'providerTrackId': track.providerTrackId,
       },
+    );
+  }
+
+  @override
+  Future<void> removeTrackFromPlaylist(
+    String playlistId,
+    String playlistTrackId,
+  ) {
+    return _apiClient.delete<dynamic>(
+      '${AppConfig.playlistsEndpoint}/$playlistId/tracks/$playlistTrackId',
     );
   }
 
@@ -221,14 +247,33 @@ class PlaylistRemoteDataSource implements IPlaylistRemoteDataSource {
   }
 
   @override
-  Future<void> reorderPlaylistTracks(
+  Future<PlaylistMutationResult> reorderPlaylistTracks(
     String playlistId,
-    List<String> orderedPlaylistTrackIds,
+    String playlistTrackId,
+    int newPosition,
+    String baseUpdatedAt,
   ) async {
-    // Backend currently does not expose a reorder endpoint.
-    // Keep local ordering and fail gracefully at call site.
-    throw const ReorderSyncNotSupportedException(
-      'Backend API for reordering playlist tracks is not available yet.',
-    );
+    try {
+      final response = await _apiClient.patch<Map<String, dynamic>>(
+        '${AppConfig.playlistsEndpoint}/$playlistId/tracks/$playlistTrackId/reorder',
+        data: <String, dynamic>{
+          'newPosition': newPosition,
+          'baseUpdatedAt': baseUpdatedAt,
+        },
+      );
+
+      final body = response.data;
+      final rawValue = body?['newUpdatedAt'] ?? body?['updatedAt'];
+      final newUpdatedAt = rawValue is String
+          ? rawValue
+          : DateTime.now().toUtc().toIso8601String();
+
+      return PlaylistMutationResult(newUpdatedAt: newUpdatedAt);
+    } on DioException catch (error) {
+      if (error.response?.statusCode == 409) {
+        throw const PlaylistConflictException('Playlist update conflict');
+      }
+      rethrow;
+    }
   }
 }
