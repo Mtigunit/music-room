@@ -56,8 +56,8 @@ export class EventsGateway {
       throw new WsException('Event not found');
     }
 
-    if (event.status !== EventStatus.LIVE) {
-      throw new WsException('Event is not live');
+    if (event.status === EventStatus.ENDED) {
+      throw new WsException('Event has already ended');
     }
 
     if (event.visibility === Visibility.PRIVATE) {
@@ -75,7 +75,28 @@ export class EventsGateway {
     );
     this.broadcastRoomCount(roomName);
 
-    return { event: 'joined', eventId };
+    // Acknowledge the user about the event's current start status
+    client.emit('event:start', {
+      eventId,
+      status: event.status,
+      startDate: event.startDate,
+    });
+
+    return { event: 'joined', eventId, status: event.status };
+  }
+
+  async joinUserToRoom(userId: string, roomName: string) {
+    const sockets = await this.server.fetchSockets();
+    for (const socket of sockets) {
+      const data = socket.data as { user?: SocketUser };
+      if (data?.user?.id === userId) {
+        socket.join(roomName);
+        this.logger.log(
+          `Forced joined socket ${socket.id} (User: ${userId}) to room ${roomName}`,
+        );
+        this.broadcastRoomCount(roomName);
+      }
+    }
   }
 
   @SubscribeMessage('event:leave')
@@ -93,10 +114,6 @@ export class EventsGateway {
 
     if (!event) {
       throw new WsException('Event not found');
-    }
-
-    if (event.status !== EventStatus.LIVE) {
-      throw new WsException('Event is not live');
     }
 
     const roomName = `event_${payload.eventId}`;

@@ -392,7 +392,12 @@ export class EventsService {
     );
 
     const roomName = `event_${eventId}`;
-    this.eventsGateway.server.to(roomName).emit('event:start', { eventId });
+    await this.eventsGateway.joinUserToRoom(userId, roomName);
+    this.eventsGateway.server.to(roomName).emit('event:start', {
+      eventId,
+      status: EventStatus.LIVE,
+      startDate: updatedEvent.startDate,
+    });
     return updatedEvent;
   }
 
@@ -415,7 +420,7 @@ export class EventsService {
 
     const roomName = `event_${eventId}`;
     this.eventsGateway.server.to(roomName).emit('event:end', { eventId });
-    this.eventsGateway.server.in(roomName).socketsLeave(roomName);
+    this.eventsGateway.server.in(roomName).disconnectSockets(true);
 
     return updatedEvent;
   }
