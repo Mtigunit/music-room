@@ -56,10 +56,6 @@ export class EventsGateway {
       throw new WsException('Event not found');
     }
 
-    if (event.hostId === userId) {
-      throw new WsException('Host must use event:start to join the event');
-    }
-
     if (event.status !== EventStatus.LIVE) {
       throw new WsException('Event is not live');
     }
@@ -86,7 +82,6 @@ export class EventsGateway {
   async handleEventLeave(
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: { eventId: string },
-    @WsUser() user: SocketUser,
   ) {
     if (!payload?.eventId) {
       throw new WsException('eventId is required');
@@ -98,10 +93,6 @@ export class EventsGateway {
 
     if (!event) {
       throw new WsException('Event not found');
-    }
-
-    if (event.hostId === user.id) {
-      throw new WsException('Host must use event:end to end the event');
     }
 
     if (event.status !== EventStatus.LIVE) {
