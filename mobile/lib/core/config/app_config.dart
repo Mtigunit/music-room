@@ -36,6 +36,7 @@ class AppConfig {
   static const String trackSearchEndpoint = 'tracks/search';
   static const String eventsEndpoint = 'events';
   static const String playlistsEndpoint = 'playlists';
+  static const String websocketPath = '/ws';
 
   // Track Endpoints
   static const String searchTracksEndpoint = trackSearchEndpoint;
@@ -43,6 +44,7 @@ class AppConfig {
   // Security
   static const String tokenStorageKey = 'auth_token';
   static const String userStorageKey = 'user_profile';
+  static const int stalePlaylistThresholdHours = 24;
 
   // Debugging
   static const bool isDebug = kDebugMode;

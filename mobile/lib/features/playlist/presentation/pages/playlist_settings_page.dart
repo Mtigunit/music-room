@@ -119,11 +119,13 @@ class _PlaylistSettingsPageState extends State<PlaylistSettingsPage> {
         PlaylistDetailsEntity(
           id: widget.playlist.id,
           name: trimmedName,
+          ownerUserId: widget.playlist.ownerUserId,
           description: updatedDescription.isEmpty ? null : updatedDescription,
           visibility: updatedVisibility,
           editLicense: updatedEditLicense,
           tracks: widget.playlist.tracks,
           tags: widget.playlist.tags,
+          updatedAt: widget.playlist.updatedAt,
         ),
       );
     } on DioException {
