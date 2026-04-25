@@ -106,8 +106,9 @@ class PlaylistBloc extends Bloc<PlaylistEvent, PlaylistState> {
     PlaylistAddTrackRequested event,
     Emitter<PlaylistState> emit,
   ) async {
+    final playlist = state.playlist;
     final playlistId = _activePlaylistId;
-    if (playlistId == null) return;
+    if (playlist == null || playlistId == null) return;
 
     if (state.isOffline) {
       emit(state.copyWith(errorMessage: _kOfflineMessage));
@@ -115,11 +116,39 @@ class PlaylistBloc extends Bloc<PlaylistEvent, PlaylistState> {
     }
 
     try {
-      await _playlistRemoteDataSource.addTrackToPlaylist(
+      final result = await _playlistRemoteDataSource.addTrackToPlaylist(
         playlistId,
         event.track,
       );
-      await _fetchAndReplace(emit, isReconnect: false);
+      final updatedTracks = List<PlaylistTrackEntity>.from(playlist.tracks)
+        ..removeWhere(
+          (track) =>
+              track.playlistTrackId == result.playlistTrack.playlistTrackId,
+        )
+        ..add(result.playlistTrack);
+      final reindexedTracks = _reindexTracks(updatedTracks);
+      final updatedPlaylist = _playlistWithTracks(
+        playlist,
+        reindexedTracks,
+        updatedAt: result.newUpdatedAt,
+      );
+      final (byId, ids) = _normalizeTracks(reindexedTracks);
+
+      emit(
+        state.copyWith(
+          playlist: updatedPlaylist,
+          tracksById: byId,
+          orderedTrackIds: ids,
+          latestUpdatedAt: result.newUpdatedAt,
+          status: PlaylistSyncStatus.ready,
+          clearErrorMessage: true,
+        ),
+      );
+
+      await _savePlaylistToCache(
+        playlist: updatedPlaylist,
+        updatedAt: result.newUpdatedAt,
+      );
     } on DioException catch (error) {
       if (error.response?.statusCode == 409) {
         emit(state.copyWith(errorMessage: _kConflictMessage));
@@ -136,8 +165,9 @@ class PlaylistBloc extends Bloc<PlaylistEvent, PlaylistState> {
     PlaylistRemoveTrackRequested event,
     Emitter<PlaylistState> emit,
   ) async {
+    final playlist = state.playlist;
     final playlistId = _activePlaylistId;
-    if (playlistId == null) return;
+    if (playlist == null || playlistId == null) return;
 
     if (state.isOffline) {
       emit(state.copyWith(errorMessage: _kOfflineMessage));
@@ -153,11 +183,38 @@ class PlaylistBloc extends Bloc<PlaylistEvent, PlaylistState> {
     emit(state.copyWith(removingTrackIds: removing));
 
     try {
-      await _playlistRemoteDataSource.removeTrackFromPlaylist(
+      final result = await _playlistRemoteDataSource.removeTrackFromPlaylist(
         playlistId,
         event.playlistTrackId,
       );
-      await _fetchAndReplace(emit, isReconnect: false);
+      final updatedTracks = List<PlaylistTrackEntity>.from(playlist.tracks)
+        ..removeWhere(
+          (track) =>
+              track.playlistTrackId == result.deletedTrack.playlistTrackId,
+        );
+      final reindexedTracks = _reindexTracks(updatedTracks);
+      final updatedPlaylist = _playlistWithTracks(
+        playlist,
+        reindexedTracks,
+        updatedAt: result.newUpdatedAt,
+      );
+      final (byId, ids) = _normalizeTracks(reindexedTracks);
+
+      emit(
+        state.copyWith(
+          playlist: updatedPlaylist,
+          tracksById: byId,
+          orderedTrackIds: ids,
+          latestUpdatedAt: result.newUpdatedAt,
+          status: PlaylistSyncStatus.ready,
+          clearErrorMessage: true,
+        ),
+      );
+
+      await _savePlaylistToCache(
+        playlist: updatedPlaylist,
+        updatedAt: result.newUpdatedAt,
+      );
     } on DioException catch (error) {
       if (error.response?.statusCode == 409) {
         emit(state.copyWith(errorMessage: _kConflictMessage));
@@ -207,9 +264,10 @@ class PlaylistBloc extends Bloc<PlaylistEvent, PlaylistState> {
     final updatedTracks = List<PlaylistTrackEntity>.from(playlist.tracks);
     final movedTrack = updatedTracks.removeAt(event.oldIndex);
     updatedTracks.insert(targetIndex, movedTrack);
+    final reindexedTracks = _reindexTracks(updatedTracks);
 
-    final optimisticPlaylist = _playlistWithTracks(playlist, updatedTracks);
-    final (optimisticById, optimisticIds) = _normalizeTracks(updatedTracks);
+    final optimisticPlaylist = _playlistWithTracks(playlist, reindexedTracks);
+    final (optimisticById, optimisticIds) = _normalizeTracks(reindexedTracks);
 
     emit(
       state.copyWith(
@@ -290,7 +348,6 @@ class PlaylistBloc extends Bloc<PlaylistEvent, PlaylistState> {
   ) async {
     final playlist = state.playlist;
     if (playlist == null || state.isOffline) return;
-    if (_isOwnEvent(event.payload)) return;
 
     final currentUpdatedAt = state.latestUpdatedAt ?? playlist.updatedAt;
 
@@ -573,25 +630,6 @@ class PlaylistBloc extends Bloc<PlaylistEvent, PlaylistState> {
     return null;
   }
 
-  /// Returns true when [payload] was emitted by the current user, so we can
-  /// skip re-applying changes we already applied optimistically.
-  ///
-  /// Returns false (don't skip) when the user id is unknown — it's safer to
-  /// apply a duplicate update than to silently drop a real one.
-  bool _isOwnEvent(dynamic payload) {
-    if (_currentUserId == null || payload is! Map<String, dynamic>) {
-      return false;
-    }
-
-    final nestedTrack = payload['track'];
-    final nestedActorId = nestedTrack is Map<String, dynamic>
-        ? nestedTrack['addedById']
-        : null;
-    final actorId =
-        payload['actorUserId'] ?? payload['addedById'] ?? nestedActorId;
-    return actorId is String && actorId == _currentUserId;
-  }
-
   PlaylistDetailsEntity? _applyRealtimePayload({
     required PlaylistDetailsEntity playlist,
     required String eventName,
@@ -689,6 +727,25 @@ class PlaylistBloc extends Bloc<PlaylistEvent, PlaylistState> {
       ids.add(track.playlistTrackId);
     }
     return (map, ids);
+  }
+
+  /// Rebuilds tracks so their `position` values match the list order.
+  List<PlaylistTrackEntity> _reindexTracks(
+    List<PlaylistTrackEntity> tracks,
+  ) {
+    return List<PlaylistTrackEntity>.generate(tracks.length, (index) {
+      final track = tracks[index];
+      return PlaylistTrackEntity(
+        playlistTrackId: track.playlistTrackId,
+        providerTrackId: track.providerTrackId,
+        title: track.title,
+        durationMs: track.durationMs,
+        position: index,
+        addedByUserId: track.addedByUserId,
+        artist: track.artist,
+        thumbnailUrl: track.thumbnailUrl,
+      );
+    });
   }
 
   PlaylistDetailsEntity _playlistWithTracks(

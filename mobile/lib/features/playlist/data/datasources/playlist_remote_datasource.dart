@@ -19,6 +19,28 @@ class PlaylistMutationResult {
   final String newUpdatedAt;
 }
 
+class PlaylistAddTrackResult {
+  const PlaylistAddTrackResult({
+    required this.newUpdatedAt,
+    required this.playlistTrack,
+  });
+
+  final String newUpdatedAt;
+  final PlaylistTrackEntity playlistTrack;
+}
+
+class PlaylistRemoveTrackResult {
+  const PlaylistRemoveTrackResult({
+    required this.newUpdatedAt,
+    required this.deletedTrack,
+    required this.updates,
+  });
+
+  final String newUpdatedAt;
+  final PlaylistTrackEntity deletedTrack;
+  final List<PlaylistTrackEntity> updates;
+}
+
 class CreatePlaylistRequest {
   const CreatePlaylistRequest({
     required this.name,
@@ -91,9 +113,12 @@ abstract class IPlaylistRemoteDataSource {
 
   Future<List<TrackSearchEntity>> searchTracks(String query);
 
-  Future<void> addTrackToPlaylist(String playlistId, TrackSearchEntity track);
+  Future<PlaylistAddTrackResult> addTrackToPlaylist(
+    String playlistId,
+    TrackSearchEntity track,
+  );
 
-  Future<void> removeTrackFromPlaylist(
+  Future<PlaylistRemoveTrackResult> removeTrackFromPlaylist(
     String playlistId,
     String playlistTrackId,
   );
@@ -216,22 +241,57 @@ class PlaylistRemoteDataSource implements IPlaylistRemoteDataSource {
   }
 
   @override
-  Future<void> addTrackToPlaylist(String playlistId, TrackSearchEntity track) {
-    return _apiClient.post<dynamic>(
+  Future<PlaylistAddTrackResult> addTrackToPlaylist(
+    String playlistId,
+    TrackSearchEntity track,
+  ) async {
+    final response = await _apiClient.post<Map<String, dynamic>>(
       '${AppConfig.playlistsEndpoint}/$playlistId/tracks',
       data: <String, dynamic>{
         'providerTrackId': track.providerTrackId,
       },
     );
+
+    final body = response.data;
+    final payload = body is Map<String, dynamic> ? body : <String, dynamic>{};
+    final rawTrack = payload['track'];
+    final trackJson = rawTrack is Map<String, dynamic>
+        ? rawTrack
+        : <String, dynamic>{};
+
+    return PlaylistAddTrackResult(
+      newUpdatedAt: _extractUpdatedAt(payload),
+      playlistTrack: PlaylistTrackModel.fromJson(trackJson).toEntity(),
+    );
   }
 
   @override
-  Future<void> removeTrackFromPlaylist(
+  Future<PlaylistRemoveTrackResult> removeTrackFromPlaylist(
     String playlistId,
     String playlistTrackId,
-  ) {
-    return _apiClient.delete<dynamic>(
+  ) async {
+    final response = await _apiClient.delete<Map<String, dynamic>>(
       '${AppConfig.playlistsEndpoint}/$playlistId/tracks/$playlistTrackId',
+    );
+
+    final body = response.data;
+    final payload = body is Map<String, dynamic> ? body : <String, dynamic>{};
+    final deletedTrackJson = payload['deletedTrack'];
+    final deletedTrackMap = deletedTrackJson is Map<String, dynamic>
+        ? deletedTrackJson
+        : <String, dynamic>{};
+    final updatesJson = payload['updates'];
+    final updates = updatesJson is List<dynamic>
+        ? updatesJson
+              .whereType<Map<String, dynamic>>()
+              .map(_playlistTrackFromRemovalPayload)
+              .toList(growable: false)
+        : const <PlaylistTrackEntity>[];
+
+    return PlaylistRemoveTrackResult(
+      newUpdatedAt: _extractUpdatedAt(payload),
+      deletedTrack: _playlistTrackFromRemovalPayload(deletedTrackMap),
+      updates: updates,
     );
   }
 
@@ -275,5 +335,43 @@ class PlaylistRemoteDataSource implements IPlaylistRemoteDataSource {
       }
       rethrow;
     }
+  }
+
+  String _extractUpdatedAt(Map<String, dynamic> payload) {
+    final rawValue = payload['newUpdatedAt'] ?? payload['updatedAt'];
+    if (rawValue is String && rawValue.isNotEmpty) {
+      return rawValue;
+    }
+    return DateTime.now().toUtc().toIso8601String();
+  }
+
+  PlaylistTrackEntity _playlistTrackFromRemovalPayload(
+    Map<String, dynamic> json,
+  ) {
+    final trackJson = json['track'];
+    final trackMap = trackJson is Map<String, dynamic>
+        ? trackJson
+        : <String, dynamic>{};
+
+    return PlaylistTrackEntity(
+      playlistTrackId: json['id'] is String ? json['id'] as String : '',
+      providerTrackId: trackMap['providerTrackId'] is String
+          ? trackMap['providerTrackId'] as String
+          : '',
+      title: trackMap['title'] is String ? trackMap['title'] as String : '',
+      durationMs: trackMap['durationMs'] is int
+          ? trackMap['durationMs'] as int
+          : 0,
+      position: json['position'] is int ? json['position'] as int : 0,
+      addedByUserId: json['addedById'] is String
+          ? json['addedById'] as String
+          : null,
+      artist: trackMap['artist'] is String
+          ? trackMap['artist'] as String
+          : null,
+      thumbnailUrl: trackMap['thumbnailUrl'] is String
+          ? trackMap['thumbnailUrl'] as String
+          : null,
+    );
   }
 }
