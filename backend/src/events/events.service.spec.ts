@@ -1,10 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { EventsService } from './events.service';
 import { EventsRepository } from './events.repository';
-import { PrismaService } from '../prisma/prisma.service';
 import { EventsGateway } from './events.gateway';
 import { YoutubeService } from '../tracks/youtube.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { Visibility } from '@prisma/client';
 
 describe('EventsService', () => {
   let service: EventsService;
@@ -14,24 +14,22 @@ describe('EventsService', () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         EventsService,
-        EventsRepository,
+        {
+          provide: EventsRepository,
+          useValue: {
+            findById: jest.fn(),
+            findUserById: jest.fn(),
+            findInvite: jest.fn(),
+            createInvite: jest.fn(),
+            findByIdWithInvites: jest.fn(),
+            getTracks: jest.fn(),
+          },
+        },
         {
           provide: YoutubeService,
           useValue: {
             getTrackDetails: jest.fn(),
-          },
-        },
-        {
-          provide: PrismaService,
-          useValue: {
-            $transaction: jest.fn(),
-            event: {
-              create: jest.fn(),
-              findMany: jest.fn(),
-              findUnique: jest.fn(),
-              update: jest.fn(),
-              delete: jest.fn(),
-            },
+            getTrackDetailsBatch: jest.fn(),
           },
         },
         {
@@ -61,35 +59,64 @@ describe('EventsService', () => {
   });
 
   describe('inviteUser', () => {
-    it('should call eventsRepository.inviteUser with correct parameters', async () => {
+    it('should correctly invite a user when all checks pass', async () => {
       const eventId = '740777df-e348-40b6-925e-4c0f020cf68c';
       const hostId = 'user-1';
       const invitedUserId = 'user-2';
 
-      const spy = jest
-        .spyOn(repository, 'inviteUser')
-        .mockResolvedValue({ id: 'invite-1' } as never);
+      jest
+        .spyOn(repository, 'findById')
+        .mockResolvedValue({ id: eventId, hostId } as any);
+      jest
+        .spyOn(repository, 'findUserById')
+        .mockResolvedValue({ id: invitedUserId } as any);
+      jest.spyOn(repository, 'findInvite').mockResolvedValue(null);
+      const createInviteSpy = jest
+        .spyOn(repository, 'createInvite')
+        .mockResolvedValue({
+          id: 'invite-1',
+          eventId,
+          userId: invitedUserId,
+          status: 'pending',
+          createdAt: new Date(),
+        } as any);
 
       await service.inviteUser(eventId, hostId, invitedUserId);
 
-      expect(spy).toHaveBeenCalledWith(eventId, hostId, invitedUserId);
+      expect(repository.findById).toHaveBeenCalledWith(eventId);
+      expect(repository.findUserById).toHaveBeenCalledWith(invitedUserId);
+      expect(repository.findInvite).toHaveBeenCalledWith(
+        eventId,
+        invitedUserId,
+      );
+      expect(createInviteSpy).toHaveBeenCalledWith(eventId, invitedUserId);
     });
   });
 
   describe('getTracks', () => {
-    it('should call eventsRepository.getTracks with correct parameters', async () => {
+    it('should correctly return tracks for an event when user is allowed', async () => {
       const eventId = '740777df-e348-40b6-925e-4c0f020cf68c';
       const userId = 'user-1';
       const options = { page: 1, limit: 10 };
 
-      const spy = jest.spyOn(repository, 'getTracks').mockResolvedValue({
-        data: [],
-        pagination: { total: 0, page: 1, limit: 10, totalPages: 0 },
-      } as never);
+      jest.spyOn(repository, 'findByIdWithInvites').mockResolvedValue({
+        id: eventId,
+        visibility: Visibility.PUBLIC,
+        hostId: 'some-other-host',
+        invites: [],
+      } as any);
+
+      const getTracksSpy = jest
+        .spyOn(repository, 'getTracks')
+        .mockResolvedValue({
+          tracks: [],
+          total: 0,
+        } as never);
 
       await service.getTracks(eventId, userId, options);
 
-      expect(spy).toHaveBeenCalledWith(eventId, userId, options);
+      expect(repository.findByIdWithInvites).toHaveBeenCalledWith(eventId);
+      expect(getTracksSpy).toHaveBeenCalledWith(eventId, 0, 10);
     });
   });
 });
