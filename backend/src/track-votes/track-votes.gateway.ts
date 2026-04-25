@@ -20,7 +20,6 @@ import type { SocketUser } from '../websockets/socket-auth.service';
 export class TrackVotesGateway {
   @WebSocketServer()
   server!: Server;
-
   private readonly logger = new Logger(TrackVotesGateway.name);
 
   constructor(private readonly trackVotesService: TrackVotesService) {}

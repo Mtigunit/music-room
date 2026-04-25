@@ -430,7 +430,7 @@ export class EventsRepository {
 
   async createInvite(eventId: string, userId: string) {
     return this.prisma.eventInvite.create({
-      data: { eventId, userId, status: 'pending' },
+      data: { eventId, userId },
     });
   }
 
