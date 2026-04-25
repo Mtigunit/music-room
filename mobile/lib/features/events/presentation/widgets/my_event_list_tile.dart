@@ -180,26 +180,27 @@ class _EventThumbnail extends StatelessWidget {
       children: [
         ClipRRect(
           borderRadius: BorderRadius.circular(12),
-          child: Container(
+          child: SizedBox(
             width: 60,
             height: 60,
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  Color(event.coverColorHex),
-                  Color(event.coverColorHex).withValues(alpha: 0.6),
-                ],
-              ),
-            ),
-            child: Center(
-              child: Icon(
-                event.isLive ? Icons.headphones : Icons.music_note,
-                color: Colors.white.withValues(alpha: 0.85),
-                size: 26,
-              ),
-            ),
+            child: event.coverImageAsset != null
+                ? Image.network(
+                    event.coverImageAsset!,
+                    width: 60,
+                    height: 60,
+                    fit: BoxFit.cover,
+                    // Gradient+icon placeholder while the image loads.
+                    loadingBuilder: (_, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return _GradientPlaceholder(event: event);
+                    },
+                    // Fall back to gradient+icon on error
+                    // (broken URL, network error, etc.).
+                    // ignore: avoid_types_on_closure_parameters
+                    errorBuilder: (BuildContext _, Object _, StackTrace? _) =>
+                        _GradientPlaceholder(event: event),
+                  )
+                : _GradientPlaceholder(event: event),
           ),
         ),
 
@@ -228,6 +229,41 @@ class _EventThumbnail extends StatelessWidget {
             ),
           ),
       ],
+    );
+  }
+}
+
+// ────────────────────────────────────────────────────────────
+// Gradient placeholder (used when no cover image is available)
+// ────────────────────────────────────────────────────────────
+
+class _GradientPlaceholder extends StatelessWidget {
+  const _GradientPlaceholder({required this.event});
+
+  final MyEventItem event;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 60,
+      height: 60,
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Color(event.coverColorHex),
+            Color(event.coverColorHex).withValues(alpha: 0.6),
+          ],
+        ),
+      ),
+      child: Center(
+        child: Icon(
+          event.isLive ? Icons.headphones : Icons.music_note,
+          color: Colors.white.withValues(alpha: 0.85),
+          size: 26,
+        ),
+      ),
     );
   }
 }

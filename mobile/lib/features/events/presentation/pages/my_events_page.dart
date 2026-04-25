@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/widgets/empty_state_widget.dart';
+import 'package:music_room/di/injection_container.dart';
+import 'package:music_room/features/events/data/datasources/event_remote_datasource.dart';
 import 'package:music_room/features/events/data/models/my_event_item.dart';
 import 'package:music_room/features/events/presentation/pages/create_event_page.dart';
 import 'package:music_room/features/events/presentation/state/my_events_cubit.dart';
@@ -11,8 +13,8 @@ import 'package:music_room/features/music_vote/presentation/pages/music_vote_pag
 
 /// The "My Events" dashboard page.
 ///
-/// Replaces the previous 2nd bottom-navigation tab.
-/// Contains an "Attending" and "Hosting" tab.
+/// Tab 1 — **Invited**: events the current user has been invited to.
+/// Tab 2 — **Hosting**: events the current user is hosting.
 class MyEventsPage extends StatelessWidget {
   const MyEventsPage({super.key});
 
@@ -20,8 +22,10 @@ class MyEventsPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return BlocProvider(
       create: (_) {
-        final cubit = MyEventsCubit();
-        unawaited(cubit.loadEvents());
+        final cubit = MyEventsCubit(
+          remoteDataSource: InjectionContainer().eventRemoteDataSource,
+        );
+        unawaited(cubit.fetchEvents());
         return cubit;
       },
       child: const _MyEventsBody(),
@@ -81,24 +85,38 @@ class _MyEventsBody extends StatelessWidget {
             Expanded(
               child: BlocBuilder<MyEventsCubit, MyEventsState>(
                 builder: (context, state) {
-                  if (state.isLoading) {
+                  if (state is MyEventsLoading || state is MyEventsInitial) {
                     return const Center(
                       child: CircularProgressIndicator(),
                     );
                   }
 
+                  if (state is MyEventsError) {
+                    return _ErrorView(
+                      message: state.message,
+                      onRetry: () =>
+                          context.read<MyEventsCubit>().fetchEvents(),
+                    );
+                  }
+
+                  final success = state as MyEventsSuccess;
+
                   return TabBarView(
                     children: [
                       _EventListTab(
-                        events: state.attendingEvents,
-                        emptyIcon: Icons.headphones_outlined,
+                        events: success.invitedEvents
+                            .map(_toMyEventItem)
+                            .toList(growable: false),
+                        emptyIcon: Icons.mail_outline_rounded,
                         emptyMessage:
-                            "You haven't joined any events "
+                            "You haven't been invited to any events "
                             'yet.\nDiscover live rooms on '
                             'the Home tab!',
                       ),
                       _EventListTab(
-                        events: state.hostingEvents,
+                        events: success.hostedEvents
+                            .map(_toMyEventItem)
+                            .toList(growable: false),
                         emptyIcon: Icons.spatial_audio_off,
                         emptyMessage:
                             "You aren't hosting any events "
@@ -119,11 +137,74 @@ class _MyEventsBody extends StatelessWidget {
     );
   }
 
+  /// Maps a [MyEventItemModel] (backend DTO) to a [MyEventItem] (UI model).
+  MyEventItem _toMyEventItem(MyEventItemModel model) {
+    return MyEventItem(
+      id: model.id,
+      name: model.name,
+      hostName: model.hostName,
+      dateTime: model.startDate,
+      status: model.status,
+      // coverImageAsset is not used when a URL is available; the tile falls
+      // back to the gradient + icon when null.
+      coverImageAsset: model.coverImage,
+    );
+  }
+
   void _navigateToCreate(BuildContext context) {
     unawaited(
       Navigator.of(context).push<void>(
         MaterialPageRoute<void>(
           builder: (_) => const CreateEventPage(),
+        ),
+      ),
+    );
+  }
+}
+
+// ────────────────────────────────────────────────────────────
+// Error view with retry
+// ────────────────────────────────────────────────────────────
+
+class _ErrorView extends StatelessWidget {
+  const _ErrorView({
+    required this.message,
+    required this.onRetry,
+  });
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              Icons.cloud_off_rounded,
+              size: 48,
+              color: colorScheme.onSurface.withValues(alpha: 0.3),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurface.withValues(alpha: 0.6),
+              ),
+            ),
+            const SizedBox(height: 20),
+            FilledButton.tonal(
+              onPressed: onRetry,
+              child: const Text('Retry'),
+            ),
+          ],
         ),
       ),
     );
@@ -181,7 +262,7 @@ class _PremiumTabBar extends StatelessWidget {
         ),
         labelPadding: EdgeInsets.zero,
         tabs: const [
-          Tab(text: 'Attending'),
+          Tab(text: 'Invited'), // TASK 1: renamed from "Attending"
           Tab(text: 'Hosting'),
         ],
       ),
