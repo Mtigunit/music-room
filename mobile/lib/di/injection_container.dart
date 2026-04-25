@@ -1,6 +1,9 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:music_room/core/config/app_config.dart';
 import 'package:music_room/core/network/api_client.dart';
+import 'package:music_room/core/realtime/socket_client.dart';
+import 'package:music_room/core/services/connectivity_service.dart';
 import 'package:music_room/core/services/token_storage_service.dart';
 import 'package:music_room/features/auth/data/datasources/auth_remote_datasource.dart';
 import 'package:music_room/features/auth/data/repositories/auth_repository_impl.dart';
@@ -9,9 +12,12 @@ import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
 import 'package:music_room/features/events/data/datasources/event_remote_datasource.dart';
 import 'package:music_room/features/events/data/datasources/track_remote_datasource.dart';
 import 'package:music_room/features/music_vote/data/datasources/music_vote_remote_datasource.dart';
+import 'package:music_room/features/playlist/data/datasources/playlist_cache_datasource.dart';
 import 'package:music_room/features/playlist/data/datasources/playlist_remote_datasource.dart';
+import 'package:music_room/features/playlist/presentation/state/playlist_bloc.dart';
 import 'package:music_room/features/search/data/datasources/search_remote_datasource.dart';
 import 'package:music_room/features/search/data/services/search_query_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Service Locator for dependency injection
 class InjectionContainer {
@@ -30,6 +36,9 @@ class InjectionContainer {
   late IPlaylistRemoteDataSource _playlistRemoteDataSource;
   late SearchQueryService _searchQueryService;
   late AuthRepository _authRepository;
+  late ConnectivityService _connectivityService;
+  late SocketClient _socketClient;
+  late IPlaylistCacheDataSource _playlistCacheDataSource;
   late ITrackRemoteDataSource _trackRemoteDataSource;
   late IEventRemoteDataSource _eventRemoteDataSource;
   late IMusicVoteRemoteDataSource _musicVoteRemoteDataSource;
@@ -41,12 +50,18 @@ class InjectionContainer {
       secureStorage: const FlutterSecureStorage(),
     );
     _searchQueryService = SearchQueryService();
+    final sharedPreferences = await SharedPreferences.getInstance();
+    _connectivityService = ConnectivityService();
 
     // Network
     final dio = Dio();
     _apiClient = ApiClient(
       dio: dio,
       tokenStorage: _tokenStorageService,
+    );
+    _socketClient = SocketClient(
+      baseUrl: AppConfig.apiBaseUrl,
+      tokenProvider: _tokenStorageService.getToken,
     );
 
     // Data Sources
@@ -58,6 +73,9 @@ class InjectionContainer {
       apiClient: _apiClient,
     );
     _playlistRemoteDataSource = PlaylistRemoteDataSource(apiClient: _apiClient);
+    _playlistCacheDataSource = PlaylistCacheDataSource(
+      preferences: sharedPreferences,
+    );
 
     // Repositories
     _authRepository = AuthRepositoryImpl(
@@ -75,6 +93,10 @@ class InjectionContainer {
       _playlistRemoteDataSource;
   SearchQueryService get searchQueryService => _searchQueryService;
   AuthRepository get authRepository => _authRepository;
+  ConnectivityService get connectivityService => _connectivityService;
+  SocketClient get socketClient => _socketClient;
+  IPlaylistCacheDataSource get playlistCacheDataSource =>
+      _playlistCacheDataSource;
   ITrackRemoteDataSource get trackRemoteDataSource => _trackRemoteDataSource;
   IEventRemoteDataSource get eventRemoteDataSource => _eventRemoteDataSource;
   IMusicVoteRemoteDataSource get musicVoteRemoteDataSource =>
@@ -82,5 +104,15 @@ class InjectionContainer {
 
   AuthBloc createAuthBloc() {
     return AuthBloc(authRepository: _authRepository);
+  }
+
+  PlaylistBloc createPlaylistBloc() {
+    return PlaylistBloc(
+      playlistRemoteDataSource: _playlistRemoteDataSource,
+      playlistCacheDataSource: _playlistCacheDataSource,
+      connectivityService: _connectivityService,
+      socketClient: _socketClient,
+      tokenStorageService: _tokenStorageService,
+    );
   }
 }
