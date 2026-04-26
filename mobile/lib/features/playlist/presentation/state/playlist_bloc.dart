@@ -106,9 +106,8 @@ class PlaylistBloc extends Bloc<PlaylistEvent, PlaylistState> {
     PlaylistAddTrackRequested event,
     Emitter<PlaylistState> emit,
   ) async {
-    final playlist = state.playlist;
     final playlistId = _activePlaylistId;
-    if (playlist == null || playlistId == null) return;
+    if (state.playlist == null || playlistId == null) return;
 
     if (state.isOffline) {
       emit(state.copyWith(errorMessage: _kOfflineMessage));
@@ -120,40 +119,18 @@ class PlaylistBloc extends Bloc<PlaylistEvent, PlaylistState> {
         playlistId,
         event.track,
       );
-
-      // re-read the freshest state after the await,
-      // in case something changed while we were waiting for the
-      final currentPlaylist = state.playlist;
-      if (currentPlaylist == null) return;
-
-      final updatedTracks = List<PlaylistTrackEntity>.from(playlist.tracks)
-        ..removeWhere(
-          (track) =>
-              track.playlistTrackId == result.playlistTrack.playlistTrackId,
-        )
-        ..add(result.playlistTrack);
-      final reindexedTracks = _reindexTracks(updatedTracks);
-      final updatedPlaylist = _playlistWithTracks(
-        currentPlaylist,
-        reindexedTracks,
+      await _applyTrackMutation(
+        emit,
         updatedAt: result.newUpdatedAt,
-      );
-      final (byId, ids) = _normalizeTracks(reindexedTracks);
-
-      emit(
-        state.copyWith(
-          playlist: updatedPlaylist,
-          tracksById: byId,
-          orderedTrackIds: ids,
-          latestUpdatedAt: result.newUpdatedAt,
-          status: PlaylistSyncStatus.ready,
-          clearErrorMessage: true,
-        ),
-      );
-
-      await _savePlaylistToCache(
-        playlist: updatedPlaylist,
-        updatedAt: result.newUpdatedAt,
+        transform: (tracks) {
+          tracks
+            ..removeWhere(
+              (track) =>
+                  track.playlistTrackId == result.playlistTrack.playlistTrackId,
+            )
+            ..add(result.playlistTrack);
+          return tracks;
+        },
       );
     } on DioException catch (error) {
       if (error.response?.statusCode == 409) {
@@ -171,9 +148,8 @@ class PlaylistBloc extends Bloc<PlaylistEvent, PlaylistState> {
     PlaylistRemoveTrackRequested event,
     Emitter<PlaylistState> emit,
   ) async {
-    final playlist = state.playlist;
     final playlistId = _activePlaylistId;
-    if (playlist == null || playlistId == null) return;
+    if (state.playlist == null || playlistId == null) return;
 
     if (state.isOffline) {
       emit(state.copyWith(errorMessage: _kOfflineMessage));
@@ -193,33 +169,16 @@ class PlaylistBloc extends Bloc<PlaylistEvent, PlaylistState> {
         playlistId,
         event.playlistTrackId,
       );
-      final updatedTracks = List<PlaylistTrackEntity>.from(playlist.tracks)
-        ..removeWhere(
-          (track) =>
-              track.playlistTrackId == result.deletedTrack.playlistTrackId,
-        );
-      final reindexedTracks = _reindexTracks(updatedTracks);
-      final updatedPlaylist = _playlistWithTracks(
-        playlist,
-        reindexedTracks,
+      await _applyTrackMutation(
+        emit,
         updatedAt: result.newUpdatedAt,
-      );
-      final (byId, ids) = _normalizeTracks(reindexedTracks);
-
-      emit(
-        state.copyWith(
-          playlist: updatedPlaylist,
-          tracksById: byId,
-          orderedTrackIds: ids,
-          latestUpdatedAt: result.newUpdatedAt,
-          status: PlaylistSyncStatus.ready,
-          clearErrorMessage: true,
-        ),
-      );
-
-      await _savePlaylistToCache(
-        playlist: updatedPlaylist,
-        updatedAt: result.newUpdatedAt,
+        transform: (tracks) {
+          tracks.removeWhere(
+            (track) =>
+                track.playlistTrackId == result.deletedTrack.playlistTrackId,
+          );
+          return tracks;
+        },
       );
     } on DioException catch (error) {
       if (error.response?.statusCode == 409) {
@@ -527,6 +486,44 @@ class PlaylistBloc extends Bloc<PlaylistEvent, PlaylistState> {
       playlist: playlist,
       updatedAt: updatedAt,
       lastSyncedAt: DateTime.now().toUtc().toIso8601String(),
+    );
+  }
+
+  /// Applies a local track-list mutation using the freshest playlist snapshot.
+  Future<void> _applyTrackMutation(
+    Emitter<PlaylistState> emit, {
+    required String updatedAt,
+    required List<PlaylistTrackEntity> Function(List<PlaylistTrackEntity>)
+    transform,
+  }) async {
+    final currentPlaylist = state.playlist;
+    if (currentPlaylist == null) return;
+
+    final mutatedTracks = transform(
+      List<PlaylistTrackEntity>.from(currentPlaylist.tracks),
+    );
+    final reindexedTracks = _reindexTracks(mutatedTracks);
+    final updatedPlaylist = _playlistWithTracks(
+      currentPlaylist,
+      reindexedTracks,
+      updatedAt: updatedAt,
+    );
+    final (byId, ids) = _normalizeTracks(reindexedTracks);
+
+    emit(
+      state.copyWith(
+        playlist: updatedPlaylist,
+        tracksById: byId,
+        orderedTrackIds: ids,
+        latestUpdatedAt: updatedAt,
+        status: PlaylistSyncStatus.ready,
+        clearErrorMessage: true,
+      ),
+    );
+
+    await _savePlaylistToCache(
+      playlist: updatedPlaylist,
+      updatedAt: updatedAt,
     );
   }
 
