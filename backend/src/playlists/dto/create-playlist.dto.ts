@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import {
   ArrayMaxSize,
+  ArrayUnique,
   IsArray,
   IsEnum,
   IsNotEmpty,
@@ -19,7 +20,7 @@ export class CreatePlaylistDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(50)
-  name: string;
+  name!: string;
 
   @ApiProperty({
     enum: Visibility,
@@ -28,7 +29,7 @@ export class CreatePlaylistDto {
   })
   @IsEnum(Visibility)
   @IsNotEmpty()
-  visibility: Visibility;
+  visibility!: Visibility;
 
   @ApiProperty({
     enum: PlaylistEditLicense,
@@ -37,7 +38,7 @@ export class CreatePlaylistDto {
   })
   @IsEnum(PlaylistEditLicense)
   @IsNotEmpty()
-  editLicense: PlaylistEditLicense;
+  editLicense!: PlaylistEditLicense;
 
   @ApiPropertyOptional({
     example: 'Perfect tunes for the weekend getaway.',
@@ -51,7 +52,7 @@ export class CreatePlaylistDto {
   @ApiPropertyOptional({
     example: [Tags.CHILL, Tags.ACOUSTIC],
     maxItems: 5,
-    description: 'Array of genre tags',
+    description: 'Array of genre tags (duplicates not allowed)',
     enum: Tags,
     isArray: true,
   })
@@ -59,5 +60,6 @@ export class CreatePlaylistDto {
   @IsEnum(Tags, { each: true })
   @IsOptional()
   @ArrayMaxSize(5)
+  @ArrayUnique({ message: 'Tags must not contain duplicate values' })
   tags?: Tags[];
 }
