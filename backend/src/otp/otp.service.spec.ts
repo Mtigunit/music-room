@@ -155,6 +155,37 @@ describe('OtpService', () => {
 
       expect(redisClient.expire).not.toHaveBeenCalled();
     });
+
+    it('should silently return without sending email for password_reset with non-existent user', async () => {
+      usersService.findByEmail.mockResolvedValue(null);
+
+      await expect(
+        otpService.sendOtp('unknown@example.com', 'password_reset'),
+      ).resolves.toBeUndefined();
+
+      expect(mailService.sendOtpEmail).not.toHaveBeenCalled();
+      expect(redisClient.set).not.toHaveBeenCalled();
+    });
+
+    it('should send OTP for password_reset when user exists', async () => {
+      usersService.findByEmail.mockResolvedValue(mockUser);
+      redisClient.get.mockResolvedValue(null);
+      redisClient.exists.mockResolvedValue(0);
+
+      await otpService.sendOtp('taken@example.com', 'password_reset');
+
+      expect(redisClient.set).toHaveBeenCalledWith(
+        'otp:password_reset:taken@example.com',
+        expect.stringMatching(/^\d{6}$/),
+        'EX',
+        300,
+      );
+      expect(mailService.sendOtpEmail).toHaveBeenCalledWith(
+        'taken@example.com',
+        expect.stringMatching(/^\d{6}$/),
+        'password_reset',
+      );
+    });
   });
 
   // ─── verifyOtp ────────────────────────────────────────

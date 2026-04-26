@@ -46,10 +46,12 @@ export class OtpService {
     }
 
     if (purpose === 'password_reset' && !existingUser) {
-      // Avoid leaking user existence, but ideally we'd fail consistently.
-      // Easiest approach for now is to just throw an error or pretend to send.
-      // Often, for security, you'd silently return success. Let's throw for clear errors per requirements.
-      throw new BadRequestException('User with this email does not exist');
+      // Silently return to prevent email enumeration attacks.
+      // The caller always receives a generic success message.
+      this.logger.warn(
+        `Password reset requested for non-existent email: ${email}`,
+      );
+      return;
     }
 
     // Rate limiting

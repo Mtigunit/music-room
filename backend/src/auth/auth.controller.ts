@@ -85,14 +85,21 @@ export class AuthController {
 
   @Post('forgot-password')
   @ApiOperation({ summary: 'Send OTP for password reset' })
-  @ApiResponse({ status: 201, description: 'Password reset OTP sent.' })
+  @ApiResponse({
+    status: 201,
+    description:
+      'Request accepted. If the email is registered, a reset OTP will be sent.',
+  })
   @ApiResponse({
     status: 400,
-    description: 'User does not exist or rate limited.',
+    description: 'Rate limited.',
   })
   async forgotPassword(@Body() dto: ForgotPasswordDto) {
     await this.otpService.sendOtp(dto.email, 'password_reset');
-    return { message: 'Password reset OTP sent successfully' };
+    return {
+      message:
+        'If an account with this email exists, a password reset OTP has been sent.',
+    };
   }
 
   @Post('verify-reset-otp')
