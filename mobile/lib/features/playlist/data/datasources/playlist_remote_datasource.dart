@@ -33,12 +33,10 @@ class PlaylistRemoveTrackResult {
   const PlaylistRemoveTrackResult({
     required this.newUpdatedAt,
     required this.deletedTrack,
-    required this.updates,
   });
 
   final String newUpdatedAt;
   final PlaylistTrackEntity deletedTrack;
-  final List<PlaylistTrackEntity> updates;
 }
 
 class CreatePlaylistRequest {
@@ -280,18 +278,10 @@ class PlaylistRemoteDataSource implements IPlaylistRemoteDataSource {
     final deletedTrackMap = deletedTrackJson is Map<String, dynamic>
         ? deletedTrackJson
         : <String, dynamic>{};
-    final updatesJson = payload['updates'];
-    final updates = updatesJson is List<dynamic>
-        ? updatesJson
-              .whereType<Map<String, dynamic>>()
-              .map(_playlistTrackFromRemovalPayload)
-              .toList(growable: false)
-        : const <PlaylistTrackEntity>[];
 
     return PlaylistRemoveTrackResult(
       newUpdatedAt: _extractUpdatedAt(payload),
-      deletedTrack: _playlistTrackFromRemovalPayload(deletedTrackMap),
-      updates: updates,
+      deletedTrack: PlaylistTrackModel.fromJson(deletedTrackMap).toEntity(),
     );
   }
 
@@ -343,35 +333,5 @@ class PlaylistRemoteDataSource implements IPlaylistRemoteDataSource {
       return rawValue;
     }
     return DateTime.now().toUtc().toIso8601String();
-  }
-
-  PlaylistTrackEntity _playlistTrackFromRemovalPayload(
-    Map<String, dynamic> json,
-  ) {
-    final trackJson = json['track'];
-    final trackMap = trackJson is Map<String, dynamic>
-        ? trackJson
-        : <String, dynamic>{};
-
-    return PlaylistTrackEntity(
-      playlistTrackId: json['id'] is String ? json['id'] as String : '',
-      providerTrackId: trackMap['providerTrackId'] is String
-          ? trackMap['providerTrackId'] as String
-          : '',
-      title: trackMap['title'] is String ? trackMap['title'] as String : '',
-      durationMs: trackMap['durationMs'] is int
-          ? trackMap['durationMs'] as int
-          : 0,
-      position: json['position'] is int ? json['position'] as int : 0,
-      addedByUserId: json['addedById'] is String
-          ? json['addedById'] as String
-          : null,
-      artist: trackMap['artist'] is String
-          ? trackMap['artist'] as String
-          : null,
-      thumbnailUrl: trackMap['thumbnailUrl'] is String
-          ? trackMap['thumbnailUrl'] as String
-          : null,
-    );
   }
 }
