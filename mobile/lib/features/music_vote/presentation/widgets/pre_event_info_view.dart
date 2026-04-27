@@ -856,7 +856,6 @@ class _StartEventBottomBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return Container(
       decoration: BoxDecoration(
@@ -916,21 +915,21 @@ class _StartEventBottomBar extends StatelessWidget {
                               color: Colors.white,
                             ),
                           )
-                        : Row(
+                        : const Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Text(
+                            children: <Widget>[
+                              Text(
                                 '🚀',
                                 style: TextStyle(fontSize: 20),
                               ),
-                              const SizedBox(width: 10),
+                              SizedBox(width: 10),
                               Text(
                                 'Start Event',
                                 style: TextStyle(
                                   fontSize: 17,
                                   fontWeight: FontWeight.w700,
-                                  color: isDark ? Colors.white : Colors.white,
+                                  color: Colors.white,
                                 ),
                               ),
                             ],

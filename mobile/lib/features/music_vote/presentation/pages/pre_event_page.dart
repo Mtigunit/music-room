@@ -6,6 +6,7 @@ import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/music_vote/presentation/state/music_vote_cubit.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/pre_event_info_view.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/skeletons/pre_event_skeleton.dart';
+import 'package:music_room/routes/route_names.dart';
 
 class PreEventPage extends StatelessWidget {
   const PreEventPage({
@@ -31,7 +32,7 @@ class PreEventPage extends StatelessWidget {
         listener: (context, state) {
           unawaited(
             Navigator.of(context).pushReplacementNamed(
-              '/music-vote',
+              RouteNames.musicVote,
               arguments: eventId,
             ),
           );
