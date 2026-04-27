@@ -9,7 +9,6 @@ export const WS_EVENTS = {
   HOST_SOFT_DISCONNECT: 'event:host_soft_disconnect',
   HOST_JOIN: 'host_join',
   HOST_LEAVE: 'host_leave',
-  HOST_REJOINED: 'event:host_rejoined',
   HOST_RECONNECTED: 'event:host_reconnected',
   USER_JOINED: 'event:user_joined',
   EVENT_COUNT: 'event:count',

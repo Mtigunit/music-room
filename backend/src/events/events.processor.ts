@@ -59,7 +59,8 @@ export class EventsProcessor extends WorkerHost {
     this.eventsGateway.server
       .to(roomName)
       .emit(WS_EVENTS.HOST_SOFT_DISCONNECT, {
-        gracePeriodSeconds: 85,
+        gracePeriodSeconds:
+          (BULL_JOBS.HARD_TIMEOUT - BULL_JOBS.SOFT_TIMEOUT) / 1000,
       });
     this.logger.log(`Broadcasted soft disconnect warning for event ${eventId}`);
   }

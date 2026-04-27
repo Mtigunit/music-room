@@ -80,13 +80,23 @@ export class EventsGateway implements OnGatewayDisconnect {
     await this.eventTimeoutsQueue.add(
       BULL_JOBS.HOST_SOFT_TIMEOUT,
       { eventId, userId },
-      { delay: BULL_JOBS.SOFT_TIMEOUT, jobId: `soft-${eventId}` },
+      {
+        delay: BULL_JOBS.SOFT_TIMEOUT,
+        jobId: `soft-${eventId}`,
+        removeOnComplete: true,
+        removeOnFail: true,
+      },
     );
 
     await this.eventTimeoutsQueue.add(
       BULL_JOBS.HOST_HARD_TIMEOUT,
       { eventId, userId },
-      { delay: BULL_JOBS.HARD_TIMEOUT, jobId: `hard-${eventId}` },
+      {
+        delay: BULL_JOBS.HARD_TIMEOUT,
+        jobId: `hard-${eventId}`,
+        removeOnComplete: true,
+        removeOnFail: true,
+      },
     );
   }
 
@@ -351,7 +361,7 @@ export class EventsGateway implements OnGatewayDisconnect {
 
     const roomName = `event_${eventId}`;
     this.server.to(roomName).emit(WS_EVENTS.ENDED, { reason: 'host_ended' });
-    this.server.in(roomName).disconnectSockets(true);
+    this.server.in(roomName).socketsLeave(roomName);
 
     return { event: 'ended', eventId };
   }
