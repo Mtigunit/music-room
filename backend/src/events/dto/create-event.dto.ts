@@ -5,6 +5,7 @@ import {
   IsArray,
   ArrayMinSize,
   ArrayMaxSize,
+  ArrayUnique,
   IsOptional,
   IsNumber,
   ValidateNested,
@@ -102,6 +103,7 @@ export class CreateEventDto {
   @ArrayMinSize(1)
   @ArrayMaxSize(3)
   @IsEnum(Tags, { each: true })
+  @ArrayUnique({ message: 'Tags must not contain duplicate values' })
   @Transform(({ value }) => {
     if (value === undefined || value === null || value === '') return undefined;
     // Handle JSON string array e.g. '["rock", "pop"]' from FormData

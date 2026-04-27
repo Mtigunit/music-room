@@ -168,18 +168,32 @@ describe('AuthController', () => {
   // ─── FORGOT PASSWORD ──────────────────────────────────
 
   describe('forgotPassword', () => {
-    it('should call otpService.sendOtp with password_reset purpose and return message', async () => {
+    it('should call otpService.sendOtp with password_reset purpose and return generic message', async () => {
       otpService.sendOtp.mockResolvedValue(undefined);
 
       const result = await controller.forgotPassword({ email: 'a@b.com' });
 
       expect(result).toEqual({
-        message: 'Password reset OTP sent successfully',
+        message:
+          'If an account with this email exists, a password reset OTP has been sent.',
       });
       expect(otpService.sendOtp).toHaveBeenCalledWith(
         'a@b.com',
         'password_reset',
       );
+    });
+
+    it('should return the same generic message for non-existent emails', async () => {
+      otpService.sendOtp.mockResolvedValue(undefined);
+
+      const result = await controller.forgotPassword({
+        email: 'nonexistent@b.com',
+      });
+
+      expect(result).toEqual({
+        message:
+          'If an account with this email exists, a password reset OTP has been sent.',
+      });
     });
   });
 
