@@ -26,6 +26,7 @@
     "test:integration": "npm run build && start-server-and-test start:prod http://127.0.0.1:3000/api/docs test:integration:run"
   },
   "dependencies": {
+    "@nestjs/bullmq": "^11.0.4",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.4",
     "@nestjs/core": "^11.0.1",
@@ -42,6 +43,7 @@
     "@prisma/client": "^7.7.0",
     "@socket.io/redis-adapter": "^8.3.0",
     "bcrypt": "^6.0.0",
+    "bullmq": "^5.76.2",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.15.1",
     "google-auth-library": "^10.6.2",

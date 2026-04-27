@@ -1,13 +1,7 @@
-import {
-  Injectable,
-  NotFoundException,
-  ForbiddenException,
-  ConflictException,
-  BadRequestException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
-import { PrismaService } from '../prisma/prisma.service';
 import {
   TrackStatus,
   Prisma,
@@ -15,16 +9,88 @@ import {
   Tags,
   EventStatus,
 } from '@prisma/client';
-import { YoutubeService } from '../tracks/youtube.service';
+import { TrackSearchResultDto } from '../tracks/dto/track-search-result.dto';
 
 @Injectable()
 export class EventsRepository {
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly youtubeService: YoutubeService,
-  ) {}
+  constructor(private readonly prisma: PrismaService) {}
 
-  async create(hostId: string, createEventDto: CreateEventDto) {
+  async findPlaylistsByIds(playlistIds: string[], userId: string) {
+    return this.prisma.playlist.findMany({
+      where: {
+        id: { in: playlistIds },
+        OR: [
+          { visibility: Visibility.PUBLIC },
+          { ownerId: userId },
+          {
+            collaborators: {
+              some: { userId },
+            },
+          },
+        ],
+      },
+      select: { id: true },
+    });
+  }
+
+  async findUserById(id: string) {
+    return this.prisma.user.findUnique({
+      where: { id },
+    });
+  }
+
+  async findById(id: string) {
+    return this.prisma.event.findUnique({
+      where: { id },
+    });
+  }
+
+  async findByIdWithDetails(id: string) {
+    const event = await this.prisma.event.findUnique({
+      where: { id },
+      include: {
+        host: {
+          select: { id: true, username: true },
+        },
+        invites: true,
+        tracks: {
+          include: { track: true },
+          take: 10,
+          orderBy: [{ voteScore: 'desc' }, { id: 'asc' }],
+        },
+      },
+    });
+
+    if (!event) return null;
+
+    const formattedTracks = event.tracks.map((et) => ({
+      id: et.id,
+      trackId: et.trackId,
+      addedById: et.addedById,
+      voteScore: et.voteScore,
+      status: et.status,
+      providerTrackId: et.track.providerTrackId,
+      title: et.track.title,
+      artist: et.track.artist,
+      durationMs: et.track.durationMs,
+      thumbnailUrl: et.track.thumbnailUrl,
+    }));
+
+    return { ...event, tracks: formattedTracks };
+  }
+
+  async findByIdWithInvites(id: string) {
+    return this.prisma.event.findUnique({
+      where: { id },
+      include: { invites: true },
+    });
+  }
+
+  async createEvent(
+    hostId: string,
+    createEventDto: CreateEventDto,
+    fetchedTracks: TrackSearchResultDto[],
+  ) {
     const {
       name,
       description,
@@ -36,30 +102,10 @@ export class EventsRepository {
       locationLng,
       policies,
       playlistIds,
-      tracks,
       startDate,
     } = createEventDto;
 
     return this.prisma.$transaction(async (tx) => {
-      // 0. Validate playlistIds and trackIds before creating anything
-      if (playlistIds && playlistIds.length > 0) {
-        const uniquePlaylistIds = Array.from(new Set(playlistIds));
-        const playlists = await tx.playlist.findMany({
-          where: { id: { in: uniquePlaylistIds } },
-          select: { id: true },
-        });
-        if (playlists.length !== uniquePlaylistIds.length) {
-          const foundIds = playlists.map((p) => p.id);
-          const missingIds = uniquePlaylistIds.filter(
-            (id) => !foundIds.includes(id),
-          );
-          throw new NotFoundException(
-            `Playlists not found: ${missingIds.join(', ')}`,
-          );
-        }
-      }
-
-      // 1. Create the Event
       const event = await tx.event.create({
         data: {
           name,
@@ -71,7 +117,6 @@ export class EventsRepository {
           hostId,
           locationLat,
           locationLng,
-          // Handle policies
           policies: policies?.length
             ? {
                 create: policies.map((p) => ({
@@ -84,51 +129,40 @@ export class EventsRepository {
         },
       });
 
-      // 2. Track resolution logic
       let finalTrackIds: string[] = [];
 
       if (playlistIds && playlistIds.length > 0) {
         const playlistTracks = await tx.playlistTrack.findMany({
-          where: {
-            playlistId: { in: playlistIds },
-          },
+          where: { playlistId: { in: playlistIds } },
           orderBy: [{ playlistId: 'asc' }, { position: 'asc' }],
           select: { trackId: true },
         });
-
         finalTrackIds.push(...playlistTracks.map((pt) => pt.trackId));
       }
 
-      if (tracks && tracks.length > 0) {
-        const uniqueProviderTrackIds = Array.from(new Set(tracks));
-
-        const fetchedMetadata = await this.youtubeService.getTrackDetailsBatch(
-          uniqueProviderTrackIds,
-        );
+      if (fetchedTracks && fetchedTracks.length > 0) {
         await tx.track.createMany({
-          data: fetchedMetadata
-            .filter((t) => t !== null)
-            .map((t) => ({
-              providerTrackId: t.providerTrackId,
-              title: t.title,
-              artist: t.artist || '',
-              durationMs: t.durationMs,
-              thumbnailUrl: t.thumbnailUrl || '',
-            })),
+          data: fetchedTracks.map((t) => ({
+            providerTrackId: t.providerTrackId,
+            title: t.title,
+            artist: t.artist || '',
+            durationMs: t.durationMs,
+            thumbnailUrl: t.thumbnailUrl || '',
+          })),
           skipDuplicates: true,
         });
+
+        const providerIds = fetchedTracks.map((t) => t.providerTrackId);
         const createdTracks = await tx.track.findMany({
-          where: { providerTrackId: { in: uniqueProviderTrackIds } },
+          where: { providerTrackId: { in: providerIds } },
           select: { id: true },
         });
 
         finalTrackIds.push(...createdTracks.map((t) => t.id));
       }
 
-      // Deduplicate using a Set
       finalTrackIds = Array.from(new Set(finalTrackIds));
 
-      // 3. Insert as EventTrack records
       if (finalTrackIds.length > 0) {
         const eventTracksData = finalTrackIds.map((trackId) => ({
           eventId: event.id,
@@ -136,13 +170,106 @@ export class EventsRepository {
           addedById: hostId,
           status: TrackStatus.QUEUED,
         }));
-
-        await tx.eventTrack.createMany({
-          data: eventTracksData,
-        });
+        await tx.eventTrack.createMany({ data: eventTracksData });
       }
 
       return event;
+    });
+  }
+
+  async updateEvent(
+    id: string,
+    userId: string,
+    updateEventDto: UpdateEventDto,
+    fetchedTracks: TrackSearchResultDto[],
+  ) {
+    const {
+      name,
+      description,
+      coverImage,
+      visibility,
+      invitingOnly,
+      tags,
+      locationLat,
+      locationLng,
+      policies,
+      playlistIds,
+      tracks,
+    } = updateEventDto;
+
+    return this.prisma.$transaction(async (tx) => {
+      const updatedEvent = await tx.event.update({
+        where: { id },
+        data: {
+          name,
+          ...(description !== undefined && { description }),
+          ...(coverImage !== undefined && { coverImage }),
+          visibility,
+          invitingOnly,
+          tags,
+          locationLat,
+          locationLng,
+          ...(policies && {
+            policies: {
+              deleteMany: {},
+              create: policies.map((p) => ({
+                policyType: p.policyType,
+                config: p.config as Prisma.InputJsonValue,
+              })),
+            },
+          }),
+        },
+      });
+
+      if (playlistIds !== undefined || tracks !== undefined) {
+        await tx.eventTrack.deleteMany({ where: { eventId: id } });
+
+        let finalTrackIds: string[] = [];
+
+        if (playlistIds && playlistIds.length > 0) {
+          const playlistTracks = await tx.playlistTrack.findMany({
+            where: { playlistId: { in: playlistIds } },
+            orderBy: [{ playlistId: 'asc' }, { position: 'asc' }],
+            select: { trackId: true },
+          });
+          finalTrackIds.push(...playlistTracks.map((pt) => pt.trackId));
+        }
+
+        if (fetchedTracks && fetchedTracks.length > 0) {
+          await tx.track.createMany({
+            data: fetchedTracks.map((t) => ({
+              providerTrackId: t.providerTrackId,
+              title: t.title,
+              artist: t.artist || '',
+              durationMs: t.durationMs,
+              thumbnailUrl: t.thumbnailUrl || '',
+            })),
+            skipDuplicates: true,
+          });
+
+          const providerIds = fetchedTracks.map((t) => t.providerTrackId);
+          const createdTracks = await tx.track.findMany({
+            where: { providerTrackId: { in: providerIds } },
+            select: { id: true },
+          });
+
+          finalTrackIds.push(...createdTracks.map((t) => t.id));
+        }
+
+        finalTrackIds = Array.from(new Set(finalTrackIds));
+
+        if (finalTrackIds.length > 0) {
+          const eventTracksData = finalTrackIds.map((trackId) => ({
+            eventId: id,
+            trackId,
+            addedById: userId,
+            status: TrackStatus.QUEUED,
+          }));
+          await tx.eventTrack.createMany({ data: eventTracksData });
+        }
+      }
+
+      return updatedEvent;
     });
   }
 
@@ -171,14 +298,7 @@ export class EventsRepository {
     }
 
     const where: Prisma.EventWhereInput = search
-      ? {
-          AND: [
-            baseCondition,
-            {
-              OR: searchConditions,
-            },
-          ],
-        }
+      ? { AND: [baseCondition, { OR: searchConditions }] }
       : baseCondition;
 
     const [data, total] = await Promise.all([
@@ -202,12 +322,7 @@ export class EventsRepository {
 
     return {
       data: formattedData,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
   }
 
@@ -218,9 +333,7 @@ export class EventsRepository {
     const { page, limit, search } = options;
     const skip = (page - 1) * limit;
 
-    const baseCondition: Prisma.EventWhereInput = {
-      hostId: userId,
-    };
+    const baseCondition: Prisma.EventWhereInput = { hostId: userId };
 
     const searchConditions: Prisma.EventWhereInput[] = [
       { name: { contains: search, mode: 'insensitive' } },
@@ -232,14 +345,7 @@ export class EventsRepository {
     }
 
     const where: Prisma.EventWhereInput = search
-      ? {
-          AND: [
-            baseCondition,
-            {
-              OR: searchConditions,
-            },
-          ],
-        }
+      ? { AND: [baseCondition, { OR: searchConditions }] }
       : baseCondition;
 
     const [data, total] = await Promise.all([
@@ -263,12 +369,7 @@ export class EventsRepository {
 
     return {
       data: formattedData,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
   }
 
@@ -293,14 +394,7 @@ export class EventsRepository {
     }
 
     const where: Prisma.EventWhereInput = search
-      ? {
-          AND: [
-            baseCondition,
-            {
-              OR: searchConditions,
-            },
-          ],
-        }
+      ? { AND: [baseCondition, { OR: searchConditions }] }
       : baseCondition;
 
     const [data, total] = await Promise.all([
@@ -324,354 +418,45 @@ export class EventsRepository {
 
     return {
       data: formattedData,
-      meta: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
   }
 
-  async findOne(id: string, userId: string) {
-    const event = await this.prisma.event.findUnique({
-      where: { id },
-      include: {
-        host: {
-          select: {
-            id: true,
-            username: true,
-          },
-        },
-        invites: true,
-        tracks: {
-          include: { track: true },
-          take: 10,
-          orderBy: [{ voteScore: 'desc' }, { id: 'asc' }],
-        },
-      },
-    });
-    if (!event) {
-      throw new NotFoundException(`Event with ID ${id} not found`);
-    }
-
-    const { tracks, host, invites, ...eventData } = event;
-    if (
-      event.visibility === Visibility.PRIVATE &&
-      event.hostId !== userId &&
-      !invites.some((i) => i.userId === userId)
-    ) {
-      throw new ForbiddenException(
-        'Forbidden: You do not have access to this event',
-      );
-    }
-
-    const formattedTracks = tracks.map((et) => ({
-      id: et.id,
-      trackId: et.trackId,
-      addedById: et.addedById,
-      voteScore: et.voteScore,
-      status: et.status,
-      providerTrackId: et.track.providerTrackId,
-      title: et.track.title,
-      artist: et.track.artist,
-      durationMs: et.track.durationMs,
-      thumbnailUrl: et.track.thumbnailUrl,
-    }));
-
-    return {
-      ...eventData,
-      host: host ? { id: host.id, name: host.username } : null,
-      tracks: formattedTracks,
-    };
-  }
-
-  async update(id: string, userId: string, updateEventDto: UpdateEventDto) {
-    const {
-      name,
-      description,
-      coverImage,
-      visibility,
-      invitingOnly,
-      tags,
-      locationLat,
-      locationLng,
-      policies,
-      playlistIds,
-      tracks,
-    } = updateEventDto;
-
-    return this.prisma.$transaction(async (tx) => {
-      // 0. Check event exists
-      const existingEvent = await tx.event.findUnique({ where: { id } });
-      if (!existingEvent) {
-        throw new NotFoundException(`Event with ID ${id} not found`);
-      }
-      if (existingEvent.hostId !== userId) {
-        throw new ForbiddenException(
-          `You are not authorized to update this event`,
-        );
-      }
-
-      // 1. Validate playlistIds and trackIds before creating anything
-      if (playlistIds && playlistIds.length > 0) {
-        const uniquePlaylistIds = Array.from(new Set(playlistIds));
-        const playlists = await tx.playlist.findMany({
-          where: { id: { in: uniquePlaylistIds } },
-          select: { id: true },
-        });
-        if (playlists.length !== uniquePlaylistIds.length) {
-          const foundIds = playlists.map((p) => p.id);
-          const missingIds = uniquePlaylistIds.filter(
-            (id) => !foundIds.includes(id),
-          );
-          throw new NotFoundException(
-            `Playlists not found: ${missingIds.join(', ')}`,
-          );
-        }
-      }
-
-      // 2. Update the Event
-      const updatedEvent = await tx.event.update({
-        where: { id },
-        data: {
-          name,
-          ...(description !== undefined && { description }), // Mapping typo
-          ...(coverImage !== undefined && { coverImage }),
-          visibility,
-          invitingOnly,
-          tags,
-          locationLat,
-          locationLng,
-          ...(policies && {
-            policies: {
-              deleteMany: {}, // replace all existing policies
-              create: policies.map((p) => ({
-                policyType: p.policyType,
-                config: p.config as Prisma.InputJsonValue,
-              })),
-            },
-          }),
-        },
-      });
-
-      // 3. Track resolution logic
-      if (playlistIds !== undefined || tracks !== undefined) {
-        // clear existing tracks and re-insert
-        await tx.eventTrack.deleteMany({ where: { eventId: id } });
-
-        let finalTrackIds: string[] = [];
-
-        if (playlistIds && playlistIds.length > 0) {
-          const playlistTracks = await tx.playlistTrack.findMany({
-            where: { playlistId: { in: playlistIds } },
-            orderBy: [{ playlistId: 'asc' }, { position: 'asc' }],
-            select: { trackId: true },
-          });
-
-          finalTrackIds.push(...playlistTracks.map((pt) => pt.trackId));
-        }
-
-        if (tracks && tracks.length > 0) {
-          const uniqueProviderTrackIds = Array.from(new Set(tracks));
-
-          const fetchedMetadata =
-            await this.youtubeService.getTrackDetailsBatch(
-              uniqueProviderTrackIds,
-            );
-
-          await tx.track.createMany({
-            data: fetchedMetadata
-              .filter((t) => t !== null)
-              .map((t) => ({
-                providerTrackId: t.providerTrackId,
-                title: t.title,
-                artist: t.artist || '',
-                durationMs: t.durationMs,
-                thumbnailUrl: t.thumbnailUrl || '',
-              })),
-            skipDuplicates: true,
-          });
-
-          const createdTracks = await tx.track.findMany({
-            where: { providerTrackId: { in: uniqueProviderTrackIds } },
-            select: { id: true },
-          });
-
-          finalTrackIds.push(...createdTracks.map((t) => t.id));
-        }
-
-        finalTrackIds = Array.from(new Set(finalTrackIds));
-
-        if (finalTrackIds.length > 0) {
-          const eventTracksData = finalTrackIds.map((trackId) => ({
-            eventId: id,
-            trackId,
-            addedById: userId,
-            status: TrackStatus.QUEUED,
-          }));
-
-          await tx.eventTrack.createMany({
-            data: eventTracksData,
-          });
-        }
-      }
-
-      return updatedEvent;
+  async findInvite(eventId: string, userId: string) {
+    return this.prisma.eventInvite.findUnique({
+      where: { eventId_userId: { eventId, userId } },
     });
   }
 
-  async inviteUser(eventId: string, hostId: string, invitedUserId: string) {
-    const event = await this.prisma.event.findUnique({
-      where: { id: eventId },
-    });
-
-    if (!event) {
-      throw new NotFoundException(`Event with ID ${eventId} not found`);
-    }
-
-    if (event.hostId !== hostId) {
-      throw new ForbiddenException(
-        'Only the host can invite users to this event',
-      );
-    }
-
-    if (hostId === invitedUserId) {
-      throw new ConflictException('You cannot invite yourself to the event');
-    }
-
-    const userToInvite = await this.prisma.user.findUnique({
-      where: { id: invitedUserId },
-    });
-
-    if (!userToInvite) {
-      throw new NotFoundException(`User with ID ${invitedUserId} not found`);
-    }
-
-    const existingInvite = await this.prisma.eventInvite.findUnique({
-      where: {
-        eventId_userId: {
-          eventId,
-          userId: invitedUserId,
-        },
-      },
-    });
-
-    if (existingInvite) {
-      throw new ConflictException('User is already invited to this event');
-    }
-
+  async createInvite(eventId: string, userId: string) {
     return this.prisma.eventInvite.create({
-      data: {
-        eventId,
-        userId: invitedUserId,
-        status: 'pending',
-      },
+      data: { eventId, userId },
     });
   }
 
-  async startEvent(eventId: string, userId: string) {
-    const event = await this.prisma.event.findUnique({
-      where: { id: eventId },
-    });
-
-    if (!event) {
-      throw new NotFoundException('Event not found');
-    }
-
-    if (event.hostId !== userId) {
-      throw new ForbiddenException('Forbidden: Only host can start the room');
-    }
-
-    if (event.status === EventStatus.LIVE) {
-      throw new ForbiddenException('Forbidden: Event is already live');
-    }
-
+  async updateStatus(id: string, status: EventStatus, startDate?: Date) {
     return this.prisma.event.update({
-      where: { id: eventId },
-      data: { status: EventStatus.LIVE, startDate: new Date() },
-    });
-  }
-
-  async endEvent(eventId: string, userId: string) {
-    const event = await this.prisma.event.findUnique({
-      where: { id: eventId },
-    });
-
-    if (!event) {
-      throw new NotFoundException('Event not found');
-    }
-
-    if (event.hostId !== userId) {
-      throw new ForbiddenException('Forbidden: Only host can end the event');
-    }
-
-    if (event.status !== EventStatus.LIVE) {
-      throw new ForbiddenException('Forbidden: Event is not live');
-    }
-
-    return this.prisma.event.update({
-      where: { id: eventId },
-      data: { status: EventStatus.ENDED },
-    });
-  }
-
-  async getTracks(
-    id: string,
-    userId: string,
-    options: { page: number; limit: number },
-  ) {
-    const { page, limit } = options;
-    const MAX_PAGE_SIZE = 100;
-    if (!Number.isInteger(page) || page < 1) {
-      throw new BadRequestException(
-        '`page` must be an integer greater than or equal to 1',
-      );
-    }
-    if (!Number.isInteger(limit) || limit < 1) {
-      throw new BadRequestException(
-        '`limit` must be an integer greater than or equal to 1',
-      );
-    }
-    if (limit > MAX_PAGE_SIZE) {
-      throw new BadRequestException(
-        `\`limit\` must be less than or equal to ${MAX_PAGE_SIZE}`,
-      );
-    }
-    const skip = (page - 1) * limit;
-
-    const existingEvent = await this.prisma.event.findUnique({
       where: { id },
-      include: {
-        invites: true,
-      },
+      data: { status, ...(startDate && { startDate }) },
     });
+  }
 
-    if (!existingEvent) {
-      throw new NotFoundException(`Event with ID ${id} not found`);
-    }
+  async deleteEvent(id: string) {
+    return this.prisma.event.delete({
+      where: { id },
+    });
+  }
 
-    if (
-      existingEvent.visibility !== Visibility.PUBLIC &&
-      existingEvent.hostId !== userId &&
-      !existingEvent.invites.some((i) => i.userId === userId)
-    ) {
-      throw new ForbiddenException(
-        'You do not have permission to view tracks for this event',
-      );
-    }
-
-    const where: Prisma.EventTrackWhereInput = { eventId: id };
+  async getTracks(eventId: string, skip: number, take: number) {
+    const where: Prisma.EventTrackWhereInput = { eventId };
 
     const [tracks, total] = await Promise.all([
       this.prisma.eventTrack.findMany({
         where,
-        include: {
-          track: true,
-        },
+        include: { track: true },
         orderBy: [{ voteScore: 'desc' }, { id: 'asc' }],
         skip,
-        take: limit,
+        take,
       }),
       this.prisma.eventTrack.count({ where }),
     ]);
@@ -689,80 +474,11 @@ export class EventsRepository {
       thumbnailUrl: et.track.thumbnailUrl,
     }));
 
-    return {
-      data: formattedTracks,
-      pagination: {
-        total,
-        page,
-        limit,
-        totalPages: Math.ceil(total / limit),
-      },
-    };
+    return { tracks: formattedTracks, total };
   }
 
-  async remove(id: string, userId: string) {
-    const event = await this.prisma.event.findUnique({
-      where: { id },
-      select: { hostId: true },
-    });
-
-    if (!event) {
-      throw new NotFoundException(`Event with ID ${id} not found`);
-    }
-
-    if (event.hostId !== userId) {
-      throw new ForbiddenException('Only the host can delete this event');
-    }
-
-    try {
-      await this.prisma.event.delete({
-        where: { id },
-      });
-      return { message: 'Event successfully deleted' };
-    } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2025'
-      ) {
-        throw new NotFoundException(`Event with ID ${id} not found`);
-      }
-      throw error;
-    }
-  }
-
-  async appendTrack(eventId: string, userId: string, providerTrackId: string) {
-    const event = await this.prisma.event.findUnique({
-      where: { id: eventId },
-      include: {
-        invites: true,
-      },
-    });
-
-    if (!event) {
-      throw new NotFoundException(`Event with ID ${eventId} not found`);
-    }
-
-    if (
-      event.visibility !== Visibility.PUBLIC &&
-      event.hostId !== userId &&
-      !event.invites.some((i) => i.userId === userId)
-    ) {
-      throw new ForbiddenException(
-        'You do not have permission to append tracks to this event',
-      );
-    }
-
-    if (!providerTrackId || !providerTrackId.trim()) {
-      throw new BadRequestException('Provider track ID is required');
-    }
-
-    const trackDetails =
-      await this.youtubeService.getTrackDetails(providerTrackId);
-    if (!trackDetails) {
-      throw new NotFoundException('Track metadata not found');
-    }
-
-    const track = await this.prisma.track.upsert({
+  async upsertTrackAndGet(trackDetails: TrackSearchResultDto) {
+    return this.prisma.track.upsert({
       where: { providerTrackId: trackDetails.providerTrackId },
       create: {
         providerTrackId: trackDetails.providerTrackId,
@@ -778,98 +494,42 @@ export class EventsRepository {
         thumbnailUrl: trackDetails.thumbnailUrl || '',
       },
     });
-
-    const existingEventTrack = await this.prisma.eventTrack.findFirst({
-      where: {
-        eventId,
-        trackId: track.id,
-      },
-      include: {
-        track: {
-          select: {
-            providerTrackId: true,
-          },
-        },
-      },
-    });
-
-    if (existingEventTrack) {
-      throw new ConflictException(
-        `Track is already attached to this event: ${existingEventTrack.track.providerTrackId}`,
-      );
-    }
-
-    await this.prisma.eventTrack.create({
-      data: {
-        eventId,
-        trackId: track.id,
-        addedById: userId,
-        status: TrackStatus.QUEUED,
-      },
-    });
-
-    const newTrack = await this.prisma.eventTrack.findFirst({
-      where: {
-        eventId,
-        trackId: track.id,
-      },
-      include: {
-        track: true,
-      },
-    });
-    return newTrack;
   }
 
-  async removeTrack(eventId: string, providerTrackId: string, userId: string) {
-    const event = await this.prisma.event.findUnique({
-      where: { id: eventId },
-      select: { hostId: true },
+  async findEventTrack(eventId: string, trackId: string) {
+    return this.prisma.eventTrack.findFirst({
+      where: { eventId, trackId },
+      include: { track: { select: { providerTrackId: true } } },
     });
+  }
 
-    if (!event) {
-      throw new NotFoundException(`Event with ID ${eventId} not found`);
-    }
-
-    const eventTrack = await this.prisma.eventTrack.findFirst({
-      where: {
-        eventId,
-        track: {
-          providerTrackId,
-        },
-      },
+  async findEventTrackByProviderId(eventId: string, providerTrackId: string) {
+    return this.prisma.eventTrack.findFirst({
+      where: { eventId, track: { providerTrackId } },
       select: {
         id: true,
         trackId: true,
         addedById: true,
-        track: {
-          select: {
-            providerTrackId: true,
-          },
-        },
+        track: { select: { providerTrackId: true } },
       },
     });
+  }
 
-    if (!eventTrack) {
-      throw new NotFoundException(
-        `Track with provider ID ${providerTrackId} not found in event`,
-      );
-    }
-
-    if (event.hostId !== userId && eventTrack.addedById !== userId) {
-      throw new ForbiddenException(
-        'Only the event host or the user who added this track can remove it',
-      );
-    }
-
-    await this.prisma.eventTrack.delete({
-      where: {
-        id: eventTrack.id,
+  async createEventTrack(eventId: string, trackId: string, addedById: string) {
+    return await this.prisma.eventTrack.create({
+      data: {
+        eventId,
+        trackId,
+        addedById,
+        status: TrackStatus.QUEUED,
       },
+      include: { track: true },
     });
+  }
 
-    return {
-      trackId: eventTrack.trackId,
-      providerTrackId: eventTrack.track.providerTrackId,
-    };
+  async deleteEventTrack(id: string) {
+    return this.prisma.eventTrack.delete({
+      where: { id },
+    });
   }
 }

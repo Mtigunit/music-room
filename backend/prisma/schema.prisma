@@ -258,7 +258,6 @@ model EventInvite {
   id        String   @id @default(uuid())
   eventId   String
   userId    String
-  status    String   @default("pending")
   createdAt DateTime @default(now())
 
   event Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
