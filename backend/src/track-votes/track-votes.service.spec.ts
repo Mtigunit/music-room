@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { TrackVotesService } from './track-votes.service';
 import { TrackVotesRepository } from './track-votes.repository';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { TrackVoteMessageDto } from './dto/track-vote-message.dto';
 
 describe('TrackVotesService', () => {
@@ -19,6 +20,10 @@ describe('TrackVotesService', () => {
         {
           provide: TrackVotesRepository,
           useValue: mockRepository,
+        },
+        {
+          provide: EventEmitter2,
+          useValue: { emit: jest.fn() },
         },
       ],
     }).compile();

@@ -5,6 +5,7 @@ import {
   BadRequestException,
   ConflictException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PlaylistsGateway } from './playlists.gateway';
 import { CreatePlaylistDto } from './dto/create-playlist.dto';
 import { UpdatePlaylistDto } from './dto/update-playlist.dto';
@@ -18,6 +19,8 @@ import {
   TrackNotFoundInTransactionException,
 } from './exceptions';
 import type { TrackSearchResultDto } from '../tracks/dto/track-search-result.dto';
+import { AUDIT_LOG_EVENT, AuditAction } from '../audit-log/audit-log.constants';
+import type { AuditLogEvent } from '../audit-log/audit-log.event';
 
 @Injectable()
 export class PlaylistsService {
@@ -25,10 +28,25 @@ export class PlaylistsService {
     private readonly playlistsRepository: PlaylistsRepository,
     private readonly playlistsGateway: PlaylistsGateway,
     private readonly youtubeService: YoutubeService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async create(userId: string, createPlaylistDto: CreatePlaylistDto) {
-    return this.playlistsRepository.createPlaylist(userId, createPlaylistDto);
+    const playlist = await this.playlistsRepository.createPlaylist(
+      userId,
+      createPlaylistDto,
+    );
+
+    this.eventEmitter.emit(AUDIT_LOG_EVENT, {
+      userId,
+      action: AuditAction.PLAYLIST_CREATE,
+      platform: 'unknown',
+      deviceModel: 'unknown',
+      appVersion: 'unknown',
+      metadata: { playlistId: playlist.id },
+    } satisfies AuditLogEvent);
+
+    return playlist;
   }
 
   async getUserPlaylists(userId: string, paginationDto: PaginationDto) {
@@ -220,6 +238,15 @@ export class PlaylistsService {
           track: result.playlistTrack,
         });
 
+      this.eventEmitter.emit(AUDIT_LOG_EVENT, {
+        userId: addedById,
+        action: AuditAction.PLAYLIST_TRACK_ADD,
+        platform: 'unknown',
+        deviceModel: 'unknown',
+        appVersion: 'unknown',
+        metadata: { playlistId, trackId: result.playlistTrack.trackId },
+      } satisfies AuditLogEvent);
+
       return {
         newUpdatedAt: result.newUpdatedAt,
         track: result.playlistTrack,
@@ -292,6 +319,15 @@ export class PlaylistsService {
         updates: result.updates,
       });
 
+    this.eventEmitter.emit(AUDIT_LOG_EVENT, {
+      userId: requesterId,
+      action: AuditAction.PLAYLIST_TRACK_REMOVE,
+      platform: 'unknown',
+      deviceModel: 'unknown',
+      appVersion: 'unknown',
+      metadata: { playlistId, playlistTrackId },
+    } satisfies AuditLogEvent);
+
     return {
       newUpdatedAt: result.newUpdatedAt,
       deletedTrack: result.deletedTrack,
@@ -349,6 +385,19 @@ export class PlaylistsService {
         newUpdatedAt: result.newUpdatedAt,
         updates: result.updates,
       });
+
+    this.eventEmitter.emit(AUDIT_LOG_EVENT, {
+      userId: requesterId,
+      action: AuditAction.PLAYLIST_TRACK_REORDER,
+      platform: 'unknown',
+      deviceModel: 'unknown',
+      appVersion: 'unknown',
+      metadata: {
+        playlistId,
+        playlistTrackId,
+        newPosition: normalizedPosition,
+      },
+    } satisfies AuditLogEvent);
 
     return { newUpdatedAt: result.newUpdatedAt };
   }

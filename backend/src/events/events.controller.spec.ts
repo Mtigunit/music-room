@@ -6,6 +6,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { EventsGateway } from './events.gateway';
 import { YoutubeService } from '../tracks/youtube.service';
 import type { Request } from 'express';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 describe('EventsController', () => {
   let controller: EventsController;
@@ -46,6 +47,10 @@ describe('EventsController', () => {
               emit: jest.fn(),
             },
           },
+        },
+        {
+          provide: EventEmitter2,
+          useValue: { emit: jest.fn() },
         },
       ],
     }).compile();

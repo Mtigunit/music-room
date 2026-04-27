@@ -4,6 +4,7 @@ import {
   UnauthorizedException,
   BadRequestException,
 } from '@nestjs/common';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
@@ -15,6 +16,8 @@ import type { LoginDto } from './dto/login.dto';
 import type { ResetPasswordDto } from './dto/reset-password.dto';
 import type { JwtPayload } from './interfaces/jwt-payload.interface';
 import type { User } from '@prisma/client';
+import { AUDIT_LOG_EVENT, AuditAction } from '../audit-log/audit-log.constants';
+import type { AuditLogEvent } from '../audit-log/audit-log.event';
 
 const BCRYPT_SALT_ROUNDS = 10;
 
@@ -31,6 +34,7 @@ export class AuthService {
     private readonly usersService: UsersService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly eventEmitter: EventEmitter2,
   ) {
     this.googleClient = new OAuth2Client(
       this.configService.getOrThrow<string>('GOOGLE_CLIENT_ID'),
@@ -71,6 +75,15 @@ export class AuthService {
       true,
     );
 
+    this.eventEmitter.emit(AUDIT_LOG_EVENT, {
+      userId: user.id,
+      action: AuditAction.REGISTER,
+      platform: 'unknown',
+      deviceModel: 'unknown',
+      appVersion: 'unknown',
+      metadata: { email: dto.email },
+    } satisfies AuditLogEvent);
+
     return this.generateToken(user.id, user.email);
   }
 
@@ -95,6 +108,15 @@ export class AuthService {
     if (!isPasswordValid) {
       throw new UnauthorizedException('Invalid credentials');
     }
+
+    this.eventEmitter.emit(AUDIT_LOG_EVENT, {
+      userId: user.id,
+      action: AuditAction.LOGIN,
+      platform: 'unknown',
+      deviceModel: 'unknown',
+      appVersion: 'unknown',
+      metadata: { identifier: dto.identifier },
+    } satisfies AuditLogEvent);
 
     return this.generateToken(user.id, user.email);
   }
@@ -135,6 +157,15 @@ export class AuthService {
           );
         }
       }
+
+      this.eventEmitter.emit(AUDIT_LOG_EVENT, {
+        userId: user.id,
+        action: AuditAction.GOOGLE_AUTH,
+        platform: 'unknown',
+        deviceModel: 'unknown',
+        appVersion: 'unknown',
+        metadata: { email, isNewUser: !user.googleId },
+      } satisfies AuditLogEvent);
 
       // Return the new session
       return this.generateToken(user.id, user.email);
@@ -200,6 +231,15 @@ export class AuthService {
 
     const passwordHash = await bcrypt.hash(dto.newPassword, BCRYPT_SALT_ROUNDS);
     await this.usersService.updatePassword(user.id, passwordHash);
+
+    this.eventEmitter.emit(AUDIT_LOG_EVENT, {
+      userId: user.id,
+      action: AuditAction.PASSWORD_RESET,
+      platform: 'unknown',
+      deviceModel: 'unknown',
+      appVersion: 'unknown',
+      metadata: { email },
+    } satisfies AuditLogEvent);
   }
 
   private verifyEmailToken(token: string): string {

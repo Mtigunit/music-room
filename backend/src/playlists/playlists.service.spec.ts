@@ -15,6 +15,7 @@ import {
 import { PlaylistsGateway } from './playlists.gateway';
 import { YoutubeService } from '../tracks/youtube.service';
 import { TrackSearchResultDto } from '../tracks/dto/track-search-result.dto';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PlaylistEditLicense, Prisma, Visibility } from '@prisma/client';
 import { PlaylistAuthData } from './interfaces/playlist-auth-data.interface';
 
@@ -99,6 +100,10 @@ describe('PlaylistsService', () => {
           useValue: {
             getTrackDetails: jest.fn(),
           },
+        },
+        {
+          provide: EventEmitter2,
+          useValue: { emit: jest.fn() },
         },
       ],
     }).compile();
@@ -319,7 +324,9 @@ describe('PlaylistsService', () => {
       );
       youtubeService.getTrackDetails.mockResolvedValueOnce(sampleTrack);
       repository.isTrackInPlaylist.mockResolvedValueOnce(false);
-      repository.addTrackToPlaylist.mockResolvedValueOnce({} as never);
+      repository.addTrackToPlaylist.mockResolvedValueOnce({
+        playlistTrack: { trackId: sampleTrack.providerTrackId },
+      } as never);
 
       await service.addTrackToPlaylist(
         PLAYLIST_ID,
@@ -342,7 +349,9 @@ describe('PlaylistsService', () => {
       );
       youtubeService.getTrackDetails.mockResolvedValueOnce(sampleTrack);
       repository.isTrackInPlaylist.mockResolvedValueOnce(false);
-      repository.addTrackToPlaylist.mockResolvedValueOnce({} as never);
+      repository.addTrackToPlaylist.mockResolvedValueOnce({
+        playlistTrack: { trackId: sampleTrack.providerTrackId },
+      } as never);
 
       await service.addTrackToPlaylist(
         PLAYLIST_ID,
@@ -374,7 +383,9 @@ describe('PlaylistsService', () => {
       );
       youtubeService.getTrackDetails.mockResolvedValueOnce(sampleTrack);
       repository.isTrackInPlaylist.mockResolvedValueOnce(false);
-      repository.addTrackToPlaylist.mockResolvedValueOnce({} as never);
+      repository.addTrackToPlaylist.mockResolvedValueOnce({
+        playlistTrack: { trackId: sampleTrack.providerTrackId },
+      } as never);
 
       await service.addTrackToPlaylist(
         PLAYLIST_ID,
@@ -537,6 +548,7 @@ describe('PlaylistsService', () => {
           { provide: PlaylistsRepository, useValue: repository },
           { provide: PlaylistsGateway, useValue: gateway },
           { provide: YoutubeService, useValue: youtubeService },
+          { provide: EventEmitter2, useValue: { emit: jest.fn() } },
         ],
       }).compile();
       const svc = module.get<PlaylistsService>(PlaylistsService);
@@ -726,6 +738,7 @@ describe('PlaylistsService', () => {
           { provide: PlaylistsRepository, useValue: repository },
           { provide: PlaylistsGateway, useValue: gateway },
           { provide: YoutubeService, useValue: youtubeService },
+          { provide: EventEmitter2, useValue: { emit: jest.fn() } },
         ],
       }).compile();
       const svc = module.get<PlaylistsService>(PlaylistsService);
@@ -768,6 +781,7 @@ describe('PlaylistsService', () => {
           { provide: PlaylistsRepository, useValue: repository },
           { provide: PlaylistsGateway, useValue: gateway },
           { provide: YoutubeService, useValue: youtubeService },
+          { provide: EventEmitter2, useValue: { emit: jest.fn() } },
         ],
       }).compile();
       const svc = module.get<PlaylistsService>(PlaylistsService);
@@ -937,6 +951,7 @@ describe('PlaylistsService', () => {
           { provide: PlaylistsRepository, useValue: repository },
           { provide: PlaylistsGateway, useValue: gateway },
           { provide: YoutubeService, useValue: youtubeService },
+          { provide: EventEmitter2, useValue: { emit: jest.fn() } },
         ],
       }).compile();
       const svc = module.get<PlaylistsService>(PlaylistsService);
