@@ -4,23 +4,33 @@ import type { Request } from 'express';
 
 const logger = new Logger('ClientMetaDecorator');
 
+/**
+ * Normalizes a header value to a single string.
+ * If multiple headers are sent (array), it takes the first one.
+ */
+function normalizeHeader(
+  value: string | string[] | undefined,
+): string | undefined {
+  if (Array.isArray(value)) {
+    return value[0];
+  }
+  return value;
+}
+
 export const ClientMeta = createParamDecorator(
-  (data: unknown, ctx: ExecutionContext): ClientMetaDto => {
+  (_data: unknown, ctx: ExecutionContext): ClientMetaDto => {
     let platform: string | undefined;
     let deviceModel: string | undefined;
     let appVersion: string | undefined;
     let ipAddress: string | undefined;
-    let url = 'unknown';
-
     const type = ctx.getType();
 
     if (type === 'http') {
       const request = ctx.switchToHttp().getRequest<Request>();
-      platform = request.headers['x-platform'] as string;
-      deviceModel = request.headers['x-device-model'] as string;
-      appVersion = request.headers['x-app-version'] as string;
+      platform = normalizeHeader(request.headers['x-platform']);
+      deviceModel = normalizeHeader(request.headers['x-device-model']);
+      appVersion = normalizeHeader(request.headers['x-app-version']);
       ipAddress = request.ip || request.socket?.remoteAddress;
-      url = request.url;
     } else if (type === 'ws') {
       interface WsClientLike {
         handshake?: {
@@ -30,17 +40,20 @@ export const ClientMeta = createParamDecorator(
       }
       const client = ctx.switchToWs().getClient<WsClientLike>();
       // Socket.io stores headers in handshake.headers
-      platform = client.handshake?.headers?.['x-platform'] as string;
-      deviceModel = client.handshake?.headers?.['x-device-model'] as string;
-      appVersion = client.handshake?.headers?.['x-app-version'] as string;
+      platform = normalizeHeader(client.handshake?.headers?.['x-platform']);
+      deviceModel = normalizeHeader(
+        client.handshake?.headers?.['x-device-model'],
+      );
+      appVersion = normalizeHeader(
+        client.handshake?.headers?.['x-app-version'],
+      );
       ipAddress = client.handshake?.address;
-      url = 'WebSocket';
     }
 
-    // Graceful fallback warning
+    // Graceful fallback logging for optional client metadata
     if (!platform || !deviceModel || !appVersion) {
-      logger.warn(
-        `Missing client metadata headers on ${type} request to ${url}. ` +
+      logger.debug(
+        `Missing optional client metadata headers on ${type} request. ` +
           `Expected x-platform, x-device-model, x-app-version. Falling back to 'unknown'.`,
       );
     }

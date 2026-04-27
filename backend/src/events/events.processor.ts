@@ -17,7 +17,7 @@ import {
   AuditAction,
   SYSTEM_AUDIT_META,
 } from '../audit-log/audit-log.constants';
-import { AuditLogEvent } from '../audit-log/audit-log.event';
+import type { AuditLogEvent } from '../audit-log/audit-log.event';
 
 export interface EventTimeoutJobData {
   eventId: string;
