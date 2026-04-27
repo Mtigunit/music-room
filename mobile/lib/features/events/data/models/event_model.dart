@@ -30,7 +30,7 @@ class EventModel {
     this.playlistIds,
     this.tracks,
     this.policies,
-    this.scheduledAt,
+    this.startDate,
   });
 
   final String name;
@@ -43,5 +43,5 @@ class EventModel {
   final List<String>? playlistIds;
   final List<TrackModel>? tracks;
   final List<EventPolicyModel>? policies;
-  final String? scheduledAt;
+  final String? startDate;
 }

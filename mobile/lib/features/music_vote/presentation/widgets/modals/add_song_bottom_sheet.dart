@@ -1,7 +1,20 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:music_room/core/widgets/app_back_button.dart';
-import 'package:music_room/features/music_vote/presentation/widgets/mock_data.dart';
+
+class _MockTrack {
+  const _MockTrack({
+    required this.title,
+    required this.artist,
+    required this.album,
+    required this.colorHex,
+  });
+  final String title;
+  final String artist;
+  final String album;
+  final int colorHex;
+}
+
+const _mockSearchTracks = <_MockTrack>[];
 
 /// "Add Song" search bottom sheet.
 ///
@@ -17,10 +30,10 @@ class _AddSongBottomSheetState extends State<AddSongBottomSheet> {
   final TextEditingController _searchController = TextEditingController();
   String _query = '';
 
-  List<MockTrack> get _filtered {
-    if (_query.isEmpty) return mockSearchTracks;
+  List<_MockTrack> get _filtered {
+    if (_query.isEmpty) return _mockSearchTracks;
     final q = _query.toLowerCase();
-    return mockSearchTracks
+    return _mockSearchTracks
         .where(
           (t) =>
               t.title.toLowerCase().contains(q) ||
@@ -224,7 +237,7 @@ class _SearchTrackItem extends StatefulWidget {
     required this.isDark,
   });
 
-  final MockTrack track;
+  final _MockTrack track;
   final ColorScheme colorScheme;
   final bool isDark;
 
@@ -308,9 +321,6 @@ class _SearchTrackItemState extends State<_SearchTrackItem> {
             child: GestureDetector(
               onTap: () {
                 setState(() => _added = !_added);
-                if (kDebugMode) {
-                  debugPrint('Added to queue: ${widget.track.title}');
-                }
               },
               child: AnimatedContainer(
                 duration: const Duration(milliseconds: 200),

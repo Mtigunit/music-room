@@ -1,4 +1,4 @@
-import 'package:music_room/features/events/data/models/my_event_item.dart';
+import 'package:music_room/features/music_vote/data/models/my_event_item.dart';
 
 /// Mock data for the "My Events" dashboard.
 ///

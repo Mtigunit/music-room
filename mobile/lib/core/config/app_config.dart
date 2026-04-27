@@ -35,6 +35,8 @@ class AppConfig {
   static const String profileEndpoint = 'auth/profile';
   static const String trackSearchEndpoint = 'tracks/search';
   static const String eventsEndpoint = 'events';
+  static const String eventsInvitedEndpoint = 'events/invited';
+  static const String eventsHostingEndpoint = 'events/hosting';
   static const String playlistsEndpoint = 'playlists';
   static const String websocketPath = '/ws';
 

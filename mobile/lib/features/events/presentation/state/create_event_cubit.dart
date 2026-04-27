@@ -132,7 +132,7 @@ class CreateEventCubit extends Cubit<CreateEventState> {
       playlistIds: playlistIds.isEmpty ? null : playlistIds,
       tracks: selectedTracks.isEmpty ? null : selectedTracks,
       policies: policies,
-      scheduledAt: scheduledStartTime.toUtc().toIso8601String(),
+      startDate: scheduledStartTime.toUtc().toIso8601String(),
     );
 
     emit(CreateEventSubmitting());

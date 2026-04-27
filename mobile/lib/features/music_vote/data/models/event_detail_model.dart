@@ -14,6 +14,7 @@ class EventDetailModel {
     this.locationLng,
     this.playbackStatus,
     this.currentTrackId,
+    this.startDate,
   });
 
   factory EventDetailModel.fromJson(Map<String, dynamic> json) {
@@ -31,6 +32,7 @@ class EventDetailModel {
       locationLng: (json['locationLng'] as num?)?.toDouble(),
       playbackStatus: json['playbackStatus'] as String?,
       currentTrackId: json['currentTrackId'] as String?,
+      startDate: _parseDate(json['startDate']),
     );
   }
 
@@ -47,11 +49,19 @@ class EventDetailModel {
   final double? locationLng;
   final String? playbackStatus;
   final String? currentTrackId;
+  final DateTime? startDate;
 
   static List<String> _parseTags(Object? raw) {
     if (raw is List) {
       return raw.whereType<String>().toList(growable: false);
     }
     return const [];
+  }
+
+  static DateTime? _parseDate(Object? raw) {
+    if (raw is String && raw.isNotEmpty) {
+      return DateTime.tryParse(raw);
+    }
+    return null;
   }
 }

@@ -1,6 +1,25 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:music_room/features/music_vote/presentation/widgets/mock_data.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:music_room/core/widgets/app_snackbar.dart';
+import 'package:music_room/features/music_vote/presentation/state/music_vote_cubit.dart';
+
+class _MockDelegateUser {
+  _MockDelegateUser({
+    required this.name,
+    required this.username,
+    required this.colorHex,
+    required this.role,
+  });
+
+  final String name;
+  final String username;
+  final int colorHex;
+  final String role; // 'Host', 'DJ', 'Voter'
+  final bool isPremium = false;
+  final bool isDelegated = false;
+}
+
+const _mockDelegateUsers = <_MockDelegateUser>[];
 
 /// "Manage Room & Delegation" bottom sheet (V.2.2).
 ///
@@ -8,7 +27,12 @@ import 'package:music_room/features/music_vote/presentation/widgets/mock_data.da
 /// role/premium badges, and a [Switch] to grant playback-control delegation.
 /// All state is local and mock — wire to a BLoC / WebSocket in the next phase.
 class DelegationBottomSheet extends StatefulWidget {
-  const DelegationBottomSheet({super.key});
+  const DelegationBottomSheet({
+    required this.eventId,
+    super.key,
+  });
+
+  final String eventId;
 
   @override
   State<DelegationBottomSheet> createState() => _DelegationBottomSheetState();
@@ -21,7 +45,7 @@ class _DelegationBottomSheetState extends State<DelegationBottomSheet> {
   @override
   void initState() {
     super.initState();
-    _users = mockDelegateUsers
+    _users = _mockDelegateUsers
         .map((u) => _DelegateState(user: u, isDelegated: u.isDelegated))
         .toList();
   }
@@ -64,7 +88,13 @@ class _DelegationBottomSheetState extends State<DelegationBottomSheet> {
                   ),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
+
+              // ── End Event Action (Destructive, at the VERY TOP) ──────────
+              _EndEventTile(eventId: widget.eventId),
+
+              const Divider(indent: 20, endIndent: 20, height: 1),
+              const SizedBox(height: 16),
 
               // ── Title + subtitle ─────────────────────────────────────────
               Padding(
@@ -133,12 +163,6 @@ class _DelegationBottomSheetState extends State<DelegationBottomSheet> {
                       isDark: isDark,
                       onToggle: (value) {
                         setState(() => state.isDelegated = value);
-                        if (kDebugMode) {
-                          debugPrint(
-                            'Delegation toggled for '
-                            '${state.user.username}: $value',
-                          );
-                        }
                       },
                     );
                   },
@@ -160,7 +184,7 @@ class _DelegationBottomSheetState extends State<DelegationBottomSheet> {
 class _DelegateState {
   _DelegateState({required this.user, required this.isDelegated});
 
-  final MockDelegateUser user;
+  final _MockDelegateUser user;
   bool isDelegated;
 }
 
@@ -477,6 +501,121 @@ class _UserAvatar extends StatelessWidget {
           ),
       ],
     );
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// End Event tile — destructive action with confirmation dialog
+// ────────────────────────────────────────────────────────────────────────────
+
+class _EndEventTile extends StatelessWidget {
+  const _EndEventTile({required this.eventId});
+
+  final String eventId;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return BlocConsumer<MusicVoteCubit, MusicVoteState>(
+      listenWhen: (prev, curr) =>
+          prev.isEndingEvent && !curr.isEndingEvent && curr.error != null,
+      listener: (context, state) {
+        if (state.error != null) {
+          AppSnackbar.showError(context, state.error!);
+        }
+      },
+      buildWhen: (prev, curr) => prev.isEndingEvent != curr.isEndingEvent,
+      builder: (context, state) {
+        final isDisabled = eventId.isEmpty || state.isEndingEvent;
+
+        return ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+          leading: state.isEndingEvent
+              ? const SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    color: Colors.red,
+                  ),
+                )
+              : Icon(
+                  Icons.stop_circle,
+                  color: isDisabled ? Colors.grey : Colors.red,
+                ),
+          title: Text(
+            'End Event',
+            style: textTheme.bodyLarge?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: isDisabled ? Colors.grey : Colors.red,
+            ),
+          ),
+          subtitle: Text(
+            'Stop the event and end all playback',
+            style: textTheme.bodySmall?.copyWith(
+              color: isDisabled
+                  ? Colors.grey.withValues(alpha: 0.6)
+                  : Colors.red.withValues(alpha: 0.6),
+            ),
+          ),
+          onTap: isDisabled ? null : () => _showEndConfirmation(context),
+        );
+      },
+    );
+  }
+
+  Future<void> _showEndConfirmation(BuildContext context) async {
+    final cubit = context.read<MusicVoteCubit>();
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        final colorScheme = Theme.of(dialogContext).colorScheme;
+
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          title: const Row(
+            children: [
+              Icon(Icons.warning_amber_rounded, color: Colors.red, size: 24),
+              SizedBox(width: 8),
+              Text('End Event'),
+            ],
+          ),
+          content: const Text(
+            'Are you sure you want to end this event? '
+            'This will stop all playback and the event will be marked as '
+            'ended. This action cannot be undone.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: Text(
+                'Cancel',
+                style: TextStyle(color: colorScheme.onSurface),
+              ),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              style: FilledButton.styleFrom(
+                backgroundColor: Colors.red,
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('End Event'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed == true && context.mounted) {
+      await cubit.endEvent(eventId);
+      if (context.mounted) {
+        Navigator.of(context).pop(); // Close the delegation sheet
+      }
+    }
   }
 }
 

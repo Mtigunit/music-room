@@ -1,10 +1,11 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/widgets/app_back_button.dart';
 import 'package:music_room/core/widgets/invite_bottom_sheet.dart';
-import 'package:music_room/features/music_vote/presentation/widgets/mock_data.dart';
+import 'package:music_room/features/music_vote/presentation/state/music_vote_cubit.dart';
+
 import 'package:music_room/features/music_vote/presentation/widgets/modals/delegation_bottom_sheet.dart';
 
 /// The top header for the Live Room page.
@@ -64,7 +65,7 @@ class LiveHeader extends StatelessWidget {
                 Row(
                   children: [
                     const _GuestAvatarStack(
-                      colors: mockGuestAvatarColors,
+                      colors: [0xFFEAB308, 0xFF3B82F6, 0xFFEC4899],
                       size: 20,
                     ),
                     const SizedBox(width: 6),
@@ -90,7 +91,7 @@ class LiveHeader extends StatelessWidget {
           IconButton(
             padding: EdgeInsets.zero,
             icon: const Icon(Icons.settings_outlined),
-            onPressed: () => _showDelegationSheet(context),
+            onPressed: () => _showManageRoomSheet(context),
           ),
         ],
       ),
@@ -115,17 +116,7 @@ class LiveHeader extends StatelessWidget {
         ? eventId!
         : 'room-1';
     final shareLink = 'musicroom.app/join/$resolvedEventId';
-    final friends = mockFriends
-        .map(
-          (friend) => InviteFriendData(
-            id: friend.username,
-            name: friend.name,
-            username: friend.username,
-            colorHex: friend.colorHex,
-            isInvited: friend.isInvited,
-          ),
-        )
-        .toList(growable: false);
+    final friends = <InviteFriendData>[];
 
     unawaited(
       showModalBottomSheet<void>(
@@ -138,32 +129,18 @@ class LiveHeader extends StatelessWidget {
           eventId: resolvedEventId,
           shareLink: shareLink,
           friends: friends,
-          onCopyLink: () {
-            if (kDebugMode) {
-              debugPrint('Copied invite link for room: $resolvedEventId');
-            }
-          },
-          onShareTapped: (action) {
-            if (kDebugMode) {
-              debugPrint(
-                'Share action tapped (${action.id}) for room: $resolvedEventId',
-              );
-            }
-          },
-          onFriendInviteChanged: (change) {
-            if (kDebugMode) {
-              debugPrint(
-                '${change.isInvited ? 'Invited' : 'Uninvited'} friend: '
-                '${change.friend.username}',
-              );
-            }
-          },
+          onCopyLink: () {},
+          onShareTapped: (action) {},
+          onFriendInviteChanged: (change) {},
         ),
       ),
     );
   }
 
-  void _showDelegationSheet(BuildContext context) {
+  void _showManageRoomSheet(BuildContext context) {
+    if (eventId == null || eventId!.isEmpty) return;
+    final resolvedEventId = eventId!;
+
     unawaited(
       showModalBottomSheet<void>(
         context: context,
@@ -171,7 +148,10 @@ class LiveHeader extends StatelessWidget {
         useSafeArea: true,
         barrierColor: Colors.black.withValues(alpha: 0.7),
         backgroundColor: Colors.transparent,
-        builder: (_) => const DelegationBottomSheet(),
+        builder: (_) => BlocProvider.value(
+          value: context.read<MusicVoteCubit>(),
+          child: DelegationBottomSheet(eventId: resolvedEventId),
+        ),
       ),
     );
   }

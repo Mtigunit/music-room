@@ -7,16 +7,103 @@ import 'package:music_room/core/config/app_config.dart';
 import 'package:music_room/core/network/api_client.dart';
 import 'package:music_room/features/events/data/models/event_model.dart';
 
-// ignore: one_member_abstracts, reason: Interfaces for Repositories/Datasources often start with one method
+// ---------------------------------------------------------------------------
+// Lean DTO for the "My Events" dashboard lists
+// ---------------------------------------------------------------------------
+
+/// Maps the subset of fields returned by `GET /events/invited` and
+/// `GET /events/hosting` that are required to render a `MyEventListTile`.
+///
+/// Fields ignored intentionally: tracks, policies, collaborators, etc.
+class MyEventItemModel {
+  const MyEventItemModel({
+    required this.id,
+    required this.name,
+    required this.status,
+    required this.startDate,
+    required this.hostName,
+    this.coverImage,
+  });
+
+  factory MyEventItemModel.fromJson(Map<String, dynamic> json) {
+    final hostMap = json['host'];
+    final hostName =
+        (hostMap is Map<String, dynamic> && hostMap['name'] is String)
+        ? hostMap['name'] as String
+        : '';
+
+    return MyEventItemModel(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      status: json['status'] as String,
+      startDate: DateTime.parse(json['startDate'] as String),
+      hostName: hostName,
+      coverImage: _buildCoverImageUrl(json['coverImage'] as String?),
+    );
+  }
+
+  final String id;
+  final String name;
+
+  /// One of: 'LIVE', 'UPCOMING', 'ENDED'.
+  final String status;
+
+  final DateTime startDate;
+
+  /// Display name of the event host (from `host.name` in the JSON payload).
+  final String hostName;
+
+  /// URL string for the cover image, if provided by the backend.
+  final String? coverImage;
+
+  /// Builds a fully-qualified image URL from the [relativePath] returned by
+  /// the backend (e.g. `uploads/cover.jpg` → `http://host:3000/uploads/cover.jpg`).
+  ///
+  /// Returns `null` when [relativePath] is null/empty, and returns the path
+  /// unchanged when it already starts with `http`.
+  static String? _buildCoverImageUrl(String? relativePath) {
+    if (relativePath == null || relativePath.isEmpty) return null;
+    if (relativePath.startsWith('http')) return relativePath;
+
+    // Strip trailing slash from base URL to avoid double slashes.
+    final base = AppConfig.apiBaseUrl.replaceAll(RegExp(r'/+$'), '');
+    // Strip leading slash from the relative path to be safe.
+    final path = relativePath.replaceAll(RegExp('^/+'), '');
+    return '$base/$path';
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Interface
+// ---------------------------------------------------------------------------
+
 abstract class IEventRemoteDataSource {
   Future<String> createEvent(EventModel event, XFile? coverImage);
+
+  /// Returns events the authenticated user has been invited to.
+  Future<List<MyEventItemModel>> fetchInvitedEvents({
+    int page = 1,
+    int limit = 20,
+  });
+
+  /// Returns events the authenticated user is hosting.
+  Future<List<MyEventItemModel>> fetchHostedEvents({
+    int page = 1,
+    int limit = 20,
+  });
 }
+
+// ---------------------------------------------------------------------------
+// Implementation
+// ---------------------------------------------------------------------------
 
 class EventRemoteDataSource implements IEventRemoteDataSource {
   EventRemoteDataSource({required ApiClient apiClient})
     : _apiClient = apiClient;
 
   final ApiClient _apiClient;
+
+  // ── Create Event ──────────────────────────────────────────────────────────
 
   @override
   Future<String> createEvent(EventModel event, XFile? coverImage) async {
@@ -39,6 +126,98 @@ class EventRemoteDataSource implements IEventRemoteDataSource {
         error: e,
       );
     }
+  }
+
+  // ── Fetch Invited Events ──────────────────────────────────────────────────
+
+  @override
+  Future<List<MyEventItemModel>> fetchInvitedEvents({
+    int page = 1,
+    int limit = 20,
+  }) async {
+    try {
+      final response = await _apiClient.get<dynamic>(
+        AppConfig.eventsInvitedEndpoint,
+        queryParameters: {'page': page, 'limit': limit},
+      );
+
+      return _parseEventListResponse(response);
+    } on DioException {
+      rethrow;
+    } on Object catch (e) {
+      throw DioException(
+        requestOptions: RequestOptions(path: AppConfig.eventsInvitedEndpoint),
+        error: e,
+      );
+    }
+  }
+
+  // ── Fetch Hosted Events ───────────────────────────────────────────────────
+
+  @override
+  Future<List<MyEventItemModel>> fetchHostedEvents({
+    int page = 1,
+    int limit = 20,
+  }) async {
+    try {
+      final response = await _apiClient.get<dynamic>(
+        AppConfig.eventsHostingEndpoint,
+        queryParameters: {'page': page, 'limit': limit},
+      );
+
+      return _parseEventListResponse(response);
+    } on DioException {
+      rethrow;
+    } on Object catch (e) {
+      throw DioException(
+        requestOptions: RequestOptions(path: AppConfig.eventsHostingEndpoint),
+        error: e,
+      );
+    }
+  }
+
+  // ── Private helpers ───────────────────────────────────────────────────────
+
+  /// Parses a paginated list response.
+  ///
+  /// Supports two common backend shapes:
+  ///  - `{ "data": [ ... ] }` (paginated wrapper)
+  ///  - `[ ... ]`             (plain array)
+  List<MyEventItemModel> _parseEventListResponse(
+    Response<dynamic> response,
+  ) {
+    final statusCode = response.statusCode;
+    final body = response.data;
+
+    final isSuccess = statusCode == 200 || statusCode == 201;
+    if (!isSuccess || body == null) {
+      throw DioException(
+        requestOptions: response.requestOptions,
+        response: response,
+        type: DioExceptionType.badResponse,
+      );
+    }
+
+    // Accept both `{ data: [...] }` and bare `[...]` responses.
+    final List<dynamic> items;
+    if (body is List) {
+      items = body;
+    } else if (body is Map<String, dynamic>) {
+      if (body['data'] is List) {
+        items = body['data'] as List<dynamic>;
+      } else if (body['items'] is List) {
+        items = body['items'] as List<dynamic>;
+      } else {
+        items = const [];
+      }
+    } else {
+      items = const [];
+    }
+
+    return items
+        .whereType<Map<String, dynamic>>()
+        .map(MyEventItemModel.fromJson)
+        .toList(growable: false);
   }
 
   Future<Map<String, dynamic>> _buildFormDataMap(
@@ -90,8 +269,8 @@ class EventRemoteDataSource implements IEventRemoteDataSource {
       );
     }
 
-    if (event.scheduledAt != null) {
-      formData['scheduledAt'] = event.scheduledAt;
+    if (event.startDate != null) {
+      formData['startDate'] = event.startDate;
     }
 
     if (coverImage != null) {

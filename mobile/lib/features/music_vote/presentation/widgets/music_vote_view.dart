@@ -4,6 +4,7 @@ import 'package:music_room/features/music_vote/presentation/state/music_vote_cub
 import 'package:music_room/features/music_vote/presentation/widgets/live_header.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/player_card.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/queue_section.dart';
+import 'package:music_room/features/music_vote/presentation/widgets/skeletons/music_vote_skeleton.dart';
 
 /// The primary scrollable view for the Live Music Vote room.
 ///
@@ -23,86 +24,78 @@ class MusicVoteView extends StatelessWidget {
       builder: (context, state) {
         // Loading state
         if (state.isLoading) {
-          return CustomScrollView(
-            physics: const BouncingScrollPhysics(),
-            slivers: [
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: _StickyHeaderDelegate(
-                  child: _HeaderBackground(
-                    child: LiveHeader(eventId: eventId),
-                  ),
-                ),
-              ),
-              const SliverFillRemaining(
-                hasScrollBody: false,
-                child: Center(child: CircularProgressIndicator()),
-              ),
-            ],
-          );
+          return const MusicVoteSkeleton();
         }
 
         // Error state (with retry)
         if (state.error != null && state.event == null) {
-          return CustomScrollView(
-            physics: const BouncingScrollPhysics(),
-            slivers: [
-              SliverPersistentHeader(
-                pinned: true,
-                delegate: _StickyHeaderDelegate(
-                  child: _HeaderBackground(
-                    child: LiveHeader(eventId: eventId),
+          return Scaffold(
+            body: SafeArea(
+              child: CustomScrollView(
+                physics: const BouncingScrollPhysics(),
+                slivers: [
+                  SliverPersistentHeader(
+                    pinned: true,
+                    delegate: _StickyHeaderDelegate(
+                      child: _HeaderBackground(
+                        child: LiveHeader(eventId: eventId),
+                      ),
+                    ),
                   ),
-                ),
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: _ErrorBody(
+                      message: state.error!,
+                      onRetry: eventId != null && eventId!.isNotEmpty
+                          ? () => context.read<MusicVoteCubit>().loadRoom(
+                              eventId!,
+                            )
+                          : null,
+                    ),
+                  ),
+                ],
               ),
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: _ErrorBody(
-                  message: state.error!,
-                  onRetry: eventId != null && eventId!.isNotEmpty
-                      ? () => context.read<MusicVoteCubit>().loadRoom(
-                          eventId!,
-                        )
-                      : null,
-                ),
-              ),
-            ],
+            ),
           );
         }
 
-        // Loaded state
+        // Loaded state (LIVE)
         final eventName = state.event?.name;
 
-        return CustomScrollView(
-          physics: const BouncingScrollPhysics(),
-          slivers: [
-            // ── Sticky header ────────────────────────────────────────────
-            SliverPersistentHeader(
-              pinned: true,
-              delegate: _StickyHeaderDelegate(
-                child: _HeaderBackground(
-                  child: LiveHeader(
-                    eventId: eventId,
-                    eventName: eventName,
+        return Scaffold(
+          body: SafeArea(
+            child: CustomScrollView(
+              physics: const BouncingScrollPhysics(),
+              slivers: [
+                // ── Sticky header ────────────────────────────────────────────
+                SliverPersistentHeader(
+                  pinned: true,
+                  delegate: _StickyHeaderDelegate(
+                    child: _HeaderBackground(
+                      child: LiveHeader(
+                        eventId: eventId,
+                        eventName: eventName,
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ),
 
-            // ── Player card (still mocked) ───────────────────────────────
-            const SliverToBoxAdapter(child: SizedBox(height: 8)),
-            const SliverToBoxAdapter(child: PlayerCard()),
-            const SliverToBoxAdapter(child: SizedBox(height: 24)),
+                // ── Player card (still mocked) ───────────────────────────────
+                const SliverToBoxAdapter(child: SizedBox(height: 8)),
+                const SliverToBoxAdapter(child: PlayerCard()),
+                const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
-            // ── Queue / Up Next ──────────────────────────────────────────
-            SliverToBoxAdapter(
-              child: QueueSection(
-                tracks: state.tracks,
-                eventId: eventId,
-              ),
+                // ── Queue / Up Next ──────────────────────────────────────────
+                SliverToBoxAdapter(
+                  child: QueueSection(
+                    tracks: state.tracks,
+                    eventId: eventId,
+                  ),
+                ),
+                const SliverToBoxAdapter(child: SizedBox(height: 32)),
+              ],
             ),
-            const SliverToBoxAdapter(child: SizedBox(height: 32)),
-          ],
+          ),
         );
       },
     );
@@ -183,8 +176,12 @@ class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
   }
 
   @override
-  bool shouldRebuild(covariant _StickyHeaderDelegate oldDelegate) =>
-      oldDelegate.child != child;
+  bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) {
+    return oldDelegate is! _StickyHeaderDelegate ||
+        oldDelegate.child != child ||
+        oldDelegate.minExtent != minExtent ||
+        oldDelegate.maxExtent != maxExtent;
+  }
 }
 
 /// Adds the scaffold background color behind the sticky header so it

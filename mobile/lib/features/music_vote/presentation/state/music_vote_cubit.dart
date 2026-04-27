@@ -12,6 +12,8 @@ class MusicVoteState {
   const MusicVoteState({
     this.isLoading = false,
     this.isAddingTrack = false,
+    this.isStartingEvent = false,
+    this.isEndingEvent = false,
     this.error,
     this.event,
     this.tracks = const [],
@@ -19,6 +21,8 @@ class MusicVoteState {
 
   final bool isLoading;
   final bool isAddingTrack;
+  final bool isStartingEvent;
+  final bool isEndingEvent;
   final String? error;
   final EventDetailModel? event;
   final List<EventTrackModel> tracks;
@@ -26,6 +30,8 @@ class MusicVoteState {
   MusicVoteState copyWith({
     bool? isLoading,
     bool? isAddingTrack,
+    bool? isStartingEvent,
+    bool? isEndingEvent,
     String? error,
     EventDetailModel? event,
     List<EventTrackModel>? tracks,
@@ -34,6 +40,8 @@ class MusicVoteState {
     return MusicVoteState(
       isLoading: isLoading ?? this.isLoading,
       isAddingTrack: isAddingTrack ?? this.isAddingTrack,
+      isStartingEvent: isStartingEvent ?? this.isStartingEvent,
+      isEndingEvent: isEndingEvent ?? this.isEndingEvent,
       error: clearError ? null : (error ?? this.error),
       event: event ?? this.event,
       tracks: tracks ?? this.tracks,
@@ -125,6 +133,80 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
         state.copyWith(
           isAddingTrack: false,
           error: 'Unable to add track.',
+        ),
+      );
+    }
+  }
+
+  /// Transitions the event from UPCOMING → LIVE.
+  ///
+  /// Calls POST /events/{id}/start and updates the local state
+  /// with the returned event so the UI switches to the LIVE view.
+  Future<void> startEvent(String eventId) async {
+    emit(state.copyWith(isStartingEvent: true, clearError: true));
+
+    try {
+      final updatedEvent = await _remoteDataSource.startEvent(eventId);
+
+      if (isClosed) return;
+
+      emit(
+        state.copyWith(
+          isStartingEvent: false,
+          event: updatedEvent,
+        ),
+      );
+    } on DioException catch (e) {
+      if (isClosed) return;
+      emit(
+        state.copyWith(
+          isStartingEvent: false,
+          error: _extractDioMessage(e),
+        ),
+      );
+    } on Object {
+      if (isClosed) return;
+      emit(
+        state.copyWith(
+          isStartingEvent: false,
+          error: 'Unable to start event.',
+        ),
+      );
+    }
+  }
+
+  /// Transitions the event from LIVE → ENDED.
+  ///
+  /// Calls POST /events/{id}/end and updates the local state
+  /// with the returned event so the UI reflects the ended state.
+  Future<void> endEvent(String eventId) async {
+    emit(state.copyWith(isEndingEvent: true, clearError: true));
+
+    try {
+      final updatedEvent = await _remoteDataSource.endEvent(eventId);
+
+      if (isClosed) return;
+
+      emit(
+        state.copyWith(
+          isEndingEvent: false,
+          event: updatedEvent,
+        ),
+      );
+    } on DioException catch (e) {
+      if (isClosed) return;
+      emit(
+        state.copyWith(
+          isEndingEvent: false,
+          error: _extractDioMessage(e),
+        ),
+      );
+    } on Object {
+      if (isClosed) return;
+      emit(
+        state.copyWith(
+          isEndingEvent: false,
+          error: 'Unable to end event.',
         ),
       );
     }
