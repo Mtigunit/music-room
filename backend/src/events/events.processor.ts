@@ -87,7 +87,7 @@ export class EventsProcessor extends WorkerHost {
     this.eventsGateway.server.to(roomName).emit(WS_EVENTS.ENDED, {
       reason: 'host_unreachable',
     });
-    this.eventsGateway.server.in(roomName).disconnectSockets(true);
+    this.eventsGateway.server.in(roomName).socketsLeave(roomName);
 
     await client.del(
       REDIS_KEYS.HOST_DISCONNECT(eventId),
