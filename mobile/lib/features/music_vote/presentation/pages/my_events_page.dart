@@ -7,10 +7,9 @@ import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/events/data/datasources/event_remote_datasource.dart';
 import 'package:music_room/features/events/presentation/pages/create_event_page.dart';
 import 'package:music_room/features/music_vote/data/models/my_event_item.dart';
-import 'package:music_room/features/music_vote/presentation/pages/music_vote_page.dart';
-import 'package:music_room/features/music_vote/presentation/pages/pre_event_page.dart';
 import 'package:music_room/features/music_vote/presentation/state/my_events_cubit.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/my_event_list_tile.dart';
+import 'package:music_room/routes/route_names.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 /// The "My Events" dashboard page.
@@ -344,18 +343,16 @@ class _EventListTab extends StatelessWidget {
   void _enterRoom(BuildContext context, String eventId, String status) {
     if (status == 'UPCOMING' || status == 'ENDED') {
       unawaited(
-        Navigator.of(context).push<void>(
-          MaterialPageRoute<void>(
-            builder: (_) => PreEventPage(eventId: eventId),
-          ),
+        Navigator.of(context).pushNamed(
+          RouteNames.preEvent,
+          arguments: eventId,
         ),
       );
     } else {
       unawaited(
-        Navigator.of(context).push<void>(
-          MaterialPageRoute<void>(
-            builder: (_) => MusicVotePage(eventId: eventId),
-          ),
+        Navigator.of(context).pushNamed(
+          RouteNames.musicVote,
+          arguments: eventId,
         ),
       );
     }

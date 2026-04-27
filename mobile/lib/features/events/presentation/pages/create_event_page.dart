@@ -274,7 +274,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                         if (state is CreateEventSuccess) {
                           unawaited(
                             Navigator.of(context).pushReplacementNamed(
-                              RouteNames.musicVote,
+                              RouteNames.preEvent,
                               arguments: state.eventId,
                             ),
                           );
