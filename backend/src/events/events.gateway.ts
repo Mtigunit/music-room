@@ -70,30 +70,39 @@ export class EventsGateway implements OnGatewayDisconnect {
     }
   }
 
+  private async removeExistingTimeoutJob(jobId: string) {
+    const existingJob = await this.eventTimeoutsQueue.getJob(jobId);
+    if (existingJob) {
+      await existingJob.remove();
+    }
+  }
+
   private async startHostGracePeriod(eventId: string, userId: string) {
     const redisClient = this.redisService.getClient();
+    const softTimeoutJobId = `soft-${eventId}`;
+    const hardTimeoutJobId = `hard-${eventId}`;
     this.logger.log(
       `Host ${userId} disconnected or left event ${eventId}, starting grace period.`,
     );
     await redisClient.setex(REDIS_KEYS.HOST_DISCONNECT(eventId), 95, userId);
-
+    await this.removeExistingTimeoutJob(softTimeoutJobId);
     await this.eventTimeoutsQueue.add(
       BULL_JOBS.HOST_SOFT_TIMEOUT,
       { eventId, userId },
       {
         delay: BULL_JOBS.SOFT_TIMEOUT,
-        jobId: `soft-${eventId}`,
+        jobId: softTimeoutJobId,
         removeOnComplete: true,
         removeOnFail: true,
       },
     );
-
+    await this.removeExistingTimeoutJob(hardTimeoutJobId);
     await this.eventTimeoutsQueue.add(
       BULL_JOBS.HOST_HARD_TIMEOUT,
       { eventId, userId },
       {
         delay: BULL_JOBS.HARD_TIMEOUT,
-        jobId: `hard-${eventId}`,
+        jobId: hardTimeoutJobId,
         removeOnComplete: true,
         removeOnFail: true,
       },
@@ -293,6 +302,17 @@ export class EventsGateway implements OnGatewayDisconnect {
 
     const eventId = payload.eventId;
     const userId = user.id;
+
+    const existingLiveEvent = await this.prisma.event.findFirst({
+      where: {
+        hostId: userId,
+        status: EventStatus.LIVE,
+        id: { not: eventId },
+      },
+    });
+    if (existingLiveEvent) {
+      throw new WsException('Forbidden: Host already has another live event');
+    }
 
     const event = await this.prisma.event.findUnique({
       where: { id: eventId },
