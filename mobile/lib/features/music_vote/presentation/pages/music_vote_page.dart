@@ -31,11 +31,7 @@ class MusicVotePage extends StatelessWidget {
         }
         return cubit;
       },
-      child: Scaffold(
-        body: SafeArea(
-          child: MusicVoteView(eventId: eventId),
-        ),
-      ),
+      child: MusicVoteView(eventId: eventId),
     );
   }
 }

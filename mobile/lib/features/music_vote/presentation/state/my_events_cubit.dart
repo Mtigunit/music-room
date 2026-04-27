@@ -47,7 +47,16 @@ class MyEventsCubit extends Cubit<MyEventsState> {
   /// emits [MyEventsSuccess] (or [MyEventsError] on failure).
   Future<void> fetchEvents() async {
     emit(MyEventsLoading());
+    await _doFetch();
+  }
 
+  /// Silently fetches both the invited and hosted event lists in the background
+  /// without emitting [MyEventsLoading]. Replaces the old lists upon success.
+  Future<void> refreshEvents() async {
+    await _doFetch();
+  }
+
+  Future<void> _doFetch() async {
     try {
       final results = await Future.wait([
         _remoteDataSource.fetchInvitedEvents(),
@@ -64,10 +73,14 @@ class MyEventsCubit extends Cubit<MyEventsState> {
       );
     } on DioException catch (e) {
       if (isClosed) return;
-      emit(MyEventsError(_extractDioMessage(e)));
+      if (state is! MyEventsSuccess) {
+        emit(MyEventsError(_extractDioMessage(e)));
+      }
     } on Object {
       if (isClosed) return;
-      emit(MyEventsError('Unable to load events right now.'));
+      if (state is! MyEventsSuccess) {
+        emit(MyEventsError('Unable to load events right now.'));
+      }
     }
   }
 

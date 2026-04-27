@@ -5,11 +5,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/widgets/empty_state_widget.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/events/data/datasources/event_remote_datasource.dart';
-import 'package:music_room/features/events/data/models/my_event_item.dart';
 import 'package:music_room/features/events/presentation/pages/create_event_page.dart';
-import 'package:music_room/features/events/presentation/state/my_events_cubit.dart';
-import 'package:music_room/features/events/presentation/widgets/my_event_list_tile.dart';
+import 'package:music_room/features/music_vote/data/models/my_event_item.dart';
 import 'package:music_room/features/music_vote/presentation/pages/music_vote_page.dart';
+import 'package:music_room/features/music_vote/presentation/pages/pre_event_page.dart';
+import 'package:music_room/features/music_vote/presentation/state/my_events_cubit.dart';
+import 'package:music_room/features/music_vote/presentation/widgets/my_event_list_tile.dart';
+import 'package:visibility_detector/visibility_detector.dart';
 
 /// The "My Events" dashboard page.
 ///
@@ -28,7 +30,19 @@ class MyEventsPage extends StatelessWidget {
         unawaited(cubit.fetchEvents());
         return cubit;
       },
-      child: const _MyEventsBody(),
+      child: Builder(
+        builder: (context) {
+          return VisibilityDetector(
+            key: const Key('my-events-page'),
+            onVisibilityChanged: (info) {
+              if (info.visibleFraction > 0) {
+                unawaited(context.read<MyEventsCubit>().refreshEvents());
+              }
+            },
+            child: const _MyEventsBody(),
+          );
+        },
+      ),
     );
   }
 }
@@ -236,6 +250,7 @@ class _PremiumTabBar extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
       ),
       child: TabBar(
+        onTap: (_) => context.read<MyEventsCubit>().refreshEvents(),
         indicator: BoxDecoration(
           color: colorScheme.primary,
           borderRadius: BorderRadius.circular(10),
@@ -262,7 +277,7 @@ class _PremiumTabBar extends StatelessWidget {
         ),
         labelPadding: EdgeInsets.zero,
         tabs: const [
-          Tab(text: 'Invited'), // TASK 1: renamed from "Attending"
+          Tab(text: 'Invited'),
           Tab(text: 'Hosting'),
         ],
       ),
@@ -292,35 +307,57 @@ class _EventListTab extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (events.isEmpty) {
-      return EmptyStateWidget(
-        icon: emptyIcon,
-        message: emptyMessage,
-        actionLabel: emptyActionLabel,
-        onActionPressed: onEmptyAction,
+      return RefreshIndicator(
+        onRefresh: () => context.read<MyEventsCubit>().refreshEvents(),
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: SizedBox(
+            height: MediaQuery.of(context).size.height * 0.5,
+            child: EmptyStateWidget(
+              icon: emptyIcon,
+              message: emptyMessage,
+              actionLabel: emptyActionLabel,
+              onActionPressed: onEmptyAction,
+            ),
+          ),
+        ),
       );
     }
 
-    return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
-      itemCount: events.length,
-      separatorBuilder: (_, index) => const SizedBox(height: 10),
-      itemBuilder: (context, index) {
-        final event = events[index];
-        return MyEventListTile(
-          event: event,
-          onTap: () => _enterRoom(context, event.id),
-        );
-      },
+    return RefreshIndicator(
+      onRefresh: () => context.read<MyEventsCubit>().refreshEvents(),
+      child: ListView.builder(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.only(top: 16, bottom: 32),
+        itemCount: events.length,
+        itemBuilder: (context, index) {
+          final event = events[index];
+          return MyEventListTile(
+            event: event,
+            onTap: () => _enterRoom(context, event.id, event.status),
+          );
+        },
+      ),
     );
   }
 
-  void _enterRoom(BuildContext context, String eventId) {
-    unawaited(
-      Navigator.of(context).push<void>(
-        MaterialPageRoute<void>(
-          builder: (_) => MusicVotePage(eventId: eventId),
+  void _enterRoom(BuildContext context, String eventId, String status) {
+    if (status == 'UPCOMING' || status == 'ENDED') {
+      unawaited(
+        Navigator.of(context).push<void>(
+          MaterialPageRoute<void>(
+            builder: (_) => PreEventPage(eventId: eventId),
+          ),
         ),
-      ),
-    );
+      );
+    } else {
+      unawaited(
+        Navigator.of(context).push<void>(
+          MaterialPageRoute<void>(
+            builder: (_) => MusicVotePage(eventId: eventId),
+          ),
+        ),
+      );
+    }
   }
 }

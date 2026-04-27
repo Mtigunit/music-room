@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:music_room/core/theme/app_theme.dart';
-import 'package:music_room/features/music_vote/presentation/widgets/mock_data.dart';
 
 /// The premium album-art player card.
 ///
@@ -86,7 +85,7 @@ class _PlayerCardState extends State<PlayerCard>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        mockNowPlaying.title,
+                        'No Track Playing',
                         style: textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.w800,
                           fontSize: 20,
@@ -96,10 +95,13 @@ class _PlayerCardState extends State<PlayerCard>
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        mockNowPlaying.artist,
+                        'Waiting for music...',
                         style: textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onSurface.withValues(alpha: 0.55),
+                          color: colorScheme.onSurface.withValues(alpha: 0.6),
+                          fontWeight: FontWeight.w500,
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ],
                   ),
@@ -287,8 +289,8 @@ class _SynthwavePainter extends CustomPainter {
       ..shader =
           RadialGradient(
             colors: [
-              const Color(0xFF00BCD4).withValues(alpha: 0.3),
-              const Color(0xFF006080).withValues(alpha: 0.1),
+              const Color(0xFF7C3AED).withValues(alpha: 0.4),
+              const Color(0xFF7C3AED).withValues(alpha: 0.1),
             ],
           ).createShader(
             Rect.fromCircle(
@@ -386,7 +388,7 @@ class _ProgressBar extends StatelessWidget {
                 ),
               ),
               Text(
-                mockNowPlaying.duration,
+                '0:00',
                 style: textTheme.bodySmall?.copyWith(
                   color: colorScheme.onSurface.withValues(alpha: 0.5),
                   fontSize: 11,

@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/widgets/dynamic_search_bottom_sheet.dart';
@@ -122,9 +121,6 @@ class _QueueSectionState extends State<QueueSection> {
                           _voteCounts[track.id] = currentVotes + 1;
                         }
                       });
-                      if (kDebugMode) {
-                        debugPrint('Voted for: ${track.title}');
-                      }
                     },
                   ),
                 );
