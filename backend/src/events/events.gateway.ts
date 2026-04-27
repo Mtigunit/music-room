@@ -341,11 +341,13 @@ export class EventsGateway implements OnGatewayDisconnect {
     });
 
     const redisClient = this.redisService.getClient();
-    await redisClient.del([
-      REDIS_KEYS.EVENT_HOST(eventId),
-      REDIS_KEYS.HOST_SOCKET(eventId),
-      REDIS_KEYS.HOST_DISCONNECT(eventId),
-    ]);
+    await redisClient.del(
+      ...[
+        REDIS_KEYS.EVENT_HOST(eventId),
+        REDIS_KEYS.HOST_SOCKET(eventId),
+        REDIS_KEYS.HOST_DISCONNECT(eventId),
+      ],
+    );
 
     const roomName = `event_${eventId}`;
     this.server.to(roomName).emit(WS_EVENTS.ENDED, { reason: 'host_ended' });

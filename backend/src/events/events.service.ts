@@ -51,7 +51,9 @@ export class EventsService {
       const metadata = await this.youtubeService.getTrackDetailsBatch(
         uniqueProviderTrackIds,
       );
-      fetchedTracks = metadata.filter((t) => t !== null);
+      fetchedTracks = metadata.filter(
+        (t): t is TrackSearchResultDto => t !== null,
+      );
     }
     const event = await this.eventsRepository.createEvent(
       userId,
@@ -151,7 +153,9 @@ export class EventsService {
       const metadata = await this.youtubeService.getTrackDetailsBatch(
         uniqueProviderTrackIds,
       );
-      fetchedTracks = metadata.filter((t) => t !== null);
+      fetchedTracks = metadata.filter(
+        (t): t is TrackSearchResultDto => t !== null,
+      );
     }
 
     return this.eventsRepository.updateEvent(

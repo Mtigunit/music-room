@@ -77,7 +77,6 @@ describe('EventsService', () => {
           id: 'invite-1',
           eventId,
           userId: invitedUserId,
-          status: 'pending',
           createdAt: new Date(),
         } as any);
 
