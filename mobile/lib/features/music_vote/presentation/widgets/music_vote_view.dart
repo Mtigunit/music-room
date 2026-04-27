@@ -24,7 +24,7 @@ class MusicVoteView extends StatelessWidget {
       builder: (context, state) {
         // Loading state
         if (state.isLoading) {
-          return MusicVoteSkeleton(eventId: eventId);
+          return const MusicVoteSkeleton();
         }
 
         // Error state (with retry)
@@ -177,7 +177,10 @@ class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) {
-    return true;
+    return oldDelegate is! _StickyHeaderDelegate ||
+        oldDelegate.child != child ||
+        oldDelegate.minExtent != minExtent ||
+        oldDelegate.maxExtent != maxExtent;
   }
 }
 

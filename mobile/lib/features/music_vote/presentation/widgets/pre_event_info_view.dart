@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:music_room/core/config/app_config.dart';
+import 'package:music_room/core/widgets/app_snackbar.dart';
 import 'package:music_room/core/widgets/dynamic_search_bottom_sheet.dart';
 import 'package:music_room/core/widgets/track_search_list_tile.dart';
 import 'package:music_room/di/injection_container.dart';
@@ -525,12 +526,12 @@ class _EventInfoSection extends StatelessWidget {
 
   String _formatStartDate(DateTime date) {
     final now = DateTime.now();
-    final isToday =
-        date.year == now.year && date.month == now.month && date.day == now.day;
-    final isTomorrow =
-        date.year == now.year &&
-        date.month == now.month &&
-        date.day == now.day + 1;
+    final today = DateTime(now.year, now.month, now.day);
+    final tomorrow = today.add(const Duration(days: 1));
+    final dateOnly = DateTime(date.year, date.month, date.day);
+
+    final isToday = dateOnly == today;
+    final isTomorrow = dateOnly == tomorrow;
 
     final timeStr = DateFormat.jm().format(date);
 
@@ -869,7 +870,16 @@ class _StartEventBottomBar extends StatelessWidget {
       child: SafeArea(
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-          child: BlocBuilder<MusicVoteCubit, MusicVoteState>(
+          child: BlocConsumer<MusicVoteCubit, MusicVoteState>(
+            listenWhen: (prev, curr) =>
+                prev.isStartingEvent &&
+                !curr.isStartingEvent &&
+                curr.error != null,
+            listener: (context, state) {
+              if (state.error != null) {
+                AppSnackbar.showError(context, state.error!);
+              }
+            },
             buildWhen: (prev, curr) =>
                 prev.isStartingEvent != curr.isStartingEvent,
             builder: (context, state) {

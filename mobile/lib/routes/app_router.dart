@@ -60,8 +60,11 @@ class AppRouter {
     }
 
     if (routeName == RouteNames.preEvent) {
+      if (arguments is! String || arguments.trim().isEmpty) {
+        return _unknownRoutePage('$routeName (missing or invalid eventId)');
+      }
       return PreEventPage(
-        eventId: arguments is String ? arguments : '',
+        eventId: arguments,
       );
     }
 

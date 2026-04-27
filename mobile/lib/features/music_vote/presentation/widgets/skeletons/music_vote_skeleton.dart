@@ -3,9 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 class MusicVoteSkeleton extends StatefulWidget {
-  const MusicVoteSkeleton({required this.eventId, super.key});
-
-  final String? eventId;
+  const MusicVoteSkeleton({super.key});
 
   @override
   State<MusicVoteSkeleton> createState() => _MusicVoteSkeletonState();
@@ -234,6 +232,6 @@ class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) {
-    return true;
+    return oldDelegate is! _StickyHeaderDelegate || oldDelegate.child != child;
   }
 }

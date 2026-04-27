@@ -25,7 +25,17 @@ class PreEventPage extends StatelessWidget {
         unawaited(cubit.loadRoom(eventId));
         return cubit;
       },
-      child: BlocBuilder<MusicVoteCubit, MusicVoteState>(
+      child: BlocConsumer<MusicVoteCubit, MusicVoteState>(
+        listenWhen: (prev, curr) =>
+            prev.event?.status != 'LIVE' && curr.event?.status == 'LIVE',
+        listener: (context, state) {
+          unawaited(
+            Navigator.of(context).pushReplacementNamed(
+              '/music-vote',
+              arguments: eventId,
+            ),
+          );
+        },
         builder: (context, state) {
           if (state.isLoading || state.event == null) {
             if (state.error != null) {

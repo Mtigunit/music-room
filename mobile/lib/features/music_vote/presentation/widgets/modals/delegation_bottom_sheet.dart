@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:music_room/core/widgets/app_snackbar.dart';
 import 'package:music_room/features/music_vote/presentation/state/music_vote_cubit.dart';
 
 class _MockDelegateUser {
@@ -516,9 +517,18 @@ class _EndEventTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
-    return BlocBuilder<MusicVoteCubit, MusicVoteState>(
+    return BlocConsumer<MusicVoteCubit, MusicVoteState>(
+      listenWhen: (prev, curr) =>
+          prev.isEndingEvent && !curr.isEndingEvent && curr.error != null,
+      listener: (context, state) {
+        if (state.error != null) {
+          AppSnackbar.showError(context, state.error!);
+        }
+      },
       buildWhen: (prev, curr) => prev.isEndingEvent != curr.isEndingEvent,
       builder: (context, state) {
+        final isDisabled = eventId.isEmpty || state.isEndingEvent;
+
         return ListTile(
           contentPadding: const EdgeInsets.symmetric(horizontal: 20),
           leading: state.isEndingEvent
@@ -530,23 +540,26 @@ class _EndEventTile extends StatelessWidget {
                     color: Colors.red,
                   ),
                 )
-              : const Icon(Icons.stop_circle, color: Colors.red),
+              : Icon(
+                  Icons.stop_circle,
+                  color: isDisabled ? Colors.grey : Colors.red,
+                ),
           title: Text(
             'End Event',
             style: textTheme.bodyLarge?.copyWith(
               fontWeight: FontWeight.w600,
-              color: Colors.red,
+              color: isDisabled ? Colors.grey : Colors.red,
             ),
           ),
           subtitle: Text(
             'Stop the event and end all playback',
             style: textTheme.bodySmall?.copyWith(
-              color: Colors.red.withValues(alpha: 0.6),
+              color: isDisabled
+                  ? Colors.grey.withValues(alpha: 0.6)
+                  : Colors.red.withValues(alpha: 0.6),
             ),
           ),
-          onTap: state.isEndingEvent
-              ? null
-              : () => _showEndConfirmation(context),
+          onTap: isDisabled ? null : () => _showEndConfirmation(context),
         );
       },
     );

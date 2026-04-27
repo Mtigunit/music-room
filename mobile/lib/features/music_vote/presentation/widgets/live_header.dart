@@ -138,9 +138,8 @@ class LiveHeader extends StatelessWidget {
   }
 
   void _showManageRoomSheet(BuildContext context) {
-    final resolvedEventId = (eventId != null && eventId!.isNotEmpty)
-        ? eventId!
-        : '';
+    if (eventId == null || eventId!.isEmpty) return;
+    final resolvedEventId = eventId!;
 
     unawaited(
       showModalBottomSheet<void>(
