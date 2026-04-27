@@ -516,17 +516,13 @@ export class EventsRepository {
   }
 
   async createEventTrack(eventId: string, trackId: string, addedById: string) {
-    await this.prisma.eventTrack.create({
+    return await this.prisma.eventTrack.create({
       data: {
         eventId,
         trackId,
         addedById,
         status: TrackStatus.QUEUED,
       },
-    });
-
-    return this.prisma.eventTrack.findFirst({
-      where: { eventId, trackId },
       include: { track: true },
     });
   }

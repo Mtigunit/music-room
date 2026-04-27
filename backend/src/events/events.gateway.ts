@@ -73,7 +73,11 @@ export class EventsGateway implements OnGatewayDisconnect {
   private async removeExistingTimeoutJob(jobId: string) {
     const existingJob = await this.eventTimeoutsQueue.getJob(jobId);
     if (existingJob) {
-      await existingJob.remove();
+      existingJob.remove().catch((error: Error) => {
+        this.logger.error(
+          `Failed to remove existing timeout job with ID ${jobId} | Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        );
+      });
     }
   }
 
@@ -84,7 +88,11 @@ export class EventsGateway implements OnGatewayDisconnect {
     this.logger.log(
       `Host ${userId} disconnected or left event ${eventId}, starting grace period.`,
     );
-    await redisClient.setex(REDIS_KEYS.HOST_DISCONNECT(eventId), 95, userId);
+    await redisClient.setex(
+      REDIS_KEYS.HOST_DISCONNECT(eventId),
+      (BULL_JOBS.SOFT_TIMEOUT + BULL_JOBS.HARD_TIMEOUT) / 1000,
+      userId,
+    );
     await this.removeExistingTimeoutJob(softTimeoutJobId);
     await this.eventTimeoutsQueue.add(
       BULL_JOBS.HOST_SOFT_TIMEOUT,
@@ -223,7 +231,12 @@ export class EventsGateway implements OnGatewayDisconnect {
       if (softJob) await softJob.remove();
 
       const hardJob = await this.eventTimeoutsQueue.getJob(`hard-${eventId}`);
-      if (hardJob) await hardJob.remove();
+      if (hardJob)
+        await hardJob.remove().catch((error: Error) => {
+          this.logger.error(
+            `Failed to remove hard timeout job for event ${eventId} | Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          );
+        });
 
       const roomName = `event_${eventId}`;
       this.server
