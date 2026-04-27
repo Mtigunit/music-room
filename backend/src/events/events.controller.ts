@@ -249,34 +249,6 @@ export class EventsController {
     return this.eventsService.remove(id, userId);
   }
 
-  @Post(':id/start')
-  @ApiOperation({ summary: 'Start an event' })
-  @ApiParam({ name: 'id', type: String })
-  @ApiResponse({ status: 200, description: 'Event started.' })
-  @ApiResponse({
-    status: 403,
-    description: 'Forbidden. Only the host can start this event.',
-  })
-  @ApiResponse({ status: 404, description: 'Event not found.' })
-  startEvent(@Param('id', ParseUUIDPipe) id: string, @Req() req: Request) {
-    const userId = (req.user as { id: string }).id;
-    return this.eventsService.startEvent(id, userId);
-  }
-
-  @Post(':id/end')
-  @ApiOperation({ summary: 'End an event' })
-  @ApiParam({ name: 'id', type: String })
-  @ApiResponse({ status: 200, description: 'Event ended.' })
-  @ApiResponse({
-    status: 403,
-    description: 'Forbidden. Only the host can end this event.',
-  })
-  @ApiResponse({ status: 404, description: 'Event not found.' })
-  endEvent(@Param('id', ParseUUIDPipe) id: string, @Req() req: Request) {
-    const userId = (req.user as { id: string }).id;
-    return this.eventsService.endEvent(id, userId);
-  }
-
   @Post(':eventId/tracks')
   @ApiOperation({ summary: 'Append a track to an event' })
   @ApiParam({ name: 'eventId', type: String })

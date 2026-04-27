@@ -13,7 +13,7 @@ import { EventsGateway } from './events.gateway';
 import { AUDIT_LOG_EVENT, AuditAction } from '../audit-log/audit-log.constants';
 import type { AuditLogEvent } from '../audit-log/audit-log.event';
 import { YoutubeService } from '../tracks/youtube.service';
-import { Visibility, EventStatus } from '@prisma/client';
+import { Visibility } from '@prisma/client';
 import { TrackSearchResultDto } from '../tracks/dto/track-search-result.dto';
 
 @Injectable()
@@ -371,57 +371,5 @@ export class EventsService {
     } satisfies AuditLogEvent);
 
     return result;
-  }
-
-  async startEvent(eventId: string, userId: string) {
-    const event = await this.eventsRepository.findById(eventId);
-    if (!event) {
-      throw new NotFoundException('Event not found');
-    }
-    if (event.hostId !== userId) {
-      throw new ForbiddenException('Forbidden: Only host can start the room');
-    }
-    if (event.status === EventStatus.LIVE) {
-      throw new ForbiddenException('Forbidden: Event is already live');
-    }
-
-    const updatedEvent = await this.eventsRepository.updateStatus(
-      eventId,
-      EventStatus.LIVE,
-      new Date(),
-    );
-
-    const roomName = `event_${eventId}`;
-    await this.eventsGateway.joinUserToRoom(userId, roomName);
-    this.eventsGateway.server.to(roomName).emit('event:start', {
-      eventId,
-      status: EventStatus.LIVE,
-      startDate: updatedEvent.startDate,
-    });
-    return updatedEvent;
-  }
-
-  async endEvent(eventId: string, userId: string) {
-    const event = await this.eventsRepository.findById(eventId);
-    if (!event) {
-      throw new NotFoundException('Event not found');
-    }
-    if (event.hostId !== userId) {
-      throw new ForbiddenException('Forbidden: Only host can end the event');
-    }
-    if (event.status !== EventStatus.LIVE) {
-      throw new ForbiddenException('Forbidden: Event is not live');
-    }
-
-    const updatedEvent = await this.eventsRepository.updateStatus(
-      eventId,
-      EventStatus.ENDED,
-    );
-
-    const roomName = `event_${eventId}`;
-    this.eventsGateway.server.to(roomName).emit('event:end', { eventId });
-    this.eventsGateway.server.in(roomName).disconnectSockets(true);
-
-    return updatedEvent;
   }
 }
