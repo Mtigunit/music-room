@@ -11,6 +11,7 @@ import { OAuth2Client } from 'google-auth-library';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
 import type { User } from '@prisma/client';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 jest.mock('bcrypt');
 jest.mock('google-auth-library');
@@ -74,6 +75,10 @@ describe('AuthService', () => {
             }),
             get: jest.fn(),
           },
+        },
+        {
+          provide: EventEmitter2,
+          useValue: { emit: jest.fn() },
         },
       ],
     }).compile();

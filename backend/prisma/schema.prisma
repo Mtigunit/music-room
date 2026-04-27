@@ -305,9 +305,15 @@ model ControlDelegation {
 model AuditLog {
   id          String   @id @default(uuid())
   userId      String?
-  action      String
+  action      String   // Validated at app-level via AuditAction enum
   platform    String
   deviceModel String
   appVersion  String
+  metadata    Json?    @default("{}")  // Action-specific context (trackId, playlistId, etc.)
+  ipAddress   String?                  // For security auditing
   timestamp   DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([timestamp])
 }

@@ -1,10 +1,12 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AppRepository } from './app.repository';
+import { AuditLogModule } from './audit-log/audit-log.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { EventsModule } from './events/events.module';
@@ -23,10 +25,12 @@ import { RequestLoggerMiddleware } from './common/middleware/request-logger.midd
       isGlobal: true,
       validate,
     }),
+    EventEmitterModule.forRoot(),
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'uploads'),
       serveRoot: '/uploads',
     }),
+    AuditLogModule,
     AuthModule,
     UsersModule,
     EventsModule,
