@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { AuditLogRepository } from './audit-log.repository';
-import { AuditLogEvent } from './audit-log.event';
+import type { AuditLogEvent } from './audit-log.event';
 import { AUDIT_LOG_EVENT } from './audit-log.constants';
 
 /**

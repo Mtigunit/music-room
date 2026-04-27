@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
-import { AuditLogEvent } from './audit-log.event';
+import type { AuditLogEvent } from './audit-log.event';
 
 @Injectable()
 export class AuditLogRepository {
@@ -18,7 +18,9 @@ export class AuditLogRepository {
         platform: event.platform,
         deviceModel: event.deviceModel,
         appVersion: event.appVersion,
-        metadata: (event.metadata as Prisma.InputJsonObject) ?? Prisma.JsonNull,
+        ...(event.metadata !== undefined
+          ? { metadata: event.metadata as Prisma.InputJsonValue }
+          : {}),
         ipAddress: event.ipAddress ?? null,
       },
     });
