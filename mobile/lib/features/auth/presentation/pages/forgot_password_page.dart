@@ -156,6 +156,12 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
               context,
               'If an account exists, an OTP has been sent to the email.',
             );
+            if ((_requestedEmail ?? '').isEmpty) {
+              _requestedEmail = _trimmedEmail;
+            }
+            if (!_isOtpModalOpen) {
+              _showOtpVerificationModal();
+            }
           } else {
             AppSnackbar.showError(
               context,

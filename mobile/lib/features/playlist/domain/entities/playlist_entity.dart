@@ -5,6 +5,7 @@ class PlaylistEntity {
     required this.visibility,
     required this.trackCount,
     required this.tags,
+    required this.updatedAt,
     this.description,
     this.thumbnailUrl,
   });
@@ -14,6 +15,7 @@ class PlaylistEntity {
   final String visibility;
   final int trackCount;
   final List<String> tags;
+  final String updatedAt;
   final String? description;
   final String? thumbnailUrl;
 }
@@ -25,6 +27,7 @@ class PlaylistTrackEntity {
     required this.title,
     required this.durationMs,
     required this.position,
+    this.addedByUserId,
     this.artist,
     this.thumbnailUrl,
   });
@@ -34,6 +37,7 @@ class PlaylistTrackEntity {
   final String title;
   final int durationMs;
   final int position;
+  final String? addedByUserId;
   final String? artist;
   final String? thumbnailUrl;
 }
@@ -42,20 +46,24 @@ class PlaylistDetailsEntity {
   const PlaylistDetailsEntity({
     required this.id,
     required this.name,
+    required this.ownerUserId,
     required this.visibility,
     required this.editLicense,
     required this.tracks,
     required this.tags,
+    required this.updatedAt,
     this.description,
   });
 
   final String id;
   final String name;
+  final String ownerUserId;
   final String visibility;
   final String editLicense;
   final String? description;
   final List<PlaylistTrackEntity> tracks;
   final List<String> tags;
+  final String updatedAt;
 }
 
 class TrackSearchEntity {

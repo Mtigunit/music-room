@@ -9,6 +9,9 @@ import 'package:music_room/features/playlist/data/datasources/playlist_remote_da
 import 'package:music_room/features/playlist/domain/entities/playlist_entity.dart';
 import 'package:music_room/features/playlist/domain/types/playlist_tags.dart';
 import 'package:music_room/features/playlist/presentation/pages/create_playlist_page.dart';
+import 'package:music_room/features/playlist/presentation/state/playlist_bloc.dart';
+import 'package:music_room/features/playlist/presentation/state/playlist_event.dart';
+import 'package:music_room/features/playlist/presentation/state/playlist_state.dart';
 import 'package:music_room/features/playlist/presentation/widgets/playlist_track_search_modal.dart';
 import 'package:music_room/features/playlist/presentation/widgets/playlist_user_invite_bottom_sheet.dart';
 
@@ -30,36 +33,85 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage>
     with SingleTickerProviderStateMixin {
   final IPlaylistRemoteDataSource _playlistDataSource =
       InjectionContainer().playlistRemoteDataSource;
+  late final PlaylistBloc _playlistBloc;
+  StreamSubscription<PlaylistState>? _playlistStateSubscription;
   final TextEditingController _searchController = TextEditingController();
   late final AnimationController _speedDialController;
 
   PlaylistDetailsEntity? _details;
   bool _isLoading = true;
   bool _isAddingTrack = false;
+  bool _isOffline = false;
+  bool _showStaleWarning = false;
+  bool _isSyncing = false;
+  bool _isReordering = false;
   bool _isSpeedDialOpen = false;
+  String? _currentUserId;
+  Set<String> _removingTrackIds = <String>{};
   String? _errorMessage;
-  bool _shownUnsupportedReorderMessage = false;
-  bool _shownUnsupportedRemoveMessage = false;
 
   @override
   void initState() {
     super.initState();
     _speedDialController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 260),
-      reverseDuration: const Duration(milliseconds: 200),
+      duration: const Duration(
+        milliseconds: 260,
+      ),
+      reverseDuration: const Duration(
+        milliseconds: 200,
+      ),
+    );
+    _playlistBloc = InjectionContainer().createPlaylistBloc();
+    _playlistStateSubscription = _playlistBloc.stream.listen(
+      _onPlaylistState,
     );
     _searchController.addListener(_onSearchChanged);
-    unawaited(_loadPlaylistDetails());
+    _playlistBloc.add(
+      PlaylistOpened(widget.playlistId),
+    );
   }
 
   @override
   void dispose() {
+    unawaited(_playlistStateSubscription?.cancel());
+    unawaited(_playlistBloc.close());
     _speedDialController.dispose();
     _searchController
       ..removeListener(_onSearchChanged)
       ..dispose();
     super.dispose();
+  }
+
+  void _onPlaylistState(PlaylistState state) {
+    if (!mounted) {
+      return;
+    }
+
+    final messageChanged =
+        state.errorMessage != null &&
+        state.errorMessage != _errorMessage &&
+        state.status == PlaylistSyncStatus.ready;
+
+    setState(() {
+      _details = state.playlist;
+      _isLoading =
+          state.status == PlaylistSyncStatus.loading && state.playlist == null;
+      _isOffline = state.isOffline;
+      _showStaleWarning = state.showStaleWarning;
+      _isSyncing = state.isSyncing;
+      _isReordering = state.isReordering;
+      _currentUserId = state.currentUserId;
+      _removingTrackIds = state.removingTrackIds.toSet();
+      _errorMessage = state.status == PlaylistSyncStatus.error
+          ? (state.errorMessage ?? 'Unable to load playlist details right now.')
+          : null;
+    });
+
+    if (messageChanged) {
+      AppSnackbar.showInfo(context, state.errorMessage!);
+      _playlistBloc.add(const PlaylistSyncErrorCleared());
+    }
   }
 
   Future<void> _toggleSpeedDial() async {
@@ -97,35 +149,8 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage>
     }
   }
 
-  void _removeTrackLocally(String playlistTrackId) {
-    final details = _details;
-    if (details == null) {
-      return;
-    }
-
-    final updatedTracks = details.tracks
-        .where((track) => track.playlistTrackId != playlistTrackId)
-        .toList(growable: false);
-
-    setState(() {
-      _details = PlaylistDetailsEntity(
-        id: details.id,
-        name: details.name,
-        visibility: details.visibility,
-        editLicense: details.editLicense,
-        description: details.description,
-        tracks: updatedTracks,
-        tags: details.tags,
-      );
-    });
-
-    if (!_shownUnsupportedRemoveMessage) {
-      _shownUnsupportedRemoveMessage = true;
-      AppSnackbar.showInfo(
-        context,
-        'Track removal is local only for now (API not available yet).',
-      );
-    }
+  void _removeTrack(String playlistTrackId) {
+    _playlistBloc.add(PlaylistRemoveTrackRequested(playlistTrackId));
   }
 
   Future<void> _openPlaylistSettings() async {
@@ -134,8 +159,8 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage>
       return;
     }
 
-    final shouldRefresh = await Navigator.of(context).push<bool>(
-      MaterialPageRoute<bool>(
+    final result = await Navigator.of(context).push<Object?>(
+      MaterialPageRoute<Object?>(
         builder: (_) => CreatePlaylistPage(
           playlist: details,
           initialGenres: details.tags,
@@ -143,11 +168,21 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage>
       ),
     );
 
-    if (shouldRefresh != true || !mounted) {
+    if (!mounted || result == null) {
       return;
     }
 
-    await _loadPlaylistDetails();
+    if (result == 'deleted') {
+      AppSnackbar.showSuccess(context, 'Playlist deleted.');
+      Navigator.of(context).pop();
+      return;
+    }
+
+    if (result != true) {
+      return;
+    }
+
+    _playlistBloc.add(const PlaylistRefreshRequested());
   }
 
   Future<void> _openInviteUsersSheet() async {
@@ -163,53 +198,7 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage>
   }
 
   Future<void> _loadPlaylistDetails() async {
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    try {
-      final details = await _playlistDataSource.fetchPlaylistDetails(
-        widget.playlistId,
-      );
-
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _details = details;
-        _isLoading = false;
-      });
-    } on DioException catch (error) {
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _isLoading = false;
-        _errorMessage = _networkErrorMessage(error);
-      });
-    } on Object {
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _isLoading = false;
-        _errorMessage = 'Unable to load playlist details right now.';
-      });
-    }
-  }
-
-  String _networkErrorMessage(DioException error) {
-    if (error.response?.statusCode == 404) {
-      return 'Playlist not found.';
-    }
-    if (error.response?.statusCode == 403) {
-      return 'You do not have access to this playlist.';
-    }
-    return 'Unable to load playlist details right now.';
+    _playlistBloc.add(const PlaylistRefreshRequested());
   }
 
   List<PlaylistTrackEntity> get _visibleTracks {
@@ -233,8 +222,7 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage>
   }
 
   Future<void> _onReorder(int oldIndex, int newIndex) async {
-    final details = _details;
-    if (details == null) {
+    if (_isReordering) {
       return;
     }
 
@@ -245,85 +233,9 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage>
       );
       return;
     }
-
-    final originalTracks = List<PlaylistTrackEntity>.from(details.tracks);
-    final updatedTracks = List<PlaylistTrackEntity>.from(details.tracks);
-
-    var targetIndex = newIndex;
-    if (targetIndex > oldIndex) {
-      targetIndex -= 1;
-    }
-
-    final movedItem = updatedTracks.removeAt(oldIndex);
-    updatedTracks.insert(targetIndex, movedItem);
-
-    setState(() {
-      _details = PlaylistDetailsEntity(
-        id: details.id,
-        name: details.name,
-        visibility: details.visibility,
-        editLicense: details.editLicense,
-        description: details.description,
-        tracks: updatedTracks,
-        tags: details.tags,
-      );
-    });
-
-    try {
-      await _playlistDataSource.reorderPlaylistTracks(
-        widget.playlistId,
-        updatedTracks.map((item) => item.playlistTrackId).toList(),
-      );
-      _shownUnsupportedReorderMessage = false;
-    } on ReorderSyncNotSupportedException {
-      if (!_shownUnsupportedReorderMessage && mounted) {
-        _shownUnsupportedReorderMessage = true;
-        AppSnackbar.showInfo(
-          context,
-          'Backend reorder sync is not available yet. '
-          'The new order is local for now.',
-        );
-      }
-    } on DioException {
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _details = PlaylistDetailsEntity(
-          id: details.id,
-          name: details.name,
-          visibility: details.visibility,
-          editLicense: details.editLicense,
-          description: details.description,
-          tracks: originalTracks,
-          tags: details.tags,
-        );
-      });
-
-      AppSnackbar.showError(
-        context,
-        'Failed to reorder songs due to a network issue.',
-      );
-    } on Object {
-      if (!mounted) {
-        return;
-      }
-
-      setState(() {
-        _details = PlaylistDetailsEntity(
-          id: details.id,
-          name: details.name,
-          visibility: details.visibility,
-          editLicense: details.editLicense,
-          description: details.description,
-          tracks: originalTracks,
-          tags: details.tags,
-        );
-      });
-
-      AppSnackbar.showError(context, 'Failed to reorder songs.');
-    }
+    _playlistBloc.add(
+      PlaylistReorderRequested(oldIndex: oldIndex, newIndex: newIndex),
+    );
   }
 
   Future<void> _openAddSongs() async {
@@ -346,27 +258,12 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage>
     });
 
     try {
-      await _playlistDataSource.addTrackToPlaylist(widget.playlistId, track);
-
-      if (!mounted) {
-        return false;
+      _playlistBloc.add(PlaylistAddTrackRequested(track));
+      if (mounted) {
+        AppSnackbar.showSuccess(context, 'Song added to playlist.');
       }
-
-      AppSnackbar.showSuccess(context, 'Song added to playlist.');
-      await _loadPlaylistDetails();
       return true;
-    } on DioException catch (error) {
-      if (!mounted) {
-        return false;
-      }
-
-      final isNotFound = error.response?.statusCode == 404;
-      AppSnackbar.showError(
-        context,
-        isNotFound ? 'Song not found.' : 'Failed to add song to playlist.',
-      );
-      return false;
-    } on Object {
+    } on DioException {
       if (!mounted) {
         return false;
       }
@@ -437,9 +334,16 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage>
       floatingActionButton: _PlaylistSpeedDial(
         animation: _speedDialController,
         isOpen: _isSpeedDialOpen,
-        isAddingTrack: _isAddingTrack,
+        isAddingTrack: _isAddingTrack || _isOffline || _isReordering,
         onToggle: _toggleSpeedDial,
         onAddSongs: () async {
+          if (_isOffline) {
+            AppSnackbar.showInfo(
+              context,
+              'You are offline. Playlist is read-only.',
+            );
+            return;
+          }
           await _closeSpeedDial();
           unawaited(_openAddSongs());
         },
@@ -482,190 +386,318 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage>
       180.0,
       250.0,
     );
+    final isReadOnly = _isOffline;
+    final isInteractionLocked = _isOffline || _isReordering;
 
-    return CustomScrollView(
-      slivers: [
-        SliverToBoxAdapter(
-          child: Column(
-            children: [
-              _PlaylistHeroImage(
-                imageUrl: artworkUrl,
-                height: heroHeight + safeAreaTop,
+    return Stack(
+      children: [
+        Column(
+          children: [
+            if (_isOffline)
+              _SyncBanner(
+                text: 'You are offline. Playlist is read-only.',
+                background: colorScheme.errorContainer,
+                foreground: colorScheme.onErrorContainer,
               ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      details.name,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.displaySmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        height: 1.08,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '${details.tracks.length} tracks • '
-                      '${_formatPlaylistDuration(details.tracks)}',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        color: textMuted,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: tags
-                          .map(
-                            (tag) => Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: colorScheme.primary.withValues(
-                                  alpha: 0.1,
+            if (_showStaleWarning)
+              _SyncBanner(
+                text: 'This playlist may be outdated',
+                background: colorScheme.tertiaryContainer,
+                foreground: colorScheme.onTertiaryContainer,
+              ),
+            if (_isSyncing || _isReordering)
+              const LinearProgressIndicator(minHeight: 2),
+            Expanded(
+              child: AbsorbPointer(
+                absorbing: isInteractionLocked,
+                child: CustomScrollView(
+                  slivers: [
+                    SliverToBoxAdapter(
+                      child: Column(
+                        children: [
+                          _PlaylistHeroImage(
+                            imageUrl: artworkUrl,
+                            height: heroHeight + safeAreaTop,
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  details.name,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: theme.textTheme.displaySmall?.copyWith(
+                                    fontWeight: FontWeight.w800,
+                                    height: 1.08,
+                                  ),
                                 ),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                tag.displayLabel,
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: colorScheme.primary,
-                                  fontWeight: FontWeight.w600,
+                                const SizedBox(height: 8),
+                                Text(
+                                  '${details.tracks.length} tracks • '
+                                  '${_formatPlaylistDuration(details.tracks)}',
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    color: textMuted,
+                                    fontWeight: FontWeight.w600,
+                                  ),
+                                ),
+                                const SizedBox(height: 12),
+                                Wrap(
+                                  spacing: 6,
+                                  runSpacing: 6,
+                                  children: tags
+                                      .map(
+                                        (tag) => Container(
+                                          padding: const EdgeInsets.symmetric(
+                                            horizontal: 12,
+                                            vertical: 6,
+                                          ),
+                                          decoration: BoxDecoration(
+                                            color: colorScheme.primary
+                                                .withValues(
+                                                  alpha: 0.1,
+                                                ),
+                                            borderRadius: BorderRadius.circular(
+                                              20,
+                                            ),
+                                          ),
+                                          child: Text(
+                                            tag.displayLabel,
+                                            style: theme.textTheme.bodyMedium
+                                                ?.copyWith(
+                                                  color: colorScheme.primary,
+                                                  fontWeight: FontWeight.w600,
+                                                ),
+                                          ),
+                                        ),
+                                      )
+                                      .toList(growable: false),
+                                ),
+                                if (hasDescription) ...[
+                                  const SizedBox(height: 12),
+                                  Text(
+                                    description,
+                                    style: theme.textTheme.bodyLarge?.copyWith(
+                                      color: colorScheme.onSurface.withValues(
+                                        alpha: 0.78,
+                                      ),
+                                      height: 1.35,
+                                    ),
+                                  ),
+                                ],
+                                const SizedBox(height: 16),
+                                TextField(
+                                  controller: _searchController,
+                                  textInputAction: TextInputAction.search,
+                                  style: theme.textTheme.bodyLarge,
+                                  decoration: InputDecoration(
+                                    hintText: 'Search songs in playlist...',
+                                    hintStyle: theme.textTheme.bodyLarge
+                                        ?.copyWith(
+                                          color: textMuted,
+                                        ),
+                                    prefixIcon: Icon(
+                                      Icons.search,
+                                      color: textMuted,
+                                    ),
+                                    suffixIcon:
+                                        _searchController.text.trim().isNotEmpty
+                                        ? IconButton(
+                                            onPressed: _searchController.clear,
+                                            icon: Icon(
+                                              Icons.close,
+                                              color: textMuted,
+                                            ),
+                                          )
+                                        : null,
+                                    contentPadding: const EdgeInsets.symmetric(
+                                      vertical: 18,
+                                    ),
+                                    filled: true,
+                                    fillColor: colorScheme
+                                        .surfaceContainerHighest
+                                        .withValues(
+                                          alpha: 0.65,
+                                        ),
+                                    enabledBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(22),
+                                      borderSide: BorderSide(
+                                        color: borderColor,
+                                      ),
+                                    ),
+                                    focusedBorder: OutlineInputBorder(
+                                      borderRadius: BorderRadius.circular(22),
+                                      borderSide: BorderSide(
+                                        color: colorScheme.primary,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    if (tracks.isEmpty)
+                      SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: _EmptyTracksState(
+                          query: _searchController.text.trim(),
+                          onAddSong: _openAddSongs,
+                          isReadOnly: isReadOnly,
+                        ),
+                      )
+                    else
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+                        sliver: SliverToBoxAdapter(
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                'Tracks',
+                                style: theme.textTheme.headlineSmall?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  height: 1.05,
                                 ),
                               ),
-                            ),
-                          )
-                          .toList(growable: false),
-                    ),
-                    if (hasDescription) ...[
-                      const SizedBox(height: 12),
-                      Text(
-                        description,
-                        style: theme.textTheme.bodyLarge?.copyWith(
-                          color: colorScheme.onSurface.withValues(alpha: 0.78),
-                          height: 1.35,
-                        ),
-                      ),
-                    ],
-                    const SizedBox(height: 16),
-                    TextField(
-                      controller: _searchController,
-                      textInputAction: TextInputAction.search,
-                      style: theme.textTheme.bodyLarge,
-                      decoration: InputDecoration(
-                        hintText: 'Search songs in playlist...',
-                        hintStyle: theme.textTheme.bodyLarge?.copyWith(
-                          color: textMuted,
-                        ),
-                        prefixIcon: Icon(Icons.search, color: textMuted),
-                        suffixIcon: _searchController.text.trim().isNotEmpty
-                            ? IconButton(
-                                onPressed: _searchController.clear,
-                                icon: Icon(Icons.close, color: textMuted),
-                              )
-                            : null,
-                        contentPadding: const EdgeInsets.symmetric(
-                          vertical: 18,
-                        ),
-                        filled: true,
-                        fillColor: colorScheme.surfaceContainerHighest
-                            .withValues(
-                              alpha: 0.65,
-                            ),
-                        enabledBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(22),
-                          borderSide: BorderSide(
-                            color: borderColor,
+                              Text(
+                                _isOffline
+                                    ? 'Read-only'
+                                    : (_isReordering
+                                          ? 'Updating order...'
+                                          : 'Drag to reorder'),
+                                style: theme.textTheme.bodyLarge?.copyWith(
+                                  color: textMuted,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
-                        focusedBorder: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(22),
-                          borderSide: BorderSide(
-                            color: colorScheme.primary,
-                          ),
+                      ),
+                    if (tracks.isEmpty)
+                      const SliverToBoxAdapter(child: SizedBox.shrink())
+                    else
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                        sliver: SliverReorderableList(
+                          itemCount: tracks.length,
+                          onReorder: isInteractionLocked
+                              ? (_, _) {
+                                  AppSnackbar.showInfo(
+                                    context,
+                                    _isOffline
+                                        ? 'You are offline. '
+                                              'Playlist is read-only.'
+                                        : 'Please wait until '
+                                              'reordering completes.',
+                                  );
+                                }
+                              : _onReorder,
+                          itemBuilder: (context, index) {
+                            final track = tracks[index];
+                            final canRemove =
+                                _currentUserId != null &&
+                                track.addedByUserId == _currentUserId;
+                            final isRemoving = _removingTrackIds.contains(
+                              track.playlistTrackId,
+                            );
+                            return Padding(
+                              key: ValueKey<String>(track.playlistTrackId),
+                              padding: const EdgeInsets.symmetric(vertical: 6),
+                              child: _PlaylistTrackTile(
+                                dragIndex: index,
+                                track: track,
+                                formatDuration: _formatDuration,
+                                cardColor: cardColor,
+                                borderColor: borderColor,
+                                mutedTextColor: textMuted,
+                                iconColor: colorScheme.primary,
+                                canRemove: canRemove,
+                                isRemoving: isRemoving,
+                                onRemove: () {
+                                  if (!canRemove || isRemoving) {
+                                    return;
+                                  }
+                                  if (isReadOnly) {
+                                    AppSnackbar.showInfo(
+                                      context,
+                                      _isOffline
+                                          ? 'You are offline. '
+                                                'Playlist is read-only.'
+                                          : 'Please wait until '
+                                                'reordering completes.',
+                                    );
+                                    return;
+                                  }
+                                  _removeTrack(track.playlistTrackId);
+                                },
+                                onTap: () {
+                                  final detailsMessage =
+                                      '${track.title} • '
+                                      '${track.artist ?? 'Unknown artist'} • '
+                                      '${_formatDuration(track.durationMs)}';
+                                  AppSnackbar.showInfo(context, detailsMessage);
+                                },
+                              ),
+                            );
+                          },
                         ),
                       ),
-                    ),
                   ],
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
-        if (tracks.isEmpty)
-          SliverFillRemaining(
-            hasScrollBody: false,
-            child: _EmptyTracksState(
-              query: _searchController.text.trim(),
-              onAddSong: _openAddSongs,
-            ),
-          )
-        else
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-            sliver: SliverToBoxAdapter(
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Text(
-                    'Tracks',
-                    style: theme.textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w800,
-                      height: 1.05,
-                    ),
+        if (_isReordering)
+          Positioned.fill(
+            child: ColoredBox(
+              color: colorScheme.surface.withValues(alpha: 0.45),
+              child: Center(
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 24),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 14,
                   ),
-                  Text(
-                    'Drag to reorder',
-                    style: theme.textTheme.bodyLarge?.copyWith(
-                      color: textMuted,
-                      fontWeight: FontWeight.w500,
+                  decoration: BoxDecoration(
+                    color: colorScheme.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: borderColor,
                     ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.08),
+                        blurRadius: 22,
+                        offset: const Offset(0, 6),
+                      ),
+                    ],
                   ),
-                ],
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox(
+                        width: 18,
+                        height: 18,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      ),
+                      const SizedBox(width: 12),
+                      Text(
+                        'Updating track order...',
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
-            ),
-          ),
-        if (tracks.isEmpty)
-          const SliverToBoxAdapter(child: SizedBox.shrink())
-        else
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-            sliver: SliverReorderableList(
-              itemCount: tracks.length,
-              onReorder: _onReorder,
-              itemBuilder: (context, index) {
-                final track = tracks[index];
-                return Padding(
-                  key: ValueKey<String>(track.playlistTrackId),
-                  padding: const EdgeInsets.symmetric(vertical: 6),
-                  child: _PlaylistTrackTile(
-                    dragIndex: index,
-                    track: track,
-                    formatDuration: _formatDuration,
-                    cardColor: cardColor,
-                    borderColor: borderColor,
-                    mutedTextColor: textMuted,
-                    iconColor: colorScheme.primary,
-                    onRemove: () {
-                      _removeTrackLocally(track.playlistTrackId);
-                    },
-                    onTap: () {
-                      final detailsMessage =
-                          '${track.title} • '
-                          '${track.artist ?? 'Unknown artist'} • '
-                          '${_formatDuration(track.durationMs)}';
-                      AppSnackbar.showInfo(context, detailsMessage);
-                    },
-                  ),
-                );
-              },
             ),
           ),
       ],
@@ -726,7 +758,7 @@ class _PlaylistSpeedDial extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     const double actionIconDiameter = 56;
-    const double actionColumnWidth = 400;
+    const double actionColumnWidth = 450;
     final fadeCurve = CurvedAnimation(
       parent: animation,
       curve: Curves.easeOutCubic,
@@ -1037,6 +1069,8 @@ class _PlaylistTrackTile extends StatelessWidget {
     required this.borderColor,
     required this.mutedTextColor,
     required this.iconColor,
+    required this.canRemove,
+    required this.isRemoving,
     required this.onRemove,
     required this.onTap,
   });
@@ -1048,6 +1082,8 @@ class _PlaylistTrackTile extends StatelessWidget {
   final Color borderColor;
   final Color mutedTextColor;
   final Color iconColor;
+  final bool canRemove;
+  final bool isRemoving;
   final VoidCallback onRemove;
   final VoidCallback onTap;
 
@@ -1149,19 +1185,33 @@ class _PlaylistTrackTile extends StatelessWidget {
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const SizedBox(height: 8),
-                    InkWell(
-                      onTap: onRemove,
-                      borderRadius: BorderRadius.circular(20),
-                      child: Padding(
-                        padding: const EdgeInsets.all(2),
-                        child: Icon(
-                          Icons.close_rounded,
-                          color: mutedTextColor,
-                          size: 22,
+                    if (canRemove) ...[
+                      const SizedBox(height: 8),
+                      InkWell(
+                        onTap: isRemoving ? null : onRemove,
+                        borderRadius: BorderRadius.circular(20),
+                        child: SizedBox(
+                          width: 22,
+                          height: 22,
+                          child: Center(
+                            child: isRemoving
+                                ? SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: mutedTextColor,
+                                    ),
+                                  )
+                                : Icon(
+                                    Icons.close_rounded,
+                                    color: mutedTextColor,
+                                    size: 22,
+                                  ),
+                          ),
                         ),
                       ),
-                    ),
+                    ],
                   ],
                 ),
               ],
@@ -1208,14 +1258,44 @@ class _ErrorState extends StatelessWidget {
   }
 }
 
+class _SyncBanner extends StatelessWidget {
+  const _SyncBanner({
+    required this.text,
+    required this.background,
+    required this.foreground,
+  });
+
+  final String text;
+  final Color background;
+  final Color foreground;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      color: background,
+      child: Text(
+        text,
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+          color: foreground,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
 class _EmptyTracksState extends StatelessWidget {
   const _EmptyTracksState({
     required this.query,
     required this.onAddSong,
+    required this.isReadOnly,
   });
 
   final String query;
   final VoidCallback onAddSong;
+  final bool isReadOnly;
 
   @override
   Widget build(BuildContext context) {
@@ -1251,7 +1331,7 @@ class _EmptyTracksState extends StatelessWidget {
             const SizedBox(height: 14),
             if (!hasQuery)
               FilledButton.icon(
-                onPressed: onAddSong,
+                onPressed: isReadOnly ? null : onAddSong,
                 icon: const Icon(Icons.add),
                 label: const Text('Add Songs'),
               ),

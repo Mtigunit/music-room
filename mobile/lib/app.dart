@@ -79,7 +79,14 @@ class _StartupRouteGateState extends State<_StartupRouteGate> {
 
         return BlocListener<AuthBloc, AuthState>(
           listener: (context, state) {
+            if (state is AuthAuthenticated ||
+                state is LoginSuccess ||
+                state is RegisterSuccess) {
+              unawaited(InjectionContainer().socketClient.reconnectWithAuth());
+            }
+
             if (state is LogoutSuccess) {
+              InjectionContainer().socketClient.disconnect();
               // After logout, navigate back to auth screen
               unawaited(
                 Navigator.of(context).pushNamedAndRemoveUntil(

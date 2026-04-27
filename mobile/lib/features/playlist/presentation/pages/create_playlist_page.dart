@@ -40,6 +40,7 @@ class _CreatePlaylistPageState extends State<CreatePlaylistPage> {
   String? _privacyError;
   String? _genreError;
   bool _isSaving = false;
+  bool _isDeleting = false;
 
   bool get _isPublicSelected => _selectedVisibility == 'PUBLIC';
 
@@ -159,6 +160,78 @@ class _CreatePlaylistPageState extends State<CreatePlaylistPage> {
       if (mounted) {
         setState(() {
           _isSaving = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _deletePlaylist() async {
+    final playlist = widget.playlist;
+    if (playlist == null || _isDeleting) {
+      return;
+    }
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Delete Playlist'),
+          content: const Text(
+            'This action cannot be undone. '
+            'The playlist and its tracks will be removed.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Delete'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
+    setState(() {
+      _isDeleting = true;
+    });
+
+    try {
+      await _playlistDataSource.deletePlaylist(playlist.id);
+      if (!mounted) {
+        return;
+      }
+
+      AppSnackbar.showSuccess(context, 'Playlist deleted successfully.');
+      Navigator.of(context).pop('deleted');
+    } on DioException catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      if (error.response?.statusCode == 403) {
+        AppSnackbar.showError(
+          context,
+          'Only the owner can delete this playlist.',
+        );
+      } else {
+        AppSnackbar.showError(context, 'Failed to delete playlist.');
+      }
+    } on Object {
+      if (!mounted) {
+        return;
+      }
+      AppSnackbar.showError(context, 'Failed to delete playlist.');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isDeleting = false;
         });
       }
     }
@@ -345,6 +418,24 @@ class _CreatePlaylistPageState extends State<CreatePlaylistPage> {
                     ),
                   ),
                 ),
+                if (widget.isEditing) ...[
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: AppButton(
+                      onPressed: _isDeleting ? null : _deletePlaylist,
+                      label: 'Delete playlist',
+                      isLoading: _isDeleting,
+                      backgroundColor: colorScheme.error,
+                      borderRadius: 16,
+                      textStyle: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

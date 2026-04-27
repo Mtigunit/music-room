@@ -29,6 +29,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try {
       final isAuthenticated = await _authRepository.isAuthenticated();
       if (isAuthenticated) {
+        await _hydrateUserProfile();
         // User is already logged in, no need to show auth screens
         emit(const AuthAuthenticated());
       } else {
@@ -52,6 +53,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     );
 
     if (response != null) {
+      await _hydrateUserProfile();
       emit(LoginSuccess(accessToken: response.accessToken));
       // Emit authenticated state after successful login
       emit(const AuthAuthenticated());
@@ -171,6 +173,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     );
 
     if (response != null) {
+      await _hydrateUserProfile();
       emit(RegisterSuccess(accessToken: response.accessToken));
       // Emit authenticated state after successful registration
       emit(const AuthAuthenticated());
@@ -187,5 +190,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     await _authRepository.logout();
     emit(const LogoutSuccess());
     emit(const AuthUnauthenticated());
+  }
+
+  /// Best-effort profile hydrate to persist user id for other features.
+  Future<void> _hydrateUserProfile() async {
+    await _authRepository.getProfile();
   }
 }
