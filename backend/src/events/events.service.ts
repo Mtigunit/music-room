@@ -11,10 +11,11 @@ import { UpdateEventDto } from './dto/update-event.dto';
 import { EventsRepository } from './events.repository';
 import { EventsGateway } from './events.gateway';
 import { AUDIT_LOG_EVENT, AuditAction } from '../audit-log/audit-log.constants';
-import type { AuditLogEvent } from '../audit-log/audit-log.event';
+import { createAuditLogEvent } from '../audit-log/audit-log.event';
 import { YoutubeService } from '../tracks/youtube.service';
 import { Visibility } from '@prisma/client';
 import { TrackSearchResultDto } from '../tracks/dto/track-search-result.dto';
+import { ClientMetaDto } from '../common/dto/client-meta.dto';
 
 @Injectable()
 export class EventsService {
@@ -25,7 +26,11 @@ export class EventsService {
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
-  async create(userId: string, createEventDto: CreateEventDto) {
+  async create(
+    userId: string,
+    createEventDto: CreateEventDto,
+    meta: ClientMetaDto,
+  ) {
     const { playlistIds, tracks } = createEventDto;
 
     if (playlistIds && playlistIds.length > 0) {
@@ -61,14 +66,12 @@ export class EventsService {
       fetchedTracks,
     );
 
-    this.eventEmitter.emit(AUDIT_LOG_EVENT, {
-      userId,
-      action: AuditAction.EVENT_CREATE,
-      platform: 'unknown',
-      deviceModel: 'unknown',
-      appVersion: 'unknown',
-      metadata: { eventId: event.id },
-    } satisfies AuditLogEvent);
+    this.eventEmitter.emit(
+      AUDIT_LOG_EVENT,
+      createAuditLogEvent(userId, AuditAction.EVENT_CREATE, meta, {
+        eventId: event.id,
+      }),
+    );
 
     return event;
   }
@@ -118,7 +121,12 @@ export class EventsService {
     };
   }
 
-  async update(id: string, userId: string, updateEventDto: UpdateEventDto) {
+  async update(
+    id: string,
+    userId: string,
+    updateEventDto: UpdateEventDto,
+    meta: ClientMetaDto,
+  ) {
     const existingEvent = await this.eventsRepository.findById(id);
     if (!existingEvent) {
       throw new NotFoundException(`Event with ID ${id} not found`);
@@ -158,15 +166,30 @@ export class EventsService {
       );
     }
 
-    return this.eventsRepository.updateEvent(
+    const result = await this.eventsRepository.updateEvent(
       id,
       userId,
       updateEventDto,
       fetchedTracks,
     );
+
+    this.eventEmitter.emit(
+      AUDIT_LOG_EVENT,
+      createAuditLogEvent(userId, AuditAction.EVENT_UPDATE, meta, {
+        eventId: id,
+        update: updateEventDto,
+      }),
+    );
+
+    return result;
   }
 
-  async inviteUser(eventId: string, hostId: string, invitedUserId: string) {
+  async inviteUser(
+    eventId: string,
+    hostId: string,
+    invitedUserId: string,
+    meta: ClientMetaDto,
+  ) {
     const event = await this.eventsRepository.findById(eventId);
     if (!event) {
       throw new NotFoundException(`Event with ID ${eventId} not found`);
@@ -194,7 +217,20 @@ export class EventsService {
       throw new ConflictException('User is already invited to this event');
     }
 
-    return this.eventsRepository.createInvite(eventId, invitedUserId);
+    const result = await this.eventsRepository.createInvite(
+      eventId,
+      invitedUserId,
+    );
+
+    this.eventEmitter.emit(
+      AUDIT_LOG_EVENT,
+      createAuditLogEvent(hostId, AuditAction.EVENT_INVITE, meta, {
+        eventId,
+        invitedUserId,
+      }),
+    );
+
+    return result;
   }
 
   async getTracks(
@@ -253,7 +289,7 @@ export class EventsService {
     };
   }
 
-  async remove(id: string, userId: string) {
+  async remove(id: string, userId: string, meta: ClientMetaDto) {
     const event = await this.eventsRepository.findById(id);
     if (!event) {
       throw new NotFoundException(`Event with ID ${id} not found`);
@@ -263,10 +299,23 @@ export class EventsService {
     }
 
     await this.eventsRepository.deleteEvent(id);
+
+    this.eventEmitter.emit(
+      AUDIT_LOG_EVENT,
+      createAuditLogEvent(userId, AuditAction.EVENT_DELETE, meta, {
+        eventId: id,
+      }),
+    );
+
     return { message: 'Event successfully deleted' };
   }
 
-  async appendTrack(eventId: string, userId: string, providerTrackId: string) {
+  async appendTrack(
+    eventId: string,
+    userId: string,
+    providerTrackId: string,
+    meta: ClientMetaDto,
+  ) {
     const event = await this.eventsRepository.findByIdWithInvites(eventId);
     if (!event) {
       throw new NotFoundException(`Event with ID ${eventId} not found`);
@@ -319,19 +368,23 @@ export class EventsService {
     const roomName = `event_${eventId}`;
     this.eventsGateway.server.to(roomName).emit('track:add', newTrack);
 
-    this.eventEmitter.emit(AUDIT_LOG_EVENT, {
-      userId,
-      action: AuditAction.EVENT_TRACK_ADD,
-      platform: 'unknown',
-      deviceModel: 'unknown',
-      appVersion: 'unknown',
-      metadata: { eventId, trackId: providerTrackId },
-    } satisfies AuditLogEvent);
+    this.eventEmitter.emit(
+      AUDIT_LOG_EVENT,
+      createAuditLogEvent(userId, AuditAction.EVENT_TRACK_ADD, meta, {
+        eventId,
+        trackId: providerTrackId,
+      }),
+    );
 
     return newTrack;
   }
 
-  async removeTrack(eventId: string, providerTrackId: string, userId: string) {
+  async removeTrack(
+    eventId: string,
+    providerTrackId: string,
+    userId: string,
+    meta: ClientMetaDto,
+  ) {
     const event = await this.eventsRepository.findById(eventId);
     if (!event) {
       throw new NotFoundException(`Event with ID ${eventId} not found`);
@@ -365,14 +418,13 @@ export class EventsService {
       .to(roomName)
       .emit('track:remove', { providerTrackId: result.providerTrackId });
 
-    this.eventEmitter.emit(AUDIT_LOG_EVENT, {
-      userId,
-      action: AuditAction.EVENT_TRACK_REMOVE,
-      platform: 'unknown',
-      deviceModel: 'unknown',
-      appVersion: 'unknown',
-      metadata: { eventId, trackId: providerTrackId },
-    } satisfies AuditLogEvent);
+    this.eventEmitter.emit(
+      AUDIT_LOG_EVENT,
+      createAuditLogEvent(userId, AuditAction.EVENT_TRACK_REMOVE, meta, {
+        eventId,
+        trackId: providerTrackId,
+      }),
+    );
 
     return result;
   }

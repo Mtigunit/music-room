@@ -71,17 +71,38 @@ describe('TrackVotesGateway', () => {
           user: { id: 'user-123' },
         },
         rooms: new Set(['event-123']),
+        handshake: {
+          headers: {
+            'x-platform': 'android',
+            'x-device-model': 'Pixel 7',
+            'x-app-version': '1.0.0',
+          },
+          address: '192.168.1.1',
+        },
       } as unknown as Socket;
+
+      const mockMeta = {
+        platform: 'android',
+        deviceModel: 'Pixel 7',
+        appVersion: '1.0.0',
+        ipAddress: '192.168.1.1',
+      };
 
       // Act
       const result = await gateway.handleTrackVote(
         mockClient,
         payload,
         mockClient.data.user,
+        mockMeta,
       );
 
       // Assert
-      expect(service.recordVote).toHaveBeenCalledWith(payload, 'user-123');
+      expect(service.recordVote).toHaveBeenCalledWith(payload, 'user-123', {
+        platform: 'android',
+        deviceModel: 'Pixel 7',
+        appVersion: '1.0.0',
+        ipAddress: '192.168.1.1',
+      });
 
       // Verify the broadcast behavior
       expect(gateway.server.to).toHaveBeenCalledWith('event-123');

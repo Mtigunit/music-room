@@ -91,14 +91,20 @@ describe('AuthController', () => {
       emailVerificationToken: 'valid-token',
     };
 
+    const mockMeta = {
+      platform: 'unknown',
+      deviceModel: 'unknown',
+      appVersion: 'unknown',
+    };
+
     it('should call authService.register and return the token', async () => {
       const expectedResult = { access_token: 'jwt-token' };
       authService.register.mockResolvedValue(expectedResult);
 
-      const result = await controller.register(registerDto);
+      const result = await controller.register(registerDto, mockMeta);
 
       expect(result).toEqual(expectedResult);
-      expect(authService.register).toHaveBeenCalledWith(registerDto);
+      expect(authService.register).toHaveBeenCalledWith(registerDto, mockMeta);
     });
 
     it('should propagate ConflictException from service', async () => {
@@ -106,7 +112,7 @@ describe('AuthController', () => {
         new ConflictException('Email already registered'),
       );
 
-      await expect(controller.register(registerDto)).rejects.toThrow(
+      await expect(controller.register(registerDto, mockMeta)).rejects.toThrow(
         ConflictException,
       );
     });
@@ -120,14 +126,20 @@ describe('AuthController', () => {
       password: 'password123',
     };
 
+    const mockMeta = {
+      platform: 'unknown',
+      deviceModel: 'unknown',
+      appVersion: 'unknown',
+    };
+
     it('should call authService.login and return the token', async () => {
       const expectedResult = { access_token: 'jwt-token' };
       authService.login.mockResolvedValue(expectedResult);
 
-      const result = await controller.login(loginDto);
+      const result = await controller.login(loginDto, mockMeta);
 
       expect(result).toEqual(expectedResult);
-      expect(authService.login).toHaveBeenCalledWith(loginDto);
+      expect(authService.login).toHaveBeenCalledWith(loginDto, mockMeta);
     });
 
     it('should propagate UnauthorizedException from service', async () => {
@@ -135,7 +147,7 @@ describe('AuthController', () => {
         new UnauthorizedException('Invalid credentials'),
       );
 
-      await expect(controller.login(loginDto)).rejects.toThrow(
+      await expect(controller.login(loginDto, mockMeta)).rejects.toThrow(
         UnauthorizedException,
       );
     });
@@ -144,14 +156,26 @@ describe('AuthController', () => {
   // ─── GOOGLE AUTH ──────────────────────────────────────
 
   describe('googleAuth', () => {
+    const mockMeta = {
+      platform: 'unknown',
+      deviceModel: 'unknown',
+      appVersion: 'unknown',
+    };
+
     it('should call authService.googleAuth and return the token', async () => {
       const expectedResult = { access_token: 'jwt-token' };
       authService.googleAuth.mockResolvedValue(expectedResult);
 
-      const result = await controller.googleAuth({ idToken: 'valid.id.token' });
+      const result = await controller.googleAuth(
+        { idToken: 'valid.id.token' },
+        mockMeta,
+      );
 
       expect(result).toEqual(expectedResult);
-      expect(authService.googleAuth).toHaveBeenCalledWith('valid.id.token');
+      expect(authService.googleAuth).toHaveBeenCalledWith(
+        'valid.id.token',
+        mockMeta,
+      );
     });
 
     it('should propagate UnauthorizedException from service', async () => {
@@ -160,7 +184,7 @@ describe('AuthController', () => {
       );
 
       await expect(
-        controller.googleAuth({ idToken: 'invalid.id.token' }),
+        controller.googleAuth({ idToken: 'invalid.id.token' }, mockMeta),
       ).rejects.toThrow(UnauthorizedException);
     });
   });
@@ -226,15 +250,24 @@ describe('AuthController', () => {
       newPassword: 'NewPassword123!',
     };
 
+    const mockMeta = {
+      platform: 'unknown',
+      deviceModel: 'unknown',
+      appVersion: 'unknown',
+    };
+
     it('should call authService.resetPassword and return success message', async () => {
       authService.resetPassword.mockResolvedValue(undefined);
 
-      const result = await controller.resetPassword(resetDto);
+      const result = await controller.resetPassword(resetDto, mockMeta);
 
       expect(result).toEqual({
         message: 'Password has been reset successfully',
       });
-      expect(authService.resetPassword).toHaveBeenCalledWith(resetDto);
+      expect(authService.resetPassword).toHaveBeenCalledWith(
+        resetDto,
+        mockMeta,
+      );
     });
   });
 

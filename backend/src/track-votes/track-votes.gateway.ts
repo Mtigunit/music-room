@@ -14,6 +14,8 @@ import { TrackVoteResultDto } from './dto/track-vote-result.dto';
 import { WsAuthGuard } from '../websockets/guards/ws-auth.guard';
 import { WsUser } from '../websockets/decorators/ws-user.decorator';
 import type { SocketUser } from '../websockets/socket-auth.service';
+import type { ClientMetaDto } from '../common/dto/client-meta.dto';
+import { ClientMeta } from '../common/decorators/client-meta.decorator';
 
 @WebSocketGateway({ path: '/ws', cors: true })
 @UseGuards(WsAuthGuard)
@@ -36,6 +38,7 @@ export class TrackVotesGateway {
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: TrackVoteMessageDto,
     @WsUser() user: SocketUser,
+    @ClientMeta() meta: ClientMetaDto,
   ): Promise<TrackVoteResultDto> {
     const userId = user.id;
 
@@ -46,7 +49,11 @@ export class TrackVotesGateway {
       );
     }
 
-    const result = await this.trackVotesService.recordVote(payload, userId);
+    const result = await this.trackVotesService.recordVote(
+      payload,
+      userId,
+      meta,
+    );
     this.server.to(payload.eventId).emit('track:vote:updated', result);
 
     this.logger.log(

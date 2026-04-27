@@ -20,7 +20,8 @@ import {
 } from './exceptions';
 import type { TrackSearchResultDto } from '../tracks/dto/track-search-result.dto';
 import { AUDIT_LOG_EVENT, AuditAction } from '../audit-log/audit-log.constants';
-import type { AuditLogEvent } from '../audit-log/audit-log.event';
+import { createAuditLogEvent } from '../audit-log/audit-log.event';
+import type { ClientMetaDto } from '../common/dto/client-meta.dto';
 
 @Injectable()
 export class PlaylistsService {
@@ -31,20 +32,22 @@ export class PlaylistsService {
     private readonly eventEmitter: EventEmitter2,
   ) {}
 
-  async create(userId: string, createPlaylistDto: CreatePlaylistDto) {
+  async create(
+    userId: string,
+    createPlaylistDto: CreatePlaylistDto,
+    meta: ClientMetaDto,
+  ) {
     const playlist = await this.playlistsRepository.createPlaylist(
       userId,
       createPlaylistDto,
     );
 
-    this.eventEmitter.emit(AUDIT_LOG_EVENT, {
-      userId,
-      action: AuditAction.PLAYLIST_CREATE,
-      platform: 'unknown',
-      deviceModel: 'unknown',
-      appVersion: 'unknown',
-      metadata: { playlistId: playlist.id },
-    } satisfies AuditLogEvent);
+    this.eventEmitter.emit(
+      AUDIT_LOG_EVENT,
+      createAuditLogEvent(userId, AuditAction.PLAYLIST_CREATE, meta, {
+        playlistId: playlist.id,
+      }),
+    );
 
     return playlist;
   }
@@ -93,6 +96,7 @@ export class PlaylistsService {
     playlistId: string,
     requesterId: string,
     updatePlaylistDto: UpdatePlaylistDto,
+    meta: ClientMetaDto,
   ) {
     const playlist =
       await this.playlistsRepository.findPlaylistForAuth(playlistId);
@@ -104,13 +108,23 @@ export class PlaylistsService {
       throw new ForbiddenException('Only the owner can update the playlist');
     }
 
-    return this.playlistsRepository.updatePlaylist(
+    const result = await this.playlistsRepository.updatePlaylist(
       playlistId,
       updatePlaylistDto,
     );
+
+    this.eventEmitter.emit(
+      AUDIT_LOG_EVENT,
+      createAuditLogEvent(requesterId, AuditAction.PLAYLIST_UPDATE, meta, {
+        playlistId,
+        update: updatePlaylistDto,
+      }),
+    );
+
+    return result;
   }
 
-  async remove(playlistId: string, requesterId: string) {
+  async remove(playlistId: string, requesterId: string, meta: ClientMetaDto) {
     const playlist =
       await this.playlistsRepository.findPlaylistForAuth(playlistId);
     if (!playlist) {
@@ -121,13 +135,23 @@ export class PlaylistsService {
       throw new ForbiddenException('Only the owner can delete the playlist');
     }
 
-    return this.playlistsRepository.deletePlaylist(playlistId);
+    const result = await this.playlistsRepository.deletePlaylist(playlistId);
+
+    this.eventEmitter.emit(
+      AUDIT_LOG_EVENT,
+      createAuditLogEvent(requesterId, AuditAction.PLAYLIST_DELETE, meta, {
+        playlistId,
+      }),
+    );
+
+    return result;
   }
 
   async addCollaborator(
     playlistId: string,
     ownerId: string,
     targetUserId: string,
+    meta: ClientMetaDto,
   ) {
     const playlist =
       await this.playlistsRepository.findPlaylistForAuth(playlistId);
@@ -148,7 +172,20 @@ export class PlaylistsService {
     }
 
     // Add collaborator safely via upsert
-    return this.playlistsRepository.addCollaborator(playlistId, targetUserId);
+    const result = await this.playlistsRepository.addCollaborator(
+      playlistId,
+      targetUserId,
+    );
+
+    this.eventEmitter.emit(
+      AUDIT_LOG_EVENT,
+      createAuditLogEvent(ownerId, AuditAction.COLLABORATOR_ADD, meta, {
+        playlistId,
+        targetUserId,
+      }),
+    );
+
+    return result;
   }
 
   private verifyEditAccess(playlist: PlaylistAuthData, requesterId: string) {
@@ -184,6 +221,7 @@ export class PlaylistsService {
     playlistId: string,
     addedById: string,
     providerTrackId: string,
+    meta: ClientMetaDto,
   ) {
     const playlist =
       await this.playlistsRepository.findPlaylistForAuth(playlistId);
@@ -238,14 +276,13 @@ export class PlaylistsService {
           track: result.playlistTrack,
         });
 
-      this.eventEmitter.emit(AUDIT_LOG_EVENT, {
-        userId: addedById,
-        action: AuditAction.PLAYLIST_TRACK_ADD,
-        platform: 'unknown',
-        deviceModel: 'unknown',
-        appVersion: 'unknown',
-        metadata: { playlistId, trackId: result.playlistTrack.trackId },
-      } satisfies AuditLogEvent);
+      this.eventEmitter.emit(
+        AUDIT_LOG_EVENT,
+        createAuditLogEvent(addedById, AuditAction.PLAYLIST_TRACK_ADD, meta, {
+          playlistId,
+          trackId: result.playlistTrack.trackId,
+        }),
+      );
 
       return {
         newUpdatedAt: result.newUpdatedAt,
@@ -274,6 +311,7 @@ export class PlaylistsService {
     playlistId: string,
     playlistTrackId: string,
     requesterId: string,
+    meta: ClientMetaDto,
   ) {
     const playlist =
       await this.playlistsRepository.findPlaylistForAuth(playlistId);
@@ -319,14 +357,18 @@ export class PlaylistsService {
         updates: result.updates,
       });
 
-    this.eventEmitter.emit(AUDIT_LOG_EVENT, {
-      userId: requesterId,
-      action: AuditAction.PLAYLIST_TRACK_REMOVE,
-      platform: 'unknown',
-      deviceModel: 'unknown',
-      appVersion: 'unknown',
-      metadata: { playlistId, playlistTrackId },
-    } satisfies AuditLogEvent);
+    this.eventEmitter.emit(
+      AUDIT_LOG_EVENT,
+      createAuditLogEvent(
+        requesterId,
+        AuditAction.PLAYLIST_TRACK_REMOVE,
+        meta,
+        {
+          playlistId,
+          playlistTrackId,
+        },
+      ),
+    );
 
     return {
       newUpdatedAt: result.newUpdatedAt,
@@ -340,6 +382,7 @@ export class PlaylistsService {
     playlistTrackId: string,
     requesterId: string,
     payload: { newPosition: number; baseUpdatedAt: string },
+    meta: ClientMetaDto,
   ) {
     const playlist =
       await this.playlistsRepository.findPlaylistForAuth(playlistId);
@@ -386,18 +429,19 @@ export class PlaylistsService {
         updates: result.updates,
       });
 
-    this.eventEmitter.emit(AUDIT_LOG_EVENT, {
-      userId: requesterId,
-      action: AuditAction.PLAYLIST_TRACK_REORDER,
-      platform: 'unknown',
-      deviceModel: 'unknown',
-      appVersion: 'unknown',
-      metadata: {
-        playlistId,
-        playlistTrackId,
-        newPosition: normalizedPosition,
-      },
-    } satisfies AuditLogEvent);
+    this.eventEmitter.emit(
+      AUDIT_LOG_EVENT,
+      createAuditLogEvent(
+        requesterId,
+        AuditAction.PLAYLIST_TRACK_REORDER,
+        meta,
+        {
+          playlistId,
+          playlistTrackId,
+          newPosition: normalizedPosition,
+        },
+      ),
+    );
 
     return { newUpdatedAt: result.newUpdatedAt };
   }

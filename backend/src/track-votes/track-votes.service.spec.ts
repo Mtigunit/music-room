@@ -37,6 +37,13 @@ describe('TrackVotesService', () => {
   });
 
   describe('recordVote', () => {
+    const mockMeta = {
+      platform: 'unknown',
+      deviceModel: 'unknown',
+      appVersion: 'unknown',
+      ipAddress: '127.0.0.1',
+    };
+
     it('should correctly format and return the vote result', async () => {
       // Arrange
       const payload: TrackVoteMessageDto = {
@@ -52,7 +59,7 @@ describe('TrackVotesService', () => {
       });
 
       // Act
-      const result = await service.recordVote(payload, 'user-123');
+      const result = await service.recordVote(payload, 'user-123', mockMeta);
 
       // Assert
       expect(repository.recordVote).toHaveBeenCalledWith(
@@ -84,7 +91,7 @@ describe('TrackVotesService', () => {
       });
 
       // Act
-      const result = await service.recordVote(payload, 'user-456');
+      const result = await service.recordVote(payload, 'user-456', mockMeta);
 
       // Assert
       expect(result.score).toBe(-5);

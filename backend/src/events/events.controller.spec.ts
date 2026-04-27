@@ -14,6 +14,12 @@ describe('EventsController', () => {
 
   const mockUser = { id: 'user-1' };
   const mockReq = { user: mockUser } as unknown as Request;
+  const mockMeta = {
+    ipAddress: '127.0.0.1',
+    platform: 'test',
+    deviceModel: 'test',
+    appVersion: '1.0.0',
+  } as any;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -74,9 +80,9 @@ describe('EventsController', () => {
         .spyOn(service, 'create')
         .mockResolvedValue({ id: 'event-1' } as any);
 
-      await controller.create(dto, mockReq);
+      await controller.create(dto, mockReq, mockMeta);
 
-      expect(spy).toHaveBeenCalledWith(mockUser.id, dto);
+      expect(spy).toHaveBeenCalledWith(mockUser.id, dto, mockMeta);
     });
   });
 
@@ -146,9 +152,9 @@ describe('EventsController', () => {
         .spyOn(service, 'update')
         .mockResolvedValue({ id: eventId } as any);
 
-      await controller.update(eventId, dto, mockReq);
+      await controller.update(eventId, dto, mockReq, mockMeta);
 
-      expect(spy).toHaveBeenCalledWith(eventId, mockUser.id, dto);
+      expect(spy).toHaveBeenCalledWith(eventId, mockUser.id, dto, mockMeta);
     });
   });
 
@@ -161,9 +167,14 @@ describe('EventsController', () => {
         .spyOn(service, 'inviteUser')
         .mockResolvedValue({ id: 'invite-1' } as any);
 
-      await controller.inviteUser(eventId, dto, mockReq);
+      await controller.inviteUser(eventId, dto, mockReq, mockMeta);
 
-      expect(spy).toHaveBeenCalledWith(eventId, mockUser.id, invitedUserId);
+      expect(spy).toHaveBeenCalledWith(
+        eventId,
+        mockUser.id,
+        invitedUserId,
+        mockMeta,
+      );
     });
   });
 
@@ -190,9 +201,9 @@ describe('EventsController', () => {
         .spyOn(service, 'remove')
         .mockResolvedValue({ message: 'Deleted' } as any);
 
-      await controller.remove(eventId, mockReq);
+      await controller.remove(eventId, mockReq, mockMeta);
 
-      expect(spy).toHaveBeenCalledWith(eventId, mockUser.id);
+      expect(spy).toHaveBeenCalledWith(eventId, mockUser.id, mockMeta);
     });
   });
 
@@ -205,9 +216,14 @@ describe('EventsController', () => {
         .spyOn(service, 'appendTrack')
         .mockResolvedValue({ id: 'event-track-1' } as any);
 
-      await controller.appendTrack(eventId, dto, mockReq);
+      await controller.appendTrack(eventId, dto, mockReq, mockMeta);
 
-      expect(spy).toHaveBeenCalledWith(eventId, mockUser.id, providerTrackId);
+      expect(spy).toHaveBeenCalledWith(
+        eventId,
+        mockUser.id,
+        providerTrackId,
+        mockMeta,
+      );
     });
   });
 
@@ -219,9 +235,14 @@ describe('EventsController', () => {
         .spyOn(service, 'removeTrack')
         .mockResolvedValue({ providerTrackId } as any);
 
-      await controller.removeTrack(eventId, providerTrackId, mockReq);
+      await controller.removeTrack(eventId, providerTrackId, mockReq, mockMeta);
 
-      expect(spy).toHaveBeenCalledWith(eventId, providerTrackId, mockUser.id);
+      expect(spy).toHaveBeenCalledWith(
+        eventId,
+        providerTrackId,
+        mockUser.id,
+        mockMeta,
+      );
     });
   });
 });

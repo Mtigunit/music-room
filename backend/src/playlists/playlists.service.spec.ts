@@ -62,6 +62,13 @@ describe('PlaylistsService', () => {
   let repository: jest.Mocked<PlaylistsRepository>;
   let youtubeService: jest.Mocked<YoutubeService>;
 
+  const mockMeta = {
+    platform: 'unknown',
+    deviceModel: 'unknown',
+    appVersion: 'unknown',
+    ipAddress: '127.0.0.1',
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -194,7 +201,7 @@ describe('PlaylistsService', () => {
       repository.findPlaylistForAuth.mockResolvedValueOnce(null);
 
       await expect(
-        service.update(PLAYLIST_ID, OWNER_ID, { name: 'New' }),
+        service.update(PLAYLIST_ID, OWNER_ID, { name: 'New' }, mockMeta),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -204,7 +211,7 @@ describe('PlaylistsService', () => {
       );
 
       await expect(
-        service.update(PLAYLIST_ID, OTHER_USER_ID, { name: 'New' }),
+        service.update(PLAYLIST_ID, OTHER_USER_ID, { name: 'New' }, mockMeta),
       ).rejects.toThrow(ForbiddenException);
     });
 
@@ -214,7 +221,7 @@ describe('PlaylistsService', () => {
       );
       repository.updatePlaylist.mockResolvedValueOnce({} as never);
 
-      await service.update(PLAYLIST_ID, OWNER_ID, { name: 'New' });
+      await service.update(PLAYLIST_ID, OWNER_ID, { name: 'New' }, mockMeta);
 
       expect(repository.updatePlaylist).toHaveBeenCalledWith(PLAYLIST_ID, {
         name: 'New',
@@ -228,9 +235,9 @@ describe('PlaylistsService', () => {
     it('should throw NotFoundException when playlist does not exist', async () => {
       repository.findPlaylistForAuth.mockResolvedValueOnce(null);
 
-      await expect(service.remove(PLAYLIST_ID, OWNER_ID)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.remove(PLAYLIST_ID, OWNER_ID, mockMeta),
+      ).rejects.toThrow(NotFoundException);
     });
 
     it('should throw ForbiddenException when a non-owner tries to delete', async () => {
@@ -238,9 +245,9 @@ describe('PlaylistsService', () => {
         buildPlaylist() as PlaylistAuthData,
       );
 
-      await expect(service.remove(PLAYLIST_ID, OTHER_USER_ID)).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(
+        service.remove(PLAYLIST_ID, OTHER_USER_ID, mockMeta),
+      ).rejects.toThrow(ForbiddenException);
     });
 
     it('should allow the owner to delete the playlist', async () => {
@@ -249,7 +256,7 @@ describe('PlaylistsService', () => {
       );
       repository.deletePlaylist.mockResolvedValueOnce({} as never);
 
-      await service.remove(PLAYLIST_ID, OWNER_ID);
+      await service.remove(PLAYLIST_ID, OWNER_ID, mockMeta);
 
       expect(repository.deletePlaylist).toHaveBeenCalledWith(PLAYLIST_ID);
     });
@@ -262,7 +269,7 @@ describe('PlaylistsService', () => {
       repository.findPlaylistForAuth.mockResolvedValueOnce(null);
 
       await expect(
-        service.addCollaborator(PLAYLIST_ID, OWNER_ID, OTHER_USER_ID),
+        service.addCollaborator(PLAYLIST_ID, OWNER_ID, OTHER_USER_ID, mockMeta),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -272,7 +279,12 @@ describe('PlaylistsService', () => {
       );
 
       await expect(
-        service.addCollaborator(PLAYLIST_ID, OTHER_USER_ID, COLLABORATOR_ID),
+        service.addCollaborator(
+          PLAYLIST_ID,
+          OTHER_USER_ID,
+          COLLABORATOR_ID,
+          mockMeta,
+        ),
       ).rejects.toThrow(ForbiddenException);
     });
 
@@ -283,7 +295,7 @@ describe('PlaylistsService', () => {
       repository.checkUserExists.mockResolvedValueOnce(false);
 
       await expect(
-        service.addCollaborator(PLAYLIST_ID, OWNER_ID, 'ghost-uuid'),
+        service.addCollaborator(PLAYLIST_ID, OWNER_ID, 'ghost-uuid', mockMeta),
       ).rejects.toThrow('Target user does not exist');
     });
 
@@ -294,8 +306,12 @@ describe('PlaylistsService', () => {
       repository.checkUserExists.mockResolvedValueOnce(true);
       repository.addCollaborator.mockResolvedValueOnce({} as never);
 
-      await service.addCollaborator(PLAYLIST_ID, OWNER_ID, COLLABORATOR_ID);
-
+      await service.addCollaborator(
+        PLAYLIST_ID,
+        OWNER_ID,
+        COLLABORATOR_ID,
+        mockMeta,
+      );
       expect(repository.addCollaborator).toHaveBeenCalledWith(
         PLAYLIST_ID,
         COLLABORATOR_ID,
@@ -314,6 +330,7 @@ describe('PlaylistsService', () => {
           PLAYLIST_ID,
           OWNER_ID,
           sampleTrack.providerTrackId,
+          mockMeta,
         ),
       ).rejects.toThrow(NotFoundException);
     });
@@ -332,6 +349,7 @@ describe('PlaylistsService', () => {
         PLAYLIST_ID,
         OTHER_USER_ID,
         sampleTrack.providerTrackId,
+        mockMeta,
       );
 
       expect(repository.addTrackToPlaylist).toHaveBeenCalledWith(
@@ -357,6 +375,7 @@ describe('PlaylistsService', () => {
         PLAYLIST_ID,
         OWNER_ID,
         sampleTrack.providerTrackId,
+        mockMeta,
       );
 
       expect(repository.addTrackToPlaylist).toHaveBeenCalledWith(
@@ -391,6 +410,7 @@ describe('PlaylistsService', () => {
         PLAYLIST_ID,
         COLLABORATOR_ID,
         sampleTrack.providerTrackId,
+        mockMeta,
       );
 
       expect(repository.addTrackToPlaylist).toHaveBeenCalledWith(
@@ -412,6 +432,7 @@ describe('PlaylistsService', () => {
           PLAYLIST_ID,
           OTHER_USER_ID,
           sampleTrack.providerTrackId,
+          mockMeta,
         ),
       ).rejects.toThrow(ForbiddenException);
     });
@@ -426,6 +447,7 @@ describe('PlaylistsService', () => {
           PLAYLIST_ID,
           OWNER_ID,
           sampleTrack.providerTrackId,
+          mockMeta,
         ),
       ).rejects.toThrow(BadRequestException);
     });
@@ -441,6 +463,7 @@ describe('PlaylistsService', () => {
           PLAYLIST_ID,
           OWNER_ID,
           sampleTrack.providerTrackId,
+          mockMeta,
         ),
       ).rejects.toThrow(NotFoundException);
     });
@@ -457,6 +480,7 @@ describe('PlaylistsService', () => {
           PLAYLIST_ID,
           OWNER_ID,
           sampleTrack.providerTrackId,
+          mockMeta,
         ),
       ).rejects.toThrow(ConflictException);
     });
@@ -484,11 +508,17 @@ describe('PlaylistsService', () => {
           PLAYLIST_ID,
           OWNER_ID,
           sampleTrack.providerTrackId,
+          mockMeta,
         ),
       ).rejects.toThrow(ConflictException);
 
       const error = await service
-        .addTrackToPlaylist(PLAYLIST_ID, OWNER_ID, sampleTrack.providerTrackId)
+        .addTrackToPlaylist(
+          PLAYLIST_ID,
+          OWNER_ID,
+          sampleTrack.providerTrackId,
+          mockMeta,
+        )
         .catch((e) => e);
       expect(error.message).toBe('This track is already in the playlist');
     });
@@ -515,6 +545,7 @@ describe('PlaylistsService', () => {
           PLAYLIST_ID,
           OWNER_ID,
           sampleTrack.providerTrackId,
+          mockMeta,
         ),
       ).rejects.toThrow(Prisma.PrismaClientKnownRequestError);
     });
@@ -534,6 +565,7 @@ describe('PlaylistsService', () => {
           PLAYLIST_ID,
           OWNER_ID,
           sampleTrack.providerTrackId,
+          mockMeta,
         ),
       ).rejects.toThrow(InternalServerErrorException);
     });
@@ -569,6 +601,7 @@ describe('PlaylistsService', () => {
         PLAYLIST_ID,
         OWNER_ID,
         sampleTrack.providerTrackId,
+        mockMeta,
       );
 
       expect(gateway.server.to).toHaveBeenCalledWith(`playlist_${PLAYLIST_ID}`);
@@ -611,6 +644,7 @@ describe('PlaylistsService', () => {
           PLAYLIST_ID,
           PLAYLIST_TRACK_ID,
           OWNER_ID,
+          mockMeta,
         ),
       ).rejects.toThrow(NotFoundException);
     });
@@ -626,6 +660,7 @@ describe('PlaylistsService', () => {
           PLAYLIST_ID,
           PLAYLIST_TRACK_ID,
           OWNER_ID,
+          mockMeta,
         ),
       ).rejects.toThrow(NotFoundException);
     });
@@ -642,6 +677,7 @@ describe('PlaylistsService', () => {
           PLAYLIST_ID,
           'track-from-another-playlist',
           OWNER_ID,
+          mockMeta,
         ),
       ).rejects.toThrow(NotFoundException);
 
@@ -665,6 +701,7 @@ describe('PlaylistsService', () => {
         PLAYLIST_ID,
         PLAYLIST_TRACK_ID,
         OWNER_ID,
+        mockMeta,
       );
 
       expect(repository.removeTrackFromPlaylist).toHaveBeenCalledWith(
@@ -695,6 +732,7 @@ describe('PlaylistsService', () => {
         PLAYLIST_ID,
         PLAYLIST_TRACK_ID,
         ADDER_ID,
+        mockMeta,
       );
 
       expect(repository.removeTrackFromPlaylist).toHaveBeenCalledWith(
@@ -721,6 +759,7 @@ describe('PlaylistsService', () => {
           PLAYLIST_ID,
           PLAYLIST_TRACK_ID,
           OTHER_USER_ID,
+          mockMeta,
         ),
       ).rejects.toThrow(ForbiddenException);
 
@@ -758,6 +797,7 @@ describe('PlaylistsService', () => {
         PLAYLIST_ID,
         PLAYLIST_TRACK_ID,
         OWNER_ID,
+        mockMeta,
       );
 
       expect(gateway.server.to).toHaveBeenCalledWith(`playlist_${PLAYLIST_ID}`);
@@ -795,7 +835,12 @@ describe('PlaylistsService', () => {
       repository.removeTrackFromPlaylist.mockResolvedValueOnce(null);
 
       await expect(
-        svc.removeTrackFromPlaylist(PLAYLIST_ID, PLAYLIST_TRACK_ID, OWNER_ID),
+        svc.removeTrackFromPlaylist(
+          PLAYLIST_ID,
+          PLAYLIST_TRACK_ID,
+          OWNER_ID,
+          mockMeta,
+        ),
       ).rejects.toThrow(NotFoundException);
 
       expect(gateway.server.to).not.toHaveBeenCalled();
@@ -813,10 +858,16 @@ describe('PlaylistsService', () => {
       repository.findPlaylistForAuth.mockResolvedValueOnce(null);
 
       await expect(
-        service.reorderTrack(PLAYLIST_ID, TRACK_ENTRY_ID, OWNER_ID, {
-          newPosition: 5,
-          baseUpdatedAt: BASE_TIMESTAMP,
-        }),
+        service.reorderTrack(
+          PLAYLIST_ID,
+          TRACK_ENTRY_ID,
+          OWNER_ID,
+          {
+            newPosition: 5,
+            baseUpdatedAt: BASE_TIMESTAMP,
+          },
+          mockMeta,
+        ),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -829,10 +880,16 @@ describe('PlaylistsService', () => {
         updates: [],
       } as any);
 
-      await service.reorderTrack(PLAYLIST_ID, TRACK_ENTRY_ID, OWNER_ID, {
-        newPosition: -5,
-        baseUpdatedAt: BASE_TIMESTAMP,
-      });
+      await service.reorderTrack(
+        PLAYLIST_ID,
+        TRACK_ENTRY_ID,
+        OWNER_ID,
+        {
+          newPosition: -5,
+          baseUpdatedAt: BASE_TIMESTAMP,
+        },
+        mockMeta,
+      );
 
       expect(repository.reorderTrack).toHaveBeenCalledWith(
         expect.any(String),
@@ -852,10 +909,16 @@ describe('PlaylistsService', () => {
         updates: [],
       } as any);
 
-      await service.reorderTrack(PLAYLIST_ID, TRACK_ENTRY_ID, OWNER_ID, {
-        newPosition: 99,
-        baseUpdatedAt: BASE_TIMESTAMP,
-      });
+      await service.reorderTrack(
+        PLAYLIST_ID,
+        TRACK_ENTRY_ID,
+        OWNER_ID,
+        {
+          newPosition: 99,
+          baseUpdatedAt: BASE_TIMESTAMP,
+        },
+        mockMeta,
+      );
 
       expect(repository.reorderTrack).toHaveBeenCalledWith(
         expect.any(String),
@@ -874,10 +937,16 @@ describe('PlaylistsService', () => {
         updates: [],
       } as any);
 
-      await service.reorderTrack(PLAYLIST_ID, TRACK_ENTRY_ID, OWNER_ID, {
-        newPosition: 0,
-        baseUpdatedAt: BASE_TIMESTAMP,
-      });
+      await service.reorderTrack(
+        PLAYLIST_ID,
+        TRACK_ENTRY_ID,
+        OWNER_ID,
+        {
+          newPosition: 0,
+          baseUpdatedAt: BASE_TIMESTAMP,
+        },
+        mockMeta,
+      );
 
       expect(repository.reorderTrack).toHaveBeenCalledWith(
         expect.any(String),
@@ -896,10 +965,16 @@ describe('PlaylistsService', () => {
         updates: [],
       } as any);
 
-      await service.reorderTrack(PLAYLIST_ID, TRACK_ENTRY_ID, OWNER_ID, {
-        newPosition: 4,
-        baseUpdatedAt: BASE_TIMESTAMP,
-      });
+      await service.reorderTrack(
+        PLAYLIST_ID,
+        TRACK_ENTRY_ID,
+        OWNER_ID,
+        {
+          newPosition: 4,
+          baseUpdatedAt: BASE_TIMESTAMP,
+        },
+        mockMeta,
+      );
 
       expect(repository.reorderTrack).toHaveBeenCalledWith(
         expect.any(String),
@@ -918,10 +993,16 @@ describe('PlaylistsService', () => {
       );
 
       await expect(
-        service.reorderTrack(PLAYLIST_ID, TRACK_ENTRY_ID, OWNER_ID, {
-          newPosition: 2,
-          baseUpdatedAt: BASE_TIMESTAMP,
-        }),
+        service.reorderTrack(
+          PLAYLIST_ID,
+          TRACK_ENTRY_ID,
+          OWNER_ID,
+          {
+            newPosition: 2,
+            baseUpdatedAt: BASE_TIMESTAMP,
+          },
+          mockMeta,
+        ),
       ).rejects.toThrow(ConflictException);
     });
 
@@ -934,10 +1015,16 @@ describe('PlaylistsService', () => {
       );
 
       await expect(
-        service.reorderTrack(PLAYLIST_ID, TRACK_ENTRY_ID, OWNER_ID, {
-          newPosition: 2,
-          baseUpdatedAt: BASE_TIMESTAMP,
-        }),
+        service.reorderTrack(
+          PLAYLIST_ID,
+          TRACK_ENTRY_ID,
+          OWNER_ID,
+          {
+            newPosition: 2,
+            baseUpdatedAt: BASE_TIMESTAMP,
+          },
+          mockMeta,
+        ),
       ).rejects.toThrow(NotFoundException);
     });
 
@@ -965,10 +1052,16 @@ describe('PlaylistsService', () => {
         updates: fakeUpdates,
       } as any);
 
-      await svc.reorderTrack(PLAYLIST_ID, TRACK_ENTRY_ID, OWNER_ID, {
-        newPosition: 3,
-        baseUpdatedAt: BASE_TIMESTAMP,
-      });
+      await svc.reorderTrack(
+        PLAYLIST_ID,
+        TRACK_ENTRY_ID,
+        OWNER_ID,
+        {
+          newPosition: 3,
+          baseUpdatedAt: BASE_TIMESTAMP,
+        },
+        mockMeta,
+      );
 
       expect(gateway.server.to).toHaveBeenCalledWith(`playlist_${PLAYLIST_ID}`);
       expect(gateway.server.emit).toHaveBeenCalledWith(
@@ -990,10 +1083,16 @@ describe('PlaylistsService', () => {
         updates: [],
       } as any);
 
-      await service.reorderTrack(PLAYLIST_ID, TRACK_ENTRY_ID, OWNER_ID, {
-        newPosition: 3,
-        baseUpdatedAt: BASE_TIMESTAMP,
-      });
+      await service.reorderTrack(
+        PLAYLIST_ID,
+        TRACK_ENTRY_ID,
+        OWNER_ID,
+        {
+          newPosition: 3,
+          baseUpdatedAt: BASE_TIMESTAMP,
+        },
+        mockMeta,
+      );
 
       expect(repository.reorderTrack).toHaveBeenCalledWith(
         expect.any(String),
