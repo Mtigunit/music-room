@@ -3,6 +3,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Server } from 'node:http';
 import request from 'supertest';
 import { ConfigModule } from '@nestjs/config';
+import { EventEmitterModule } from '@nestjs/event-emitter';
 import { PlaylistsModule } from '../src/playlists/playlists.module';
 import { PrismaModule } from '../src/prisma/prisma.module';
 import { PrismaService } from '../src/prisma/prisma.service';
@@ -39,6 +40,7 @@ describe('Playlists Integration (e2e)', () => {
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [
         ConfigModule.forRoot({ isGlobal: true }),
+        EventEmitterModule.forRoot(),
         PrismaModule,
         PlaylistsModule,
       ],
@@ -78,19 +80,23 @@ describe('Playlists Integration (e2e)', () => {
   });
 
   afterAll(async () => {
-    // Clean up seeded data in dependency order
-    await prisma.playlistCollaborator.deleteMany({});
-    await prisma.playlistTrack.deleteMany({});
-    await prisma.playlistCounter.deleteMany({});
-    await prisma.playlist.deleteMany({});
-    await prisma.user.deleteMany({
-      where: {
-        email: {
-          in: ['integration-owner@test.com', 'integration-other@test.com'],
+    if (prisma) {
+      // Clean up seeded data in dependency order
+      await prisma.playlistCollaborator.deleteMany({});
+      await prisma.playlistTrack.deleteMany({});
+      await prisma.playlistCounter.deleteMany({});
+      await prisma.playlist.deleteMany({});
+      await prisma.user.deleteMany({
+        where: {
+          email: {
+            in: ['integration-owner@test.com', 'integration-other@test.com'],
+          },
         },
-      },
-    });
-    await app.close();
+      });
+    }
+    if (app) {
+      await app.close();
+    }
   });
 
   // ─── POST /playlists ──────────────────────────────────────
