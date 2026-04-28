@@ -28,6 +28,9 @@ import { ReorderTrackDto } from './dto/reorder-track.dto';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import { ExplorePlaylistsQueryDto } from './dto/explore-playlists-query.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { ClientMeta } from '../common/decorators/client-meta.decorator';
+import { ApiClientMeta } from '../common/decorators/api-client-meta.decorator';
+import { ClientMetaDto } from '../common/dto/client-meta.dto';
 
 @ApiTags('Playlists')
 @ApiBearerAuth()
@@ -37,14 +40,16 @@ export class PlaylistsController {
   constructor(private readonly playlistsService: PlaylistsService) {}
 
   @Post()
+  @ApiClientMeta()
   @ApiOperation({ summary: 'Create a new playlist' })
   @ApiBody({ type: CreatePlaylistDto })
   @ApiResponse({ status: 201, description: 'Playlist created.' })
   create(
     @Body() createPlaylistDto: CreatePlaylistDto,
     @Request() req: Express.Request,
+    @ClientMeta() meta: ClientMetaDto,
   ) {
-    return this.playlistsService.create(req.user!.id, createPlaylistDto);
+    return this.playlistsService.create(req.user!.id, createPlaylistDto, meta);
   }
 
   @Get()
@@ -82,6 +87,7 @@ export class PlaylistsController {
   }
 
   @Patch(':id')
+  @ApiClientMeta()
   @ApiOperation({ summary: 'Update a playlist by ID' })
   @ApiParam({ name: 'id', type: String, format: 'uuid' })
   @ApiBody({ type: UpdatePlaylistDto })
@@ -92,11 +98,18 @@ export class PlaylistsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() updatePlaylistDto: UpdatePlaylistDto,
     @Request() req: Express.Request,
+    @ClientMeta() meta: ClientMetaDto,
   ) {
-    return this.playlistsService.update(id, req.user!.id, updatePlaylistDto);
+    return this.playlistsService.update(
+      id,
+      req.user!.id,
+      updatePlaylistDto,
+      meta,
+    );
   }
 
   @Delete(':id')
+  @ApiClientMeta()
   @ApiOperation({ summary: 'Delete a playlist by ID' })
   @ApiParam({ name: 'id', type: String, format: 'uuid' })
   @ApiResponse({ status: 200, description: 'Playlist deleted.' })
@@ -105,11 +118,13 @@ export class PlaylistsController {
   remove(
     @Param('id', ParseUUIDPipe) id: string,
     @Request() req: Express.Request,
+    @ClientMeta() meta: ClientMetaDto,
   ) {
-    return this.playlistsService.remove(id, req.user!.id);
+    return this.playlistsService.remove(id, req.user!.id, meta);
   }
 
   @Post(':id/collaborators')
+  @ApiClientMeta()
   @ApiOperation({ summary: 'Add a collaborator to a playlist' })
   @ApiParam({ name: 'id', type: String, format: 'uuid' })
   @ApiBody({ type: AddCollaboratorDto })
@@ -124,15 +139,18 @@ export class PlaylistsController {
     @Param('id', ParseUUIDPipe) id: string,
     @Body() payload: AddCollaboratorDto,
     @Request() req: Express.Request,
+    @ClientMeta() meta: ClientMetaDto,
   ) {
     return this.playlistsService.addCollaborator(
       id,
       req.user!.id,
       payload.targetUserId,
+      meta,
     );
   }
 
   @Post(':id/tracks')
+  @ApiClientMeta()
   @ApiOperation({ summary: 'Add a track to a playlist' })
   @ApiParam({ name: 'id', type: String, format: 'uuid' })
   @ApiBody({ type: AddTrackToPlaylistDto })
@@ -166,15 +184,18 @@ export class PlaylistsController {
     @Param('id', ParseUUIDPipe) playlistId: string,
     @Body() payload: AddTrackToPlaylistDto,
     @Request() req: Express.Request,
+    @ClientMeta() meta: ClientMetaDto,
   ) {
     return this.playlistsService.addTrackToPlaylist(
       playlistId,
       req.user!.id,
       payload.providerTrackId,
+      meta,
     );
   }
 
   @Delete(':id/tracks/:playlistTrackId')
+  @ApiClientMeta()
   @ApiOperation({ summary: 'Remove a track from a playlist' })
   @ApiParam({ name: 'id', type: String, format: 'uuid' })
   @ApiParam({ name: 'playlistTrackId', type: String, format: 'uuid' })
@@ -210,15 +231,18 @@ export class PlaylistsController {
     @Param('id', ParseUUIDPipe) playlistId: string,
     @Param('playlistTrackId', ParseUUIDPipe) playlistTrackId: string,
     @Request() req: Express.Request,
+    @ClientMeta() meta: ClientMetaDto,
   ) {
     return this.playlistsService.removeTrackFromPlaylist(
       playlistId,
       playlistTrackId,
       req.user!.id,
+      meta,
     );
   }
 
   @Patch(':id/tracks/:playlistTrackId/reorder')
+  @ApiClientMeta()
   @ApiOperation({ summary: 'Reorder a track in a playlist' })
   @ApiParam({ name: 'id', type: String, format: 'uuid' })
   @ApiParam({ name: 'playlistTrackId', type: String, format: 'uuid' })
@@ -248,12 +272,14 @@ export class PlaylistsController {
     @Param('playlistTrackId', ParseUUIDPipe) playlistTrackId: string,
     @Body() payload: ReorderTrackDto,
     @Request() req: Express.Request,
+    @ClientMeta() meta: ClientMetaDto,
   ) {
     return this.playlistsService.reorderTrack(
       playlistId,
       playlistTrackId,
       req.user!.id,
       payload,
+      meta,
     );
   }
 }

@@ -17,7 +17,8 @@ import type { ResetPasswordDto } from './dto/reset-password.dto';
 import type { JwtPayload } from './interfaces/jwt-payload.interface';
 import type { User } from '@prisma/client';
 import { AUDIT_LOG_EVENT, AuditAction } from '../audit-log/audit-log.constants';
-import type { AuditLogEvent } from '../audit-log/audit-log.event';
+import { createAuditLogEvent } from '../audit-log/audit-log.event';
+import type { ClientMetaDto } from '../common/dto/client-meta.dto';
 
 const BCRYPT_SALT_ROUNDS = 10;
 
@@ -41,7 +42,10 @@ export class AuthService {
     );
   }
 
-  async register(dto: RegisterDto): Promise<{ access_token: string }> {
+  async register(
+    dto: RegisterDto,
+    meta: ClientMetaDto,
+  ): Promise<{ access_token: string }> {
     // Verify the email verification token
     const verifiedEmail = this.verifyEmailToken(dto.emailVerificationToken);
 
@@ -75,19 +79,20 @@ export class AuthService {
       true,
     );
 
-    this.eventEmitter.emit(AUDIT_LOG_EVENT, {
-      userId: user.id,
-      action: AuditAction.REGISTER,
-      platform: 'unknown',
-      deviceModel: 'unknown',
-      appVersion: 'unknown',
-      metadata: { email: dto.email },
-    } satisfies AuditLogEvent);
+    this.eventEmitter.emit(
+      AUDIT_LOG_EVENT,
+      createAuditLogEvent(user.id, AuditAction.REGISTER, meta, {
+        email: dto.email,
+      }),
+    );
 
     return this.generateToken(user.id, user.email);
   }
 
-  async login(dto: LoginDto): Promise<{ access_token: string }> {
+  async login(
+    dto: LoginDto,
+    meta: ClientMetaDto,
+  ): Promise<{ access_token: string }> {
     let user: User | null;
 
     if (dto.identifier.includes('@')) {
@@ -109,19 +114,20 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
-    this.eventEmitter.emit(AUDIT_LOG_EVENT, {
-      userId: user.id,
-      action: AuditAction.LOGIN,
-      platform: 'unknown',
-      deviceModel: 'unknown',
-      appVersion: 'unknown',
-      metadata: { identifier: dto.identifier },
-    } satisfies AuditLogEvent);
+    this.eventEmitter.emit(
+      AUDIT_LOG_EVENT,
+      createAuditLogEvent(user.id, AuditAction.LOGIN, meta, {
+        identifier: dto.identifier,
+      }),
+    );
 
     return this.generateToken(user.id, user.email);
   }
 
-  async googleAuth(idToken: string): Promise<{ access_token: string }> {
+  async googleAuth(
+    idToken: string,
+    meta: ClientMetaDto,
+  ): Promise<{ access_token: string }> {
     try {
       const ticket = await this.googleClient.verifyIdToken({
         idToken,
@@ -158,14 +164,13 @@ export class AuthService {
         }
       }
 
-      this.eventEmitter.emit(AUDIT_LOG_EVENT, {
-        userId: user.id,
-        action: AuditAction.GOOGLE_AUTH,
-        platform: 'unknown',
-        deviceModel: 'unknown',
-        appVersion: 'unknown',
-        metadata: { email, isNewUser: !user.googleId },
-      } satisfies AuditLogEvent);
+      this.eventEmitter.emit(
+        AUDIT_LOG_EVENT,
+        createAuditLogEvent(user.id, AuditAction.GOOGLE_AUTH, meta, {
+          email,
+          isNewUser: !user.googleId,
+        }),
+      );
 
       // Return the new session
       return this.generateToken(user.id, user.email);
@@ -203,7 +208,10 @@ export class AuthService {
     return finalUsername;
   }
 
-  async resetPassword(dto: ResetPasswordDto): Promise<void> {
+  async resetPassword(
+    dto: ResetPasswordDto,
+    meta: ClientMetaDto,
+  ): Promise<void> {
     let payload: OtpVerificationPayload;
 
     try {
@@ -232,14 +240,12 @@ export class AuthService {
     const passwordHash = await bcrypt.hash(dto.newPassword, BCRYPT_SALT_ROUNDS);
     await this.usersService.updatePassword(user.id, passwordHash);
 
-    this.eventEmitter.emit(AUDIT_LOG_EVENT, {
-      userId: user.id,
-      action: AuditAction.PASSWORD_RESET,
-      platform: 'unknown',
-      deviceModel: 'unknown',
-      appVersion: 'unknown',
-      metadata: { email },
-    } satisfies AuditLogEvent);
+    this.eventEmitter.emit(
+      AUDIT_LOG_EVENT,
+      createAuditLogEvent(user.id, AuditAction.PASSWORD_RESET, meta, {
+        email,
+      }),
+    );
   }
 
   private verifyEmailToken(token: string): string {

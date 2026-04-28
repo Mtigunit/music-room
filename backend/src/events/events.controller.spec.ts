@@ -12,6 +12,15 @@ describe('EventsController', () => {
   let controller: EventsController;
   let service: EventsService;
 
+  const mockUser = { id: 'user-1' };
+  const mockReq = { user: mockUser } as unknown as Request;
+  const mockMeta = {
+    ipAddress: '127.0.0.1',
+    platform: 'test',
+    deviceModel: 'test',
+    appVersion: '1.0.0',
+  } as any;
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       controllers: [EventsController],
@@ -22,6 +31,7 @@ describe('EventsController', () => {
           provide: YoutubeService,
           useValue: {
             getTrackDetails: jest.fn(),
+            getTrackDetailsBatch: jest.fn(),
           },
         },
         {
@@ -63,42 +73,176 @@ describe('EventsController', () => {
     expect(controller).toBeDefined();
   });
 
+  describe('create', () => {
+    it('should call eventsService.create with correct parameters', async () => {
+      const dto = { name: 'Test Event', visibility: 'PUBLIC' } as any;
+      const spy = jest
+        .spyOn(service, 'create')
+        .mockResolvedValue({ id: 'event-1' } as any);
+
+      await controller.create(dto, mockReq, mockMeta);
+
+      expect(spy).toHaveBeenCalledWith(mockUser.id, dto, mockMeta);
+    });
+  });
+
+  describe('findAll', () => {
+    it('should call eventsService.findAll with correct parameters', async () => {
+      const page = 1;
+      const limit = 10;
+      const search = 'test';
+      const spy = jest
+        .spyOn(service, 'findAll')
+        .mockResolvedValue({ data: [], total: 0 } as any);
+
+      await controller.findAll(page, limit, mockReq, search);
+
+      expect(spy).toHaveBeenCalledWith(mockUser.id, { page, limit, search });
+    });
+  });
+
+  describe('findHosting', () => {
+    it('should call eventsService.findHosting with correct parameters', async () => {
+      const page = 1;
+      const limit = 10;
+      const search = 'test';
+      const spy = jest
+        .spyOn(service, 'findHosting')
+        .mockResolvedValue({ data: [], total: 0 } as any);
+
+      await controller.findHosting(page, limit, mockReq, search);
+
+      expect(spy).toHaveBeenCalledWith(mockUser.id, { page, limit, search });
+    });
+  });
+
+  describe('findInvited', () => {
+    it('should call eventsService.findInvited with correct parameters', async () => {
+      const page = 1;
+      const limit = 10;
+      const search = 'test';
+      const spy = jest
+        .spyOn(service, 'findInvited')
+        .mockResolvedValue({ data: [], total: 0 } as any);
+
+      await controller.findInvited(page, limit, mockReq, search);
+
+      expect(spy).toHaveBeenCalledWith(mockUser.id, { page, limit, search });
+    });
+  });
+
+  describe('findOne', () => {
+    it('should call eventsService.findOne with correct parameters', async () => {
+      const eventId = '740777df-e348-40b6-925e-4c0f020cf68c';
+      const spy = jest
+        .spyOn(service, 'findOne')
+        .mockResolvedValue({ id: eventId } as any);
+
+      await controller.findOne(eventId, mockReq);
+
+      expect(spy).toHaveBeenCalledWith(eventId, mockUser.id);
+    });
+  });
+
+  describe('update', () => {
+    it('should call eventsService.update with correct parameters', async () => {
+      const eventId = '740777df-e348-40b6-925e-4c0f020cf68c';
+      const dto = { name: 'Updated Event' } as any;
+      const spy = jest
+        .spyOn(service, 'update')
+        .mockResolvedValue({ id: eventId } as any);
+
+      await controller.update(eventId, dto, mockReq, mockMeta);
+
+      expect(spy).toHaveBeenCalledWith(eventId, mockUser.id, dto, mockMeta);
+    });
+  });
+
   describe('inviteUser', () => {
     it('should call eventsService.inviteUser with correct parameters', async () => {
       const eventId = '740777df-e348-40b6-925e-4c0f020cf68c';
-      const hostId = 'user-1';
       const invitedUserId = 'user-2';
       const dto = { userId: invitedUserId };
-
-      const req = { user: { id: hostId } } as unknown as Request;
-
       const spy = jest
         .spyOn(service, 'inviteUser')
-        .mockResolvedValue({ id: 'invite-1' } as never);
+        .mockResolvedValue({ id: 'invite-1' } as any);
 
-      await controller.inviteUser(eventId, dto, req);
+      await controller.inviteUser(eventId, dto, mockReq, mockMeta);
 
-      expect(spy).toHaveBeenCalledWith(eventId, hostId, invitedUserId);
+      expect(spy).toHaveBeenCalledWith(
+        eventId,
+        mockUser.id,
+        invitedUserId,
+        mockMeta,
+      );
     });
   });
 
   describe('getTracks', () => {
     it('should call eventsService.getTracks with correct parameters', async () => {
       const eventId = '740777df-e348-40b6-925e-4c0f020cf68c';
-      const userId = 'user-1';
       const page = 1;
       const limit = 10;
-
-      const req = { user: { id: userId } } as unknown as Request;
-
       const spy = jest.spyOn(service, 'getTracks').mockResolvedValue({
         data: [],
         pagination: { total: 0, page, limit, totalPages: 0 },
-      } as never);
+      } as any);
 
-      await controller.getTracks(eventId, req, page, limit);
+      await controller.getTracks(eventId, mockReq, page, limit);
 
-      expect(spy).toHaveBeenCalledWith(eventId, userId, { page, limit });
+      expect(spy).toHaveBeenCalledWith(eventId, mockUser.id, { page, limit });
+    });
+  });
+
+  describe('remove', () => {
+    it('should call eventsService.remove with correct parameters', async () => {
+      const eventId = '740777df-e348-40b6-925e-4c0f020cf68c';
+      const spy = jest
+        .spyOn(service, 'remove')
+        .mockResolvedValue({ message: 'Deleted' } as any);
+
+      await controller.remove(eventId, mockReq, mockMeta);
+
+      expect(spy).toHaveBeenCalledWith(eventId, mockUser.id, mockMeta);
+    });
+  });
+
+  describe('appendTrack', () => {
+    it('should call eventsService.appendTrack with correct parameters', async () => {
+      const eventId = '740777df-e348-40b6-925e-4c0f020cf68c';
+      const providerTrackId = 'track-123';
+      const dto = { providerTrackId };
+      const spy = jest
+        .spyOn(service, 'appendTrack')
+        .mockResolvedValue({ id: 'event-track-1' } as any);
+
+      await controller.appendTrack(eventId, dto, mockReq, mockMeta);
+
+      expect(spy).toHaveBeenCalledWith(
+        eventId,
+        mockUser.id,
+        providerTrackId,
+        mockMeta,
+      );
+    });
+  });
+
+  describe('removeTrack', () => {
+    it('should call eventsService.removeTrack with correct parameters', async () => {
+      const eventId = '740777df-e348-40b6-925e-4c0f020cf68c';
+      const providerTrackId = 'track-123';
+      const spy = jest
+        .spyOn(service, 'removeTrack')
+        .mockResolvedValue({ providerTrackId } as any);
+
+      await controller.removeTrack(eventId, providerTrackId, mockReq, mockMeta);
+
+      expect(spy).toHaveBeenCalledWith(
+        eventId,
+        providerTrackId,
+        mockUser.id,
+        mockMeta,
+      );
     });
   });
 });

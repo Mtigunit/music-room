@@ -1,37 +1,57 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { EventsService } from './events.service';
 import { EventsRepository } from './events.repository';
-import { PrismaService } from '../prisma/prisma.service';
 import { EventsGateway } from './events.gateway';
 import { YoutubeService } from '../tracks/youtube.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { Visibility } from '@prisma/client';
+import { ForbiddenException, ConflictException } from '@nestjs/common';
 
 describe('EventsService', () => {
   let service: EventsService;
   let repository: EventsRepository;
+  let youtubeService: YoutubeService;
+
+  const mockMeta = {
+    ipAddress: '127.0.0.1',
+    platform: 'test',
+    deviceModel: 'test',
+    appVersion: '1.0.0',
+  } as any;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         EventsService,
-        EventsRepository,
+        {
+          provide: EventsRepository,
+          useValue: {
+            findById: jest.fn(),
+            findByIdWithDetails: jest.fn(),
+            findByIdWithInvites: jest.fn(),
+            findUserById: jest.fn(),
+            findInvite: jest.fn(),
+            findPlaylistsByIds: jest.fn(),
+            findEventTrack: jest.fn(),
+            findEventTrackByProviderId: jest.fn(),
+            createEvent: jest.fn(),
+            createInvite: jest.fn(),
+            createEventTrack: jest.fn(),
+            updateEvent: jest.fn(),
+            upsertTrackAndGet: jest.fn(),
+            deleteEvent: jest.fn(),
+            deleteEventTrack: jest.fn(),
+            getTracks: jest.fn(),
+            findAll: jest.fn(),
+            findHosting: jest.fn(),
+            findInvited: jest.fn(),
+          },
+        },
         {
           provide: YoutubeService,
           useValue: {
             getTrackDetails: jest.fn(),
-          },
-        },
-        {
-          provide: PrismaService,
-          useValue: {
-            $transaction: jest.fn(),
-            event: {
-              create: jest.fn(),
-              findMany: jest.fn(),
-              findUnique: jest.fn(),
-              update: jest.fn(),
-              delete: jest.fn(),
-            },
+            getTrackDetailsBatch: jest.fn(),
           },
         },
         {
@@ -39,8 +59,6 @@ describe('EventsService', () => {
           useValue: {
             server: {
               to: jest.fn().mockReturnThis(),
-              in: jest.fn().mockReturnThis(),
-              socketsLeave: jest.fn(),
               emit: jest.fn(),
             },
           },
@@ -54,42 +72,166 @@ describe('EventsService', () => {
 
     service = module.get<EventsService>(EventsService);
     repository = module.get<EventsRepository>(EventsRepository);
+    youtubeService = module.get<YoutubeService>(YoutubeService);
   });
 
   it('should be defined', () => {
     expect(service).toBeDefined();
   });
 
-  describe('inviteUser', () => {
-    it('should call eventsRepository.inviteUser with correct parameters', async () => {
-      const eventId = '740777df-e348-40b6-925e-4c0f020cf68c';
-      const hostId = 'user-1';
-      const invitedUserId = 'user-2';
+  describe('create', () => {
+    it('should successfully create an event', async () => {
+      const userId = 'user-1';
+      const dto = { name: 'Test Event', tracks: ['track-1'] } as any;
+      const mockTrack = { providerTrackId: 'track-1', title: 'Title' };
 
-      const spy = jest
-        .spyOn(repository, 'inviteUser')
-        .mockResolvedValue({ id: 'invite-1' } as never);
+      jest
+        .spyOn(youtubeService, 'getTrackDetailsBatch')
+        .mockResolvedValue([mockTrack] as any);
+      jest
+        .spyOn(repository, 'createEvent')
+        .mockResolvedValue({ id: 'event-1' } as any);
 
-      await service.inviteUser(eventId, hostId, invitedUserId);
+      const result = await service.create(userId, dto, mockMeta);
 
-      expect(spy).toHaveBeenCalledWith(eventId, hostId, invitedUserId);
+      expect(result.id).toBe('event-1');
+      expect(repository.createEvent).toHaveBeenCalledWith(userId, dto, [
+        mockTrack,
+      ]);
     });
   });
 
-  describe('getTracks', () => {
-    it('should call eventsRepository.getTracks with correct parameters', async () => {
-      const eventId = '740777df-e348-40b6-925e-4c0f020cf68c';
+  describe('findOne', () => {
+    it('should return event details if accessible', async () => {
+      const eventId = 'event-1';
       const userId = 'user-1';
-      const options = { page: 1, limit: 10 };
+      const mockEvent = {
+        id: eventId,
+        hostId: userId,
+        visibility: Visibility.PUBLIC,
+        tracks: [],
+        invites: [],
+        host: { id: userId, username: 'host' },
+      };
 
-      const spy = jest.spyOn(repository, 'getTracks').mockResolvedValue({
-        data: [],
-        pagination: { total: 0, page: 1, limit: 10, totalPages: 0 },
-      } as never);
+      jest
+        .spyOn(repository, 'findByIdWithDetails')
+        .mockResolvedValue(mockEvent as any);
 
-      await service.getTracks(eventId, userId, options);
+      const result = await service.findOne(eventId, userId);
 
-      expect(spy).toHaveBeenCalledWith(eventId, userId, options);
+      expect(result.id).toBe(eventId);
+    });
+
+    it('should throw ForbiddenException for private event without access', async () => {
+      const eventId = 'event-1';
+      const userId = 'user-2';
+      const mockEvent = {
+        id: eventId,
+        hostId: 'user-1',
+        visibility: Visibility.PRIVATE,
+        invites: [],
+      };
+
+      jest
+        .spyOn(repository, 'findByIdWithDetails')
+        .mockResolvedValue(mockEvent as any);
+
+      await expect(service.findOne(eventId, userId)).rejects.toThrow(
+        ForbiddenException,
+      );
+    });
+  });
+
+  describe('update', () => {
+    it('should throw ForbiddenException if not the host', async () => {
+      const eventId = 'event-1';
+      const userId = 'user-2';
+      jest
+        .spyOn(repository, 'findById')
+        .mockResolvedValue({ hostId: 'user-1' } as any);
+
+      await expect(
+        service.update(eventId, userId, {} as any, mockMeta),
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe('inviteUser', () => {
+    it('should throw ConflictException if inviting self', async () => {
+      const eventId = 'event-1';
+      const userId = 'user-1';
+      jest
+        .spyOn(repository, 'findById')
+        .mockResolvedValue({ hostId: userId } as any);
+
+      await expect(
+        service.inviteUser(eventId, userId, userId, mockMeta),
+      ).rejects.toThrow(ConflictException);
+    });
+  });
+
+  describe('appendTrack', () => {
+    it('should successfully append a track', async () => {
+      const eventId = 'event-1';
+      const userId = 'user-1';
+      const providerTrackId = 'track-1';
+      const mockTrack = { id: 't-1', providerTrackId };
+
+      jest.spyOn(repository, 'findByIdWithInvites').mockResolvedValue({
+        hostId: userId,
+        visibility: Visibility.PUBLIC,
+        invites: [],
+      } as any);
+      jest
+        .spyOn(youtubeService, 'getTrackDetails')
+        .mockResolvedValue({ providerTrackId, title: 'Title' } as any);
+      jest
+        .spyOn(repository, 'upsertTrackAndGet')
+        .mockResolvedValue(mockTrack as any);
+      jest.spyOn(repository, 'findEventTrack').mockResolvedValue(null);
+      jest
+        .spyOn(repository, 'createEventTrack')
+        .mockResolvedValue({ id: 'et-1' } as any);
+
+      const result = await service.appendTrack(
+        eventId,
+        userId,
+        providerTrackId,
+        mockMeta,
+      );
+
+      expect(result.id).toBe('et-1');
+    });
+  });
+
+  describe('removeTrack', () => {
+    it('should successfully remove a track', async () => {
+      const eventId = 'event-1';
+      const userId = 'user-1';
+      const providerTrackId = 'track-1';
+      const mockEventTrack = {
+        id: 'et-1',
+        addedById: userId,
+        track: { providerTrackId },
+      };
+
+      jest
+        .spyOn(repository, 'findById')
+        .mockResolvedValue({ hostId: userId } as any);
+      jest
+        .spyOn(repository, 'findEventTrackByProviderId')
+        .mockResolvedValue(mockEventTrack as any);
+
+      const result = await service.removeTrack(
+        eventId,
+        providerTrackId,
+        userId,
+        mockMeta,
+      );
+
+      expect(result.providerTrackId).toBe(providerTrackId);
+      expect(repository.deleteEventTrack).toHaveBeenCalledWith('et-1');
     });
   });
 });

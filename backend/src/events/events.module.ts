@@ -10,17 +10,25 @@ import { EventsGateway } from './events.gateway';
 import { PrismaModule } from '../prisma/prisma.module';
 import { WebsocketsModule } from '../websockets/websockets.module';
 import { TracksModule } from '../tracks/tracks.module';
+import { BullModule } from '@nestjs/bullmq';
+import { BULL_QUEUES } from './events.constants';
+import { EventsProcessor } from './events.processor';
+import { RedisModule } from '../redis/redis.module';
 
 @Module({
   imports: [
     PrismaModule,
     WebsocketsModule,
     TracksModule,
+    RedisModule,
+    BullModule.registerQueue({
+      name: BULL_QUEUES.EVENT_TIMEOUTS,
+    }),
     MulterModule.register({
       limits: {
         fileSize: 2 * 1024 * 1024, // 2MB limit
       },
-      fileFilter: (req, file, cb) => {
+      fileFilter: (_req, file, cb) => {
         if (!file.mimetype.match(/\/(jpg|jpeg|png|gif|webp)$/)) {
           return cb(
             new BadRequestException('Only image files are allowed!'),
@@ -49,6 +57,6 @@ import { TracksModule } from '../tracks/tracks.module';
     }),
   ],
   controllers: [EventsController],
-  providers: [EventsService, EventsRepository, EventsGateway],
+  providers: [EventsService, EventsRepository, EventsGateway, EventsProcessor],
 })
 export class EventsModule {}

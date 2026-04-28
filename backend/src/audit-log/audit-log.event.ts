@@ -26,3 +26,24 @@ export class AuditLogEvent {
   /** Client IP address for security auditing. */
   ipAddress?: string;
 }
+
+/**
+ * Helper function to create an AuditLogEvent, automatically extracting
+ * platform, device, version, and IP address from the ClientMetaDto.
+ */
+export function createAuditLogEvent(
+  userId: string | null,
+  action: AuditAction,
+  meta: import('../common/dto/client-meta.dto').ClientMetaDto,
+  metadata?: Record<string, unknown>,
+): AuditLogEvent {
+  return {
+    userId,
+    action,
+    platform: meta.platform,
+    deviceModel: meta.deviceModel,
+    appVersion: meta.appVersion,
+    ipAddress: meta.ipAddress,
+    metadata,
+  };
+}

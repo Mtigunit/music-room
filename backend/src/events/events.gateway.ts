@@ -5,6 +5,7 @@ import {
   WebSocketGateway,
   WebSocketServer,
   WsException,
+  OnGatewayDisconnect,
 } from '@nestjs/websockets';
 import { Logger, UseGuards } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
@@ -13,16 +14,36 @@ import { PrismaService } from '../prisma/prisma.service';
 import { EventStatus, Visibility } from '@prisma/client';
 import { WsUser } from '../websockets/decorators/ws-user.decorator';
 import type { SocketUser } from '../websockets/socket-auth.service';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
+import {
+  WS_EVENTS,
+  REDIS_KEYS,
+  BULL_QUEUES,
+  BULL_JOBS,
+} from './events.constants';
+import { RedisService } from '../redis/redis.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { AUDIT_LOG_EVENT, AuditAction } from '../audit-log/audit-log.constants';
+import { createAuditLogEvent } from '../audit-log/audit-log.event';
+import { ClientMeta } from '../common/decorators/client-meta.decorator';
+import { ClientMetaDto } from '../common/dto/client-meta.dto';
 
 @WebSocketGateway({ path: '/ws', cors: true })
 @UseGuards(WsAuthGuard)
-export class EventsGateway {
+export class EventsGateway implements OnGatewayDisconnect {
   @WebSocketServer()
   server!: Server;
 
   private readonly logger = new Logger(EventsGateway.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly redisService: RedisService,
+    @InjectQueue(BULL_QUEUES.EVENT_TIMEOUTS)
+    private readonly eventTimeoutsQueue: Queue,
+    private readonly eventEmitter: EventEmitter2,
+  ) {}
 
   private getRoomCount(roomName: string): number {
     const room = this.server.sockets.adapter.rooms.get(roomName);
@@ -31,10 +52,78 @@ export class EventsGateway {
 
   private broadcastRoomCount(roomName: string) {
     const count = this.getRoomCount(roomName);
-    this.server.to(roomName).emit('room:count', { room: roomName, count });
+    this.server
+      .to(roomName)
+      .emit(WS_EVENTS.EVENT_COUNT, { room: roomName, count });
   }
 
-  @SubscribeMessage('event:join')
+  async handleDisconnect(client: Socket) {
+    const data = client.data as { user?: SocketUser };
+    const user = data?.user;
+    if (!user) return;
+
+    const liveEvent = await this.prisma.event.findFirst({
+      where: { hostId: user.id, status: EventStatus.LIVE },
+    });
+    if (liveEvent) {
+      const redisClient = this.redisService.getClient();
+      const hostSocketKey = REDIS_KEYS.HOST_SOCKET(liveEvent.id);
+      const currentHostSocketId = await redisClient.get(hostSocketKey);
+
+      if (currentHostSocketId === client.id) {
+        await this.startHostGracePeriod(liveEvent.id, user.id);
+      }
+    }
+  }
+
+  private async removeExistingTimeoutJob(jobId: string) {
+    const existingJob = await this.eventTimeoutsQueue.getJob(jobId);
+    if (existingJob) {
+      existingJob.remove().catch((error: Error) => {
+        this.logger.error(
+          `Failed to remove existing timeout job with ID ${jobId} | Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+        );
+      });
+    }
+  }
+
+  private async startHostGracePeriod(eventId: string, userId: string) {
+    const redisClient = this.redisService.getClient();
+    const softTimeoutJobId = `soft-${eventId}`;
+    const hardTimeoutJobId = `hard-${eventId}`;
+    this.logger.log(
+      `Host ${userId} disconnected or left event ${eventId}, starting grace period.`,
+    );
+    await redisClient.setex(
+      REDIS_KEYS.HOST_DISCONNECT(eventId),
+      (BULL_JOBS.SOFT_TIMEOUT + BULL_JOBS.HARD_TIMEOUT) / 1000,
+      userId,
+    );
+    await this.removeExistingTimeoutJob(softTimeoutJobId);
+    await this.eventTimeoutsQueue.add(
+      BULL_JOBS.HOST_SOFT_TIMEOUT,
+      { eventId, userId },
+      {
+        delay: BULL_JOBS.SOFT_TIMEOUT,
+        jobId: softTimeoutJobId,
+        removeOnComplete: true,
+        removeOnFail: true,
+      },
+    );
+    await this.removeExistingTimeoutJob(hardTimeoutJobId);
+    await this.eventTimeoutsQueue.add(
+      BULL_JOBS.HOST_HARD_TIMEOUT,
+      { eventId, userId },
+      {
+        delay: BULL_JOBS.HARD_TIMEOUT,
+        jobId: hardTimeoutJobId,
+        removeOnComplete: true,
+        removeOnFail: true,
+      },
+    );
+  }
+
+  @SubscribeMessage(WS_EVENTS.JOIN)
   async handleEventJoin(
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: { eventId: string },
@@ -52,17 +141,13 @@ export class EventsGateway {
       include: { invites: true },
     });
 
-    if (!event) {
-      throw new WsException('Event not found');
-    }
-
-    if (event.hostId === userId) {
-      throw new WsException('Host must use event:start to join the event');
-    }
-
-    if (event.status !== EventStatus.LIVE) {
-      throw new WsException('Event is not live');
-    }
+    if (!event) throw new WsException('Event not found');
+    if (event.hostId === userId)
+      throw new WsException(
+        'Forbidden: Host must use host_join to join an event',
+      );
+    if (event.status === EventStatus.ENDED)
+      throw new WsException('Event has already ended');
 
     if (event.visibility === Visibility.PRIVATE) {
       const isInvited = event.invites.some((i) => i.userId === userId);
@@ -79,40 +164,259 @@ export class EventsGateway {
     );
     this.broadcastRoomCount(roomName);
 
-    return { event: 'joined', eventId };
+    client.emit(WS_EVENTS.STATUS, {
+      eventId,
+      status: event.status,
+      startDate: event.startDate,
+    });
+
+    this.server.to(roomName).emit(WS_EVENTS.USER_JOINED, { userId });
+
+    return { event: 'joined', eventId, status: event.status };
   }
 
-  @SubscribeMessage('event:leave')
+  @SubscribeMessage(WS_EVENTS.HOST_JOIN)
+  async handleHostJoin(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { eventId: string },
+    @WsUser() user: SocketUser,
+  ) {
+    if (!payload?.eventId) throw new WsException('eventId is required');
+
+    const eventId = payload.eventId;
+    const userId = user.id;
+
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+    });
+
+    if (!event) throw new WsException('Event not found');
+    if (event.hostId !== userId)
+      throw new WsException('Forbidden: Only host can use host_join');
+    if (event.status === EventStatus.ENDED)
+      throw new WsException('Event has already ended');
+
+    const roomName = `event_${eventId}`;
+    await client.join(roomName);
+
+    this.logger.log(
+      `Host ${client.id} (User: ${userId}) joined room ${roomName}`,
+    );
+    this.broadcastRoomCount(roomName);
+
+    await this.handleHostRejoined(eventId, userId, client.id);
+
+    client.emit(WS_EVENTS.STATUS, {
+      eventId,
+      status: event.status,
+      startDate: event.startDate,
+    });
+
+    return { event: 'host_joined', eventId, status: event.status };
+  }
+
+  private async handleHostRejoined(
+    eventId: string,
+    userId: string,
+    socketId: string,
+  ) {
+    const redisClient = this.redisService.getClient();
+    const disconnectFlag = await redisClient.get(
+      REDIS_KEYS.HOST_DISCONNECT(eventId),
+    );
+
+    await redisClient.set(REDIS_KEYS.HOST_SOCKET(eventId), socketId);
+
+    if (disconnectFlag === userId) {
+      this.logger.log(
+        `Host ${userId} rejoined event ${eventId} in time, canceling timeouts.`,
+      );
+      await redisClient.del(REDIS_KEYS.HOST_DISCONNECT(eventId));
+
+      const softJob = await this.eventTimeoutsQueue.getJob(`soft-${eventId}`);
+      if (softJob) await softJob.remove();
+
+      const hardJob = await this.eventTimeoutsQueue.getJob(`hard-${eventId}`);
+      if (hardJob)
+        await hardJob.remove().catch((error: Error) => {
+          this.logger.error(
+            `Failed to remove hard timeout job for event ${eventId} | Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          );
+        });
+
+      const roomName = `event_${eventId}`;
+      this.server
+        .to(roomName)
+        .emit(WS_EVENTS.HOST_RECONNECTED, { hostId: userId });
+    }
+  }
+
+  @SubscribeMessage(WS_EVENTS.LEAVE)
   async handleEventLeave(
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: { eventId: string },
     @WsUser() user: SocketUser,
   ) {
-    if (!payload?.eventId) {
-      throw new WsException('eventId is required');
-    }
+    if (!payload?.eventId) throw new WsException('eventId is required');
+
+    const eventId = payload.eventId;
+    const userId = user.id;
 
     const event = await this.prisma.event.findUnique({
-      where: { id: payload.eventId },
+      where: { id: eventId },
     });
 
-    if (!event) {
-      throw new WsException('Event not found');
-    }
+    if (!event) throw new WsException('Event not found');
+    if (event.hostId === userId)
+      throw new WsException(
+        'Forbidden: Host must use host_leave to leave an event',
+      );
 
-    if (event.hostId === user.id) {
-      throw new WsException('Host must use event:end to end the event');
-    }
-
-    if (event.status !== EventStatus.LIVE) {
-      throw new WsException('Event is not live');
-    }
-
-    const roomName = `event_${payload.eventId}`;
+    const roomName = `event_${eventId}`;
     await client.leave(roomName);
     this.logger.log(`Client ${client.id} left room ${roomName}`);
     this.broadcastRoomCount(roomName);
 
-    return { event: 'left', eventId: payload.eventId };
+    return { event: 'left', eventId };
+  }
+
+  @SubscribeMessage(WS_EVENTS.HOST_LEAVE)
+  async handleHostLeave(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { eventId: string },
+    @WsUser() user: SocketUser,
+  ) {
+    if (!payload?.eventId) throw new WsException('eventId is required');
+
+    const eventId = payload.eventId;
+    const userId = user.id;
+
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+    });
+
+    if (!event) throw new WsException('Event not found');
+    if (event.hostId !== userId)
+      throw new WsException('Forbidden: Only host can use host_leave');
+
+    const roomName = `event_${eventId}`;
+    await client.leave(roomName);
+    this.logger.log(`Host ${client.id} explicitly left room ${roomName}`);
+    this.broadcastRoomCount(roomName);
+
+    if (event.status === EventStatus.LIVE) {
+      await this.startHostGracePeriod(eventId, userId);
+    }
+
+    return { event: 'host_left', eventId };
+  }
+
+  @SubscribeMessage(WS_EVENTS.START)
+  async handleEventStart(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { eventId: string },
+    @WsUser() user: SocketUser,
+    @ClientMeta() meta: ClientMetaDto,
+  ) {
+    if (!payload?.eventId) throw new WsException('eventId is required');
+
+    const eventId = payload.eventId;
+    const userId = user.id;
+
+    const existingLiveEvent = await this.prisma.event.findFirst({
+      where: {
+        hostId: userId,
+        status: EventStatus.LIVE,
+        id: { not: eventId },
+      },
+    });
+    if (existingLiveEvent) {
+      throw new WsException('Forbidden: Host already has another live event');
+    }
+
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+    });
+    if (!event) throw new WsException('Event not found');
+    if (event.hostId !== userId)
+      throw new WsException('Forbidden: Only host can start the event');
+    if (event.status === EventStatus.LIVE)
+      throw new WsException('Forbidden: Event is already live');
+
+    const updatedEvent = await this.prisma.event.update({
+      where: { id: eventId },
+      data: { status: EventStatus.LIVE, startDate: new Date() },
+    });
+
+    const redisClient = this.redisService.getClient();
+    await redisClient.set(REDIS_KEYS.EVENT_HOST(eventId), userId);
+    await redisClient.set(REDIS_KEYS.HOST_SOCKET(eventId), client.id);
+
+    const roomName = `event_${eventId}`;
+    await client.join(roomName);
+
+    this.server.to(roomName).emit(WS_EVENTS.STARTED, {
+      eventId,
+      status: EventStatus.LIVE,
+      startDate: updatedEvent.startDate,
+      hostId: userId,
+    });
+
+    this.eventEmitter.emit(
+      AUDIT_LOG_EVENT,
+      createAuditLogEvent(userId, AuditAction.EVENT_START, meta, { eventId }),
+    );
+
+    return { event: 'started', eventId, status: EventStatus.LIVE };
+  }
+
+  @SubscribeMessage(WS_EVENTS.END)
+  async handleEventEnd(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() payload: { eventId: string },
+    @WsUser() user: SocketUser,
+    @ClientMeta() meta: ClientMetaDto,
+  ) {
+    if (!payload?.eventId) throw new WsException('eventId is required');
+
+    const eventId = payload.eventId;
+    const userId = user.id;
+
+    const event = await this.prisma.event.findUnique({
+      where: { id: eventId },
+    });
+    if (!event) throw new WsException('Event not found');
+    if (event.hostId !== userId)
+      throw new WsException('Forbidden: Only host can end the event');
+    if (event.status !== EventStatus.LIVE)
+      throw new WsException('Forbidden: Event is not live');
+
+    await this.prisma.event.update({
+      where: { id: eventId },
+      data: { status: EventStatus.ENDED },
+    });
+
+    const redisClient = this.redisService.getClient();
+    await redisClient.del(
+      ...[
+        REDIS_KEYS.EVENT_HOST(eventId),
+        REDIS_KEYS.HOST_SOCKET(eventId),
+        REDIS_KEYS.HOST_DISCONNECT(eventId),
+      ],
+    );
+
+    const roomName = `event_${eventId}`;
+    this.server.to(roomName).emit(WS_EVENTS.ENDED, { reason: 'host_ended' });
+    this.server.in(roomName).socketsLeave(roomName);
+
+    this.eventEmitter.emit(
+      AUDIT_LOG_EVENT,
+      createAuditLogEvent(userId, AuditAction.EVENT_END, meta, {
+        eventId,
+        reason: 'host_ended',
+      }),
+    );
+
+    return { event: 'ended', eventId };
   }
 }
