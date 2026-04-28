@@ -53,7 +53,6 @@ class InjectionContainer {
     );
     _searchQueryService = SearchQueryService();
     _googleAuthService = GoogleAuthService();
-    await _googleAuthService.initialize();
     final sharedPreferences = await SharedPreferences.getInstance();
     _connectivityService = ConnectivityService();
 
