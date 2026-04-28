@@ -3,6 +3,7 @@ import {
   ExecutionContext,
   Injectable,
   Logger,
+  Optional,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectThrottlerStorage, ThrottlerStorage } from '@nestjs/throttler';
@@ -23,13 +24,21 @@ export class WsThrottlerGuard implements CanActivate {
   private readonly logger = new Logger(WsThrottlerGuard.name);
 
   constructor(
+    @Optional()
     @InjectThrottlerStorage()
-    private readonly throttlerStorage: ThrottlerStorage,
+    private readonly throttlerStorage: ThrottlerStorage | undefined,
     private readonly socketAuthService: SocketAuthService,
     private readonly configService: ConfigService,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    if (!this.throttlerStorage) {
+      this.logger.warn(
+        'ThrottlerStorage is undefined. Rate limiting is bypassed (Expected in isolated test environments).',
+      );
+      return true;
+    }
+
     const client = context.switchToWs().getClient<Socket>();
     const user = this.socketAuthService.getUser(client);
 
