@@ -12,6 +12,13 @@ describe('EventsService', () => {
   let repository: EventsRepository;
   let youtubeService: YoutubeService;
 
+  const mockMeta = {
+    ipAddress: '127.0.0.1',
+    platform: 'test',
+    deviceModel: 'test',
+    appVersion: '1.0.0',
+  } as any;
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -85,7 +92,7 @@ describe('EventsService', () => {
         .spyOn(repository, 'createEvent')
         .mockResolvedValue({ id: 'event-1' } as any);
 
-      const result = await service.create(userId, dto);
+      const result = await service.create(userId, dto, mockMeta);
 
       expect(result.id).toBe('event-1');
       expect(repository.createEvent).toHaveBeenCalledWith(userId, dto, [
@@ -144,9 +151,9 @@ describe('EventsService', () => {
         .spyOn(repository, 'findById')
         .mockResolvedValue({ hostId: 'user-1' } as any);
 
-      await expect(service.update(eventId, userId, {} as any)).rejects.toThrow(
-        ForbiddenException,
-      );
+      await expect(
+        service.update(eventId, userId, {} as any, mockMeta),
+      ).rejects.toThrow(ForbiddenException);
     });
   });
 
@@ -158,9 +165,9 @@ describe('EventsService', () => {
         .spyOn(repository, 'findById')
         .mockResolvedValue({ hostId: userId } as any);
 
-      await expect(service.inviteUser(eventId, userId, userId)).rejects.toThrow(
-        ConflictException,
-      );
+      await expect(
+        service.inviteUser(eventId, userId, userId, mockMeta),
+      ).rejects.toThrow(ConflictException);
     });
   });
 
@@ -191,6 +198,7 @@ describe('EventsService', () => {
         eventId,
         userId,
         providerTrackId,
+        mockMeta,
       );
 
       expect(result.id).toBe('et-1');
@@ -219,6 +227,7 @@ describe('EventsService', () => {
         eventId,
         providerTrackId,
         userId,
+        mockMeta,
       );
 
       expect(result.providerTrackId).toBe(providerTrackId);

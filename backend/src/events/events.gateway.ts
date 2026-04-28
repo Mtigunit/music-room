@@ -23,6 +23,11 @@ import {
   BULL_JOBS,
 } from './events.constants';
 import { RedisService } from '../redis/redis.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { AUDIT_LOG_EVENT, AuditAction } from '../audit-log/audit-log.constants';
+import { createAuditLogEvent } from '../audit-log/audit-log.event';
+import { ClientMeta } from '../common/decorators/client-meta.decorator';
+import { ClientMetaDto } from '../common/dto/client-meta.dto';
 
 @WebSocketGateway({ path: '/ws', cors: true })
 @UseGuards(WsAuthGuard)
@@ -37,6 +42,7 @@ export class EventsGateway implements OnGatewayDisconnect {
     private readonly redisService: RedisService,
     @InjectQueue(BULL_QUEUES.EVENT_TIMEOUTS)
     private readonly eventTimeoutsQueue: Queue,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   private getRoomCount(roomName: string): number {
@@ -310,6 +316,7 @@ export class EventsGateway implements OnGatewayDisconnect {
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: { eventId: string },
     @WsUser() user: SocketUser,
+    @ClientMeta() meta: ClientMetaDto,
   ) {
     if (!payload?.eventId) throw new WsException('eventId is required');
 
@@ -355,6 +362,11 @@ export class EventsGateway implements OnGatewayDisconnect {
       hostId: userId,
     });
 
+    this.eventEmitter.emit(
+      AUDIT_LOG_EVENT,
+      createAuditLogEvent(userId, AuditAction.EVENT_START, meta, { eventId }),
+    );
+
     return { event: 'started', eventId, status: EventStatus.LIVE };
   }
 
@@ -363,6 +375,7 @@ export class EventsGateway implements OnGatewayDisconnect {
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: { eventId: string },
     @WsUser() user: SocketUser,
+    @ClientMeta() meta: ClientMetaDto,
   ) {
     if (!payload?.eventId) throw new WsException('eventId is required');
 
@@ -395,6 +408,14 @@ export class EventsGateway implements OnGatewayDisconnect {
     const roomName = `event_${eventId}`;
     this.server.to(roomName).emit(WS_EVENTS.ENDED, { reason: 'host_ended' });
     this.server.in(roomName).socketsLeave(roomName);
+
+    this.eventEmitter.emit(
+      AUDIT_LOG_EVENT,
+      createAuditLogEvent(userId, AuditAction.EVENT_END, meta, {
+        eventId,
+        reason: 'host_ended',
+      }),
+    );
 
     return { event: 'ended', eventId };
   }

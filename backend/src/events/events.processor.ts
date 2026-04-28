@@ -11,6 +11,13 @@ import {
 import { RedisService } from '../redis/redis.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventStatus } from '@prisma/client';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import {
+  AUDIT_LOG_EVENT,
+  AuditAction,
+  SYSTEM_AUDIT_META,
+} from '../audit-log/audit-log.constants';
+import type { AuditLogEvent } from '../audit-log/audit-log.event';
 
 export interface EventTimeoutJobData {
   eventId: string;
@@ -25,6 +32,7 @@ export class EventsProcessor extends WorkerHost {
     private readonly eventsGateway: EventsGateway,
     private readonly redisService: RedisService,
     private readonly prisma: PrismaService,
+    private readonly eventEmitter: EventEmitter2,
   ) {
     super();
   }
@@ -94,6 +102,13 @@ export class EventsProcessor extends WorkerHost {
       REDIS_KEYS.EVENT_HOST(eventId),
       REDIS_KEYS.HOST_SOCKET(eventId),
     );
+
+    this.eventEmitter.emit(AUDIT_LOG_EVENT, {
+      userId,
+      action: AuditAction.EVENT_END,
+      ...SYSTEM_AUDIT_META,
+      metadata: { eventId, reason: 'host_hard_timeout' },
+    } satisfies AuditLogEvent);
 
     this.logger.log(`Ended event ${eventId} due to host hard timeout`);
   }

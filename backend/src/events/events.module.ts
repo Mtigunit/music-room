@@ -28,7 +28,7 @@ import { RedisModule } from '../redis/redis.module';
       limits: {
         fileSize: 2 * 1024 * 1024, // 2MB limit
       },
-      fileFilter: (req, file, cb) => {
+      fileFilter: (_req, file, cb) => {
         if (!file.mimetype.match(/\/(jpg|jpeg|png|gif|webp)$/)) {
           return cb(
             new BadRequestException('Only image files are allowed!'),

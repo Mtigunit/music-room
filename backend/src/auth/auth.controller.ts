@@ -23,6 +23,9 @@ import { VerifyResetOtpDto } from './dto/verify-reset-otp.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { GoogleLoginDto } from './dto/google-login.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { ClientMeta } from '../common/decorators/client-meta.decorator';
+import { ApiClientMeta } from '../common/decorators/api-client-meta.decorator';
+import { ClientMetaDto } from '../common/dto/client-meta.dto';
 
 interface AuthenticatedRequest {
   user: { id: string; email: string };
@@ -59,28 +62,34 @@ export class AuthController {
   }
 
   @Post('register')
+  @ApiClientMeta()
   @ApiOperation({ summary: 'Register a new user with verified email' })
   @ApiResponse({ status: 201, description: 'User registered successfully.' })
   @ApiResponse({ status: 400, description: 'Invalid verification token.' })
   @ApiResponse({ status: 409, description: 'Email or username already taken.' })
-  async register(@Body() dto: RegisterDto) {
-    return this.authService.register(dto);
+  async register(@Body() dto: RegisterDto, @ClientMeta() meta: ClientMetaDto) {
+    return this.authService.register(dto, meta);
   }
 
   @Post('login')
+  @ApiClientMeta()
   @ApiOperation({ summary: 'Login with email/username and password' })
   @ApiResponse({ status: 201, description: 'Login successful.' })
   @ApiResponse({ status: 401, description: 'Invalid credentials.' })
-  async login(@Body() dto: LoginDto) {
-    return this.authService.login(dto);
+  async login(@Body() dto: LoginDto, @ClientMeta() meta: ClientMetaDto) {
+    return this.authService.login(dto, meta);
   }
 
   @Post('google')
+  @ApiClientMeta()
   @ApiOperation({ summary: 'Login or Register with Google' })
   @ApiResponse({ status: 201, description: 'Google Auth successful.' })
   @ApiResponse({ status: 401, description: 'Invalid Google ID Token.' })
-  async googleAuth(@Body() dto: GoogleLoginDto) {
-    return this.authService.googleAuth(dto.idToken);
+  async googleAuth(
+    @Body() dto: GoogleLoginDto,
+    @ClientMeta() meta: ClientMetaDto,
+  ) {
+    return this.authService.googleAuth(dto.idToken, meta);
   }
 
   @Post('forgot-password')
@@ -121,11 +130,15 @@ export class AuthController {
   }
 
   @Post('reset-password')
+  @ApiClientMeta()
   @ApiOperation({ summary: 'Reset password using the proof token' })
   @ApiResponse({ status: 200, description: 'Password reset successfully.' })
   @ApiResponse({ status: 400, description: 'Invalid or expired reset token.' })
-  async resetPassword(@Body() dto: ResetPasswordDto) {
-    await this.authService.resetPassword(dto);
+  async resetPassword(
+    @Body() dto: ResetPasswordDto,
+    @ClientMeta() meta: ClientMetaDto,
+  ) {
+    await this.authService.resetPassword(dto, meta);
     return { message: 'Password has been reset successfully' };
   }
 

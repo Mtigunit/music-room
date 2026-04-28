@@ -4,7 +4,8 @@ import { TrackVoteMessageDto } from './dto/track-vote-message.dto';
 import { TrackVoteResultDto } from './dto/track-vote-result.dto';
 import { TrackVotesRepository } from './track-votes.repository';
 import { AUDIT_LOG_EVENT, AuditAction } from '../audit-log/audit-log.constants';
-import type { AuditLogEvent } from '../audit-log/audit-log.event';
+import { createAuditLogEvent } from '../audit-log/audit-log.event';
+import type { ClientMetaDto } from '../common/dto/client-meta.dto';
 
 @Injectable()
 export class TrackVotesService {
@@ -16,6 +17,7 @@ export class TrackVotesService {
   async recordVote(
     payload: TrackVoteMessageDto,
     userId: string,
+    meta: ClientMetaDto,
   ): Promise<TrackVoteResultDto> {
     const record = await this.trackVotesRepository.recordVote(
       payload.eventId,
@@ -24,18 +26,14 @@ export class TrackVotesService {
       payload.vote,
     );
 
-    this.eventEmitter.emit(AUDIT_LOG_EVENT, {
-      userId,
-      action: AuditAction.VOTE_CAST,
-      platform: 'unknown',
-      deviceModel: 'unknown',
-      appVersion: 'unknown',
-      metadata: {
+    this.eventEmitter.emit(
+      AUDIT_LOG_EVENT,
+      createAuditLogEvent(userId, AuditAction.VOTE_CAST, meta, {
         eventId: payload.eventId,
         trackId: payload.trackId,
         vote: payload.vote,
-      },
-    } satisfies AuditLogEvent);
+      }),
+    );
 
     return {
       eventId: payload.eventId,
