@@ -95,6 +95,12 @@ class _SignInPageState extends State<SignInPage> {
             'Signing in...',
             duration: const Duration(seconds: 1),
           );
+        } else if (state is GoogleLoginLoading) {
+          AppSnackbar.showInfo(
+            context,
+            'Signing in with Google...',
+            duration: const Duration(seconds: 1),
+          );
         } else if (state is LoginSuccess) {
           AppSnackbar.showSuccess(context, 'Signed in successfully!');
           unawaited(
@@ -103,7 +109,17 @@ class _SignInPageState extends State<SignInPage> {
               (_) => false,
             ),
           );
+        } else if (state is GoogleLoginSuccess) {
+          AppSnackbar.showSuccess(context, 'Signed in with Google!');
+          unawaited(
+            Navigator.of(context).pushNamedAndRemoveUntil(
+              RouteNames.home,
+              (_) => false,
+            ),
+          );
         } else if (state is LoginFailure) {
+          AppSnackbar.showError(context, state.failure.message);
+        } else if (state is GoogleLoginFailure) {
           AppSnackbar.showError(context, state.failure.message);
         }
       },
@@ -160,7 +176,8 @@ class _SignInPageState extends State<SignInPage> {
 
                 BlocBuilder<AuthBloc, AuthState>(
                   builder: (context, state) {
-                    final isLoading = state is LoginLoading;
+                    final isLoading =
+                        state is LoginLoading || state is GoogleLoginLoading;
                     return SizedBox(
                       width: double.infinity,
                       height: 56,
@@ -185,8 +202,10 @@ class _SignInPageState extends State<SignInPage> {
 
                 SocialLoginButton(
                   provider: SocialProvider.google,
+                  isLoading:
+                      context.watch<AuthBloc>().state is GoogleLoginLoading,
                   onPressed: () {
-                    // TODO(mtigunit): Implement Google login.
+                    context.read<AuthBloc>().add(const GoogleLoginRequested());
                   },
                 ),
                 const SizedBox(height: 24),

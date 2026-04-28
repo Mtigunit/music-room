@@ -26,6 +26,11 @@ class LoginRequested extends AuthEvent {
   List<Object?> get props => [identifier, password];
 }
 
+/// Event to login with Google OAuth
+class GoogleLoginRequested extends AuthEvent {
+  const GoogleLoginRequested();
+}
+
 /// Event to request OTP code to be sent to email
 class SendOtpRequested extends AuthEvent {
   const SendOtpRequested({required this.email});

@@ -10,6 +10,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       super(const AuthInitial()) {
     on<AuthStarted>(_onAuthStarted);
     on<LoginRequested>(_onLoginRequested);
+    on<GoogleLoginRequested>(_onGoogleLoginRequested);
     on<SendOtpRequested>(_onSendOtpRequested);
     on<VerifyOtpRequested>(_onVerifyOtpRequested);
     on<SendPasswordResetOtpRequested>(_onSendPasswordResetOtpRequested);
@@ -18,6 +19,25 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<RegisterRequested>(_onRegisterRequested);
     on<LogoutRequested>(_onLogoutRequested);
   }
+
+  /// Handle Google OAuth login request
+  Future<void> _onGoogleLoginRequested(
+    GoogleLoginRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(const GoogleLoginLoading());
+
+    final (response, failure) = await _authRepository.loginWithGoogle();
+
+    if (response != null) {
+      await _hydrateUserProfile();
+      emit(GoogleLoginSuccess(accessToken: response.accessToken));
+      emit(const AuthAuthenticated());
+    } else {
+      emit(GoogleLoginFailure(failure: failure!));
+    }
+  }
+
   final AuthRepository _authRepository;
 
   /// Check if user is authenticated on app start

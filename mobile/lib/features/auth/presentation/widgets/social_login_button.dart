@@ -7,11 +7,13 @@ class SocialLoginButton extends StatelessWidget {
   const SocialLoginButton({
     required this.provider,
     required this.onPressed,
+    this.isLoading = false,
     super.key,
   });
 
   final SocialProvider provider;
   final VoidCallback onPressed;
+  final bool isLoading;
 
   String get _label {
     switch (provider) {
@@ -49,6 +51,7 @@ class SocialLoginButton extends StatelessWidget {
       child: AppButton(
         variant: AppButtonVariant.outlined,
         onPressed: onPressed,
+        isLoading: isLoading,
         borderSide: BorderSide(
           color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
         ),

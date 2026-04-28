@@ -8,6 +8,8 @@ abstract class AuthRepository {
     required String password,
   });
 
+  Future<(LoginResponse?, Failure?)> loginWithGoogle();
+
   Future<(bool, Failure?)> sendOtp(String email);
 
   Future<(VerifyOtpResponse?, Failure?)> verifyOtp(
