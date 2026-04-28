@@ -178,7 +178,7 @@ class _SignInPageState extends State<SignInPage> {
                 const SizedBox(height: 32),
 
                 BlocBuilder<AuthBloc, AuthState>(
-                  builder: (context, state) {
+                  builder: (context, _) {
                     return SizedBox(
                       width: double.infinity,
                       height: 56,
