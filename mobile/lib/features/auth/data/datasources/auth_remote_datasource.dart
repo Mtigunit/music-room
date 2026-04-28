@@ -27,6 +27,7 @@ abstract class IAuthRemoteDataSource {
     required String identifier,
     required String password,
   });
+  Future<LoginResponse> loginWithGoogle({required String idToken});
   Future<UserProfile> getProfile();
 }
 
@@ -135,6 +136,16 @@ class AuthRemoteDataSource implements IAuthRemoteDataSource {
         'identifier': identifier,
         'password': password,
       },
+      expectedStatusCode: 201,
+      parser: LoginResponse.fromJson,
+    );
+  }
+
+  @override
+  Future<LoginResponse> loginWithGoogle({required String idToken}) async {
+    return _postAndMap(
+      path: AppConfig.googleAuthEndpoint,
+      data: {'idToken': idToken},
       expectedStatusCode: 201,
       parser: LoginResponse.fromJson,
     );

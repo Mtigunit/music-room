@@ -86,6 +86,9 @@ class _SignInPageState extends State<SignInPage> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final authState = context.watch<AuthBloc>().state;
+    final isLoading =
+        authState is LoginLoading || authState is GoogleLoginLoading;
 
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
@@ -93,6 +96,12 @@ class _SignInPageState extends State<SignInPage> {
           AppSnackbar.showInfo(
             context,
             'Signing in...',
+            duration: const Duration(seconds: 1),
+          );
+        } else if (state is GoogleLoginLoading) {
+          AppSnackbar.showInfo(
+            context,
+            'Signing in with Google...',
             duration: const Duration(seconds: 1),
           );
         } else if (state is LoginSuccess) {
@@ -103,7 +112,17 @@ class _SignInPageState extends State<SignInPage> {
               (_) => false,
             ),
           );
+        } else if (state is GoogleLoginSuccess) {
+          AppSnackbar.showSuccess(context, 'Signed in with Google!');
+          unawaited(
+            Navigator.of(context).pushNamedAndRemoveUntil(
+              RouteNames.home,
+              (_) => false,
+            ),
+          );
         } else if (state is LoginFailure) {
+          AppSnackbar.showError(context, state.failure.message);
+        } else if (state is GoogleLoginFailure) {
           AppSnackbar.showError(context, state.failure.message);
         }
       },
@@ -159,8 +178,7 @@ class _SignInPageState extends State<SignInPage> {
                 const SizedBox(height: 32),
 
                 BlocBuilder<AuthBloc, AuthState>(
-                  builder: (context, state) {
-                    final isLoading = state is LoginLoading;
+                  builder: (context, _) {
                     return SizedBox(
                       width: double.infinity,
                       height: 56,
@@ -185,8 +203,13 @@ class _SignInPageState extends State<SignInPage> {
 
                 SocialLoginButton(
                   provider: SocialProvider.google,
+                  isLoading: isLoading,
                   onPressed: () {
-                    // TODO(mtigunit): Implement Google login.
+                    if (isLoading) {
+                      return;
+                    }
+
+                    context.read<AuthBloc>().add(const GoogleLoginRequested());
                   },
                 ),
                 const SizedBox(height: 24),

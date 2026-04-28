@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:music_room/core/error/failure.dart';
+import 'package:music_room/core/services/google_auth_service.dart';
 import 'package:music_room/core/services/token_storage_service.dart';
 import 'package:music_room/features/auth/data/datasources/auth_remote_datasource.dart';
 import 'package:music_room/features/auth/data/models/auth_model.dart';
@@ -12,10 +13,13 @@ class AuthRepositoryImpl implements AuthRepository {
   AuthRepositoryImpl({
     required IAuthRemoteDataSource remoteDataSource,
     required TokenStorageService tokenStorage,
+    required GoogleAuthService googleAuthService,
   }) : _remoteDataSource = remoteDataSource,
-       _tokenStorage = tokenStorage;
+       _tokenStorage = tokenStorage,
+       _googleAuthService = googleAuthService;
   final IAuthRemoteDataSource _remoteDataSource;
   final TokenStorageService _tokenStorage;
+  final GoogleAuthService _googleAuthService;
 
   @override
   Future<(LoginResponse?, Failure?)> login({
@@ -45,6 +49,25 @@ class AuthRepositoryImpl implements AuthRepository {
       return (false, _handleDioException(e));
     } on Object catch (e) {
       return (false, Failure(message: 'An unexpected error occurred: $e'));
+    }
+  }
+
+  @override
+  Future<(LoginResponse?, Failure?)> loginWithGoogle() async {
+    try {
+      final googleTokens = await _googleAuthService.authenticate();
+      final response = await _remoteDataSource.loginWithGoogle(
+        idToken: googleTokens.idToken,
+      );
+
+      await _tokenStorage.saveToken(response.accessToken);
+      return (response, null);
+    } on GoogleAuthException catch (e) {
+      return (null, Failure(message: e.message));
+    } on DioException catch (e) {
+      return (null, _handleDioException(e));
+    } on Object catch (e) {
+      return (null, Failure(message: 'An unexpected error occurred: $e'));
     }
   }
 
@@ -151,6 +174,12 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<void> logout() async {
+    try {
+      await _googleAuthService.signOut();
+    } on Object {
+      // Always clear local session even if Google sign-out fails.
+    }
+
     await _tokenStorage.clearAll();
   }
 
@@ -172,11 +201,14 @@ class AuthRepositoryImpl implements AuthRepository {
       case DioExceptionType.badResponse:
         final statusCode = e.response?.statusCode;
         final responseData = e.response?.data;
+        final requestPath = e.requestOptions.path;
         final message = switch (statusCode) {
           400 =>
             _extractErrorMessage(responseData) ??
                 'Invalid input. Please check your entries.',
-          401 => 'Invalid credentials. Please try again.',
+          401 =>
+            _extractErrorMessage(responseData) ??
+                _mapUnauthorizedFallback(requestPath),
           409 =>
             _extractErrorMessage(responseData) ??
                 'Email or username already exists.',
@@ -211,6 +243,18 @@ class AuthRepositoryImpl implements AuthRepository {
           message: 'Failed to connect. Please check your connection.',
         );
     }
+  }
+
+  String _mapUnauthorizedFallback(String requestPath) {
+    if (requestPath.contains('auth/login')) {
+      return 'Invalid credentials. Please try again.';
+    }
+
+    if (requestPath.contains('auth/google')) {
+      return 'Google authentication failed. Please try again.';
+    }
+
+    return 'Unauthorized. Please sign in again.';
   }
 
   /// Extract error message from API response

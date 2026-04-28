@@ -4,6 +4,7 @@ import 'package:music_room/core/config/app_config.dart';
 import 'package:music_room/core/network/api_client.dart';
 import 'package:music_room/core/realtime/socket_client.dart';
 import 'package:music_room/core/services/connectivity_service.dart';
+import 'package:music_room/core/services/google_auth_service.dart';
 import 'package:music_room/core/services/token_storage_service.dart';
 import 'package:music_room/features/auth/data/datasources/auth_remote_datasource.dart';
 import 'package:music_room/features/auth/data/repositories/auth_repository_impl.dart';
@@ -37,6 +38,7 @@ class InjectionContainer {
   late SearchQueryService _searchQueryService;
   late AuthRepository _authRepository;
   late ConnectivityService _connectivityService;
+  late GoogleAuthService _googleAuthService;
   late SocketClient _socketClient;
   late IPlaylistCacheDataSource _playlistCacheDataSource;
   late ITrackRemoteDataSource _trackRemoteDataSource;
@@ -50,6 +52,7 @@ class InjectionContainer {
       secureStorage: const FlutterSecureStorage(),
     );
     _searchQueryService = SearchQueryService();
+    _googleAuthService = GoogleAuthService();
     final sharedPreferences = await SharedPreferences.getInstance();
     _connectivityService = ConnectivityService();
 
@@ -81,6 +84,7 @@ class InjectionContainer {
     _authRepository = AuthRepositoryImpl(
       remoteDataSource: _authRemoteDataSource,
       tokenStorage: _tokenStorageService,
+      googleAuthService: _googleAuthService,
     );
   }
 
@@ -94,6 +98,7 @@ class InjectionContainer {
   SearchQueryService get searchQueryService => _searchQueryService;
   AuthRepository get authRepository => _authRepository;
   ConnectivityService get connectivityService => _connectivityService;
+  GoogleAuthService get googleAuthService => _googleAuthService;
   SocketClient get socketClient => _socketClient;
   IPlaylistCacheDataSource get playlistCacheDataSource =>
       _playlistCacheDataSource;

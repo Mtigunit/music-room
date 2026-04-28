@@ -52,6 +52,29 @@ class LoginFailure extends AuthState {
   List<Object?> get props => [failure];
 }
 
+/// Google login in progress
+class GoogleLoginLoading extends AuthState {
+  const GoogleLoginLoading();
+}
+
+/// Google login successful
+class GoogleLoginSuccess extends AuthState {
+  const GoogleLoginSuccess({required this.accessToken});
+  final String accessToken;
+
+  @override
+  List<Object?> get props => [accessToken];
+}
+
+/// Google login failed
+class GoogleLoginFailure extends AuthState {
+  const GoogleLoginFailure({required this.failure});
+  final Failure failure;
+
+  @override
+  List<Object?> get props => [failure];
+}
+
 /// OTP sending in progress
 class OtpLoading extends AuthState {
   const OtpLoading();
