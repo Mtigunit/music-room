@@ -201,13 +201,35 @@ export class YoutubeService {
     return (hours * 3600 + minutes * 60 + seconds) * 1000;
   }
   private isQuotaExceeded(error: unknown): boolean {
+    if (typeof error !== 'object' || error === null) {
+      return false;
+    }
+
+    /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
+    const errorsArray =
+      (error as any).errors || (error as any).response?.data?.error?.errors;
+    /* eslint-enable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
+
+    if (Array.isArray(errorsArray)) {
+      const hasQuotaReason = errorsArray.some((err: unknown) => {
+        if (typeof err === 'object' && err !== null && 'reason' in err) {
+          const reason = (err as Record<string, unknown>).reason;
+          return (
+            reason === 'quotaExceeded' ||
+            reason === 'dailyLimitExceeded' ||
+            reason === 'rateLimitExceeded'
+          );
+        }
+        return false;
+      });
+
+      if (hasQuotaReason) {
+        return true;
+      }
+    }
+
     const errorMessage =
       error instanceof Error ? error.message.toLowerCase() : '';
-
-    const isApiError =
-      typeof error === 'object' && error !== null && 'code' in error;
-    const is403 = isApiError && (error as Record<string, unknown>).code === 403;
-
-    return errorMessage.includes('quota') || is403;
+    return errorMessage.includes('quota');
   }
 }

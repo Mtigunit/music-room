@@ -3,7 +3,6 @@ import {
   ExecutionContext,
   Injectable,
   Logger,
-  Optional,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectThrottlerStorage, ThrottlerStorage } from '@nestjs/throttler';
@@ -24,7 +23,6 @@ export class WsThrottlerGuard implements CanActivate {
   private readonly logger = new Logger(WsThrottlerGuard.name);
 
   constructor(
-    @Optional()
     @InjectThrottlerStorage()
     private readonly throttlerStorage: ThrottlerStorage,
     private readonly socketAuthService: SocketAuthService,
@@ -32,10 +30,6 @@ export class WsThrottlerGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    if (!this.throttlerStorage) {
-      throw new Error('ThrottlerStorage is undefined! DI failed.');
-    }
-
     const client = context.switchToWs().getClient<Socket>();
     const user = this.socketAuthService.getUser(client);
 
