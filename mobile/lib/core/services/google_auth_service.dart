@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
@@ -37,17 +38,20 @@ class GoogleAuthService {
 
   final GoogleSignIn _googleSignIn;
 
+  static String get _iosClientId => dotenv.env['GOOGLE_IOS_CLIENT_ID'] ?? '';
   static String get _webClientId => dotenv.env['GOOGLE_WEB_CLIENT_ID'] ?? '';
 
   Future<void>? _initialization;
 
   Future<void> initialize() {
     if (_initialization == null) {
-      if (_webClientId.isEmpty) {
+      if (_webClientId.isEmpty && _iosClientId.isEmpty) {
         _initialization = _googleSignIn.initialize();
       } else {
+        final isIos = defaultTargetPlatform == TargetPlatform.iOS;
         _initialization = _googleSignIn.initialize(
-          serverClientId: _webClientId,
+          clientId: isIos && _iosClientId.isNotEmpty ? _iosClientId : null,
+          serverClientId: _webClientId.isNotEmpty ? _webClientId : null,
         );
       }
     }
