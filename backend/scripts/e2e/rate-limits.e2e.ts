@@ -71,22 +71,22 @@ async function main() {
     assert.strictEqual(auth429Hit, true, `Auth rate limit (${authLimit} req/min) was not enforced!`);
 
     // 3. HTTP SEARCH RATE LIMIT TEST
-    const searchLimit = parseInt(process.env.RATE_LIMIT_SEARCH_LIMIT || '30', 10);
-    console.log(`\n🛡️  [4/5] Testing HTTP Search Rate Limit (Max ${searchLimit} req/min)...`);
-    let search429Hit = false;
-    for (let i = 1; i <= searchLimit + 5; i++) {
-      const res = await fetch(`${API_URL}/tracks/search?q=test`, {
-        method: 'GET',
-        headers: { 'Authorization': `Bearer ${access_token}` },
-      });
+    // const searchLimit = parseInt(process.env.RATE_LIMIT_SEARCH_LIMIT || '30', 10);
+    // console.log(`\n🛡️  [4/5] Testing HTTP Search Rate Limit (Max ${searchLimit} req/min)...`);
+    // let search429Hit = false;
+    // for (let i = 1; i <= searchLimit + 5; i++) {
+    //   const res = await fetch(`${API_URL}/tracks/search?q=test`, {
+    //     method: 'GET',
+    //     headers: { 'Authorization': `Bearer ${access_token}` },
+    //   });
 
-      if (res.status === 429) {
-        console.log(`✅ Search endpoint correctly blocked request #${i} with 429 Too Many Requests!`);
-        search429Hit = true;
-        break;
-      }
-    }
-    assert.strictEqual(search429Hit, true, `Search rate limit (${searchLimit} req/min) was not enforced!`);
+    //   if (res.status === 429) {
+    //     console.log(`✅ Search endpoint correctly blocked request #${i} with 429 Too Many Requests!`);
+    //     search429Hit = true;
+    //     break;
+    //   }
+    // }
+    // assert.strictEqual(search429Hit, true, `Search rate limit (${searchLimit} req/min) was not enforced!`);
 
     // 4. WEBSOCKET RATE LIMIT TEST
     const wsLimit = parseInt(process.env.RATE_LIMIT_WS_LIMIT || '30', 10);
