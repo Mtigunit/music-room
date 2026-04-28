@@ -2,6 +2,7 @@ import {
   Injectable,
   InternalServerErrorException,
   Logger,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { google, youtube_v3 } from 'googleapis';
@@ -57,6 +58,13 @@ export class YoutubeService {
           : `Unknown error: ${String(error)}`;
 
       this.logger.error('YouTube API request failed', trace);
+
+      if (this.isQuotaExceeded(error)) {
+        throw new ServiceUnavailableException(
+          'YouTube API quota exceeded. Search is temporarily unavailable.',
+        );
+      }
+
       throw new InternalServerErrorException(
         'Failed to fetch YouTube search results',
       );
@@ -85,6 +93,13 @@ export class YoutubeService {
           : `Unknown error: ${String(error)}`;
 
       this.logger.error('YouTube API details request failed', trace);
+
+      if (this.isQuotaExceeded(error)) {
+        throw new ServiceUnavailableException(
+          'YouTube API quota exceeded. Track details are temporarily unavailable.',
+        );
+      }
+
       throw new InternalServerErrorException(
         'Failed to fetch YouTube track details',
       );
@@ -117,6 +132,13 @@ export class YoutubeService {
           : `Unknown error: ${String(error)}`;
 
       this.logger.error('YouTube API batch details request failed', trace);
+
+      if (this.isQuotaExceeded(error)) {
+        throw new ServiceUnavailableException(
+          'YouTube API quota exceeded. Track details are temporarily unavailable.',
+        );
+      }
+
       throw new InternalServerErrorException(
         'Failed to fetch YouTube track details',
       );
@@ -177,5 +199,15 @@ export class YoutubeService {
     const seconds = match[3] ? Number(match[3]) : 0;
 
     return (hours * 3600 + minutes * 60 + seconds) * 1000;
+  }
+  private isQuotaExceeded(error: unknown): boolean {
+    const errorMessage =
+      error instanceof Error ? error.message.toLowerCase() : '';
+
+    const isApiError =
+      typeof error === 'object' && error !== null && 'code' in error;
+    const is403 = isApiError && (error as Record<string, unknown>).code === 403;
+
+    return errorMessage.includes('quota') || is403;
   }
 }

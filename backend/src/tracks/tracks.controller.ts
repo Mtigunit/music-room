@@ -1,4 +1,5 @@
 import { BadRequestException, Controller, Get, Query } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { ApiOperation, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { YoutubeService } from './youtube.service';
 import { TrackSearchResultDto } from './dto/track-search-result.dto';
@@ -9,6 +10,12 @@ export class TracksController {
   constructor(private readonly youtubeService: YoutubeService) {}
 
   @Get('search')
+  @Throttle({
+    default: {
+      ttl: parseInt(process.env.RATE_LIMIT_SEARCH_TTL_MS || '60000', 10),
+      limit: parseInt(process.env.RATE_LIMIT_SEARCH_LIMIT || '30', 10),
+    },
+  })
   @ApiOperation({ summary: 'Search YouTube music tracks' })
   @ApiQuery({ name: 'q', type: String, required: true })
   @ApiResponse({

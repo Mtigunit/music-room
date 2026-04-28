@@ -77,6 +77,30 @@ export class EnvironmentVariables {
   @IsNumber()
   @Min(1000)
   DB_HEAVY_TRANSACTION_TIMEOUT: number = 20000;
+
+  @IsNumber()
+  RATE_LIMIT_DEFAULT_TTL_MS: number = 60000;
+
+  @IsNumber()
+  RATE_LIMIT_DEFAULT_LIMIT: number = 100;
+
+  @IsNumber()
+  RATE_LIMIT_WS_TTL_MS: number = 60000;
+
+  @IsNumber()
+  RATE_LIMIT_WS_LIMIT: number = 30;
+
+  @IsNumber()
+  RATE_LIMIT_AUTH_TTL_MS: number = 60000;
+
+  @IsNumber()
+  RATE_LIMIT_AUTH_LIMIT: number = 10;
+
+  @IsNumber()
+  RATE_LIMIT_SEARCH_TTL_MS: number = 60000;
+
+  @IsNumber()
+  RATE_LIMIT_SEARCH_LIMIT: number = 30;
 }
 
 export function validate(config: Record<string, unknown>) {

@@ -12,13 +12,14 @@ import { TrackVotesService } from './track-votes.service';
 import { TrackVoteMessageDto } from './dto/track-vote-message.dto';
 import { TrackVoteResultDto } from './dto/track-vote-result.dto';
 import { WsAuthGuard } from '../websockets/guards/ws-auth.guard';
+import { WsThrottlerGuard } from '../websockets/guards/ws-throttler.guard';
 import { WsUser } from '../websockets/decorators/ws-user.decorator';
 import type { SocketUser } from '../websockets/socket-auth.service';
 import type { ClientMetaDto } from '../common/dto/client-meta.dto';
 import { ClientMeta } from '../common/decorators/client-meta.decorator';
 
 @WebSocketGateway({ path: '/ws', cors: true })
-@UseGuards(WsAuthGuard)
+@UseGuards(WsAuthGuard, WsThrottlerGuard)
 export class TrackVotesGateway {
   @WebSocketServer()
   server!: Server;

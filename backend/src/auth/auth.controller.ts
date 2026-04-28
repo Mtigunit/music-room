@@ -1,3 +1,4 @@
+import { Throttle } from '@nestjs/throttler';
 import {
   Controller,
   Post,
@@ -32,6 +33,12 @@ interface AuthenticatedRequest {
 }
 
 @ApiTags('Auth')
+@Throttle({
+  default: {
+    ttl: parseInt(process.env.RATE_LIMIT_AUTH_TTL_MS || '60000', 10),
+    limit: parseInt(process.env.RATE_LIMIT_AUTH_LIMIT || '10', 10),
+  },
+})
 @Controller('auth')
 export class AuthController {
   constructor(

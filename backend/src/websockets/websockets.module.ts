@@ -4,6 +4,7 @@ import { UsersModule } from '../users/users.module';
 import { SocketAuthService } from './socket-auth.service';
 import { SocketIoGateway } from './socket-io.gateway';
 import { WsAuthGuard } from './guards/ws-auth.guard';
+import { WsThrottlerGuard } from './guards/ws-throttler.guard';
 import { HandshakeMiddleware } from './handshake.middleware';
 
 @Module({
@@ -12,11 +13,13 @@ import { HandshakeMiddleware } from './handshake.middleware';
     SocketAuthService,
     SocketIoGateway,
     WsAuthGuard,
+    WsThrottlerGuard,
     HandshakeMiddleware,
   ],
   exports: [
     SocketAuthService,
     WsAuthGuard,
+    WsThrottlerGuard,
     HandshakeMiddleware,
     SocketIoGateway,
   ],

@@ -5,6 +5,7 @@ import { TrackVoteMessageDto } from './dto/track-vote-message.dto';
 import { TrackVoteResultDto } from './dto/track-vote-result.dto';
 import { Server, Socket } from 'socket.io';
 import { WsAuthGuard } from '../websockets/guards/ws-auth.guard';
+import { WsThrottlerGuard } from '../websockets/guards/ws-throttler.guard';
 
 describe('TrackVotesGateway', () => {
   let gateway: TrackVotesGateway;
@@ -31,6 +32,8 @@ describe('TrackVotesGateway', () => {
     })
       .overrideGuard(WsAuthGuard)
       .useValue(mockAuthGuard)
+      .overrideGuard(WsThrottlerGuard)
+      .useValue({ canActivate: () => true })
       .compile();
 
     gateway = module.get<TrackVotesGateway>(TrackVotesGateway);

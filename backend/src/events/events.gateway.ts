@@ -10,6 +10,7 @@ import {
 import { Logger, UseGuards } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { WsAuthGuard } from '../websockets/guards/ws-auth.guard';
+import { WsThrottlerGuard } from '../websockets/guards/ws-throttler.guard';
 import { PrismaService } from '../prisma/prisma.service';
 import { EventStatus, Visibility } from '@prisma/client';
 import { WsUser } from '../websockets/decorators/ws-user.decorator';
@@ -30,7 +31,7 @@ import { ClientMeta } from '../common/decorators/client-meta.decorator';
 import { ClientMetaDto } from '../common/dto/client-meta.dto';
 
 @WebSocketGateway({ path: '/ws', cors: true })
-@UseGuards(WsAuthGuard)
+@UseGuards(WsAuthGuard, WsThrottlerGuard)
 export class EventsGateway implements OnGatewayDisconnect {
   @WebSocketServer()
   server!: Server;
