@@ -86,6 +86,9 @@ class _SignInPageState extends State<SignInPage> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final authState = context.watch<AuthBloc>().state;
+    final isLoading =
+        authState is LoginLoading || authState is GoogleLoginLoading;
 
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
@@ -176,8 +179,6 @@ class _SignInPageState extends State<SignInPage> {
 
                 BlocBuilder<AuthBloc, AuthState>(
                   builder: (context, state) {
-                    final isLoading =
-                        state is LoginLoading || state is GoogleLoginLoading;
                     return SizedBox(
                       width: double.infinity,
                       height: 56,
@@ -202,9 +203,12 @@ class _SignInPageState extends State<SignInPage> {
 
                 SocialLoginButton(
                   provider: SocialProvider.google,
-                  isLoading:
-                      context.watch<AuthBloc>().state is GoogleLoginLoading,
+                  isLoading: isLoading,
                   onPressed: () {
+                    if (isLoading) {
+                      return;
+                    }
+
                     context.read<AuthBloc>().add(const GoogleLoginRequested());
                   },
                 ),
