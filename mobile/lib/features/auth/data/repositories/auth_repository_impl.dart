@@ -1,7 +1,6 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import 'package:music_room/core/error/failure.dart';
 import 'package:music_room/core/services/google_auth_service.dart';
 import 'package:music_room/core/services/token_storage_service.dart';
@@ -208,19 +207,8 @@ class AuthRepositoryImpl implements AuthRepository {
             _extractErrorMessage(responseData) ??
                 'Invalid input. Please check your entries.',
           401 =>
-            // Debug: log full response data on 401 to help diagnose token/audience issues
-            (() {
-              if (kDebugMode) {
-                try {
-                  debugPrint(
-                    'DEBUG: 401 response data for $requestPath: $responseData',
-                  );
-                } on Object catch (_) {}
-              }
-
-              return _extractErrorMessage(responseData) ??
-                  _mapUnauthorizedFallback(requestPath);
-            })(),
+            _extractErrorMessage(responseData) ??
+                _mapUnauthorizedFallback(requestPath),
           409 =>
             _extractErrorMessage(responseData) ??
                 'Email or username already exists.',

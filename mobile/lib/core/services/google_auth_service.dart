@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
@@ -74,22 +73,6 @@ class GoogleAuthService {
               'Google sign-in did not return an ID token. '
               'Check OAuth client configuration.',
         );
-      }
-
-      // Debug: print a short prefix of the idToken so it's easy to copy for
-      // troubleshooting without exposing the whole token in release builds.
-      if (kDebugMode) {
-        try {
-          final prefix = idToken.substring(
-            0,
-            idToken.length > 128 ? 128 : idToken.length,
-          );
-          debugPrint('DEBUG: Google ID Token (prefix): $prefix...');
-        } on Object catch (_) {
-          debugPrint(
-            'DEBUG: Google ID Token available (unable to substring)',
-          );
-        }
       }
 
       return GoogleAuthTokens(
