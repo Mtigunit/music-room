@@ -51,10 +51,11 @@ async function main() {
     if (!loginRes.ok) throw new Error('Initial login failed. Make sure server is running and DB is accessible.');
     const { access_token } = await loginRes.json();
 
-    // 2. HTTP AUTH RATE LIMIT TEST (Limit: 10 per minute)
-    console.log('\n🛡️  [3/5] Testing HTTP Auth Rate Limit (Max 10 req/min)...');
+    // 2. HTTP AUTH RATE LIMIT TEST
+    const authLimit = parseInt(process.env.RATE_LIMIT_AUTH_LIMIT || '10', 10);
+    console.log(`\n🛡️  [3/5] Testing HTTP Auth Rate Limit (Max ${authLimit} req/min)...`);
     let auth429Hit = false;
-    for (let i = 1; i <= 15; i++) {
+    for (let i = 1; i <= authLimit + 5; i++) {
       const res = await fetch(`${API_URL}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -67,12 +68,13 @@ async function main() {
         break;
       }
     }
-    assert.strictEqual(auth429Hit, true, 'Auth rate limit (10 req/min) was not enforced!');
+    assert.strictEqual(auth429Hit, true, `Auth rate limit (${authLimit} req/min) was not enforced!`);
 
-    // 3. HTTP SEARCH RATE LIMIT TEST (Limit: 30 per minute)
-    console.log('\n🛡️  [4/5] Testing HTTP Search Rate Limit (Max 30 req/min)...');
+    // 3. HTTP SEARCH RATE LIMIT TEST
+    const searchLimit = parseInt(process.env.RATE_LIMIT_SEARCH_LIMIT || '30', 10);
+    console.log(`\n🛡️  [4/5] Testing HTTP Search Rate Limit (Max ${searchLimit} req/min)...`);
     let search429Hit = false;
-    for (let i = 1; i <= 35; i++) {
+    for (let i = 1; i <= searchLimit + 5; i++) {
       const res = await fetch(`${API_URL}/tracks/search?q=test`, {
         method: 'GET',
         headers: { 'Authorization': `Bearer ${access_token}` },
@@ -84,10 +86,11 @@ async function main() {
         break;
       }
     }
-    assert.strictEqual(search429Hit, true, 'Search rate limit (30 req/min) was not enforced!');
+    assert.strictEqual(search429Hit, true, `Search rate limit (${searchLimit} req/min) was not enforced!`);
 
-    // 4. WEBSOCKET RATE LIMIT TEST (Limit: 30 per minute)
-    console.log('\n🔌 [5/5] Testing WebSocket Rate Limit (Max 30 msg/min)...');
+    // 4. WEBSOCKET RATE LIMIT TEST
+    const wsLimit = parseInt(process.env.RATE_LIMIT_WS_LIMIT || '30', 10);
+    console.log(`\n🔌 [5/5] Testing WebSocket Rate Limit (Max ${wsLimit} msg/min)...`);
 
     ownerSocket = await new Promise((resolve, reject) => {
       const socket = io(WS_URL, { path: '/ws', auth: { token: access_token }, transports: ['websocket'] });
@@ -96,6 +99,7 @@ async function main() {
     });
 
     let wsRateLimitHit = false;
+    let successCount = 0;
 
     // Listen for the custom rate:limit event
     ownerSocket?.onAny((eventName, ...args) => {
@@ -113,8 +117,8 @@ async function main() {
     ownerSocket?.on('room:joined', () => messagesProcessed++);
 
     console.log('Spamming WebSocket with dummy events...');
-    // Rapidly fire 35 messages
-    for (let i = 1; i <= 35; i++) {
+    // Rapidly fire wsLimit + 5 messages
+    for (let i = 1; i <= wsLimit + 5; i++) {
       ownerSocket?.emit('room:join', { roomId: 'dummy-room' }); // Use an unreserved event
     }
 
@@ -122,7 +126,7 @@ async function main() {
     await new Promise(r => setTimeout(r, 3000));
 
     console.log(`Server processed at least ${messagesProcessed} normal messages.`);
-    assert.strictEqual(wsRateLimitHit, true, 'WebSocket rate limit (30 msg/min) was not enforced!');
+    assert.strictEqual(wsRateLimitHit, true, `WebSocket rate limit (${wsLimit} msg/min) was not enforced!`);
 
     console.log('\n🎉 ALL RATE LIMIT ASSERTIONS PASSED FLAWLESSLY! Architecture is Bulletproof.');
 
