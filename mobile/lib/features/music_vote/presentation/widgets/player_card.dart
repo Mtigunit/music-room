@@ -8,7 +8,12 @@ import 'package:music_room/core/theme/app_theme.dart';
 /// Displays: album art with purple glow · track title · artist · progress bar
 /// · playback controls (Shuffle, Previous, Play/Pause, Next, Repeat).
 class PlayerCard extends StatefulWidget {
-  const PlayerCard({super.key});
+  const PlayerCard({
+    super.key,
+    this.isHost = false,
+  });
+
+  final bool isHost;
 
   @override
   State<PlayerCard> createState() => _PlayerCardState();
@@ -136,25 +141,28 @@ class _PlayerCardState extends State<PlayerCard>
             child: _ProgressBar(
               progress: _progress,
               primaryColor: colorScheme.primary,
-              onChanged: (v) => setState(() => _progress = v),
+              onChanged: widget.isHost
+                  ? (v) => setState(() => _progress = v)
+                  : null,
             ),
           ),
 
           // ── Playback Controls ───────────────────────────────────────────
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-            child: _PlaybackControls(
-              isPlaying: _isPlaying,
-              isShuffle: _isShuffle,
-              isRepeat: _isRepeat,
-              colorScheme: colorScheme,
-              onPlayPause: () => setState(() => _isPlaying = !_isPlaying),
-              onShuffle: () => setState(() => _isShuffle = !_isShuffle),
-              onRepeat: () => setState(() => _isRepeat = !_isRepeat),
-              onPrevious: () {}, // Stub – delegation hook
-              onNext: () {}, // Stub – delegation hook
+          if (widget.isHost)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+              child: _PlaybackControls(
+                isPlaying: _isPlaying,
+                isShuffle: _isShuffle,
+                isRepeat: _isRepeat,
+                colorScheme: colorScheme,
+                onPlayPause: () => setState(() => _isPlaying = !_isPlaying),
+                onShuffle: () => setState(() => _isShuffle = !_isShuffle),
+                onRepeat: () => setState(() => _isRepeat = !_isRepeat),
+                onPrevious: () {}, // Stub – delegation hook
+                onNext: () {}, // Stub – delegation hook
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -342,7 +350,7 @@ class _ProgressBar extends StatelessWidget {
 
   final double progress;
   final Color primaryColor;
-  final ValueChanged<double> onChanged;
+  final ValueChanged<double>? onChanged;
 
   String _formatTime(double ratio) {
     const totalSeconds = 210; // 3:30 mock duration
@@ -367,7 +375,7 @@ class _ProgressBar extends StatelessWidget {
             overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
             activeTrackColor: primaryColor,
             inactiveTrackColor: colorScheme.onSurface.withValues(alpha: 0.15),
-            thumbColor: primaryColor,
+            thumbColor: onChanged != null ? primaryColor : Colors.transparent,
             overlayColor: primaryColor.withValues(alpha: 0.15),
           ),
           child: Slider(

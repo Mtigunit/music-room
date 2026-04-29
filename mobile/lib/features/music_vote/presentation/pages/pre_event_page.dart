@@ -22,6 +22,8 @@ class PreEventPage extends StatelessWidget {
       create: (_) {
         final cubit = MusicVoteCubit(
           remoteDataSource: InjectionContainer().musicVoteRemoteDataSource,
+          socketClient: InjectionContainer().socketClient,
+          tokenStorageService: InjectionContainer().tokenStorageService,
         );
         unawaited(cubit.loadRoom(eventId));
         return cubit;
