@@ -70,7 +70,7 @@ describe('TrackVotesGateway', () => {
         data: {
           user: { id: 'user-123' },
         },
-        rooms: new Set(['event-123']),
+        rooms: new Set(['event_event-123']),
         handshake: {
           headers: {
             'x-platform': 'android',
@@ -105,7 +105,7 @@ describe('TrackVotesGateway', () => {
       });
 
       // Verify the broadcast behavior
-      expect(gateway.server.to).toHaveBeenCalledWith('event-123');
+      expect(gateway.server.to).toHaveBeenCalledWith('event_event-123');
       expect(gateway.server.emit).toHaveBeenCalledWith(
         'track:vote_updated',
         mockResult,
