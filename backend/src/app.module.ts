@@ -1,6 +1,8 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ThrottlerGuard } from '@nestjs/throttler';
 import { ServeStaticModule } from '@nestjs/serve-static';
 import { join } from 'path';
 import { AppController } from './app.controller';
@@ -19,6 +21,7 @@ import { TrackVotesModule } from './track-votes/track-votes.module';
 import { TracksModule } from './tracks/tracks.module';
 import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware';
 import { BullModule } from '@nestjs/bullmq';
+import { GlobalThrottlerModule } from './common/throttler/global-throttler.module';
 
 @Module({
   imports: [
@@ -26,6 +29,7 @@ import { BullModule } from '@nestjs/bullmq';
       isGlobal: true,
       validate,
     }),
+    GlobalThrottlerModule,
     EventEmitterModule.forRoot(),
     ServeStaticModule.forRoot({
       rootPath: join(process.cwd(), 'uploads'),
@@ -53,7 +57,11 @@ import { BullModule } from '@nestjs/bullmq';
     }),
   ],
   controllers: [AppController],
-  providers: [AppService, AppRepository],
+  providers: [
+    AppService,
+    AppRepository,
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+  ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

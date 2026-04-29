@@ -11,6 +11,7 @@ import { Logger, UseGuards } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { SocketAuthService } from './socket-auth.service';
 import { WsAuthGuard } from './guards/ws-auth.guard';
+import { WsThrottlerGuard } from './guards/ws-throttler.guard';
 
 interface RoomPayload {
   roomId: string;
@@ -39,7 +40,7 @@ interface RoomPayload {
  * - `pong`        { serverTime: string }
  */
 @WebSocketGateway({ path: '/ws', cors: true })
-@UseGuards(WsAuthGuard)
+@UseGuards(WsAuthGuard, WsThrottlerGuard)
 export class SocketIoGateway
   implements OnGatewayConnection, OnGatewayDisconnect
 {

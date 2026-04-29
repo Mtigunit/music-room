@@ -74,7 +74,15 @@ jobs:
       YOUTUBE_API_KEY: "ci-mock-youtube-api-key"
       DB_TRANSACTION_TIMEOUT: 15000
       DB_HEAVY_TRANSACTION_TIMEOUT: 30000
-
+      # Rate Limiting (Accelerated for CI speed and cross-test isolation)
+      RATE_LIMIT_DEFAULT_TTL_MS: 1000
+      RATE_LIMIT_DEFAULT_LIMIT: 50
+      RATE_LIMIT_WS_TTL_MS: 1000
+      RATE_LIMIT_WS_LIMIT: 30
+      RATE_LIMIT_AUTH_TTL_MS: 1000
+      RATE_LIMIT_AUTH_LIMIT: 10
+      RATE_LIMIT_SEARCH_TTL_MS: 1000
+      RATE_LIMIT_SEARCH_LIMIT: 30
     steps:
       - name: 📦 Checkout Code
         uses: actions/checkout@v4

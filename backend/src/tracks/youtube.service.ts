@@ -2,6 +2,7 @@ import {
   Injectable,
   InternalServerErrorException,
   Logger,
+  ServiceUnavailableException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { google, youtube_v3 } from 'googleapis';
@@ -57,6 +58,13 @@ export class YoutubeService {
           : `Unknown error: ${String(error)}`;
 
       this.logger.error('YouTube API request failed', trace);
+
+      if (this.isQuotaExceeded(error)) {
+        throw new ServiceUnavailableException(
+          'YouTube API quota exceeded. Search is temporarily unavailable.',
+        );
+      }
+
       throw new InternalServerErrorException(
         'Failed to fetch YouTube search results',
       );
@@ -85,6 +93,13 @@ export class YoutubeService {
           : `Unknown error: ${String(error)}`;
 
       this.logger.error('YouTube API details request failed', trace);
+
+      if (this.isQuotaExceeded(error)) {
+        throw new ServiceUnavailableException(
+          'YouTube API quota exceeded. Track details are temporarily unavailable.',
+        );
+      }
+
       throw new InternalServerErrorException(
         'Failed to fetch YouTube track details',
       );
@@ -117,6 +132,13 @@ export class YoutubeService {
           : `Unknown error: ${String(error)}`;
 
       this.logger.error('YouTube API batch details request failed', trace);
+
+      if (this.isQuotaExceeded(error)) {
+        throw new ServiceUnavailableException(
+          'YouTube API quota exceeded. Track details are temporarily unavailable.',
+        );
+      }
+
       throw new InternalServerErrorException(
         'Failed to fetch YouTube track details',
       );
@@ -177,5 +199,37 @@ export class YoutubeService {
     const seconds = match[3] ? Number(match[3]) : 0;
 
     return (hours * 3600 + minutes * 60 + seconds) * 1000;
+  }
+  private isQuotaExceeded(error: unknown): boolean {
+    if (typeof error !== 'object' || error === null) {
+      return false;
+    }
+
+    /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
+    const errorsArray =
+      (error as any).errors || (error as any).response?.data?.error?.errors;
+    /* eslint-enable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access */
+
+    if (Array.isArray(errorsArray)) {
+      const hasQuotaReason = errorsArray.some((err: unknown) => {
+        if (typeof err === 'object' && err !== null && 'reason' in err) {
+          const reason = (err as Record<string, unknown>).reason;
+          return (
+            reason === 'quotaExceeded' ||
+            reason === 'dailyLimitExceeded' ||
+            reason === 'rateLimitExceeded'
+          );
+        }
+        return false;
+      });
+
+      if (hasQuotaReason) {
+        return true;
+      }
+    }
+
+    const errorMessage =
+      error instanceof Error ? error.message.toLowerCase() : '';
+    return errorMessage.includes('quota');
   }
 }

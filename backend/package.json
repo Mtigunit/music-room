@@ -26,6 +26,7 @@
     "test:integration": "npm run build && start-server-and-test start:prod http://127.0.0.1:3000/api/docs test:integration:run"
   },
   "dependencies": {
+    "@nest-lab/throttler-storage-redis": "^1.2.0",
     "@nestjs/bullmq": "^11.0.4",
     "@nestjs/common": "^11.0.1",
     "@nestjs/config": "^4.0.4",
@@ -38,6 +39,7 @@
     "@nestjs/platform-socket.io": "^11.1.19",
     "@nestjs/serve-static": "^5.0.5",
     "@nestjs/swagger": "^11.2.7",
+    "@nestjs/throttler": "^6.5.0",
     "@nestjs/websockets": "^11.1.19",
     "@prisma/adapter-pg": "^7.7.0",
     "@prisma/client": "^7.7.0",
