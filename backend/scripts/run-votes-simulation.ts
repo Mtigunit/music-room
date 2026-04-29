@@ -4,7 +4,6 @@ import { Pool } from 'pg';
 import { io, Socket } from 'socket.io-client';
 import * as bcrypt from 'bcrypt';
 import * as dotenv from 'dotenv';
-import { start } from 'repl';
 
 dotenv.config();
 
@@ -97,7 +96,6 @@ async function main() {
       startDate: new Date(Date.now() - 3600_000).toISOString(),
     });
     publicEventId = publicEvent.id;
-    console.log("publicEvent =>", publicEvent.invitingOnly);
 
     // 3b. Private event – user3 has no access
     const privateEvent = await apiCall('/events', 'POST', token1, {

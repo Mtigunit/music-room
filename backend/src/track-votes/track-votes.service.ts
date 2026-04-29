@@ -76,10 +76,11 @@ export class TrackVotesService {
           endTime?: string;
         };
         const now = new Date();
-        if (config.startTime && now < new Date(config.startTime)) {
+
+        if (config.startTime != null && now < new Date(config.startTime)) {
           throw new ForbiddenException('Voting has not started yet');
         }
-        if (config.endTime && now > new Date(config.endTime)) {
+        if (config.endTime != null && now > new Date(config.endTime)) {
           throw new ForbiddenException('Voting is closed');
         }
       }
@@ -87,13 +88,18 @@ export class TrackVotesService {
       if (policy.policyType === PolicyType.GEOFENCE) {
         const config = policy.config as { distance: number };
 
-        if (!payload.locationLat || !payload.locationLng) {
+        if (payload.locationLat == null || payload.locationLng == null) {
           throw new BadRequestException(
             'Location (locationLat, locationLng) is required to vote on this event',
           );
         }
 
-        if (event.locationLat && event.locationLng && config.distance) {
+        if (
+          event.locationLat != null &&
+          event.locationLng != null &&
+          typeof config.distance === 'number' &&
+          config.distance > 0
+        ) {
           const distance = getDistanceFromLatLonInM(
             event.locationLat,
             event.locationLng,

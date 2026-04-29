@@ -56,7 +56,7 @@ export class TrackVotesGateway {
     // TODO: check later the license policies
     if (!client.rooms.has(`event_${payload.eventId}`)) {
       throw new WsException(
-        `You must join event room ${payload.eventId} to vote.`,
+        `You must join event room event_${payload.eventId} to vote.`,
       );
     }
 
