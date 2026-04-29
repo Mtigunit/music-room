@@ -6,6 +6,7 @@ class MyEventItem {
     required this.id,
     required this.name,
     required this.hostName,
+    required this.hostId,
     required this.dateTime,
     required this.status,
     this.coverImageAsset,
@@ -17,6 +18,7 @@ class MyEventItem {
   final String id;
   final String name;
   final String hostName;
+  final String hostId;
   final DateTime dateTime;
 
   /// One of: 'LIVE', 'UPCOMING', 'ENDED'.

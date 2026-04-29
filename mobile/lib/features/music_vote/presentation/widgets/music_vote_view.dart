@@ -14,9 +14,11 @@ class MusicVoteView extends StatelessWidget {
   const MusicVoteView({
     super.key,
     this.eventId,
+    this.isHost = false,
   });
 
   final String? eventId;
+  final bool isHost;
 
   @override
   Widget build(BuildContext context) {
@@ -38,7 +40,10 @@ class MusicVoteView extends StatelessWidget {
                     pinned: true,
                     delegate: _StickyHeaderDelegate(
                       child: _HeaderBackground(
-                        child: LiveHeader(eventId: eventId),
+                        child: LiveHeader(
+                          eventId: eventId,
+                          isHost: isHost,
+                        ),
                       ),
                     ),
                   ),
@@ -75,6 +80,7 @@ class MusicVoteView extends StatelessWidget {
                       child: LiveHeader(
                         eventId: eventId,
                         eventName: eventName,
+                        isHost: isHost,
                       ),
                     ),
                   ),
@@ -82,7 +88,7 @@ class MusicVoteView extends StatelessWidget {
 
                 // ── Player card (still mocked) ───────────────────────────────
                 const SliverToBoxAdapter(child: SizedBox(height: 8)),
-                const SliverToBoxAdapter(child: PlayerCard()),
+                SliverToBoxAdapter(child: PlayerCard(isHost: isHost)),
                 const SliverToBoxAdapter(child: SizedBox(height: 24)),
 
                 // ── Queue / Up Next ──────────────────────────────────────────

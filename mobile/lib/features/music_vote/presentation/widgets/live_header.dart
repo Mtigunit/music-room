@@ -17,10 +17,12 @@ class LiveHeader extends StatelessWidget {
     super.key,
     this.eventId,
     this.eventName,
+    this.isHost = false,
   });
 
   final String? eventId;
   final String? eventName;
+  final bool isHost;
 
   @override
   Widget build(BuildContext context) {
@@ -69,12 +71,21 @@ class LiveHeader extends StatelessWidget {
                       size: 20,
                     ),
                     const SizedBox(width: 6),
-                    Text(
-                      '+138 listening',
-                      style: textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurface.withValues(alpha: 0.55),
-                        fontSize: 12,
-                      ),
+                    BlocBuilder<MusicVoteCubit, MusicVoteState>(
+                      buildWhen: (previous, current) =>
+                          previous.listenerCount != current.listenerCount,
+                      builder: (context, state) {
+                        final count = state.listenerCount ?? 0;
+                        return Text(
+                          '+$count listening',
+                          style: textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurface.withValues(
+                              alpha: 0.55,
+                            ),
+                            fontSize: 12,
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -83,16 +94,18 @@ class LiveHeader extends StatelessWidget {
           ),
 
           // ── Action icons ─────────────────────────────────────────────────
-          IconButton(
-            padding: EdgeInsets.zero,
-            icon: const Icon(Icons.person_add_alt_1_outlined),
-            onPressed: () => _showInviteSheet(context),
-          ),
-          IconButton(
-            padding: EdgeInsets.zero,
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () => _showManageRoomSheet(context),
-          ),
+          if (isHost) ...[
+            IconButton(
+              padding: EdgeInsets.zero,
+              icon: const Icon(Icons.person_add_alt_1_outlined),
+              onPressed: () => _showInviteSheet(context),
+            ),
+            IconButton(
+              padding: EdgeInsets.zero,
+              icon: const Icon(Icons.settings_outlined),
+              onPressed: () => _showManageRoomSheet(context),
+            ),
+          ],
         ],
       ),
     );

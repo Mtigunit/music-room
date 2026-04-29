@@ -22,6 +22,7 @@ class MyEventItemModel {
     required this.status,
     required this.startDate,
     required this.hostName,
+    required this.hostId,
     this.coverImage,
   });
 
@@ -38,6 +39,9 @@ class MyEventItemModel {
       status: json['status'] as String,
       startDate: DateTime.parse(json['startDate'] as String),
       hostName: hostName,
+      hostId: (hostMap is Map<String, dynamic> && hostMap['id'] is String)
+          ? hostMap['id'] as String
+          : (json['hostId'] as String? ?? ''),
       coverImage: _buildCoverImageUrl(json['coverImage'] as String?),
     );
   }
@@ -52,6 +56,9 @@ class MyEventItemModel {
 
   /// Display name of the event host (from `host.name` in the JSON payload).
   final String hostName;
+
+  /// Unique identifier of the event host.
+  final String hostId;
 
   /// URL string for the cover image, if provided by the backend.
   final String? coverImage;
@@ -88,6 +95,12 @@ abstract class IEventRemoteDataSource {
 
   /// Returns events the authenticated user is hosting.
   Future<List<MyEventItemModel>> fetchHostedEvents({
+    int page = 1,
+    int limit = 20,
+  });
+
+  /// Returns public events for discovery.
+  Future<List<MyEventItemModel>> fetchPublicEvents({
     int page = 1,
     int limit = 20,
   });
@@ -171,6 +184,30 @@ class EventRemoteDataSource implements IEventRemoteDataSource {
     } on Object catch (e) {
       throw DioException(
         requestOptions: RequestOptions(path: AppConfig.eventsHostingEndpoint),
+        error: e,
+      );
+    }
+  }
+
+  // ── Fetch Public Events ──────────────────────────────────────────────────
+
+  @override
+  Future<List<MyEventItemModel>> fetchPublicEvents({
+    int page = 1,
+    int limit = 20,
+  }) async {
+    try {
+      final response = await _apiClient.get<dynamic>(
+        AppConfig.eventsEndpoint,
+        queryParameters: {'page': page, 'limit': limit},
+      );
+
+      return _parseEventListResponse(response);
+    } on DioException {
+      rethrow;
+    } on Object catch (e) {
+      throw DioException(
+        requestOptions: RequestOptions(path: AppConfig.eventsEndpoint),
         error: e,
       );
     }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -8,8 +9,12 @@ import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/events/data/datasources/event_remote_datasource.dart';
 import 'package:music_room/features/events/presentation/pages/create_event_page.dart';
 import 'package:music_room/features/music_vote/data/models/my_event_item.dart';
+import 'package:music_room/features/music_vote/presentation/pages/guest_music_vote_page.dart';
+import 'package:music_room/features/music_vote/presentation/pages/host_music_vote_page.dart';
 import 'package:music_room/features/music_vote/presentation/state/my_events_cubit.dart';
+import 'package:music_room/features/music_vote/presentation/state/public_events_cubit.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/my_event_list_tile.dart';
+import 'package:music_room/features/music_vote/presentation/widgets/public_events_bottom_sheet.dart';
 import 'package:music_room/routes/route_names.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
@@ -32,18 +37,64 @@ class MyEventsPage extends StatelessWidget {
       },
       child: Builder(
         builder: (context) {
-          return VisibilityDetector(
-            key: const Key('my-events-page'),
-            onVisibilityChanged: (info) {
-              if (info.visibleFraction > 0) {
-                unawaited(context.read<MyEventsCubit>().refreshEvents());
-              }
-            },
-            child: const _MyEventsBody(),
+          final colorScheme = Theme.of(context).colorScheme;
+
+          return Scaffold(
+            floatingActionButton: FloatingActionButton(
+              onPressed: () => _openDiscoverSheet(context),
+              backgroundColor: colorScheme.primary,
+              foregroundColor: colorScheme.onPrimary,
+              child: const Icon(Icons.public),
+            ),
+            body: VisibilityDetector(
+              key: const Key('my-events-page'),
+              onVisibilityChanged: (info) {
+                if (info.visibleFraction > 0) {
+                  unawaited(context.read<MyEventsCubit>().refreshEvents());
+                }
+              },
+              child: const _MyEventsBody(),
+            ),
           );
         },
       ),
     );
+  }
+
+  Future<void> _openDiscoverSheet(BuildContext context) async {
+    final selectedEvent = await showModalBottomSheet<MyEventItemModel>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      barrierColor: Colors.black.withValues(alpha: 0.7),
+      backgroundColor: Colors.transparent,
+      builder: (_) => BlocProvider(
+        create: (_) {
+          final cubit = PublicEventsCubit(
+            eventRepository: InjectionContainer().eventRepository,
+          );
+          unawaited(cubit.fetchPublicEvents());
+          return cubit;
+        },
+        child: const PublicEventsBottomSheet(),
+      ),
+    );
+
+    if (!context.mounted) return;
+
+    if (selectedEvent == null) return;
+
+    final uiEvent = MyEventItem(
+      id: selectedEvent.id,
+      name: selectedEvent.name,
+      hostName: selectedEvent.hostName,
+      hostId: selectedEvent.hostId,
+      dateTime: selectedEvent.startDate,
+      status: selectedEvent.status,
+      coverImageAsset: selectedEvent.coverImage,
+    );
+
+    unawaited(_enterRoom(context, uiEvent));
   }
 }
 
@@ -158,6 +209,7 @@ class _MyEventsBody extends StatelessWidget {
       id: model.id,
       name: model.name,
       hostName: model.hostName,
+      hostId: model.hostId,
       dateTime: model.startDate,
       status: model.status,
       // coverImageAsset is not used when a URL is available; the tile falls
@@ -275,28 +327,50 @@ class _EventListTab extends StatelessWidget {
           final event = events[index];
           return MyEventListTile(
             event: event,
-            onTap: () => _enterRoom(context, event.id, event.status),
+            onTap: () => _enterRoom(context, event),
           );
         },
       ),
     );
   }
+}
 
-  void _enterRoom(BuildContext context, String eventId, String status) {
-    if (status == 'UPCOMING' || status == 'ENDED') {
-      unawaited(
-        Navigator.of(context).pushNamed(
-          RouteNames.preEvent,
-          arguments: eventId,
-        ),
-      );
-    } else {
-      unawaited(
-        Navigator.of(context).pushNamed(
-          RouteNames.musicVote,
-          arguments: eventId,
-        ),
-      );
-    }
+Future<void> _enterRoom(BuildContext context, MyEventItem event) async {
+  if (event.status == 'UPCOMING' || event.status == 'ENDED') {
+    await Navigator.of(context).pushNamed(
+      RouteNames.preEvent,
+      arguments: event.id,
+    );
+    return;
+  }
+
+  // Get current user ID to decide between Host or Guest view
+  final tokenStorage = InjectionContainer().tokenStorageService;
+  final userJson = await tokenStorage.getUserProfile();
+  String? currentUserId;
+
+  if (userJson != null && userJson.isNotEmpty) {
+    try {
+      final parsed = jsonDecode(userJson);
+      if (parsed is Map<String, dynamic>) {
+        currentUserId = (parsed['id'] ?? parsed['userId']) as String?;
+      }
+    } on Exception catch (_) {}
+  }
+
+  if (!context.mounted) return;
+
+  if (currentUserId == event.hostId) {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => HostMusicVotePage(eventId: event.id),
+      ),
+    );
+  } else {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => GuestMusicVotePage(eventId: event.id),
+      ),
+    );
   }
 }
