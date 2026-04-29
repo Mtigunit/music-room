@@ -12,6 +12,7 @@ describe('TrackVotesService', () => {
     // Create a mock repository
     const mockRepository = {
       recordVote: jest.fn(),
+      getEventForVoting: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -53,6 +54,16 @@ describe('TrackVotesService', () => {
       };
 
       const mockDate = new Date('2026-04-15T10:00:00.000Z');
+
+      repository.getEventForVoting.mockResolvedValue({
+        id: 'event-123',
+        hostId: 'user-123',
+        visibility: 'PUBLIC',
+        invitingOnly: false,
+        policies: [],
+        invites: [],
+      } as any);
+
       repository.recordVote.mockResolvedValue({
         score: 3,
         updatedAt: mockDate,
@@ -84,6 +95,15 @@ describe('TrackVotesService', () => {
         trackId: 'track-012',
         vote: 'down',
       };
+
+      repository.getEventForVoting.mockResolvedValue({
+        id: 'event-789',
+        hostId: 'user-456',
+        visibility: 'PUBLIC',
+        invitingOnly: false,
+        policies: [],
+        invites: [],
+      } as any);
 
       repository.recordVote.mockResolvedValue({
         score: -5,

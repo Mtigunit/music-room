@@ -362,7 +362,7 @@ export class EventsGateway implements OnGatewayDisconnect {
       startDate: updatedEvent.startDate,
       hostId: userId,
     });
-
+    this.broadcastRoomCount(roomName);
     this.eventEmitter.emit(
       AUDIT_LOG_EVENT,
       createAuditLogEvent(userId, AuditAction.EVENT_START, meta, { eventId }),

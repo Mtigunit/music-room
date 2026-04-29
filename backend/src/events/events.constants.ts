@@ -1,19 +1,25 @@
 export const WS_EVENTS = {
+  // LISTENER EVENTS
   JOIN: 'event:join',
   LEAVE: 'event:leave',
   START: 'event:start',
   END: 'event:end',
+  HOST_JOIN: 'event:host_join',
+  HOST_LEAVE: 'event:host_leave',
+  TRACK_VOTE: 'track:vote',
+
+  // EMITTED EVENTS
   STATUS: 'event:status',
   STARTED: 'event:started',
   ENDED: 'event:ended',
   HOST_SOFT_DISCONNECT: 'event:host_soft_disconnect',
-  HOST_JOIN: 'event:host_join',
-  HOST_LEAVE: 'event:host_leave',
   HOST_RECONNECTED: 'event:host_reconnected',
   USER_JOINED: 'event:user_joined',
   EVENT_COUNT: 'event:count',
-  TRACK_ADD: 'track:add',
-  TRACK_REMOVE: 'track:remove',
+
+  TRACK_ADDED: 'track:added',
+  TRACK_REMOVED: 'track:removed',
+  TRACK_VOTE_UPDATED: 'track:vote_updated',
 };
 
 export const REDIS_KEYS = {

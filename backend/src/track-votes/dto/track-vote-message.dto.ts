@@ -1,5 +1,11 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsIn, IsString, MinLength } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+  IsIn,
+  IsString,
+  MinLength,
+  IsOptional,
+  IsNumber,
+} from 'class-validator';
 
 export class TrackVoteMessageDto {
   @ApiProperty({ example: 'room-123' })
@@ -15,4 +21,14 @@ export class TrackVoteMessageDto {
   @ApiProperty({ enum: ['up', 'down', 'none'], example: 'up' })
   @IsIn(['up', 'down', 'none'])
   vote!: 'up' | 'down' | 'none';
+
+  @ApiPropertyOptional({ example: 40.7128 })
+  @IsOptional()
+  @IsNumber()
+  locationLat?: number;
+
+  @ApiPropertyOptional({ example: -74.006 })
+  @IsOptional()
+  @IsNumber()
+  locationLng?: number;
 }
