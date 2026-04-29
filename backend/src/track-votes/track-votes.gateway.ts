@@ -6,16 +6,27 @@ import {
   WebSocketServer,
   WsException,
 } from '@nestjs/websockets';
-import { Logger, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
+import {
+  Logger,
+  UseGuards,
+  UsePipes,
+  ValidationPipe,
+  HttpException,
+} from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { TrackVotesService } from './track-votes.service';
 import { TrackVoteMessageDto } from './dto/track-vote-message.dto';
 import { TrackVoteResultDto } from './dto/track-vote-result.dto';
+import {
+  TrackNotFoundError,
+  TrackNotQueuedError,
+} from './track-votes.repository';
 import { WsAuthGuard } from '../websockets/guards/ws-auth.guard';
 import { WsUser } from '../websockets/decorators/ws-user.decorator';
 import type { SocketUser } from '../websockets/socket-auth.service';
 import type { ClientMetaDto } from '../common/dto/client-meta.dto';
 import { ClientMeta } from '../common/decorators/client-meta.decorator';
+import { WS_EVENTS } from '../events/events.constants';
 
 @WebSocketGateway({ path: '/ws', cors: true })
 @UseGuards(WsAuthGuard)
@@ -26,7 +37,7 @@ export class TrackVotesGateway {
 
   constructor(private readonly trackVotesService: TrackVotesService) {}
 
-  @SubscribeMessage('track:vote')
+  @SubscribeMessage(WS_EVENTS.TRACK_VOTE)
   @UsePipes(
     new ValidationPipe({
       whitelist: true,
@@ -43,23 +54,39 @@ export class TrackVotesGateway {
     const userId = user.id;
 
     // TODO: check later the license policies
-    if (!client.rooms.has(payload.eventId)) {
+    if (!client.rooms.has(`event_${payload.eventId}`)) {
       throw new WsException(
         `You must join event room ${payload.eventId} to vote.`,
       );
     }
 
-    const result = await this.trackVotesService.recordVote(
-      payload,
-      userId,
-      meta,
-    );
-    this.server.to(payload.eventId).emit('track:vote:updated', result);
+    try {
+      const result = await this.trackVotesService.recordVote(
+        payload,
+        userId,
+        meta,
+      );
 
-    this.logger.log(
-      `Vote recorded: client=${client.id} userId=${userId} event=${payload.eventId} track=${payload.trackId} vote=${payload.vote}`,
-    );
+      this.server
+        .to(`event_${payload.eventId}`)
+        .emit(WS_EVENTS.TRACK_VOTE_UPDATED, result);
 
-    return result;
+      this.logger.log(
+        `Vote recorded: client=${client.id} userId=${userId} event=${payload.eventId} track=${payload.trackId} vote=${payload.vote}`,
+      );
+
+      return result;
+    } catch (error) {
+      if (
+        error instanceof TrackNotFoundError ||
+        error instanceof TrackNotQueuedError
+      ) {
+        throw new WsException(error.message);
+      }
+      if (error instanceof HttpException) {
+        throw new WsException(error.message);
+      }
+      throw error;
+    }
   }
 }

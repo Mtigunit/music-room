@@ -9,5 +9,5 @@ Payload:
 - vote: "up" | "down" | "none"
 
 Broadcast:
-- track:vote:updated
+- track:vote_updated
 - Emitted to the room with updated totals

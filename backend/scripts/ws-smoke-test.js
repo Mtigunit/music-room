@@ -45,7 +45,7 @@ socket.on('pong', (payload) => {
   console.log('Pong:', payload);
 });
 
-socket.on('track:vote:updated', (payload) => {
+socket.on('track:vote_updated', (payload) => {
   console.log('Vote updated:', payload);
 });
 

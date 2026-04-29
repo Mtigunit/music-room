@@ -107,7 +107,7 @@ describe('TrackVotesGateway', () => {
       // Verify the broadcast behavior
       expect(gateway.server.to).toHaveBeenCalledWith('event-123');
       expect(gateway.server.emit).toHaveBeenCalledWith(
-        'track:vote:updated',
+        'track:vote_updated',
         mockResult,
       );
 

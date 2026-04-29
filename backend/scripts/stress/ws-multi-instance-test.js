@@ -73,7 +73,7 @@ async function bootstrap() {
     await Promise.all([joinRoom(a, 'A'), joinRoom(b, 'B')]);
     console.log(`Both joined room: ${roomId}`);
 
-    const updatedOnB = onceWithTimeout(b, 'track:vote:updated', timeoutMs);
+    const updatedOnB = onceWithTimeout(b, 'track:vote_updated', timeoutMs);
 
     const ack = await new Promise((resolve, reject) => {
       const timer = setTimeout(() => reject(new Error('Timeout waiting for track:vote ack')), timeoutMs);
@@ -86,14 +86,14 @@ async function bootstrap() {
     const updatedPayload = await updatedOnB;
 
     if (!updatedPayload || updatedPayload.roomId !== roomId || updatedPayload.trackId !== trackId) {
-      throw new Error('Unexpected track:vote:updated payload on B');
+      throw new Error('Unexpected track:vote_updated payload on B');
     }
 
     if (!ack || ack.roomId !== roomId || ack.trackId !== trackId) {
       throw new Error('Unexpected ack payload from track:vote');
     }
 
-    console.log('PASS: B received track:vote:updated from room broadcast');
+    console.log('PASS: B received track:vote_updated from room broadcast');
   } finally {
     a.disconnect();
     b.disconnect();

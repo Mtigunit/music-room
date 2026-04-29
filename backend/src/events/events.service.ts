@@ -16,6 +16,7 @@ import { YoutubeService } from '../tracks/youtube.service';
 import { Visibility } from '@prisma/client';
 import { TrackSearchResultDto } from '../tracks/dto/track-search-result.dto';
 import { ClientMetaDto } from '../common/dto/client-meta.dto';
+import { WS_EVENTS } from './events.constants';
 
 @Injectable()
 export class EventsService {
@@ -366,7 +367,9 @@ export class EventsService {
     );
 
     const roomName = `event_${eventId}`;
-    this.eventsGateway.server.to(roomName).emit('track:add', newTrack);
+    this.eventsGateway.server
+      .to(roomName)
+      .emit(WS_EVENTS.TRACK_ADDED, newTrack);
 
     this.eventEmitter.emit(
       AUDIT_LOG_EVENT,
@@ -414,9 +417,9 @@ export class EventsService {
     };
 
     const roomName = `event_${eventId}`;
-    this.eventsGateway.server
-      .to(roomName)
-      .emit('track:remove', { providerTrackId: result.providerTrackId });
+    this.eventsGateway.server.to(roomName).emit(WS_EVENTS.TRACK_REMOVED, {
+      providerTrackId: result.providerTrackId,
+    });
 
     this.eventEmitter.emit(
       AUDIT_LOG_EVENT,

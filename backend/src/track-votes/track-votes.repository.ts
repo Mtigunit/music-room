@@ -1,8 +1,4 @@
-import {
-  BadRequestException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { TrackStatus } from '@prisma/client';
 
@@ -13,9 +9,35 @@ export interface TrackVoteCounter {
   updatedAt: Date;
 }
 
+export class TrackNotFoundError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'TrackNotFoundError';
+  }
+}
+
+export class TrackNotQueuedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'TrackNotQueuedError';
+  }
+}
+
 @Injectable()
 export class TrackVotesRepository {
   constructor(private readonly prisma: PrismaService) {}
+
+  async getEventForVoting(eventId: string) {
+    return this.prisma.event.findUnique({
+      where: { id: eventId },
+      include: {
+        policies: true,
+        invites: {
+          select: { userId: true },
+        },
+      },
+    });
+  }
 
   async recordVote(
     eventId: string,
@@ -33,7 +55,7 @@ export class TrackVotesRepository {
     });
 
     if (!eventTrack || eventTrack.status !== TrackStatus.QUEUED) {
-      throw new NotFoundException(
+      throw new TrackNotFoundError(
         `EventTrack not found for event ${eventId} and track ${trackId}`,
       );
     }
@@ -47,7 +69,7 @@ export class TrackVotesRepository {
 
       const lockedTrack = lockedTracks[0];
       if (lockedTrack && lockedTrack.status !== TrackStatus.QUEUED) {
-        throw new BadRequestException(
+        throw new TrackNotQueuedError(
           `Cannot vote on track ${trackId}: it is no longer queued.`,
         );
       }
