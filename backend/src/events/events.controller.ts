@@ -58,7 +58,7 @@ export class EventsController {
     @UploadedFile() file?: Express.Multer.File,
   ) {
     const userId = (req.user as { id: string }).id;
-    if (file) createEventDto.coverImage = file.path;
+    if (file) createEventDto.coverImage = `/uploads/${file.filename}`;
     return this.eventsService.create(userId, createEventDto, meta);
   }
 
@@ -190,7 +190,7 @@ export class EventsController {
     @UploadedFile() file?: Express.Multer.File,
   ) {
     const userId = (req.user as { id: string }).id;
-    if (file) updateEventDto.coverImage = file.path;
+    if (file) updateEventDto.coverImage = `/uploads/${file.filename}`;
     return this.eventsService.update(id, userId, updateEventDto, meta);
   }
 

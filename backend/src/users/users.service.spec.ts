@@ -14,6 +14,8 @@ const mockUser: User = {
   friendInfo: null,
   privateInfo: null,
   preferences: null,
+  subscriptionTier: 'BASIC',
+  avatarUrl: null,
   createdAt: new Date(),
   updatedAt: new Date(),
 };
