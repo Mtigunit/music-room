@@ -1,6 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import type { User } from '@prisma/client';
+import { mergeJson } from '../common/utils/json-merge.util';
+import { Prisma, type User } from '@prisma/client';
+import type { PaginationDto } from '../common/dto/pagination.dto';
+import type { UpdateProfileDto } from './dto/update-profile.dto';
 
 @Injectable()
 export class UserRepository {
@@ -51,6 +54,85 @@ export class UserRepository {
     return this.prisma.user.update({
       where: { id: userId },
       data: { passwordHash },
+    });
+  }
+
+  async searchUsers(
+    query: string,
+    paginationDto: PaginationDto,
+  ): Promise<{
+    data: User[];
+    meta: { total: number; page: number; limit: number };
+  }> {
+    const { page = 1, limit = 20 } = paginationDto;
+    const skip = (page - 1) * limit;
+
+    const where: Prisma.UserWhereInput = {
+      username: {
+        contains: query,
+        mode: 'insensitive',
+      },
+    };
+
+    const [data, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where,
+        take: limit,
+        skip,
+        orderBy: { username: 'asc' },
+      }),
+      this.prisma.user.count({ where }),
+    ]);
+
+    return { data, meta: { total, page, limit } };
+  }
+
+  async updateProfile(
+    userId: string,
+    dto: UpdateProfileDto,
+  ): Promise<User | null> {
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.user.findUnique({
+        where: { id: userId },
+      });
+      if (!existing) return null;
+
+      return tx.user.update({
+        where: { id: userId },
+        data: {
+          ...(dto.publicInfo !== undefined && {
+            publicInfo: mergeJson(
+              existing.publicInfo,
+              dto.publicInfo,
+            ) as Prisma.InputJsonValue,
+          }),
+          ...(dto.friendInfo !== undefined && {
+            friendInfo: mergeJson(
+              existing.friendInfo,
+              dto.friendInfo,
+            ) as Prisma.InputJsonValue,
+          }),
+          ...(dto.privateInfo !== undefined && {
+            privateInfo: mergeJson(
+              existing.privateInfo,
+              dto.privateInfo,
+            ) as Prisma.InputJsonValue,
+          }),
+          ...(dto.preferences !== undefined && {
+            preferences: mergeJson(
+              existing.preferences,
+              dto.preferences,
+            ) as Prisma.InputJsonValue,
+          }),
+        },
+      });
+    });
+  }
+
+  async updateAvatar(userId: string, avatarPath: string): Promise<User> {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { avatarUrl: avatarPath },
     });
   }
 }
