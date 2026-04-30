@@ -241,6 +241,21 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
     }
   }
 
+  /// Manually leave the event room.
+  void leaveEvent(String eventId) {
+    if (eventId.isEmpty || !_socketClient.isConnected) return;
+
+    final hostId = state.event?.hostId;
+    final isHost =
+        hostId != null && hostId.isNotEmpty && hostId == _currentUserId;
+
+    final eventName = isHost
+        ? SocketEvent.eventHostLeave.value
+        : SocketEvent.eventLeave.value;
+
+    _socketClient.emit(eventName, <String, dynamic>{'eventId': eventId});
+  }
+
   Future<void> _ensureSocketConnected() async {
     _attachSocketListeners();
     await _socketClient.reconnectWithAuth();
@@ -478,18 +493,9 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
 
   @override
   Future<void> close() {
-    final event = state.event;
-    final eventId = _activeEventId ?? event?.id;
-
-    if (eventId != null && eventId.isNotEmpty && _socketClient.isConnected) {
-      final hostId = event?.hostId;
-      final isHost =
-          hostId != null && hostId.isNotEmpty && hostId == _currentUserId;
-      final leaveEvent = isHost
-          ? SocketEvent.eventHostLeave.value
-          : SocketEvent.eventLeave.value;
-
-      _socketClient.emit(leaveEvent, <String, dynamic>{'eventId': eventId});
+    final eventId = _activeEventId ?? state.event?.id;
+    if (eventId != null && eventId.isNotEmpty) {
+      leaveEvent(eventId);
     }
 
     _detachSocketListeners();
