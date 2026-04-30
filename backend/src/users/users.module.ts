@@ -1,13 +1,13 @@
 import { Module, BadRequestException } from '@nestjs/common';
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
-import { extname } from 'path';
 import * as fs from 'fs';
 import * as crypto from 'crypto';
 import { UsersService } from './users.service';
 import { UserRepository } from './user.repository';
 import { PrismaModule } from '../prisma/prisma.module';
 import { UsersController } from './users.controller';
+import mime from 'mime-types';
 
 @Module({
   imports: [
@@ -36,8 +36,11 @@ import { UsersController } from './users.controller';
           });
         },
         filename: (_req, file, cb) => {
-          const ext = extname(file.originalname);
-          cb(null, `avatar-${crypto.randomUUID()}${ext}`);
+          const ext = mime.extension(file.mimetype);
+          if (!ext) {
+            return cb(new Error('Invalid file type!'), '');
+          }
+          cb(null, `avatar-${crypto.randomUUID()}.${ext}`);
         },
       }),
     }),
