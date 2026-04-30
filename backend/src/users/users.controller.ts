@@ -107,10 +107,23 @@ export class UsersController {
     const oldUser = await this.usersService.findById(req.user!.id);
     const oldAvatarUrl = oldUser?.avatarUrl;
 
-    const user = await this.usersService.updateAvatar(
-      req.user!.id,
-      `/uploads/${file.filename}`,
-    );
+    let user;
+    try {
+      user = await this.usersService.updateAvatar(
+        req.user!.id,
+        `/uploads/${file.filename}`,
+      );
+    } catch (error) {
+      // Clean up the newly uploaded file if the DB update fails
+      try {
+        await fs.promises.unlink(file.path);
+      } catch {
+        this.logger.error(
+          `Failed to cleanup orphaned avatar file: ${file.path}`,
+        );
+      }
+      throw error;
+    }
 
     // If an old avatar exists and it's a local file, delete it
     if (oldAvatarUrl && oldAvatarUrl.startsWith('/uploads/')) {

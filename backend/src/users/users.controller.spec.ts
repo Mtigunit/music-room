@@ -121,8 +121,12 @@ describe('UsersController', () => {
     });
 
     it('should update avatar with relative url and return safe user', async () => {
-      const file = { filename: 'new-avatar.png' } as Express.Multer.File;
+      const file = {
+        filename: 'new-avatar.png',
+        path: '/tmp/new-avatar.png',
+      } as Express.Multer.File;
       const updatedUser = { ...mockUser, avatarUrl: '/uploads/new-avatar.png' };
+      service.findById.mockResolvedValue(mockUser as any);
       service.updateAvatar.mockResolvedValue(updatedUser as any);
 
       const req = { user: { id: mockUser.id } } as unknown as Request;
