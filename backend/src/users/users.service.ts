@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { UserRepository } from './user.repository';
 import { type User } from '@prisma/client';
 import { PaginationDto } from '../common/dto/pagination.dto';
@@ -71,7 +71,11 @@ export class UsersService {
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto): Promise<User> {
-    return this.userRepository.updateProfile(userId, dto);
+    const user = await this.userRepository.updateProfile(userId, dto);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return user;
   }
 
   async updateAvatar(userId: string, avatarPath: string): Promise<User> {

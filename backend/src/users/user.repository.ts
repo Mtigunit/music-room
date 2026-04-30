@@ -87,40 +87,45 @@ export class UserRepository {
     return { data, meta: { total, page, limit } };
   }
 
-  async updateProfile(userId: string, dto: UpdateProfileDto): Promise<User> {
-    const existing = await this.prisma.user.findUnique({
-      where: { id: userId },
-    });
-    if (!existing) throw new Error('User not found');
+  async updateProfile(
+    userId: string,
+    dto: UpdateProfileDto,
+  ): Promise<User | null> {
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.user.findUnique({
+        where: { id: userId },
+      });
+      if (!existing) return null;
 
-    return this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        ...(dto.publicInfo !== undefined && {
-          publicInfo: mergeJson(
-            existing.publicInfo,
-            dto.publicInfo,
-          ) as Prisma.InputJsonValue,
-        }),
-        ...(dto.friendInfo !== undefined && {
-          friendInfo: mergeJson(
-            existing.friendInfo,
-            dto.friendInfo,
-          ) as Prisma.InputJsonValue,
-        }),
-        ...(dto.privateInfo !== undefined && {
-          privateInfo: mergeJson(
-            existing.privateInfo,
-            dto.privateInfo,
-          ) as Prisma.InputJsonValue,
-        }),
-        ...(dto.preferences !== undefined && {
-          preferences: mergeJson(
-            existing.preferences,
-            dto.preferences,
-          ) as Prisma.InputJsonValue,
-        }),
-      },
+      return tx.user.update({
+        where: { id: userId },
+        data: {
+          ...(dto.publicInfo !== undefined && {
+            publicInfo: mergeJson(
+              existing.publicInfo,
+              dto.publicInfo,
+            ) as Prisma.InputJsonValue,
+          }),
+          ...(dto.friendInfo !== undefined && {
+            friendInfo: mergeJson(
+              existing.friendInfo,
+              dto.friendInfo,
+            ) as Prisma.InputJsonValue,
+          }),
+          ...(dto.privateInfo !== undefined && {
+            privateInfo: mergeJson(
+              existing.privateInfo,
+              dto.privateInfo,
+            ) as Prisma.InputJsonValue,
+          }),
+          ...(dto.preferences !== undefined && {
+            preferences: mergeJson(
+              existing.preferences,
+              dto.preferences,
+            ) as Prisma.InputJsonValue,
+          }),
+        },
+      });
     });
   }
 

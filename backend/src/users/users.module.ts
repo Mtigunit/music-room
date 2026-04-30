@@ -38,7 +38,10 @@ import mime from 'mime-types';
         filename: (_req, file, cb) => {
           const ext = mime.extension(file.mimetype);
           if (!ext) {
-            return cb(new Error('Invalid file type!'), '');
+            return cb(
+              new BadRequestException('Only image files are allowed!'),
+              '',
+            );
           }
           cb(null, `avatar-${crypto.randomUUID()}.${ext}`);
         },
