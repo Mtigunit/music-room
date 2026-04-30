@@ -272,7 +272,8 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
       ..on(SocketEvent.eventStatus.value, _handleEventStatus)
       ..on(SocketEvent.eventCount.value, _handleEventCount)
       ..on(SocketEvent.hostSoftDisconnect.value, _handleHostSoftDisconnect)
-      ..on(SocketEvent.hostReconnected.value, _handleHostReconnected);
+      ..on(SocketEvent.hostReconnected.value, _handleHostReconnected)
+      ..on(SocketEvent.trackAdd.value, _handleTrackAdded);
     _socketListenersAttached = true;
   }
 
@@ -285,7 +286,8 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
       ..off(SocketEvent.eventStatus.value)
       ..off(SocketEvent.eventCount.value)
       ..off(SocketEvent.hostSoftDisconnect.value)
-      ..off(SocketEvent.hostReconnected.value);
+      ..off(SocketEvent.hostReconnected.value)
+      ..off(SocketEvent.trackAdd.value);
     _socketListenersAttached = false;
   }
 
@@ -339,6 +341,24 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
     emit(
       state.copyWith(hostConnectionStatus: HostConnectionStatus.reconnected),
     );
+  }
+
+  void _handleTrackAdded(dynamic payload) {
+    if (!_isRelevantEventPayload(payload)) return;
+    if (payload is! Map<String, dynamic>) return;
+
+    try {
+      final newTrack = EventTrackModel.fromJson(payload);
+
+      // Prevent duplicate additions if already in list
+      if (state.tracks.any((t) => t.id == newTrack.id)) return;
+
+      final updatedTracks = List<EventTrackModel>.from(state.tracks)
+        ..add(newTrack);
+      emit(state.copyWith(tracks: updatedTracks));
+    } on Object {
+      // Silent ignore for malformed payload
+    }
   }
 
   bool _isRelevantEventPayload(dynamic payload) {

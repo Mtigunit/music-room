@@ -15,17 +15,29 @@ class EventTrackModel {
   });
 
   factory EventTrackModel.fromJson(Map<String, dynamic> json) {
+    final trackData = json['track'] as Map<String, dynamic>?;
+
     return EventTrackModel(
       id: json['id'] as String? ?? '',
-      trackId: json['trackId'] as String? ?? '',
+      trackId:
+          json['trackId'] as String? ?? (trackData?['id'] as String? ?? ''),
       addedById: json['addedById'] as String? ?? '',
       voteScore: json['voteScore'] as int? ?? 0,
       status: json['status'] as String? ?? 'QUEUED',
-      providerTrackId: json['providerTrackId'] as String? ?? '',
-      title: json['title'] as String? ?? 'Unknown Title',
-      artist: json['artist'] as String? ?? 'Unknown Artist',
-      durationMs: json['durationMs'] as int? ?? 0,
-      thumbnailUrl: json['thumbnailUrl'] as String? ?? '',
+      providerTrackId:
+          json['providerTrackId'] as String? ??
+          (trackData?['providerTrackId'] as String? ?? ''),
+      title:
+          json['title'] as String? ??
+          (trackData?['title'] as String? ?? 'Unknown Title'),
+      artist:
+          json['artist'] as String? ??
+          (trackData?['artist'] as String? ?? 'Unknown Artist'),
+      durationMs:
+          json['durationMs'] as int? ?? (trackData?['durationMs'] as int? ?? 0),
+      thumbnailUrl:
+          json['thumbnailUrl'] as String? ??
+          (trackData?['thumbnailUrl'] as String? ?? ''),
     );
   }
 
