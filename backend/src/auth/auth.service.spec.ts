@@ -130,7 +130,14 @@ describe('AuthService', () => {
 
       const result = await authService.register(registerDto, mockMeta);
 
-      expect(result).toEqual({ access_token: 'signed-jwt-token' });
+      expect(result).toEqual({
+        access_token: 'signed-jwt-token',
+        user: {
+          id: 'user-uuid-123',
+          email: registerDto.email,
+          username: registerDto.username,
+        },
+      });
       expect(usersService.create).toHaveBeenCalledWith(
         registerDto.email,
         registerDto.username,
@@ -207,7 +214,14 @@ describe('AuthService', () => {
       usersService.findByEmail.mockResolvedValue(mockUser);
       (bcrypt.compare as jest.Mock).mockResolvedValue(true);
       const result = await authService.login(loginDto, mockMeta);
-      expect(result).toEqual({ access_token: 'signed-jwt-token' });
+      expect(result).toEqual({
+        access_token: 'signed-jwt-token',
+        user: {
+          id: mockUser.id,
+          email: mockUser.email,
+          username: mockUser.username,
+        },
+      });
     });
 
     it('should login and return an access token for valid credentials (username)', async () => {
@@ -220,7 +234,14 @@ describe('AuthService', () => {
 
       const result = await authService.login(usernameLoginDto, mockMeta);
 
-      expect(result).toEqual({ access_token: 'signed-jwt-token' });
+      expect(result).toEqual({
+        access_token: 'signed-jwt-token',
+        user: {
+          id: mockUser.id,
+          email: mockUser.email,
+          username: mockUser.username,
+        },
+      });
       expect(usersService.findByUsername).toHaveBeenCalledWith('testuser');
       expect(usersService.findByEmail).not.toHaveBeenCalled();
     });
@@ -281,7 +302,14 @@ describe('AuthService', () => {
 
       const result = await authService.googleAuth('valid-id-token', mockMeta);
 
-      expect(result).toEqual({ access_token: 'signed-jwt-token' });
+      expect(result).toEqual({
+        access_token: 'signed-jwt-token',
+        user: {
+          id: mockUser.id,
+          email: mockUser.email,
+          username: mockUser.username,
+        },
+      });
       expect(usersService.findByGoogleId).toHaveBeenCalledWith(
         'google-sub-123',
       );
@@ -298,7 +326,14 @@ describe('AuthService', () => {
 
       const result = await authService.googleAuth('valid-id-token', mockMeta);
 
-      expect(result).toEqual({ access_token: 'signed-jwt-token' });
+      expect(result).toEqual({
+        access_token: 'signed-jwt-token',
+        user: {
+          id: mockUser.id,
+          email: mockUser.email,
+          username: mockUser.username,
+        },
+      });
       expect(usersService.findByEmail).toHaveBeenCalledWith(
         'google@example.com',
       );
@@ -322,7 +357,14 @@ describe('AuthService', () => {
 
       const result = await authService.googleAuth('valid-id-token', mockMeta);
 
-      expect(result).toEqual({ access_token: 'signed-jwt-token' });
+      expect(result).toEqual({
+        access_token: 'signed-jwt-token',
+        user: {
+          id: mockUser.id,
+          email: 'google@example.com',
+          username: 'googleuser',
+        },
+      });
       expect(usersService.createOAuthUser).toHaveBeenCalledWith(
         'google@example.com',
         expect.stringMatching(/^googleuser/),

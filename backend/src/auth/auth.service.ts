@@ -45,7 +45,10 @@ export class AuthService {
   async register(
     dto: RegisterDto,
     meta: ClientMetaDto,
-  ): Promise<{ access_token: string }> {
+  ): Promise<{
+    access_token: string;
+    user: { id: string; email: string; username: string };
+  }> {
     // Verify the email verification token
     const verifiedEmail = this.verifyEmailToken(dto.emailVerificationToken);
 
@@ -86,13 +89,16 @@ export class AuthService {
       }),
     );
 
-    return this.generateToken(user.id, user.email);
+    return this.generateToken(user);
   }
 
   async login(
     dto: LoginDto,
     meta: ClientMetaDto,
-  ): Promise<{ access_token: string }> {
+  ): Promise<{
+    access_token: string;
+    user: { id: string; email: string; username: string };
+  }> {
     let user: User | null;
 
     if (dto.identifier.includes('@')) {
@@ -121,13 +127,16 @@ export class AuthService {
       }),
     );
 
-    return this.generateToken(user.id, user.email);
+    return this.generateToken(user);
   }
 
   async googleAuth(
     idToken: string,
     meta: ClientMetaDto,
-  ): Promise<{ access_token: string }> {
+  ): Promise<{
+    access_token: string;
+    user: { id: string; email: string; username: string };
+  }> {
     try {
       const ticket = await this.googleClient.verifyIdToken({
         idToken,
@@ -173,7 +182,7 @@ export class AuthService {
       );
 
       // Return the new session
-      return this.generateToken(user.id, user.email);
+      return this.generateToken(user);
     } catch (error) {
       if (error instanceof UnauthorizedException) {
         throw error;
@@ -264,14 +273,23 @@ export class AuthService {
     }
   }
 
-  private generateToken(
-    userId: string,
-    email: string,
-  ): { access_token: string } {
-    const payload: JwtPayload = { sub: userId, email };
+  private generateToken(user: {
+    id: string;
+    email: string;
+    username: string;
+  }): {
+    access_token: string;
+    user: { id: string; email: string; username: string };
+  } {
+    const payload: JwtPayload = { sub: user.id, email: user.email };
 
     return {
       access_token: this.jwtService.sign(payload),
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+      },
     };
   }
 }
