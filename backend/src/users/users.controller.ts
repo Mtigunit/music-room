@@ -170,10 +170,9 @@ export class UsersController {
     }
 
     const isSelf = user.id === req.user!.id;
-    const isFriend = await this.usersService.areUsersFriends(
-      req.user!.id,
-      user.id,
-    );
+    const isFriend = isSelf
+      ? false
+      : await this.usersService.areUsersFriends(req.user!.id, user.id);
 
     // Visibility rules:
     // Everyone sees: id, username, avatarUrl, publicInfo, subscriptionTier

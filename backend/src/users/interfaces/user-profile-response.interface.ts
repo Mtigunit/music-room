@@ -10,14 +10,14 @@ export interface UserProfileResponse {
   id: string;
   username: string;
   avatarUrl: string | null;
-  publicInfo: Prisma.JsonValue;
+  publicInfo: Prisma.JsonValue | null;
   subscriptionTier: SubscriptionTier;
 
   // ─── Friend tier (mutual follows + self) ──────────────
-  friendInfo?: Prisma.JsonValue;
+  friendInfo?: Prisma.JsonValue | null;
 
   // ─── Private tier (self only) ─────────────────────────
-  privateInfo?: Prisma.JsonValue;
-  preferences?: Prisma.JsonValue;
+  privateInfo?: Prisma.JsonValue | null;
+  preferences?: Prisma.JsonValue | null;
   email?: string;
 }
