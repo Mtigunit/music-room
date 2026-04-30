@@ -13,7 +13,10 @@ import {
   UploadedFile,
   NotFoundException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
+import * as fs from 'fs';
+import * as path from 'path';
 import {
   ApiTags,
   ApiOperation,
@@ -36,6 +39,8 @@ import type { UserProfileResponse } from './interfaces/user-profile-response.int
 @UseGuards(JwtAuthGuard)
 @Controller('users')
 export class UsersController {
+  private readonly logger = new Logger(UsersController.name);
+
   constructor(private readonly usersService: UsersService) {}
 
   private toSafeUser(user: User): Omit<User, 'passwordHash' | 'googleId'> {
@@ -97,10 +102,32 @@ export class UsersController {
     if (!file) {
       throw new BadRequestException('An image file is required.');
     }
+
+    // Get the current user to find their old avatar URL
+    const oldUser = await this.usersService.findById(req.user!.id);
+    const oldAvatarUrl = oldUser?.avatarUrl;
+
     const user = await this.usersService.updateAvatar(
       req.user!.id,
       `/uploads/${file.filename}`,
     );
+
+    // If an old avatar exists and it's a local file, delete it
+    if (oldAvatarUrl && oldAvatarUrl.startsWith('/uploads/')) {
+      const filename = oldAvatarUrl.replace('/uploads/', '');
+      const filePath = path.join(process.cwd(), 'uploads', filename);
+
+      try {
+        await fs.promises.unlink(filePath);
+      } catch (error) {
+        // Log the error but don't fail the request if cleanup fails
+        this.logger.error(
+          `Failed to delete old avatar file: ${filePath}`,
+          error instanceof Error ? error.stack : undefined,
+        );
+      }
+    }
+
     return this.toSafeUser(user);
   }
 
