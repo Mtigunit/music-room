@@ -53,12 +53,16 @@ class MessageResponse {
 /// Response model for /auth/register endpoint
 @JsonSerializable()
 class RegisterResponse {
-  RegisterResponse({required this.accessToken});
+  RegisterResponse({
+    required this.accessToken,
+    required this.user,
+  });
 
   factory RegisterResponse.fromJson(Map<String, dynamic> json) =>
       _$RegisterResponseFromJson(json);
   @JsonKey(name: 'access_token')
   final String accessToken;
+  final UserProfile user;
 
   Map<String, dynamic> toJson() => _$RegisterResponseToJson(this);
 }
@@ -66,12 +70,16 @@ class RegisterResponse {
 /// Response model for /auth/login endpoint
 @JsonSerializable()
 class LoginResponse {
-  LoginResponse({required this.accessToken});
+  LoginResponse({
+    required this.accessToken,
+    required this.user,
+  });
 
   factory LoginResponse.fromJson(Map<String, dynamic> json) =>
       _$LoginResponseFromJson(json);
   @JsonKey(name: 'access_token')
   final String accessToken;
+  final UserProfile user;
 
   Map<String, dynamic> toJson() => _$LoginResponseToJson(this);
 }

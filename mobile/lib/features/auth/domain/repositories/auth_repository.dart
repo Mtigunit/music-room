@@ -39,6 +39,10 @@ abstract class AuthRepository {
 
   Future<(UserProfile?, Failure?)> getProfile();
 
+  Future<UserProfile?> getStoredUserProfile();
+
+  Future<String?> getStoredAccessToken();
+
   Future<void> logout();
 
   Future<bool> isAuthenticated();

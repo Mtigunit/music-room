@@ -30,9 +30,18 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     final (response, failure) = await _authRepository.loginWithGoogle();
 
     if (response != null) {
-      await _hydrateUserProfile();
-      emit(GoogleLoginSuccess(accessToken: response.accessToken));
-      emit(const AuthAuthenticated());
+      emit(
+        GoogleLoginSuccess(
+          accessToken: response.accessToken,
+          user: response.user,
+        ),
+      );
+      emit(
+        AuthAuthenticated(
+          accessToken: response.accessToken,
+          user: response.user,
+        ),
+      );
     } else {
       emit(GoogleLoginFailure(failure: failure!));
     }
@@ -49,11 +58,37 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     try {
       final isAuthenticated = await _authRepository.isAuthenticated();
       if (isAuthenticated) {
-        await _hydrateUserProfile();
-        // User is already logged in, no need to show auth screens
-        emit(const AuthAuthenticated());
+        final accessToken = await _authRepository.getStoredAccessToken();
+        if (accessToken == null || accessToken.isEmpty) {
+          emit(const AuthUnauthenticated());
+          return;
+        }
+
+        final storedUser = await _authRepository.getStoredUserProfile();
+        if (storedUser != null) {
+          emit(
+            AuthAuthenticated(
+              accessToken: accessToken,
+              user: storedUser,
+            ),
+          );
+          return;
+        }
+
+        final (profile, _) = await _authRepository.getProfile();
+        if (profile != null) {
+          emit(
+            AuthAuthenticated(
+              accessToken: accessToken,
+              user: profile,
+            ),
+          );
+          return;
+        }
+
+        await _authRepository.logout();
+        emit(const AuthUnauthenticated());
       } else {
-        // User needs to authenticate
         emit(const AuthUnauthenticated());
       }
     } on Exception {
@@ -73,10 +108,18 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     );
 
     if (response != null) {
-      await _hydrateUserProfile();
-      emit(LoginSuccess(accessToken: response.accessToken));
-      // Emit authenticated state after successful login
-      emit(const AuthAuthenticated());
+      emit(
+        LoginSuccess(
+          accessToken: response.accessToken,
+          user: response.user,
+        ),
+      );
+      emit(
+        AuthAuthenticated(
+          accessToken: response.accessToken,
+          user: response.user,
+        ),
+      );
     } else {
       emit(LoginFailure(failure: failure!));
     }
@@ -193,10 +236,18 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     );
 
     if (response != null) {
-      await _hydrateUserProfile();
-      emit(RegisterSuccess(accessToken: response.accessToken));
-      // Emit authenticated state after successful registration
-      emit(const AuthAuthenticated());
+      emit(
+        RegisterSuccess(
+          accessToken: response.accessToken,
+          user: response.user,
+        ),
+      );
+      emit(
+        AuthAuthenticated(
+          accessToken: response.accessToken,
+          user: response.user,
+        ),
+      );
     } else {
       emit(RegisterFailure(failure: failure!));
     }
@@ -210,10 +261,5 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     await _authRepository.logout();
     emit(const LogoutSuccess());
     emit(const AuthUnauthenticated());
-  }
-
-  /// Best-effort profile hydrate to persist user id for other features.
-  Future<void> _hydrateUserProfile() async {
-    await _authRepository.getProfile();
   }
 }

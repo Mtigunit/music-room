@@ -117,7 +117,6 @@ class InjectionContainer {
       playlistCacheDataSource: _playlistCacheDataSource,
       connectivityService: _connectivityService,
       socketClient: _socketClient,
-      tokenStorageService: _tokenStorageService,
     );
   }
 }

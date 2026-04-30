@@ -1,12 +1,13 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:music_room/core/services/token_storage_service.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/widgets/empty_state_widget.dart';
 import 'package:music_room/core/widgets/premium_segmented_tab_bar.dart';
 import 'package:music_room/di/injection_container.dart';
+import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
+import 'package:music_room/features/auth/presentation/state/auth_state.dart';
 import 'package:music_room/features/playlist/data/datasources/playlist_remote_datasource.dart';
 import 'package:music_room/features/playlist/domain/entities/playlist_entity.dart';
 import 'package:music_room/features/playlist/presentation/pages/create_playlist_page.dart';
@@ -22,11 +23,8 @@ class PlaylistPage extends StatefulWidget {
 class _PlaylistPageState extends State<PlaylistPage> {
   final IPlaylistRemoteDataSource _playlistDataSource =
       InjectionContainer().playlistRemoteDataSource;
-  final TokenStorageService _tokenStorageService =
-      InjectionContainer().tokenStorageService;
 
   List<PlaylistEntity> _playlists = const <PlaylistEntity>[];
-  String? _currentUserId;
   bool _isLoading = true;
   String? _errorMessage;
 
@@ -43,13 +41,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
     });
 
     try {
-      final results = await Future.wait<dynamic>([
-        _playlistDataSource.fetchMyPlaylists(),
-        _resolveCurrentUserId(),
-      ]);
-
-      final playlists = results[0] as List<PlaylistEntity>;
-      final currentUserId = results[1] as String?;
+      final playlists = await _playlistDataSource.fetchMyPlaylists();
 
       if (!mounted) {
         return;
@@ -57,7 +49,6 @@ class _PlaylistPageState extends State<PlaylistPage> {
 
       setState(() {
         _playlists = playlists;
-        _currentUserId = currentUserId;
         _isLoading = false;
       });
     } on DioException catch (error) {
@@ -89,59 +80,19 @@ class _PlaylistPageState extends State<PlaylistPage> {
     return 'Unable to load your playlists right now.';
   }
 
-  Future<String?> _resolveCurrentUserId() async {
-    final userJson = await _tokenStorageService.getUserProfile();
-    if (userJson != null && userJson.isNotEmpty) {
-      try {
-        final parsed = jsonDecode(userJson);
-        if (parsed is Map<String, dynamic>) {
-          final id = parsed['id'] ?? parsed['userId'];
-          if (id is String && id.isNotEmpty) {
-            return id;
-          }
-        }
-      } on Object {
-        return null;
-      }
+  String? _currentUserIdFromAuthState(AuthState state) {
+    if (state is AuthAuthenticated) {
+      return state.user.id;
     }
-
-    final token = await _tokenStorageService.getToken();
-    return _extractUserIdFromJwt(token);
-  }
-
-  String? _extractUserIdFromJwt(String? token) {
-    if (token == null || token.isEmpty) {
-      return null;
+    if (state is LoginSuccess) {
+      return state.user.id;
     }
-
-    final parts = token.split('.');
-    if (parts.length < 2) {
-      return null;
+    if (state is RegisterSuccess) {
+      return state.user.id;
     }
-
-    try {
-      final normalized = base64Url.normalize(parts[1]);
-      final payloadJson = utf8.decode(base64Url.decode(normalized));
-      final payload = jsonDecode(payloadJson);
-      if (payload is! Map<String, dynamic>) {
-        return null;
-      }
-
-      final candidates = <dynamic>[
-        payload['userId'],
-        payload['id'],
-        payload['sub'],
-      ];
-
-      for (final candidate in candidates) {
-        if (candidate is String && candidate.isNotEmpty) {
-          return candidate;
-        }
-      }
-    } on Object {
-      return null;
+    if (state is GoogleLoginSuccess) {
+      return state.user.id;
     }
-
     return null;
   }
 
@@ -191,19 +142,22 @@ class _PlaylistPageState extends State<PlaylistPage> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final currentUserId = _currentUserIdFromAuthState(
+      context.watch<AuthBloc>().state,
+    );
 
-    final createdPlaylists = _currentUserId == null
+    final createdPlaylists = currentUserId == null
         ? _playlists
         : _playlists
-              .where((playlist) => playlist.ownerUserId == _currentUserId)
+              .where((playlist) => playlist.ownerUserId == currentUserId)
               .toList(growable: false);
-    final invitedPlaylists = _currentUserId == null
+    final invitedPlaylists = currentUserId == null
         ? const <PlaylistEntity>[]
         : _playlists
               .where(
                 (playlist) =>
                     playlist.ownerUserId != null &&
-                    playlist.ownerUserId != _currentUserId,
+                    playlist.ownerUserId != currentUserId,
               )
               .toList(growable: false);
 

@@ -3,9 +3,12 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/widgets/app_snackbar.dart';
 import 'package:music_room/core/widgets/empty_state_widget.dart';
 import 'package:music_room/di/injection_container.dart';
+import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
+import 'package:music_room/features/auth/presentation/state/auth_state.dart';
 import 'package:music_room/features/playlist/data/datasources/playlist_remote_datasource.dart';
 import 'package:music_room/features/playlist/domain/entities/playlist_entity.dart';
 import 'package:music_room/features/playlist/domain/types/playlist_tags.dart';
@@ -47,9 +50,25 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage>
   bool _isSyncing = false;
   bool _isReordering = false;
   bool _isSpeedDialOpen = false;
-  String? _currentUserId;
   Set<String> _removingTrackIds = <String>{};
   String? _errorMessage;
+
+  String? get _currentUserId {
+    final authState = context.read<AuthBloc>().state;
+    if (authState is AuthAuthenticated) {
+      return authState.user.id;
+    }
+    if (authState is LoginSuccess) {
+      return authState.user.id;
+    }
+    if (authState is RegisterSuccess) {
+      return authState.user.id;
+    }
+    if (authState is GoogleLoginSuccess) {
+      return authState.user.id;
+    }
+    return null;
+  }
 
   @override
   void initState() {
@@ -102,7 +121,6 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage>
       _showStaleWarning = state.showStaleWarning;
       _isSyncing = state.isSyncing;
       _isReordering = state.isReordering;
-      _currentUserId = state.currentUserId;
       _removingTrackIds = state.removingTrackIds.toSet();
       _errorMessage = state.status == PlaylistSyncStatus.error
           ? (state.errorMessage ?? 'Unable to load playlist details right now.')
@@ -868,6 +886,7 @@ class _PlaylistSpeedDial extends StatelessWidget {
     const double actionIconDiameter = 56;
     const double actionColumnWidth = 450;
     final hasOnlyAddAction = canAddSongs && !canInviteUsers && !canOpenSettings;
+    final showListMenuIcon = canAddSongs && canInviteUsers;
     final fadeCurve = CurvedAnimation(
       parent: animation,
       curve: Curves.easeOutCubic,
@@ -1010,7 +1029,11 @@ class _PlaylistSpeedDial extends StatelessWidget {
                           );
                         },
                         child: Icon(
-                          isOpen ? Icons.close_rounded : Icons.add_rounded,
+                          isOpen
+                              ? Icons.close_rounded
+                              : (showListMenuIcon
+                                    ? Icons.menu_rounded
+                                    : Icons.add_rounded),
                           key: ValueKey<bool>(isOpen),
                           size: 28,
                         ),

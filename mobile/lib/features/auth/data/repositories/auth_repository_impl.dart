@@ -32,6 +32,7 @@ class AuthRepositoryImpl implements AuthRepository {
         password: password,
       );
       await _tokenStorage.saveToken(response.accessToken);
+      await _tokenStorage.saveUserProfile(jsonEncode(response.user.toJson()));
       return (response, null);
     } on DioException catch (e) {
       return (null, _handleDioException(e));
@@ -61,6 +62,7 @@ class AuthRepositoryImpl implements AuthRepository {
       );
 
       await _tokenStorage.saveToken(response.accessToken);
+      await _tokenStorage.saveUserProfile(jsonEncode(response.user.toJson()));
       return (response, null);
     } on GoogleAuthException catch (e) {
       return (null, Failure(message: e.message));
@@ -151,6 +153,7 @@ class AuthRepositoryImpl implements AuthRepository {
         emailVerificationToken: emailVerificationToken,
       );
       await _tokenStorage.saveToken(response.accessToken);
+      await _tokenStorage.saveUserProfile(jsonEncode(response.user.toJson()));
       return (response, null);
     } on DioException catch (e) {
       return (null, _handleDioException(e));
@@ -181,6 +184,29 @@ class AuthRepositoryImpl implements AuthRepository {
     }
 
     await _tokenStorage.clearAll();
+  }
+
+  @override
+  Future<UserProfile?> getStoredUserProfile() async {
+    final raw = await _tokenStorage.getUserProfile();
+    if (raw == null || raw.isEmpty) {
+      return null;
+    }
+
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) {
+        return null;
+      }
+      return UserProfile.fromJson(decoded);
+    } on Object {
+      return null;
+    }
+  }
+
+  @override
+  Future<String?> getStoredAccessToken() async {
+    return _tokenStorage.getToken();
   }
 
   @override

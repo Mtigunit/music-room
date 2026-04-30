@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
 import 'package:music_room/core/error/failure.dart';
+import 'package:music_room/features/auth/data/models/auth_model.dart';
 
 /// Base class for all authentication states
 abstract class AuthState extends Equatable {
@@ -21,7 +22,16 @@ class AuthChecking extends AuthState {
 
 /// User is authenticated
 class AuthAuthenticated extends AuthState {
-  const AuthAuthenticated();
+  const AuthAuthenticated({
+    required this.accessToken,
+    required this.user,
+  });
+
+  final String accessToken;
+  final UserProfile user;
+
+  @override
+  List<Object?> get props => [accessToken, user];
 }
 
 /// User is not authenticated
@@ -36,11 +46,15 @@ class LoginLoading extends AuthState {
 
 /// Login successful
 class LoginSuccess extends AuthState {
-  const LoginSuccess({required this.accessToken});
+  const LoginSuccess({
+    required this.accessToken,
+    required this.user,
+  });
   final String accessToken;
+  final UserProfile user;
 
   @override
-  List<Object?> get props => [accessToken];
+  List<Object?> get props => [accessToken, user];
 }
 
 /// Login failed
@@ -59,11 +73,15 @@ class GoogleLoginLoading extends AuthState {
 
 /// Google login successful
 class GoogleLoginSuccess extends AuthState {
-  const GoogleLoginSuccess({required this.accessToken});
+  const GoogleLoginSuccess({
+    required this.accessToken,
+    required this.user,
+  });
   final String accessToken;
+  final UserProfile user;
 
   @override
-  List<Object?> get props => [accessToken];
+  List<Object?> get props => [accessToken, user];
 }
 
 /// Google login failed
@@ -205,11 +223,15 @@ class RegisterLoading extends AuthState {
 
 /// User registration successful
 class RegisterSuccess extends AuthState {
-  const RegisterSuccess({required this.accessToken});
+  const RegisterSuccess({
+    required this.accessToken,
+    required this.user,
+  });
   final String accessToken;
+  final UserProfile user;
 
   @override
-  List<Object?> get props => [accessToken];
+  List<Object?> get props => [accessToken, user];
 }
 
 /// User registration failed
