@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { mergeJson } from '../common/utils/json-merge.util';
 import { Prisma, type User } from '@prisma/client';
 import type { PaginationDto } from '../common/dto/pagination.dto';
 import type { UpdateProfileDto } from './dto/update-profile.dto';
@@ -87,23 +88,37 @@ export class UserRepository {
   }
 
   async updateProfile(userId: string, dto: UpdateProfileDto): Promise<User> {
-    // Explicitly map each DTO tier to its Prisma Json column.
-    // Prisma requires InputJsonValue for Json fields; class-validator already
-    // guaranteed the shape, so the cast here is safe.
+    const existing = await this.prisma.user.findUnique({
+      where: { id: userId },
+    });
+    if (!existing) throw new Error('User not found');
+
     return this.prisma.user.update({
       where: { id: userId },
       data: {
         ...(dto.publicInfo !== undefined && {
-          publicInfo: dto.publicInfo as Prisma.InputJsonValue,
+          publicInfo: mergeJson(
+            existing.publicInfo,
+            dto.publicInfo,
+          ) as Prisma.InputJsonValue,
         }),
         ...(dto.friendInfo !== undefined && {
-          friendInfo: dto.friendInfo as Prisma.InputJsonValue,
+          friendInfo: mergeJson(
+            existing.friendInfo,
+            dto.friendInfo,
+          ) as Prisma.InputJsonValue,
         }),
         ...(dto.privateInfo !== undefined && {
-          privateInfo: dto.privateInfo as Prisma.InputJsonValue,
+          privateInfo: mergeJson(
+            existing.privateInfo,
+            dto.privateInfo,
+          ) as Prisma.InputJsonValue,
         }),
         ...(dto.preferences !== undefined && {
-          preferences: dto.preferences as Prisma.InputJsonValue,
+          preferences: mergeJson(
+            existing.preferences,
+            dto.preferences,
+          ) as Prisma.InputJsonValue,
         }),
       },
     });
