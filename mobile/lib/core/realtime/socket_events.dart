@@ -17,6 +17,7 @@ enum SocketEvent {
   eventHostLeave,
   hostSoftDisconnect,
   hostReconnected,
+  trackAdd,
 }
 
 extension SocketEventName on SocketEvent {
@@ -56,6 +57,8 @@ extension SocketEventName on SocketEvent {
         return 'event:host_soft_disconnect';
       case SocketEvent.hostReconnected:
         return 'event:host_reconnected';
+      case SocketEvent.trackAdd:
+        return 'track:add';
     }
   }
 }
