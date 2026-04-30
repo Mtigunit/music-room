@@ -41,6 +41,17 @@ class AppButton extends StatelessWidget {
   final double borderRadius;
   final EdgeInsetsGeometry? padding;
 
+  // Flutter's Material buttons default to minimumSize: Size(64, 36) and
+  // maximumSize: Size.infinite. Inside a Row / actions slot this causes them
+  // to expand and fill all available horizontal space. Overriding both to
+  // Size.zero / Size.infinite with tapTargetSize = shrinkWrap makes the
+  // button wrap its content exactly like an inline widget.
+  ButtonStyle get _shrinkWrapBase => const ButtonStyle(
+    minimumSize: WidgetStatePropertyAll(Size.zero),
+    maximumSize: WidgetStatePropertyAll(Size.infinite),
+    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+  );
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -67,42 +78,68 @@ class AppButton extends StatelessWidget {
       case AppButtonVariant.filled:
         return ElevatedButton(
           onPressed: resolvedOnPressed,
-          style: ElevatedButton.styleFrom(
-            backgroundColor: backgroundColor ?? colorScheme.primary,
-            foregroundColor: resolvedForeground,
-            disabledBackgroundColor: disabledBackgroundColor,
-            disabledForegroundColor: disabledForegroundColor,
-            padding: padding,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(borderRadius),
+          style: _shrinkWrapBase.copyWith(
+            backgroundColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.disabled)) {
+                return disabledBackgroundColor;
+              }
+              return backgroundColor ?? colorScheme.primary;
+            }),
+            foregroundColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.disabled)) {
+                return disabledForegroundColor;
+              }
+              return resolvedForeground;
+            }),
+            padding: WidgetStatePropertyAll(padding),
+            shape: WidgetStatePropertyAll(
+              RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(borderRadius),
+              ),
             ),
           ),
           child: content,
         );
+
       case AppButtonVariant.outlined:
         return OutlinedButton(
           onPressed: resolvedOnPressed,
-          style: OutlinedButton.styleFrom(
-            foregroundColor: resolvedForeground,
-            disabledForegroundColor: disabledForegroundColor,
-            side: borderSide ?? BorderSide(color: colorScheme.outlineVariant),
-            padding: padding,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(borderRadius),
+          style: _shrinkWrapBase.copyWith(
+            foregroundColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.disabled)) {
+                return disabledForegroundColor;
+              }
+              return resolvedForeground;
+            }),
+            side: WidgetStatePropertyAll(
+              borderSide ?? BorderSide(color: colorScheme.outlineVariant),
+            ),
+            padding: WidgetStatePropertyAll(padding),
+            shape: WidgetStatePropertyAll(
+              RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(borderRadius),
+              ),
             ),
           ),
           child: content,
         );
+
       case AppButtonVariant.text:
         return TextButton(
           onPressed: resolvedOnPressed,
-          style: TextButton.styleFrom(
-            foregroundColor: resolvedForeground,
-            disabledForegroundColor: disabledForegroundColor,
-            padding: padding,
-            textStyle: textStyle,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(borderRadius),
+          style: _shrinkWrapBase.copyWith(
+            foregroundColor: WidgetStateProperty.resolveWith((states) {
+              if (states.contains(WidgetState.disabled)) {
+                return disabledForegroundColor;
+              }
+              return resolvedForeground;
+            }),
+            padding: WidgetStatePropertyAll(padding),
+            textStyle: WidgetStatePropertyAll(textStyle),
+            shape: WidgetStatePropertyAll(
+              RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(borderRadius),
+              ),
             ),
           ),
           child: content,
@@ -126,15 +163,9 @@ class AppButton extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (leading != null) ...[
-          leading!,
-          const SizedBox(width: 8),
-        ],
+        if (leading != null) ...[leading!, const SizedBox(width: 8)],
         labelWidget,
-        if (trailing != null) ...[
-          const SizedBox(width: 8),
-          trailing!,
-        ],
+        if (trailing != null) ...[const SizedBox(width: 8), trailing!],
       ],
     );
   }

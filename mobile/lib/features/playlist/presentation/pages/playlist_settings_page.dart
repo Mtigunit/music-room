@@ -120,6 +120,7 @@ class _PlaylistSettingsPageState extends State<PlaylistSettingsPage> {
           id: widget.playlist.id,
           name: trimmedName,
           ownerUserId: widget.playlist.ownerUserId,
+          collaboratorIds: widget.playlist.collaboratorIds,
           description: updatedDescription.isEmpty ? null : updatedDescription,
           visibility: updatedVisibility,
           editLicense: updatedEditLicense,

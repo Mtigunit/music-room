@@ -8,6 +8,7 @@ class PlaylistModel {
     required this.trackCount,
     required this.tags,
     required this.updatedAt,
+    this.ownerUserId,
     this.description,
     this.thumbnailUrl,
   });
@@ -28,6 +29,7 @@ class PlaylistModel {
         json['updatedAt'] ?? json['newUpdatedAt'],
         fallback: DateTime.now().toUtc().toIso8601String(),
       ),
+      ownerUserId: _asNullableString(json['ownerId']),
       description: _asNullableString(json['description']),
       thumbnailUrl: _asNullableString(json['thumbnailUrl']),
     );
@@ -39,6 +41,7 @@ class PlaylistModel {
   final int trackCount;
   final List<String> tags;
   final String updatedAt;
+  final String? ownerUserId;
   final String? description;
   final String? thumbnailUrl;
 
@@ -50,6 +53,7 @@ class PlaylistModel {
       trackCount: trackCount,
       tags: tags,
       updatedAt: updatedAt,
+      ownerUserId: ownerUserId,
       description: description,
       thumbnailUrl: thumbnailUrl,
     );
@@ -153,6 +157,7 @@ class PlaylistDetailsModel {
     required this.tracks,
     required this.tags,
     required this.updatedAt,
+    required this.collaboratorIds,
     this.description,
   });
 
@@ -180,6 +185,7 @@ class PlaylistDetailsModel {
         json['updatedAt'] ?? json['newUpdatedAt'],
         fallback: DateTime.now().toUtc().toIso8601String(),
       ),
+      collaboratorIds: _asCollaboratorIds(json['collaborators']),
       description: _asNullableString(json['description']),
       tracks: trackModels,
     );
@@ -197,6 +203,7 @@ class PlaylistDetailsModel {
           .toList(growable: false),
       tags: entity.tags,
       updatedAt: entity.updatedAt,
+      collaboratorIds: entity.collaboratorIds,
       description: entity.description,
     );
   }
@@ -210,6 +217,7 @@ class PlaylistDetailsModel {
   final List<PlaylistTrackModel> tracks;
   final List<String> tags;
   final String updatedAt;
+  final List<String> collaboratorIds;
 
   PlaylistDetailsEntity toEntity() {
     return PlaylistDetailsEntity(
@@ -221,6 +229,7 @@ class PlaylistDetailsModel {
       description: description,
       tags: tags,
       updatedAt: updatedAt,
+      collaboratorIds: collaboratorIds,
       tracks: tracks
           .map((trackModel) => trackModel.toEntity())
           .toList(growable: false),
@@ -311,5 +320,26 @@ List<String> _asStringList(Object? value) {
       .whereType<String>()
       .map((item) => item.trim())
       .where((item) => item.isNotEmpty)
+      .toList(growable: false);
+}
+
+List<String> _asCollaboratorIds(Object? value) {
+  if (value is! List<dynamic>) {
+    return const <String>[];
+  }
+
+  return value
+      .map((item) {
+        if (item is Map<String, dynamic>) {
+          final rawUser = item['user'];
+          if (rawUser is Map<String, dynamic>) {
+            return _asNullableString(rawUser['id']);
+          }
+
+          return _asNullableString(item['userId']);
+        }
+        return null;
+      })
+      .whereType<String>()
       .toList(growable: false);
 }

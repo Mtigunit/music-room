@@ -6,6 +6,7 @@ class PlaylistEntity {
     required this.trackCount,
     required this.tags,
     required this.updatedAt,
+    this.ownerUserId,
     this.description,
     this.thumbnailUrl,
   });
@@ -16,6 +17,7 @@ class PlaylistEntity {
   final int trackCount;
   final List<String> tags;
   final String updatedAt;
+  final String? ownerUserId;
   final String? description;
   final String? thumbnailUrl;
 }
@@ -52,6 +54,7 @@ class PlaylistDetailsEntity {
     required this.tracks,
     required this.tags,
     required this.updatedAt,
+    this.collaboratorIds = const <String>[],
     this.description,
   });
 
@@ -64,6 +67,7 @@ class PlaylistDetailsEntity {
   final List<PlaylistTrackEntity> tracks;
   final List<String> tags;
   final String updatedAt;
+  final List<String> collaboratorIds;
 }
 
 class TrackSearchEntity {

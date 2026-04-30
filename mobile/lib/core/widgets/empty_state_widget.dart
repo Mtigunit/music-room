@@ -87,7 +87,6 @@ class EmptyStateWidget extends StatelessWidget {
                     borderRadius: BorderRadius.circular(14),
                   ),
                 ),
-                icon: const Icon(Icons.add, size: 18),
                 label: Text(
                   actionLabel!,
                   style: const TextStyle(

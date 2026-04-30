@@ -763,6 +763,7 @@ class PlaylistBloc extends Bloc<PlaylistEvent, PlaylistState> {
       visibility: base.visibility,
       editLicense: base.editLicense,
       description: base.description,
+      collaboratorIds: base.collaboratorIds,
       tracks: tracks,
       tags: base.tags,
       updatedAt: updatedAt ?? base.updatedAt,

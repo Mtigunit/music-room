@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/widgets/empty_state_widget.dart';
+import 'package:music_room/core/widgets/premium_segmented_tab_bar.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/events/data/datasources/event_remote_datasource.dart';
 import 'package:music_room/features/events/presentation/pages/create_event_page.dart';
@@ -55,9 +56,7 @@ class _MyEventsBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final isDark = Theme.of(context).brightness == Brightness.dark;
 
     return DefaultTabController(
       length: 2,
@@ -87,9 +86,12 @@ class _MyEventsBody extends StatelessWidget {
               padding: const EdgeInsets.symmetric(
                 horizontal: 24,
               ),
-              child: _PremiumTabBar(
-                colorScheme: colorScheme,
-                isDark: isDark,
+              child: PremiumSegmentedTabBar(
+                onTap: (_) => context.read<MyEventsCubit>().refreshEvents(),
+                tabs: const [
+                  Tab(text: 'Invited'),
+                  Tab(text: 'Hosting'),
+                ],
               ),
             ),
             const SizedBox(height: 8),
@@ -219,66 +221,6 @@ class _ErrorView extends StatelessWidget {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-// ────────────────────────────────────────────────────────────
-// Premium segmented tab bar
-// ────────────────────────────────────────────────────────────
-
-class _PremiumTabBar extends StatelessWidget {
-  const _PremiumTabBar({
-    required this.colorScheme,
-    required this.isDark,
-  });
-
-  final ColorScheme colorScheme;
-  final bool isDark;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(top: 12),
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: isDark
-            ? Colors.white.withValues(alpha: 0.06)
-            : Colors.black.withValues(alpha: 0.05),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: TabBar(
-        onTap: (_) => context.read<MyEventsCubit>().refreshEvents(),
-        indicator: BoxDecoration(
-          color: colorScheme.primary,
-          borderRadius: BorderRadius.circular(10),
-          boxShadow: [
-            BoxShadow(
-              color: colorScheme.primary.withValues(alpha: 0.3),
-              blurRadius: 8,
-              offset: const Offset(0, 2),
-            ),
-          ],
-        ),
-        indicatorSize: TabBarIndicatorSize.tab,
-        dividerColor: Colors.transparent,
-        labelColor: Colors.white,
-        unselectedLabelColor: colorScheme.onSurface.withValues(alpha: 0.5),
-        labelStyle: const TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.3,
-        ),
-        unselectedLabelStyle: const TextStyle(
-          fontSize: 14,
-          fontWeight: FontWeight.w600,
-        ),
-        labelPadding: EdgeInsets.zero,
-        tabs: const [
-          Tab(text: 'Invited'),
-          Tab(text: 'Hosting'),
-        ],
       ),
     );
   }

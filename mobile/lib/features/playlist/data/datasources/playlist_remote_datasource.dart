@@ -109,6 +109,12 @@ abstract class IPlaylistRemoteDataSource {
 
   Future<void> deletePlaylist(String playlistId);
 
+  Future<List<PlaylistEntity>> searchPublicPlaylists(
+    String query, {
+    int page = 1,
+    int limit = 20,
+  });
+
   Future<List<TrackSearchEntity>> searchTracks(String query);
 
   Future<PlaylistAddTrackResult> addTrackToPlaylist(
@@ -214,6 +220,42 @@ class PlaylistRemoteDataSource implements IPlaylistRemoteDataSource {
     return _apiClient.delete<dynamic>(
       '${AppConfig.playlistsEndpoint}/$playlistId',
     );
+  }
+
+  @override
+  Future<List<PlaylistEntity>> searchPublicPlaylists(
+    String query, {
+    int page = 1,
+    int limit = 20,
+  }) async {
+    final trimmed = query.trim();
+    if (trimmed.isEmpty) {
+      return const <PlaylistEntity>[];
+    }
+
+    final response = await _apiClient.get<Map<String, dynamic>>(
+      AppConfig.explorePlaylistsEndpoint,
+      queryParameters: <String, dynamic>{
+        'q': trimmed,
+        'page': page,
+        'limit': limit,
+      },
+    );
+
+    final body = response.data;
+    if (body == null) {
+      return const <PlaylistEntity>[];
+    }
+
+    final data = body['data'];
+    if (data is! List<dynamic>) {
+      return const <PlaylistEntity>[];
+    }
+
+    return data
+        .whereType<Map<String, dynamic>>()
+        .map((item) => PlaylistModel.fromJson(item).toEntity())
+        .toList(growable: false);
   }
 
   @override
