@@ -5,6 +5,8 @@ import {
   ForbiddenException,
   ConflictException,
   BadRequestException,
+  forwardRef,
+  Inject,
 } from '@nestjs/common';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
@@ -44,6 +46,7 @@ export function getPosition(event: {
 export class EventsService {
   constructor(
     private readonly eventsRepository: EventsRepository,
+    @Inject(forwardRef(() => EventsGateway))
     private readonly eventsGateway: EventsGateway,
     private readonly youtubeService: YoutubeService,
     private readonly eventEmitter: EventEmitter2,

@@ -7,7 +7,7 @@ import {
   WsException,
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
-import { Logger, UseGuards } from '@nestjs/common';
+import { Logger, UseGuards, forwardRef, Inject } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { WsAuthGuard } from '../websockets/guards/ws-auth.guard';
 import { WsThrottlerGuard } from '../websockets/guards/ws-throttler.guard';
@@ -44,6 +44,7 @@ export class EventsGateway implements OnGatewayDisconnect {
     private readonly eventEmitter: EventEmitter2,
     @InjectQueue(BULL_QUEUES.EVENT_TIMEOUTS)
     private readonly eventTimeoutsQueue: Queue,
+    @Inject(forwardRef(() => EventsService))
     private readonly eventsService: EventsService,
     private readonly eventsRepository: EventsRepository,
   ) {}
