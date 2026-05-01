@@ -1,17 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:music_room/core/widgets/app_snackbar.dart';
-import 'package:music_room/features/search/data/datasources/search_remote_datasource.dart';
+import 'package:music_room/features/search/data/models/search_result_models.dart';
 
 enum TrackAction { addToEvent, saveToPlaylist }
 
-class TrackResultCard extends StatelessWidget {
-  const TrackResultCard({required this.item, super.key});
+class SearchTrackResultCard extends StatelessWidget {
+  const SearchTrackResultCard({required this.item, super.key});
 
-  final SearchResultItem item;
+  final SearchTrackResultModel item;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final artist = item.artist ?? 'Unknown Artist';
+    final duration = item.durationMs > 0
+        ? ' · ${_formatDuration(item.durationMs)}'
+        : '';
+    final subtitle = '$artist$duration';
 
     return Container(
       decoration: BoxDecoration(
@@ -24,7 +29,7 @@ class TrackResultCard extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       child: Row(
         children: [
-          TrackThumbnail(imageUrl: item.imageUrl),
+          TrackThumbnail(imageUrl: item.thumbnailUrl),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -41,9 +46,7 @@ class TrackResultCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${item.subtitle}'
-                  '${item.meta != null && item.meta!.isNotEmpty ? ' · '
-                            '${item.meta}' : ''}',
+                  subtitle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -134,6 +137,13 @@ class TrackResultCard extends StatelessWidget {
         return;
     }
   }
+}
+
+String _formatDuration(int durationMs) {
+  final totalSeconds = (durationMs / 1000).round();
+  final minutes = totalSeconds ~/ 60;
+  final seconds = totalSeconds % 60;
+  return '${minutes}m ${seconds.toString().padLeft(2, '0')}s';
 }
 
 class TrackMenuActionItem extends StatelessWidget {

@@ -1,15 +1,19 @@
 import 'dart:async';
 
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/home/presentation/widgets/genre_filter_list.dart';
-import 'package:music_room/features/search/data/datasources/search_remote_datasource.dart';
+import 'package:music_room/features/search/data/models/search_filter_type.dart';
+import 'package:music_room/features/search/data/models/search_result_models.dart';
 import 'package:music_room/features/search/data/services/search_query_service.dart';
+import 'package:music_room/features/search/presentation/state/search_cubit.dart';
+import 'package:music_room/features/search/presentation/widgets/search_event_result_card.dart';
 import 'package:music_room/features/search/presentation/widgets/search_field.dart';
 import 'package:music_room/features/search/presentation/widgets/search_message_state.dart';
 import 'package:music_room/features/search/presentation/widgets/search_result_card.dart';
 import 'package:music_room/features/search/presentation/widgets/search_track_result_card.dart';
+import 'package:music_room/features/search/presentation/widgets/search_user_result_card.dart';
 import 'package:music_room/routes/route_names.dart';
 
 class SearchPage extends StatefulWidget {
@@ -25,45 +29,35 @@ class SearchPage extends StatefulWidget {
 }
 
 class _SearchPageState extends State<SearchPage> {
-  static const Duration _debounceDuration = Duration(milliseconds: 450);
-
   final TextEditingController _searchController = TextEditingController();
-  final ISearchRemoteDataSource _searchDataSource =
-      InjectionContainer().searchRemoteDataSource;
   final SearchQueryService _searchQueryService =
       InjectionContainer().searchQueryService;
-
-  Timer? _debounce;
-  int _requestId = 0;
-  SearchFilterType _selectedFilter = SearchFilterType.events;
-  List<SearchResultItem> _results = const <SearchResultItem>[];
-  bool _isLoading = false;
-  String? _errorMessage;
+  late final SearchCubit _searchCubit;
 
   @override
   void initState() {
     super.initState();
+    _searchCubit = SearchCubit(
+      remoteDataSource: InjectionContainer().searchRemoteDataSource,
+    );
     _searchController.addListener(_normalizeControllerSelection);
 
-    // Use shared query first, then fallback to initial query.
-    var queryToUse = _searchQueryService.currentQuery.trim();
-    if (queryToUse.isEmpty) {
-      queryToUse = widget.initialQuery?.trim() ?? '';
+    final initialQuery = _searchQueryService.currentQuery.trim().isNotEmpty
+        ? _searchQueryService.currentQuery.trim()
+        : (widget.initialQuery?.trim() ?? '');
+
+    if (initialQuery.isNotEmpty) {
+      _searchController.value = TextEditingValue(
+        text: initialQuery,
+        selection: TextSelection.collapsed(offset: initialQuery.length),
+      );
+      _searchQueryService.currentQuery = initialQuery;
     }
 
-    if (queryToUse.isNotEmpty) {
-      _searchController.value = TextEditingValue(
-        text: queryToUse,
-        selection: TextSelection.collapsed(offset: queryToUse.length),
-      );
-      _searchQueryService.currentQuery = queryToUse;
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) {
-          return;
-        }
-        unawaited(_performSearch(queryToUse));
-      });
-    }
+    _searchCubit.hydrate(
+      query: initialQuery,
+      filter: SearchFilterType.events,
+    );
   }
 
   void _normalizeControllerSelection() {
@@ -78,98 +72,29 @@ class _SearchPageState extends State<SearchPage> {
 
   @override
   void dispose() {
-    _debounce?.cancel();
     _searchController
       ..removeListener(_normalizeControllerSelection)
       ..dispose();
+    unawaited(_searchCubit.close());
     super.dispose();
   }
 
   void _onQueryChanged(String value) {
-    // Update the shared query service
     _searchQueryService.currentQuery = value;
-
-    if (value.trim().isEmpty) {
-      _debounce?.cancel();
-      _navigateBackToHome();
-      return;
-    }
-
-    setState(() {
-      _errorMessage = null;
-    });
-
-    _debounce?.cancel();
-    _debounce = Timer(_debounceDuration, () {
-      if (!mounted) {
-        return;
-      }
-      unawaited(_performSearch(value));
-    });
+    _searchCubit.updateQuery(value);
   }
 
-  Future<void> _performSearch(String query) async {
-    final trimmedQuery = query.trim();
-    if (trimmedQuery.isEmpty) {
-      _navigateBackToHome();
-      return;
-    }
+  void _onSubmitted(String value) {
+    _searchQueryService.currentQuery = value;
+    _searchCubit.submitQuery(value);
+  }
 
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
-
-    final currentRequestId = ++_requestId;
-
-    try {
-      final List<SearchResultItem> fetchedResults;
-
-      switch (_selectedFilter) {
-        case SearchFilterType.tracks:
-          fetchedResults = await _searchDataSource.searchTracks(trimmedQuery);
-        case SearchFilterType.users:
-          fetchedResults = await _searchDataSource.searchUsers(trimmedQuery);
-        case SearchFilterType.events:
-          fetchedResults = await _searchDataSource.searchEvents(trimmedQuery);
-        case SearchFilterType.playlists:
-          fetchedResults = await _searchDataSource.searchPlaylists(
-            trimmedQuery,
-          );
-      }
-
-      if (!mounted || currentRequestId != _requestId) {
-        return;
-      }
-
-      setState(() {
-        _results = fetchedResults;
-        _isLoading = false;
-      });
-    } on DioException catch (error) {
-      if (!mounted || currentRequestId != _requestId) {
-        return;
-      }
-      setState(() {
-        _isLoading = false;
-        _results = const <SearchResultItem>[];
-        _errorMessage = _buildNetworkErrorMessage(error);
-      });
-    } on Object {
-      if (!mounted || currentRequestId != _requestId) {
-        return;
-      }
-      setState(() {
-        _isLoading = false;
-        _results = const <SearchResultItem>[];
-        _errorMessage =
-            'Something went wrong while searching. Please try again.';
-      });
-    }
+  void _onFilterChanged(SearchFilterType filter) {
+    _searchCubit.changeFilter(filter);
   }
 
   void _navigateBackToHome() {
-    _clearSearchState();
+    _searchQueryService.clearQuery();
 
     if (!mounted) {
       return;
@@ -186,45 +111,6 @@ class _SearchPageState extends State<SearchPage> {
     );
   }
 
-  void _clearSearchState() {
-    _debounce?.cancel();
-    _requestId++;
-    _searchQueryService.clearQuery();
-
-    _searchController.clear();
-    _results = const <SearchResultItem>[];
-    _errorMessage = null;
-    _isLoading = false;
-  }
-
-  String _buildNetworkErrorMessage(DioException error) {
-    if (error.response?.statusCode == 400) {
-      return 'Please enter a more specific search query.';
-    }
-
-    return 'Unable to fetch search results right now.';
-  }
-
-  void _onFilterChanged(SearchFilterType filter) {
-    if (_selectedFilter == filter) {
-      return;
-    }
-
-    _debounce?.cancel();
-    _requestId++;
-
-    setState(() {
-      _selectedFilter = filter;
-      _results = const <SearchResultItem>[];
-      _errorMessage = null;
-    });
-
-    final currentQuery = _searchController.text.trim();
-    if (currentQuery.isNotEmpty) {
-      unawaited(_performSearch(currentQuery));
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -235,6 +121,7 @@ class _SearchPageState extends State<SearchPage> {
     final horizontalPadding = MediaQuery.sizeOf(context).width >= 720
         ? 32.0
         : 20.0;
+
     const filters = <SearchFilterType>[
       SearchFilterType.events,
       SearchFilterType.tracks,
@@ -242,154 +129,166 @@ class _SearchPageState extends State<SearchPage> {
       SearchFilterType.playlists,
     ];
 
-    return PopScope<Object?>(
-      onPopInvokedWithResult: (didPop, _) {
-        if (didPop) {
-          _clearSearchState();
-        }
-      },
-      child: Scaffold(
-        backgroundColor: theme.scaffoldBackgroundColor,
-        body: SafeArea(
-          child: Column(
-            children: [
-              Padding(
-                padding: EdgeInsets.fromLTRB(
-                  horizontalPadding - 8,
-                  8,
-                  horizontalPadding,
-                  12,
-                ),
-                child: Row(
-                  children: [
-                    IconButton(
-                      onPressed: _navigateBackToHome,
-                      icon: const Icon(Icons.arrow_back_ios_new_rounded),
-                      tooltip: 'Back',
-                    ),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: SearchField(
-                        controller: _searchController,
-                        onChanged: _onQueryChanged,
-                        onSubmitted: _performSearch,
+    return BlocProvider.value(
+      value: _searchCubit,
+      child: PopScope<Object?>(
+        onPopInvokedWithResult: (didPop, _) {
+          if (didPop) {
+            _searchQueryService.clearQuery();
+          }
+        },
+        child: Scaffold(
+          backgroundColor: theme.scaffoldBackgroundColor,
+          body: SafeArea(
+            child: Column(
+              children: [
+                Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    horizontalPadding - 8,
+                    8,
+                    horizontalPadding,
+                    12,
+                  ),
+                  child: Row(
+                    children: [
+                      IconButton(
+                        onPressed: _navigateBackToHome,
+                        icon: const Icon(Icons.arrow_back_ios_new_rounded),
+                        tooltip: 'Back',
                       ),
-                    ),
-                  ],
-                ),
-              ),
-              HorizontalFilterList(
-                items: filters.map(_filterLabel).toList(growable: false),
-                selectedIndex: filters.indexOf(_selectedFilter),
-                onSelected: (index) => _onFilterChanged(filters[index]),
-                itemPadding: const EdgeInsets.symmetric(horizontal: 20),
-                listPadding: EdgeInsets.symmetric(
-                  horizontal: horizontalPadding,
-                ),
-              ),
-              const SizedBox(height: 12),
-              Expanded(
-                child: ColoredBox(
-                  color: resultsBackgroundColor,
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 220),
-                    child: _buildBodyState(context),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: SearchField(
+                          controller: _searchController,
+                          onChanged: _onQueryChanged,
+                          onSubmitted: _onSubmitted,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            ],
+                BlocBuilder<SearchCubit, SearchState>(
+                  builder: (context, state) {
+                    return HorizontalFilterList(
+                      items: filters.map(_filterLabel).toList(growable: false),
+                      selectedIndex: filters.indexOf(state.filter),
+                      onSelected: (index) {
+                        _onFilterChanged(filters[index]);
+                      },
+                      itemPadding: const EdgeInsets.symmetric(horizontal: 20),
+                      listPadding: EdgeInsets.symmetric(
+                        horizontal: horizontalPadding,
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: ColoredBox(
+                    color: resultsBackgroundColor,
+                    child: BlocBuilder<SearchCubit, SearchState>(
+                      builder: (context, state) {
+                        return AnimatedSwitcher(
+                          duration: const Duration(milliseconds: 220),
+                          child: _buildBodyState(context, state),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildBodyState(BuildContext context) {
-    final query = _searchController.text.trim();
+  Widget _buildBodyState(BuildContext context, SearchState state) {
+    final query = state.query.trim();
+    final filterLabel = _filterLabel(state.filter);
+    final label = filterLabel.toLowerCase();
+    final quotedQuery = '"$query"';
+    final emptyMessage = 'Type something above to find $label results.';
+    final searchingMessage = 'Finding matches for $quotedQuery.';
+    final noResultsMessage =
+        'No $label matched $quotedQuery. Try a different search term.';
 
-    if (query.isEmpty) {
+    if (!state.hasQuery) {
       return SearchMessageState(
-        key: const ValueKey<String>('empty-query'),
+        key: ValueKey<String>('empty-$filterLabel'),
         icon: Icons.search,
-        title: 'Search ${_filterLabel(_selectedFilter).toLowerCase()}',
-        message:
-            'Type something above to find '
-            '${_filterLabel(_selectedFilter).toLowerCase()} results.',
-      );
-    }
-
-    if (_isLoading) {
-      return const Center(
-        key: ValueKey<String>('loading'),
-        child: CircularProgressIndicator(),
-      );
-    }
-
-    if (_errorMessage != null) {
-      return SearchMessageState(
-        key: const ValueKey<String>('error'),
-        icon: Icons.error_outline,
-        title: 'Unable to load results',
-        message: _errorMessage!,
-      );
-    }
-
-    if (_results.isEmpty) {
-      final emptyMessage = _selectedFilter == SearchFilterType.users
-          ? 'No users matched "$query". Try a different name or search '
-                'term.'
-          : 'No ${_filterLabel(_selectedFilter).toLowerCase()} matched '
-                '"$query".';
-
-      return SearchMessageState(
-        key: const ValueKey<String>('empty-results'),
-        icon: Icons.inbox_outlined,
-        title: 'No results found',
+        title: 'Search ${filterLabel.toLowerCase()}',
         message: emptyMessage,
       );
     }
 
+    if (state.isLoading) {
+      return SearchMessageState(
+        key: ValueKey<String>('loading-$filterLabel'),
+        title: 'Searching ${filterLabel.toLowerCase()}',
+        message: searchingMessage,
+        showSpinner: true,
+      );
+    }
+
+    if (state.hasError) {
+      return SearchMessageState(
+        key: ValueKey<String>('error-$filterLabel'),
+        icon: Icons.cloud_off_rounded,
+        title: 'Unable to load results',
+        message: state.errorMessage ?? 'Please try again.',
+        actionLabel: 'Retry',
+        onActionPressed: _searchCubit.retry,
+      );
+    }
+
+    if (state.isEmpty) {
+      return SearchMessageState(
+        key: ValueKey<String>('empty-results-$filterLabel'),
+        icon: Icons.inbox_outlined,
+        title: 'No results found',
+        message: noResultsMessage,
+      );
+    }
+
     return LayoutBuilder(
-      key: const ValueKey<String>('results'),
+      key: ValueKey<String>('results-$filterLabel'),
       builder: (context, constraints) {
         final isWide = constraints.maxWidth >= 720;
+        final padding = EdgeInsets.fromLTRB(
+          isWide ? 28 : 20,
+          4,
+          isWide ? 28 : 20,
+          20,
+        );
 
-        if (_selectedFilter == SearchFilterType.tracks) {
-          return ListView.separated(
-            padding: EdgeInsets.fromLTRB(
-              isWide ? 28 : 20,
-              4,
-              isWide ? 28 : 20,
-              20,
-            ),
-            itemCount: _results.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 12),
-            itemBuilder: (context, index) {
-              return TrackResultCard(item: _results[index]);
-            },
-          );
-        }
-
-        return GridView.builder(
-          padding: EdgeInsets.fromLTRB(
-            isWide ? 28 : 20,
-            4,
-            isWide ? 28 : 20,
-            20,
-          ),
-          itemCount: _results.length,
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: isWide ? 2 : 1,
-            childAspectRatio: isWide ? 3.7 : 3.2,
-            mainAxisSpacing: 12,
-            crossAxisSpacing: 12,
-          ),
+        return ListView.separated(
+          padding: padding,
+          itemCount: state.results.length,
+          separatorBuilder: (_, _) => const SizedBox(height: 12),
           itemBuilder: (context, index) {
-            return SearchResultCard(item: _results[index]);
+            final item = state.results[index];
+            return _buildResultCard(item);
           },
         );
       },
     );
+  }
+
+  Widget _buildResultCard(SearchResultModel item) {
+    switch (item.filterType) {
+      case SearchFilterType.tracks:
+        return SearchTrackResultCard(item: item as SearchTrackResultModel);
+      case SearchFilterType.users:
+        return SearchUserResultCard(item: item as SearchUserResultModel);
+      case SearchFilterType.events:
+        return SearchEventResultCard(item: item as SearchEventResultModel);
+      case SearchFilterType.playlists:
+        return SearchPlaylistResultCard(
+          item: item as SearchPlaylistResultModel,
+        );
+    }
   }
 
   String _filterLabel(SearchFilterType filter) {

@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:music_room/features/search/data/models/search_result_models.dart';
 
-class SearchPlaylistResultCard extends StatelessWidget {
-  const SearchPlaylistResultCard({required this.item, super.key});
+class SearchUserResultCard extends StatelessWidget {
+  const SearchUserResultCard({required this.item, super.key});
 
-  final SearchPlaylistResultModel item;
+  final SearchUserResultModel item;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final hasImage = item.thumbnailUrl != null && item.thumbnailUrl!.isNotEmpty;
-    final tags = item.tags.take(3).toList(growable: false);
+    final hasAvatar = item.avatarUrl != null && item.avatarUrl!.isNotEmpty;
 
     return Container(
       decoration: BoxDecoration(
@@ -25,26 +24,25 @@ class SearchPlaylistResultCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 72,
-            height: 72,
+            width: 60,
+            height: 60,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              color: colorScheme.secondary.withValues(alpha: 0.78),
+              shape: BoxShape.circle,
+              color: colorScheme.secondary.withValues(alpha: 0.8),
             ),
-            child: hasImage
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(14),
+            child: hasAvatar
+                ? ClipOval(
                     child: Image.network(
-                      item.thumbnailUrl!,
+                      item.avatarUrl!,
                       fit: BoxFit.cover,
                       errorBuilder: (_, _, _) => Icon(
-                        Icons.queue_music,
+                        Icons.person,
                         color: colorScheme.primary,
                       ),
                     ),
                   )
                 : Icon(
-                    Icons.queue_music,
+                    Icons.person,
                     color: colorScheme.primary,
                   ),
           ),
@@ -54,11 +52,10 @@ class SearchPlaylistResultCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Expanded(
                       child: Text(
-                        item.name,
+                        '@${item.username}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: Theme.of(context).textTheme.titleMedium
@@ -68,46 +65,24 @@ class SearchPlaylistResultCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    _ResultChip(
-                      label: item.visibility,
+                    _SearchChip(
+                      label: item.subscriptionTier,
                       colorScheme: colorScheme,
+                      filled: true,
                     ),
                   ],
                 ),
                 const SizedBox(height: 6),
                 Text(
-                  item.description?.isNotEmpty == true
-                      ? item.description!
-                      : 'Curated by @${item.ownerName}',
+                  item.shortBio?.isNotEmpty == true
+                      ? item.shortBio!
+                      : 'Public profile and availability details.',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                     color: colorScheme.onSurface.withValues(alpha: 0.72),
                     height: 1.3,
                   ),
-                ),
-                const SizedBox(height: 10),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _ResultChip(
-                      label: '${item.trackCount} tracks',
-                      colorScheme: colorScheme,
-                      filled: true,
-                    ),
-                    _ResultChip(
-                      label: '@${item.ownerName}',
-                      colorScheme: colorScheme,
-                    ),
-                    if (tags.isNotEmpty)
-                      ...tags.map(
-                        (tag) => _ResultChip(
-                          label: tag,
-                          colorScheme: colorScheme,
-                        ),
-                      ),
-                  ],
                 ),
               ],
             ),
@@ -118,8 +93,8 @@ class SearchPlaylistResultCard extends StatelessWidget {
   }
 }
 
-class _ResultChip extends StatelessWidget {
-  const _ResultChip({
+class _SearchChip extends StatelessWidget {
+  const _SearchChip({
     required this.label,
     required this.colorScheme,
     this.filled = false,

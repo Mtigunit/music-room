@@ -34,6 +34,7 @@ class AppConfig {
   static const String loginEndpoint = 'auth/login';
   static const String googleAuthEndpoint = 'auth/google';
   static const String profileEndpoint = 'auth/profile';
+  static const String searchUsersEndpoint = 'users/search';
   static const String trackSearchEndpoint = 'tracks/search';
   static const String eventsEndpoint = 'events';
   static const String eventsInvitedEndpoint = 'events/invited';
