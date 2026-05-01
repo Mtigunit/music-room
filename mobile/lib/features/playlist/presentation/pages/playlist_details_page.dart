@@ -52,6 +52,10 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage>
   Set<String> _removingTrackIds = <String>{};
   String? _errorMessage;
 
+  // Track state transitions for success feedback
+  bool _wasReordering = false;
+  Set<String> _previousRemovingTrackIds = <String>{};
+
   String? get _currentUserId {
     final authState = context.read<AuthBloc>().state;
     if (authState is AuthAuthenticated) {
@@ -112,6 +116,19 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage>
         state.errorMessage != _errorMessage &&
         state.status == PlaylistSyncStatus.ready;
 
+    // Detect reorder completion:
+    // isReordering went from true to false without error
+    final reorderCompleted =
+        _wasReordering && !state.isReordering && state.errorMessage == null;
+
+    // Detect track removal completion:
+    // a track ID was in removing set and is now gone
+    final removedTrackIds = _previousRemovingTrackIds.difference(
+      state.removingTrackIds.toSet(),
+    );
+    final trackRemoved =
+        removedTrackIds.isNotEmpty && state.errorMessage == null;
+
     setState(() {
       _details = state.playlist;
       _isLoading =
@@ -124,11 +141,28 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage>
       _errorMessage = state.status == PlaylistSyncStatus.error
           ? (state.errorMessage ?? 'Unable to load playlist details right now.')
           : null;
+
+      // Update tracking for next comparison
+      _wasReordering = state.isReordering;
+      _previousRemovingTrackIds = state.removingTrackIds.toSet();
     });
 
     if (messageChanged) {
-      AppSnackbar.showInfo(context, state.errorMessage!);
+      AppSnackbar.showError(context, state.errorMessage!);
       _playlistBloc.add(const PlaylistSyncErrorCleared());
+    }
+
+    // Show success snackbars for mutations
+    if (reorderCompleted) {
+      AppSnackbar.showSuccess(context, 'Playlist updated.');
+    }
+
+    if (trackRemoved) {
+      final trackWord = removedTrackIds.length == 1 ? 'track' : 'tracks';
+      AppSnackbar.showSuccess(
+        context,
+        'Removed ${removedTrackIds.length} $trackWord.',
+      );
     }
   }
 
@@ -178,7 +212,7 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage>
     }
 
     if (!_isOwner(details)) {
-      AppSnackbar.showInfo(
+      AppSnackbar.showError(
         context,
         'Only the playlist creator can edit permissions.',
       );
@@ -214,7 +248,7 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage>
   Future<void> _openInviteUsersSheet() async {
     final details = _details;
     if (details == null || !_isOwner(details)) {
-      AppSnackbar.showInfo(
+      AppSnackbar.showError(
         context,
         'Only the playlist creator can invite users.',
       );
@@ -286,7 +320,7 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage>
     }
 
     if (_searchController.text.trim().isNotEmpty) {
-      AppSnackbar.showInfo(
+      AppSnackbar.showError(
         context,
         'Clear search to reorder the full playlist.',
       );
@@ -466,14 +500,14 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage>
               onToggle: _toggleSpeedDial,
               onAddSongs: () async {
                 if (!canEditTracks) {
-                  AppSnackbar.showInfo(
+                  AppSnackbar.showError(
                     context,
                     'You do not have permission to edit this playlist.',
                   );
                   return;
                 }
                 if (_isOffline) {
-                  AppSnackbar.showInfo(
+                  AppSnackbar.showError(
                     context,
                     'You are offline. Playlist is read-only.',
                   );
@@ -484,7 +518,7 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage>
               },
               onInviteUsers: () async {
                 if (!canManageCollaborators) {
-                  AppSnackbar.showInfo(
+                  AppSnackbar.showError(
                     context,
                     'Only the playlist creator can invite users.',
                   );
@@ -495,7 +529,7 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage>
               },
               onOpenSettings: () async {
                 if (!canManageEditPermissions) {
-                  AppSnackbar.showInfo(
+                  AppSnackbar.showError(
                     context,
                     'Only the playlist creator can edit permissions.',
                   );
@@ -758,7 +792,7 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage>
                             itemCount: tracks.length,
                             onReorder: isInteractionLocked
                                 ? (_, _) {
-                                    AppSnackbar.showInfo(
+                                    AppSnackbar.showError(
                                       context,
                                       _isOffline
                                           ? 'You are offline. '
@@ -803,7 +837,7 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage>
                                                 'permission to edit this.'
                                           : 'Please wait until '
                                                 'reordering completes.';
-                                      AppSnackbar.showInfo(context, msg);
+                                      AppSnackbar.showError(context, msg);
                                       return;
                                     }
                                     _removeTrack(track.playlistTrackId);

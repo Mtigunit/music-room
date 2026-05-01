@@ -152,7 +152,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           final failureMessage = state.failure.message.trim();
 
           if (_shouldUseGenericForgotPasswordMessage(failureMessage)) {
-            AppSnackbar.showInfo(
+            AppSnackbar.showError(
               context,
               'If an account exists, an OTP has been sent to the email.',
             );
