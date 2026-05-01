@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -313,21 +312,77 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage>
   }
 
   Future<bool> _addTrack(TrackSearchEntity track) async {
+    if (_isAddingTrack) {
+      return false;
+    }
+
     setState(() {
       _isAddingTrack = true;
     });
 
+    final previousUpdatedAt = _playlistBloc.state.latestUpdatedAt;
+    final previouslyHadTrack =
+        _playlistBloc.state.playlist?.tracks.any(
+          (existingTrack) =>
+              existingTrack.providerTrackId == track.providerTrackId,
+        ) ??
+        false;
+
     try {
+      final completion = Completer<bool>();
+      late final StreamSubscription<PlaylistState> subscription;
+
+      subscription = _playlistBloc.stream.listen((state) {
+        if (completion.isCompleted) {
+          return;
+        }
+
+        if (state.errorMessage != null) {
+          completion.complete(false);
+          return;
+        }
+
+        final playlist = state.playlist;
+        if (playlist == null) {
+          return;
+        }
+
+        final hasTrackNow = playlist.tracks.any(
+          (existingTrack) =>
+              existingTrack.providerTrackId == track.providerTrackId,
+        );
+        final updatedAtChanged =
+            state.latestUpdatedAt != null &&
+            state.latestUpdatedAt != previousUpdatedAt;
+
+        if (!previouslyHadTrack && hasTrackNow && updatedAtChanged) {
+          completion.complete(true);
+        }
+      });
+
       _playlistBloc.add(PlaylistAddTrackRequested(track));
-      if (mounted) {
-        AppSnackbar.showSuccess(context, 'Song added to playlist.');
-      }
-      return true;
-    } on DioException {
+      final success = await completion.future.timeout(
+        const Duration(seconds: 10),
+        onTimeout: () => false,
+      );
+
+      await subscription.cancel();
+
       if (!mounted) {
-        return false;
+        return success;
       }
-      AppSnackbar.showError(context, 'Failed to add song to playlist.');
+
+      if (success) {
+        AppSnackbar.showSuccess(context, 'Song added to playlist.');
+      } else {
+        AppSnackbar.showError(context, 'Failed to add song to playlist.');
+      }
+
+      return success;
+    } on Object {
+      if (mounted) {
+        AppSnackbar.showError(context, 'Failed to add song to playlist.');
+      }
       return false;
     } finally {
       if (mounted) {
@@ -749,6 +804,7 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage>
                                           : 'Please wait until '
                                                 'reordering completes.';
                                       AppSnackbar.showInfo(context, msg);
+                                      return;
                                     }
                                     _removeTrack(track.playlistTrackId);
                                   },

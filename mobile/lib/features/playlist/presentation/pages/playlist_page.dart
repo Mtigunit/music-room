@@ -147,18 +147,14 @@ class _PlaylistPageState extends State<PlaylistPage> {
     );
 
     final createdPlaylists = currentUserId == null
-        ? _playlists
+        ? const <PlaylistEntity>[]
         : _playlists
               .where((playlist) => playlist.ownerUserId == currentUserId)
               .toList(growable: false);
     final invitedPlaylists = currentUserId == null
         ? const <PlaylistEntity>[]
         : _playlists
-              .where(
-                (playlist) =>
-                    playlist.ownerUserId != null &&
-                    playlist.ownerUserId != currentUserId,
-              )
+              .where((playlist) => playlist.ownerUserId != currentUserId)
               .toList(growable: false);
 
     return Scaffold(
