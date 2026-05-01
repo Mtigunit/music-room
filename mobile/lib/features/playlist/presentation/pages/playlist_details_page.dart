@@ -1,10 +1,13 @@
 import 'dart:async';
 
-import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/widgets/app_snackbar.dart';
+import 'package:music_room/core/widgets/empty_state_widget.dart';
 import 'package:music_room/di/injection_container.dart';
+import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
+import 'package:music_room/features/auth/presentation/state/auth_state.dart';
 import 'package:music_room/features/playlist/data/datasources/playlist_remote_datasource.dart';
 import 'package:music_room/features/playlist/domain/entities/playlist_entity.dart';
 import 'package:music_room/features/playlist/domain/types/playlist_tags.dart';
@@ -46,9 +49,29 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage>
   bool _isSyncing = false;
   bool _isReordering = false;
   bool _isSpeedDialOpen = false;
-  String? _currentUserId;
   Set<String> _removingTrackIds = <String>{};
   String? _errorMessage;
+
+  // Track state transitions for success feedback
+  bool _wasReordering = false;
+  Set<String> _previousRemovingTrackIds = <String>{};
+
+  String? get _currentUserId {
+    final authState = context.read<AuthBloc>().state;
+    if (authState is AuthAuthenticated) {
+      return authState.user.id;
+    }
+    if (authState is LoginSuccess) {
+      return authState.user.id;
+    }
+    if (authState is RegisterSuccess) {
+      return authState.user.id;
+    }
+    if (authState is GoogleLoginSuccess) {
+      return authState.user.id;
+    }
+    return null;
+  }
 
   @override
   void initState() {
@@ -93,6 +116,19 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage>
         state.errorMessage != _errorMessage &&
         state.status == PlaylistSyncStatus.ready;
 
+    // Detect reorder completion:
+    // isReordering went from true to false without error
+    final reorderCompleted =
+        _wasReordering && !state.isReordering && state.errorMessage == null;
+
+    // Detect track removal completion:
+    // a track ID was in removing set and is now gone
+    final removedTrackIds = _previousRemovingTrackIds.difference(
+      state.removingTrackIds.toSet(),
+    );
+    final trackRemoved =
+        removedTrackIds.isNotEmpty && state.errorMessage == null;
+
     setState(() {
       _details = state.playlist;
       _isLoading =
@@ -101,16 +137,32 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage>
       _showStaleWarning = state.showStaleWarning;
       _isSyncing = state.isSyncing;
       _isReordering = state.isReordering;
-      _currentUserId = state.currentUserId;
       _removingTrackIds = state.removingTrackIds.toSet();
       _errorMessage = state.status == PlaylistSyncStatus.error
           ? (state.errorMessage ?? 'Unable to load playlist details right now.')
           : null;
+
+      // Update tracking for next comparison
+      _wasReordering = state.isReordering;
+      _previousRemovingTrackIds = state.removingTrackIds.toSet();
     });
 
     if (messageChanged) {
-      AppSnackbar.showInfo(context, state.errorMessage!);
+      AppSnackbar.showError(context, state.errorMessage!);
       _playlistBloc.add(const PlaylistSyncErrorCleared());
+    }
+
+    // Show success snackbars for mutations
+    if (reorderCompleted) {
+      AppSnackbar.showSuccess(context, 'Playlist updated.');
+    }
+
+    if (trackRemoved) {
+      final trackWord = removedTrackIds.length == 1 ? 'track' : 'tracks';
+      AppSnackbar.showSuccess(
+        context,
+        'Removed ${removedTrackIds.length} $trackWord.',
+      );
     }
   }
 
@@ -159,6 +211,14 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage>
       return;
     }
 
+    if (!_isOwner(details)) {
+      AppSnackbar.showError(
+        context,
+        'Only the playlist creator can edit permissions.',
+      );
+      return;
+    }
+
     final result = await Navigator.of(context).push<Object?>(
       MaterialPageRoute<Object?>(
         builder: (_) => CreatePlaylistPage(
@@ -186,6 +246,15 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage>
   }
 
   Future<void> _openInviteUsersSheet() async {
+    final details = _details;
+    if (details == null || !_isOwner(details)) {
+      AppSnackbar.showError(
+        context,
+        'Only the playlist creator can invite users.',
+      );
+      return;
+    }
+
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -199,6 +268,30 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage>
 
   Future<void> _loadPlaylistDetails() async {
     _playlistBloc.add(const PlaylistRefreshRequested());
+  }
+
+  bool _isOwner(PlaylistDetailsEntity details) {
+    final currentUserId = _currentUserId;
+    return currentUserId != null && details.ownerUserId == currentUserId;
+  }
+
+  bool _isCollaborator(PlaylistDetailsEntity details) {
+    final currentUserId = _currentUserId;
+    if (currentUserId == null) {
+      return false;
+    }
+
+    return details.collaboratorIds.contains(currentUserId);
+  }
+
+  bool _canEditTracks(PlaylistDetailsEntity details) {
+    final publicEditEnabled =
+        details.visibility == 'PUBLIC' && details.editLicense == 'OPEN';
+    return publicEditEnabled || _isOwner(details) || _isCollaborator(details);
+  }
+
+  bool _canManageCollaborators(PlaylistDetailsEntity details) {
+    return _isOwner(details);
   }
 
   List<PlaylistTrackEntity> get _visibleTracks {
@@ -227,7 +320,7 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage>
     }
 
     if (_searchController.text.trim().isNotEmpty) {
-      AppSnackbar.showInfo(
+      AppSnackbar.showError(
         context,
         'Clear search to reorder the full playlist.',
       );
@@ -253,21 +346,77 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage>
   }
 
   Future<bool> _addTrack(TrackSearchEntity track) async {
+    if (_isAddingTrack) {
+      return false;
+    }
+
     setState(() {
       _isAddingTrack = true;
     });
 
+    final previousUpdatedAt = _playlistBloc.state.latestUpdatedAt;
+    final previouslyHadTrack =
+        _playlistBloc.state.playlist?.tracks.any(
+          (existingTrack) =>
+              existingTrack.providerTrackId == track.providerTrackId,
+        ) ??
+        false;
+
     try {
+      final completion = Completer<bool>();
+      late final StreamSubscription<PlaylistState> subscription;
+
+      subscription = _playlistBloc.stream.listen((state) {
+        if (completion.isCompleted) {
+          return;
+        }
+
+        if (state.errorMessage != null) {
+          completion.complete(false);
+          return;
+        }
+
+        final playlist = state.playlist;
+        if (playlist == null) {
+          return;
+        }
+
+        final hasTrackNow = playlist.tracks.any(
+          (existingTrack) =>
+              existingTrack.providerTrackId == track.providerTrackId,
+        );
+        final updatedAtChanged =
+            state.latestUpdatedAt != null &&
+            state.latestUpdatedAt != previousUpdatedAt;
+
+        if (!previouslyHadTrack && hasTrackNow && updatedAtChanged) {
+          completion.complete(true);
+        }
+      });
+
       _playlistBloc.add(PlaylistAddTrackRequested(track));
-      if (mounted) {
-        AppSnackbar.showSuccess(context, 'Song added to playlist.');
-      }
-      return true;
-    } on DioException {
+      final success = await completion.future.timeout(
+        const Duration(seconds: 10),
+        onTimeout: () => false,
+      );
+
+      await subscription.cancel();
+
       if (!mounted) {
-        return false;
+        return success;
       }
-      AppSnackbar.showError(context, 'Failed to add song to playlist.');
+
+      if (success) {
+        AppSnackbar.showSuccess(context, 'Song added to playlist.');
+      } else {
+        AppSnackbar.showError(context, 'Failed to add song to playlist.');
+      }
+
+      return success;
+    } on Object {
+      if (mounted) {
+        AppSnackbar.showError(context, 'Failed to add song to playlist.');
+      }
       return false;
     } finally {
       if (mounted) {
@@ -282,6 +431,11 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage>
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final pageBackground = theme.scaffoldBackgroundColor;
+    final details = _details;
+    final canEditTracks = details != null && _canEditTracks(details);
+    final canManageCollaborators =
+        details != null && _canManageCollaborators(details);
+    final canManageEditPermissions = details != null && _isOwner(details);
 
     return Scaffold(
       backgroundColor: pageBackground,
@@ -331,31 +485,61 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage>
               )
             : _buildContent(context),
       ),
-      floatingActionButton: _PlaylistSpeedDial(
-        animation: _speedDialController,
-        isOpen: _isSpeedDialOpen,
-        isAddingTrack: _isAddingTrack || _isOffline || _isReordering,
-        onToggle: _toggleSpeedDial,
-        onAddSongs: () async {
-          if (_isOffline) {
-            AppSnackbar.showInfo(
-              context,
-              'You are offline. Playlist is read-only.',
-            );
-            return;
-          }
-          await _closeSpeedDial();
-          unawaited(_openAddSongs());
-        },
-        onInviteUsers: () async {
-          await _closeSpeedDial();
-          unawaited(_openInviteUsersSheet());
-        },
-        onOpenSettings: () async {
-          await _closeSpeedDial();
-          unawaited(_openPlaylistSettings());
-        },
-      ),
+      floatingActionButton:
+          (details != null &&
+              (canEditTracks ||
+                  canManageCollaborators ||
+                  canManageEditPermissions))
+          ? _PlaylistSpeedDial(
+              animation: _speedDialController,
+              isOpen: _isSpeedDialOpen,
+              isAddingTrack: _isAddingTrack || _isOffline || _isReordering,
+              canAddSongs: canEditTracks,
+              canInviteUsers: canManageCollaborators,
+              canOpenSettings: canManageEditPermissions,
+              onToggle: _toggleSpeedDial,
+              onAddSongs: () async {
+                if (!canEditTracks) {
+                  AppSnackbar.showError(
+                    context,
+                    'You do not have permission to edit this playlist.',
+                  );
+                  return;
+                }
+                if (_isOffline) {
+                  AppSnackbar.showError(
+                    context,
+                    'You are offline. Playlist is read-only.',
+                  );
+                  return;
+                }
+                await _closeSpeedDial();
+                unawaited(_openAddSongs());
+              },
+              onInviteUsers: () async {
+                if (!canManageCollaborators) {
+                  AppSnackbar.showError(
+                    context,
+                    'Only the playlist creator can invite users.',
+                  );
+                  return;
+                }
+                await _closeSpeedDial();
+                unawaited(_openInviteUsersSheet());
+              },
+              onOpenSettings: () async {
+                if (!canManageEditPermissions) {
+                  AppSnackbar.showError(
+                    context,
+                    'Only the playlist creator can edit permissions.',
+                  );
+                  return;
+                }
+                await _closeSpeedDial();
+                unawaited(_openPlaylistSettings());
+              },
+            )
+          : null,
       floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
@@ -386,8 +570,8 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage>
       180.0,
       250.0,
     );
-    final isReadOnly = _isOffline;
-    final isInteractionLocked = _isOffline || _isReordering;
+    final canEditTracks = _canEditTracks(details);
+    final isInteractionLocked = _isOffline || _isReordering || !canEditTracks;
 
     return Stack(
       children: [
@@ -410,221 +594,205 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage>
             Expanded(
               child: AbsorbPointer(
                 absorbing: isInteractionLocked,
-                child: CustomScrollView(
-                  slivers: [
-                    SliverToBoxAdapter(
-                      child: Column(
-                        children: [
-                          _PlaylistHeroImage(
-                            imageUrl: artworkUrl,
-                            height: heroHeight + safeAreaTop,
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 16, 20, 16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  details.name,
-                                  maxLines: 2,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: theme.textTheme.displaySmall?.copyWith(
-                                    fontWeight: FontWeight.w800,
-                                    height: 1.08,
+                child: RefreshIndicator(
+                  onRefresh: _loadPlaylistDetails,
+                  child: CustomScrollView(
+                    slivers: [
+                      SliverToBoxAdapter(
+                        child: Column(
+                          children: [
+                            _PlaylistHeroImage(
+                              imageUrl: artworkUrl,
+                              height: heroHeight + safeAreaTop,
+                            ),
+                            Padding(
+                              padding: const EdgeInsets.fromLTRB(
+                                20,
+                                16,
+                                20,
+                                16,
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    details.name,
+                                    maxLines: 2,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: theme.textTheme.displaySmall
+                                        ?.copyWith(
+                                          fontWeight: FontWeight.w800,
+                                          height: 1.08,
+                                        ),
                                   ),
-                                ),
-                                const SizedBox(height: 8),
-                                Text(
-                                  '${details.tracks.length} tracks • '
-                                  '${_formatPlaylistDuration(details.tracks)}',
-                                  style: theme.textTheme.titleMedium?.copyWith(
-                                    color: textMuted,
-                                    fontWeight: FontWeight.w600,
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    '${details.tracks.length} tracks • '
+                                    '${_formatPlaylistDuration(
+                                      details.tracks,
+                                    )}',
+                                    style: theme.textTheme.bodyLarge?.copyWith(
+                                      color: textMuted,
+                                      fontWeight: FontWeight.w600,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 12),
-                                Wrap(
-                                  spacing: 6,
-                                  runSpacing: 6,
-                                  children: tags
-                                      .map(
-                                        (tag) => Container(
-                                          padding: const EdgeInsets.symmetric(
-                                            horizontal: 12,
-                                            vertical: 6,
-                                          ),
-                                          decoration: BoxDecoration(
-                                            color: colorScheme.primary
-                                                .withValues(
-                                                  alpha: 0.1,
-                                                ),
-                                            borderRadius: BorderRadius.circular(
-                                              20,
+                                  const SizedBox(height: 12),
+                                  Wrap(
+                                    spacing: 6,
+                                    runSpacing: 6,
+                                    children: tags
+                                        .map(
+                                          (tag) => Container(
+                                            padding: const EdgeInsets.symmetric(
+                                              horizontal: 12,
+                                              vertical: 6,
+                                            ),
+                                            decoration: BoxDecoration(
+                                              color: colorScheme.primary
+                                                  .withValues(
+                                                    alpha: 0.1,
+                                                  ),
+                                              borderRadius:
+                                                  BorderRadius.circular(
+                                                    20,
+                                                  ),
+                                            ),
+                                            child: Text(
+                                              tag.displayLabel,
+                                              style: theme.textTheme.bodyMedium
+                                                  ?.copyWith(
+                                                    color: colorScheme.primary,
+                                                    fontWeight: FontWeight.w600,
+                                                  ),
                                             ),
                                           ),
-                                          child: Text(
-                                            tag.displayLabel,
-                                            style: theme.textTheme.bodyMedium
-                                                ?.copyWith(
-                                                  color: colorScheme.primary,
-                                                  fontWeight: FontWeight.w600,
+                                        )
+                                        .toList(growable: false),
+                                  ),
+                                  if (hasDescription) ...[
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      description,
+                                      style: theme.textTheme.bodyLarge
+                                          ?.copyWith(
+                                            color: colorScheme.onSurface
+                                                .withValues(
+                                                  alpha: 0.78,
                                                 ),
+                                            height: 1.35,
                                           ),
-                                        ),
-                                      )
-                                      .toList(growable: false),
-                                ),
-                                if (hasDescription) ...[
-                                  const SizedBox(height: 12),
-                                  Text(
-                                    description,
-                                    style: theme.textTheme.bodyLarge?.copyWith(
-                                      color: colorScheme.onSurface.withValues(
-                                        alpha: 0.78,
+                                    ),
+                                  ],
+                                  const SizedBox(height: 16),
+                                  TextField(
+                                    controller: _searchController,
+                                    textInputAction: TextInputAction.search,
+                                    style: theme.textTheme.bodyLarge,
+                                    decoration: InputDecoration(
+                                      hintText: 'Search songs in playlist...',
+                                      hintStyle: theme.textTheme.bodyLarge
+                                          ?.copyWith(
+                                            color: textMuted,
+                                          ),
+                                      prefixIcon: Icon(
+                                        Icons.search,
+                                        color: textMuted,
                                       ),
-                                      height: 1.35,
+                                      suffixIcon:
+                                          _searchController.text
+                                              .trim()
+                                              .isNotEmpty
+                                          ? IconButton(
+                                              onPressed:
+                                                  _searchController.clear,
+                                              icon: Icon(
+                                                Icons.close,
+                                                color: textMuted,
+                                              ),
+                                            )
+                                          : null,
+                                      contentPadding:
+                                          const EdgeInsets.symmetric(
+                                            vertical: 18,
+                                          ),
+                                      filled: true,
+                                      fillColor: colorScheme
+                                          .surfaceContainerHighest
+                                          .withValues(
+                                            alpha: 0.65,
+                                          ),
+                                      enabledBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(22),
+                                        borderSide: BorderSide(
+                                          color: borderColor,
+                                        ),
+                                      ),
+                                      focusedBorder: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(22),
+                                        borderSide: BorderSide(
+                                          color: colorScheme.primary,
+                                        ),
+                                      ),
                                     ),
                                   ),
                                 ],
-                                const SizedBox(height: 16),
-                                TextField(
-                                  controller: _searchController,
-                                  textInputAction: TextInputAction.search,
-                                  style: theme.textTheme.bodyLarge,
-                                  decoration: InputDecoration(
-                                    hintText: 'Search songs in playlist...',
-                                    hintStyle: theme.textTheme.bodyLarge
-                                        ?.copyWith(
-                                          color: textMuted,
-                                        ),
-                                    prefixIcon: Icon(
-                                      Icons.search,
-                                      color: textMuted,
-                                    ),
-                                    suffixIcon:
-                                        _searchController.text.trim().isNotEmpty
-                                        ? IconButton(
-                                            onPressed: _searchController.clear,
-                                            icon: Icon(
-                                              Icons.close,
-                                              color: textMuted,
-                                            ),
-                                          )
-                                        : null,
-                                    contentPadding: const EdgeInsets.symmetric(
-                                      vertical: 18,
-                                    ),
-                                    filled: true,
-                                    fillColor: colorScheme
-                                        .surfaceContainerHighest
-                                        .withValues(
-                                          alpha: 0.65,
-                                        ),
-                                    enabledBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(22),
-                                      borderSide: BorderSide(
-                                        color: borderColor,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (tracks.isEmpty)
+                        SliverFillRemaining(
+                          hasScrollBody: false,
+                          child: _EmptyTracksState(
+                            query: _searchController.text.trim(),
+                            onAddSong: _openAddSongs,
+                            canAddSong: canEditTracks,
+                          ),
+                        )
+                      else
+                        SliverPadding(
+                          padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
+                          sliver: SliverToBoxAdapter(
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  'Tracks',
+                                  style: theme.textTheme.headlineSmall
+                                      ?.copyWith(
+                                        fontWeight: FontWeight.w800,
+                                        height: 1.05,
                                       ),
-                                    ),
-                                    focusedBorder: OutlineInputBorder(
-                                      borderRadius: BorderRadius.circular(22),
-                                      borderSide: BorderSide(
-                                        color: colorScheme.primary,
-                                      ),
-                                    ),
+                                ),
+                                Text(
+                                  _isOffline
+                                      ? 'Read-only'
+                                      : (!canEditTracks
+                                            ? 'View-only'
+                                            : (_isReordering
+                                                  ? 'Updating order...'
+                                                  : 'Drag to reorder')),
+                                  style: theme.textTheme.bodyLarge?.copyWith(
+                                    color: textMuted,
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
                               ],
                             ),
                           ),
-                        ],
-                      ),
-                    ),
-                    if (tracks.isEmpty)
-                      SliverFillRemaining(
-                        hasScrollBody: false,
-                        child: _EmptyTracksState(
-                          query: _searchController.text.trim(),
-                          onAddSong: _openAddSongs,
-                          isReadOnly: isReadOnly,
                         ),
-                      )
-                    else
-                      SliverPadding(
-                        padding: const EdgeInsets.fromLTRB(20, 8, 20, 12),
-                        sliver: SliverToBoxAdapter(
-                          child: Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                'Tracks',
-                                style: theme.textTheme.headlineSmall?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                  height: 1.05,
-                                ),
-                              ),
-                              Text(
-                                _isOffline
-                                    ? 'Read-only'
-                                    : (_isReordering
-                                          ? 'Updating order...'
-                                          : 'Drag to reorder'),
-                                style: theme.textTheme.bodyLarge?.copyWith(
-                                  color: textMuted,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    if (tracks.isEmpty)
-                      const SliverToBoxAdapter(child: SizedBox.shrink())
-                    else
-                      SliverPadding(
-                        padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
-                        sliver: SliverReorderableList(
-                          itemCount: tracks.length,
-                          onReorder: isInteractionLocked
-                              ? (_, _) {
-                                  AppSnackbar.showInfo(
-                                    context,
-                                    _isOffline
-                                        ? 'You are offline. '
-                                              'Playlist is read-only.'
-                                        : 'Please wait until '
-                                              'reordering completes.',
-                                  );
-                                }
-                              : _onReorder,
-                          itemBuilder: (context, index) {
-                            final track = tracks[index];
-                            final canRemove =
-                                _currentUserId != null &&
-                                track.addedByUserId == _currentUserId;
-                            final isRemoving = _removingTrackIds.contains(
-                              track.playlistTrackId,
-                            );
-                            return Padding(
-                              key: ValueKey<String>(track.playlistTrackId),
-                              padding: const EdgeInsets.symmetric(vertical: 6),
-                              child: _PlaylistTrackTile(
-                                dragIndex: index,
-                                track: track,
-                                formatDuration: _formatDuration,
-                                cardColor: cardColor,
-                                borderColor: borderColor,
-                                mutedTextColor: textMuted,
-                                iconColor: colorScheme.primary,
-                                canRemove: canRemove,
-                                isRemoving: isRemoving,
-                                onRemove: () {
-                                  if (!canRemove || isRemoving) {
-                                    return;
-                                  }
-                                  if (isReadOnly) {
-                                    AppSnackbar.showInfo(
+                      if (tracks.isEmpty)
+                        const SliverToBoxAdapter(child: SizedBox.shrink())
+                      else
+                        SliverPadding(
+                          padding: const EdgeInsets.fromLTRB(16, 0, 16, 20),
+                          sliver: SliverReorderableList(
+                            itemCount: tracks.length,
+                            onReorder: isInteractionLocked
+                                ? (_, _) {
+                                    AppSnackbar.showError(
                                       context,
                                       _isOffline
                                           ? 'You are offline. '
@@ -632,23 +800,65 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage>
                                           : 'Please wait until '
                                                 'reordering completes.',
                                     );
-                                    return;
                                   }
-                                  _removeTrack(track.playlistTrackId);
-                                },
-                                onTap: () {
-                                  final detailsMessage =
-                                      '${track.title} • '
-                                      '${track.artist ?? 'Unknown artist'} • '
-                                      '${_formatDuration(track.durationMs)}';
-                                  AppSnackbar.showInfo(context, detailsMessage);
-                                },
-                              ),
-                            );
-                          },
+                                : _onReorder,
+                            itemBuilder: (context, index) {
+                              final track = tracks[index];
+                              final canRemove = canEditTracks;
+                              final isRemoving = _removingTrackIds.contains(
+                                track.playlistTrackId,
+                              );
+                              return Padding(
+                                key: ValueKey<String>(track.playlistTrackId),
+                                padding: const EdgeInsets.only(bottom: 12),
+                                child: _PlaylistTrackTile(
+                                  dragIndex: index,
+                                  track: track,
+                                  formatDuration: _formatDuration,
+                                  cardColor: cardColor,
+                                  borderColor: borderColor,
+                                  mutedTextColor: textMuted,
+                                  iconColor: colorScheme.primary,
+                                  canRemove: canRemove,
+                                  showDragHandle: canEditTracks,
+                                  isRemoving: isRemoving,
+                                  onRemove: () {
+                                    if (!canRemove || isRemoving) {
+                                      return;
+                                    }
+                                    if (_isOffline ||
+                                        _isReordering ||
+                                        !canEditTracks) {
+                                      final msg = _isOffline
+                                          ? 'You are offline. '
+                                                'Playlist is read-only.'
+                                          : !canEditTracks
+                                          ? "You don't have "
+                                                'permission to edit this.'
+                                          : 'Please wait until '
+                                                'reordering completes.';
+                                      AppSnackbar.showError(context, msg);
+                                      return;
+                                    }
+                                    _removeTrack(track.playlistTrackId);
+                                  },
+                                  onTap: () {
+                                    final detailsMessage =
+                                        '${track.title} • '
+                                        '${track.artist ?? 'Unknown artist'} • '
+                                        '${_formatDuration(track.durationMs)}';
+                                    AppSnackbar.showInfo(
+                                      context,
+                                      detailsMessage,
+                                    );
+                                  },
+                                ),
+                              );
+                            },
+                          ),
                         ),
-                      ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),
@@ -739,6 +949,9 @@ class _PlaylistSpeedDial extends StatelessWidget {
     required this.animation,
     required this.isOpen,
     required this.isAddingTrack,
+    required this.canAddSongs,
+    required this.canInviteUsers,
+    required this.canOpenSettings,
     required this.onToggle,
     required this.onAddSongs,
     required this.onInviteUsers,
@@ -748,6 +961,9 @@ class _PlaylistSpeedDial extends StatelessWidget {
   final Animation<double> animation;
   final bool isOpen;
   final bool isAddingTrack;
+  final bool canAddSongs;
+  final bool canInviteUsers;
+  final bool canOpenSettings;
   final Future<void> Function() onToggle;
   final VoidCallback onAddSongs;
   final VoidCallback onInviteUsers;
@@ -759,6 +975,8 @@ class _PlaylistSpeedDial extends StatelessWidget {
     final colorScheme = theme.colorScheme;
     const double actionIconDiameter = 56;
     const double actionColumnWidth = 450;
+    final hasOnlyAddAction = canAddSongs && !canInviteUsers && !canOpenSettings;
+    final showListMenuIcon = canAddSongs && canInviteUsers;
     final fadeCurve = CurvedAnimation(
       parent: animation,
       curve: Curves.easeOutCubic,
@@ -769,82 +987,89 @@ class _PlaylistSpeedDial extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        SizeTransition(
-          sizeFactor: fadeCurve,
-          axisAlignment: -1,
-          child: FadeTransition(
-            opacity: fadeCurve,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                _SpeedDialActionRow(
-                  animation: CurvedAnimation(
-                    parent: animation,
-                    curve: const Interval(
-                      0,
-                      0.72,
-                      curve: Curves.easeOutCubic,
+        if (!hasOnlyAddAction)
+          SizeTransition(
+            sizeFactor: fadeCurve,
+            axisAlignment: -1,
+            child: FadeTransition(
+              opacity: fadeCurve,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  if (canAddSongs) ...[
+                    _SpeedDialActionRow(
+                      animation: CurvedAnimation(
+                        parent: animation,
+                        curve: const Interval(
+                          0,
+                          0.72,
+                          curve: Curves.easeOutCubic,
+                        ),
+                        reverseCurve: const Interval(
+                          0,
+                          0.65,
+                          curve: Curves.easeInCubic,
+                        ),
+                      ),
+                      icon: Icons.music_note_rounded,
+                      label: isAddingTrack ? 'Adding...' : 'Add Songs',
+                      onPressed: isAddingTrack ? null : onAddSongs,
+                      rowWidth: actionColumnWidth,
+                      iconDiameter: actionIconDiameter,
                     ),
-                    reverseCurve: const Interval(
-                      0,
-                      0.65,
-                      curve: Curves.easeInCubic,
+                    const SizedBox(height: 10),
+                  ],
+                  if (canInviteUsers) ...[
+                    _SpeedDialActionRow(
+                      animation: CurvedAnimation(
+                        parent: animation,
+                        curve: const Interval(
+                          0.1,
+                          0.84,
+                          curve: Curves.easeOutCubic,
+                        ),
+                        reverseCurve: const Interval(
+                          0,
+                          0.75,
+                          curve: Curves.easeInCubic,
+                        ),
+                      ),
+                      icon: Icons.person_add_alt_1_rounded,
+                      label: 'Invite Users to Playlist',
+                      onPressed: onInviteUsers,
+                      rowWidth: actionColumnWidth,
+                      iconDiameter: actionIconDiameter,
                     ),
-                  ),
-                  icon: Icons.music_note_rounded,
-                  label: isAddingTrack ? 'Adding...' : 'Add Songs',
-                  onPressed: isAddingTrack ? null : onAddSongs,
-                  rowWidth: actionColumnWidth,
-                  iconDiameter: actionIconDiameter,
-                ),
-                const SizedBox(height: 10),
-                _SpeedDialActionRow(
-                  animation: CurvedAnimation(
-                    parent: animation,
-                    curve: const Interval(
-                      0.1,
-                      0.84,
-                      curve: Curves.easeOutCubic,
+                    const SizedBox(height: 10),
+                  ],
+                  if (canOpenSettings) ...[
+                    _SpeedDialActionRow(
+                      animation: CurvedAnimation(
+                        parent: animation,
+                        curve: const Interval(
+                          0.18,
+                          1,
+                          curve: Curves.easeOutCubic,
+                        ),
+                        reverseCurve: const Interval(
+                          0,
+                          0.88,
+                          curve: Curves.easeInCubic,
+                        ),
+                      ),
+                      icon: Icons.tune_rounded,
+                      label: 'Playlist Settings',
+                      onPressed: onOpenSettings,
+                      rowWidth: actionColumnWidth,
+                      iconDiameter: actionIconDiameter,
                     ),
-                    reverseCurve: const Interval(
-                      0,
-                      0.75,
-                      curve: Curves.easeInCubic,
-                    ),
-                  ),
-                  icon: Icons.person_add_alt_1_rounded,
-                  label: 'Invite Users to Playlist',
-                  onPressed: onInviteUsers,
-                  rowWidth: actionColumnWidth,
-                  iconDiameter: actionIconDiameter,
-                ),
-                const SizedBox(height: 10),
-                _SpeedDialActionRow(
-                  animation: CurvedAnimation(
-                    parent: animation,
-                    curve: const Interval(
-                      0.18,
-                      1,
-                      curve: Curves.easeOutCubic,
-                    ),
-                    reverseCurve: const Interval(
-                      0,
-                      0.88,
-                      curve: Curves.easeInCubic,
-                    ),
-                  ),
-                  icon: Icons.tune_rounded,
-                  label: 'Playlist Settings',
-                  onPressed: onOpenSettings,
-                  rowWidth: actionColumnWidth,
-                  iconDiameter: actionIconDiameter,
-                ),
-                const SizedBox(height: 14),
-              ],
+                    const SizedBox(height: 14),
+                  ],
+                ],
+              ),
             ),
           ),
-        ),
         SizedBox(
           width: actionColumnWidth,
           child: Align(
@@ -853,32 +1078,56 @@ class _PlaylistSpeedDial extends StatelessWidget {
               width: actionIconDiameter,
               height: actionIconDiameter,
               child: FloatingActionButton(
-                onPressed: () {
-                  unawaited(onToggle());
-                },
+                onPressed: hasOnlyAddAction
+                    ? (isAddingTrack ? null : onAddSongs)
+                    : () {
+                        unawaited(onToggle());
+                      },
                 backgroundColor: colorScheme.primary,
                 foregroundColor: colorScheme.onPrimary,
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(15),
                 ),
-                // mini: false,
                 elevation: 10,
-                child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 220),
-                  switchInCurve: Curves.easeOutCubic,
-                  switchOutCurve: Curves.easeInCubic,
-                  transitionBuilder: (child, anim) {
-                    return RotationTransition(
-                      turns: Tween<double>(begin: 0.85, end: 1).animate(anim),
-                      child: FadeTransition(opacity: anim, child: child),
-                    );
-                  },
-                  child: Icon(
-                    isOpen ? Icons.close_rounded : Icons.add_rounded,
-                    key: ValueKey<bool>(isOpen),
-                    size: 28,
-                  ),
-                ),
+                child: hasOnlyAddAction
+                    ? (isAddingTrack
+                          ? SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2.5,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  colorScheme.onPrimary,
+                                ),
+                              ),
+                            )
+                          : const Icon(
+                              Icons.add_rounded,
+                              size: 28,
+                            ))
+                    : AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 220),
+                        switchInCurve: Curves.easeOutCubic,
+                        switchOutCurve: Curves.easeInCubic,
+                        transitionBuilder: (child, anim) {
+                          return RotationTransition(
+                            turns: Tween<double>(
+                              begin: 0.85,
+                              end: 1,
+                            ).animate(anim),
+                            child: FadeTransition(opacity: anim, child: child),
+                          );
+                        },
+                        child: Icon(
+                          isOpen
+                              ? Icons.close_rounded
+                              : (showListMenuIcon
+                                    ? Icons.menu_rounded
+                                    : Icons.add_rounded),
+                          key: ValueKey<bool>(isOpen),
+                          size: 28,
+                        ),
+                      ),
               ),
             ),
           ),
@@ -1071,6 +1320,7 @@ class _PlaylistTrackTile extends StatelessWidget {
     required this.iconColor,
     required this.canRemove,
     required this.isRemoving,
+    required this.showDragHandle,
     required this.onRemove,
     required this.onTap,
   });
@@ -1084,6 +1334,7 @@ class _PlaylistTrackTile extends StatelessWidget {
   final Color iconColor;
   final bool canRemove;
   final bool isRemoving;
+  final bool showDragHandle;
   final VoidCallback onRemove;
   final VoidCallback onTap;
 
@@ -1120,15 +1371,17 @@ class _PlaylistTrackTile extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
             child: Row(
               children: [
-                ReorderableDelayedDragStartListener(
-                  index: dragIndex,
-                  child: Icon(
-                    Icons.drag_indicator,
-                    color: mutedTextColor,
-                    size: 20,
+                if (showDragHandle) ...[
+                  ReorderableDelayedDragStartListener(
+                    index: dragIndex,
+                    child: Icon(
+                      Icons.drag_indicator,
+                      color: mutedTextColor,
+                      size: 20,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
+                  const SizedBox(width: 12),
+                ],
                 ClipRRect(
                   borderRadius: BorderRadius.circular(14),
                   child: SizedBox(
@@ -1290,54 +1543,28 @@ class _EmptyTracksState extends StatelessWidget {
   const _EmptyTracksState({
     required this.query,
     required this.onAddSong,
-    required this.isReadOnly,
+    required this.canAddSong,
   });
 
   final String query;
   final VoidCallback onAddSong;
-  final bool isReadOnly;
+  final bool canAddSong;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
     final hasQuery = query.isNotEmpty;
 
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(Icons.library_music_outlined, color: colorScheme.primary),
-            const SizedBox(height: 10),
-            Text(
-              hasQuery ? 'No songs match "$query"' : 'No songs yet',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              hasQuery
-                  ? 'Try another search term.'
-                  : 'Tap Add Songs to include tracks in this playlist.',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyLarge?.copyWith(
-                color: colorScheme.onSurface.withValues(alpha: 0.65),
-              ),
-            ),
-            const SizedBox(height: 14),
-            if (!hasQuery)
-              FilledButton.icon(
-                onPressed: isReadOnly ? null : onAddSong,
-                icon: const Icon(Icons.add),
-                label: const Text('Add Songs'),
-              ),
-          ],
-        ),
-      ),
+    return EmptyStateWidget(
+      icon: Icons.library_music_outlined,
+      message: hasQuery
+          ? 'No songs match "$query".\nTry another search term.'
+          : canAddSong
+          ? 'This playlist is empty.\nAdd tracks to get started.'
+          : 'This playlist is empty.\n'
+                'You can only view tracks once the creator '
+                'adds them.',
+      actionLabel: hasQuery || !canAddSong ? null : 'Add Songs',
+      onActionPressed: hasQuery || !canAddSong ? null : onAddSong,
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/widgets/app_snackbar.dart';
+import 'package:music_room/core/widgets/confirmation_dialog.dart';
 import 'package:music_room/features/music_vote/presentation/state/music_vote_cubit.dart';
 
 class _MockDelegateUser {
@@ -566,48 +567,22 @@ class _EndEventTile extends StatelessWidget {
   }
 
   Future<void> _showEndConfirmation(BuildContext context) async {
+    if (!context.mounted) {
+      return;
+    }
+
     final cubit = context.read<MusicVoteCubit>();
 
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showAppConfirmationDialog(
       context: context,
-      builder: (dialogContext) {
-        final colorScheme = Theme.of(dialogContext).colorScheme;
-
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(20),
-          ),
-          title: const Row(
-            children: [
-              Icon(Icons.warning_amber_rounded, color: Colors.red, size: 24),
-              SizedBox(width: 8),
-              Text('End Event'),
-            ],
-          ),
-          content: const Text(
-            'Are you sure you want to end this event? '
-            'This will stop all playback and the event will be marked as '
-            'ended. This action cannot be undone.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: Text(
-                'Cancel',
-                style: TextStyle(color: colorScheme.onSurface),
-              ),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(dialogContext).pop(true),
-              style: FilledButton.styleFrom(
-                backgroundColor: Colors.red,
-                foregroundColor: Colors.white,
-              ),
-              child: const Text('End Event'),
-            ),
-          ],
-        );
-      },
+      title: 'End event',
+      message:
+          'Are you sure you want to end this event? '
+          'This will stop all playback and the event will be '
+          'marked as ended. This action cannot be undone.',
+      confirmLabel: 'End event',
+      icon: Icons.warning_amber_rounded,
+      variant: ConfirmationDialogVariant.destructive,
     );
 
     if (confirmed == true && context.mounted) {

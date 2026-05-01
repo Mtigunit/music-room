@@ -14,7 +14,6 @@ class PlaylistState extends Equatable {
     required this.isOffline,
     required this.showStaleWarning,
     required this.isSyncing,
-    required this.currentUserId,
     required this.removingTrackIds,
     required this.errorMessage,
   });
@@ -29,7 +28,6 @@ class PlaylistState extends Equatable {
       isOffline = false,
       showStaleWarning = false,
       isSyncing = false,
-      currentUserId = null,
       removingTrackIds = const <String>[],
       errorMessage = null;
 
@@ -42,7 +40,6 @@ class PlaylistState extends Equatable {
   final bool isOffline;
   final bool showStaleWarning;
   final bool isSyncing;
-  final String? currentUserId;
   final List<String> removingTrackIds;
   final String? errorMessage;
 
@@ -58,8 +55,6 @@ class PlaylistState extends Equatable {
     bool? isOffline,
     bool? showStaleWarning,
     bool? isSyncing,
-    String? currentUserId,
-    bool clearCurrentUserId = false,
     List<String>? removingTrackIds,
     String? errorMessage,
     bool clearErrorMessage = false,
@@ -76,9 +71,6 @@ class PlaylistState extends Equatable {
       isOffline: isOffline ?? this.isOffline,
       showStaleWarning: showStaleWarning ?? this.showStaleWarning,
       isSyncing: isSyncing ?? this.isSyncing,
-      currentUserId: clearCurrentUserId
-          ? null
-          : (currentUserId ?? this.currentUserId),
       removingTrackIds: removingTrackIds ?? this.removingTrackIds,
       errorMessage: clearErrorMessage
           ? null
@@ -97,7 +89,6 @@ class PlaylistState extends Equatable {
     isOffline,
     showStaleWarning,
     isSyncing,
-    currentUserId,
     removingTrackIds,
     errorMessage,
   ];

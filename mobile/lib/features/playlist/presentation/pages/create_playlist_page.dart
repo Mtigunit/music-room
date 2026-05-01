@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:music_room/core/widgets/app_back_button.dart';
 import 'package:music_room/core/widgets/app_button.dart';
 import 'package:music_room/core/widgets/app_snackbar.dart';
+import 'package:music_room/core/widgets/confirmation_dialog.dart';
 import 'package:music_room/core/widgets/genre_selection_grid.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/events/presentation/widgets/selection_card.dart';
@@ -167,31 +168,19 @@ class _CreatePlaylistPageState extends State<CreatePlaylistPage> {
 
   Future<void> _deletePlaylist() async {
     final playlist = widget.playlist;
-    if (playlist == null || _isDeleting) {
+    if (playlist == null || _isDeleting || !mounted) {
       return;
     }
 
-    final confirmed = await showDialog<bool>(
+    final confirmed = await showAppConfirmationDialog(
       context: context,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('Delete Playlist'),
-          content: const Text(
-            'This action cannot be undone. '
-            'The playlist and its tracks will be removed.',
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Delete'),
-            ),
-          ],
-        );
-      },
+      title: 'Delete playlist',
+      message:
+          'This action cannot be undone. '
+          'The playlist and its tracks will be removed.',
+      confirmLabel: 'Delete',
+      icon: Icons.delete_forever_rounded,
+      variant: ConfirmationDialogVariant.destructive,
     );
 
     if (confirmed != true || !mounted) {

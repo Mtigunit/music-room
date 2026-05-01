@@ -39,6 +39,7 @@ class AppConfig {
   static const String eventsInvitedEndpoint = 'events/invited';
   static const String eventsHostingEndpoint = 'events/hosting';
   static const String playlistsEndpoint = 'playlists';
+  static const String explorePlaylistsEndpoint = 'playlists/explore';
   static const String websocketPath = '/ws';
 
   // Track Endpoints

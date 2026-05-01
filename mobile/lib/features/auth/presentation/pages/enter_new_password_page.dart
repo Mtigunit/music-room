@@ -158,14 +158,20 @@ class _EnterNewPasswordPageState extends State<EnterNewPasswordPage> {
                 BlocBuilder<AuthBloc, AuthState>(
                   builder: (context, state) {
                     final isLoading = state is ResetPasswordLoading;
-                    return AppButton(
-                      onPressed: isLoading ? null : _handleSubmit,
-                      label: 'Reset password',
-                      isLoading: isLoading,
-                      borderRadius: 16,
-                      textStyle: const TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
+                    return SizedBox(
+                      width: double.infinity,
+                      child: AppButton(
+                        onPressed: isLoading ? null : _handleSubmit,
+                        label: 'Reset password',
+                        isLoading: isLoading,
+                        padding: const EdgeInsets.symmetric(
+                          vertical: 16,
+                          horizontal: 20,
+                        ),
+                        textStyle: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                     );
                   },

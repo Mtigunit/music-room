@@ -41,16 +41,28 @@ Map<String, dynamic> _$MessageResponseToJson(MessageResponse instance) =>
     <String, dynamic>{'message': instance.message};
 
 RegisterResponse _$RegisterResponseFromJson(Map<String, dynamic> json) =>
-    RegisterResponse(accessToken: json['access_token'] as String);
+    RegisterResponse(
+      accessToken: json['access_token'] as String,
+      user: UserProfile.fromJson(json['user'] as Map<String, dynamic>),
+    );
 
 Map<String, dynamic> _$RegisterResponseToJson(RegisterResponse instance) =>
-    <String, dynamic>{'access_token': instance.accessToken};
+    <String, dynamic>{
+      'access_token': instance.accessToken,
+      'user': instance.user,
+    };
 
 LoginResponse _$LoginResponseFromJson(Map<String, dynamic> json) =>
-    LoginResponse(accessToken: json['access_token'] as String);
+    LoginResponse(
+      accessToken: json['access_token'] as String,
+      user: UserProfile.fromJson(json['user'] as Map<String, dynamic>),
+    );
 
 Map<String, dynamic> _$LoginResponseToJson(LoginResponse instance) =>
-    <String, dynamic>{'access_token': instance.accessToken};
+    <String, dynamic>{
+      'access_token': instance.accessToken,
+      'user': instance.user,
+    };
 
 UserProfile _$UserProfileFromJson(Map<String, dynamic> json) => UserProfile(
   id: json['id'] as String,

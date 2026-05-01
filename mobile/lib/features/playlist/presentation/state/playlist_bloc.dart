@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:math' as math;
 
 import 'package:dio/dio.dart';
@@ -9,7 +8,6 @@ import 'package:music_room/core/config/app_config.dart';
 import 'package:music_room/core/realtime/socket_client.dart';
 import 'package:music_room/core/realtime/socket_events.dart';
 import 'package:music_room/core/services/connectivity_service.dart';
-import 'package:music_room/core/services/token_storage_service.dart';
 import 'package:music_room/features/playlist/data/datasources/playlist_cache_datasource.dart';
 import 'package:music_room/features/playlist/data/datasources/playlist_remote_datasource.dart';
 import 'package:music_room/features/playlist/data/models/playlist_model.dart';
@@ -26,12 +24,10 @@ class PlaylistBloc extends Bloc<PlaylistEvent, PlaylistState> {
     required IPlaylistCacheDataSource playlistCacheDataSource,
     required ConnectivityService connectivityService,
     required SocketClient socketClient,
-    required TokenStorageService tokenStorageService,
   }) : _playlistRemoteDataSource = playlistRemoteDataSource,
        _playlistCacheDataSource = playlistCacheDataSource,
        _connectivityService = connectivityService,
        _socketClient = socketClient,
-       _tokenStorageService = tokenStorageService,
        super(const PlaylistState.initial()) {
     on<PlaylistOpened>(_onPlaylistOpened);
     on<PlaylistRefreshRequested>(_onPlaylistRefreshRequested);
@@ -48,18 +44,12 @@ class PlaylistBloc extends Bloc<PlaylistEvent, PlaylistState> {
   final IPlaylistCacheDataSource _playlistCacheDataSource;
   final ConnectivityService _connectivityService;
   final SocketClient _socketClient;
-  final TokenStorageService _tokenStorageService;
 
   StreamSubscription<bool>? _connectivitySubscription;
   Timer? _retryTimer;
   int _retryAttempt = 0;
 
   String? _activePlaylistId;
-
-  // Cached after the first successful load.
-  // Never re-parsed from storage.
-  String? _currentUserId;
-  bool _userIdLoaded = false;
 
   // Event handlers
 
@@ -78,9 +68,6 @@ class PlaylistBloc extends Bloc<PlaylistEvent, PlaylistState> {
         isSyncing: false,
       ),
     );
-
-    await _loadCurrentUserId();
-    emit(state.copyWith(currentUserId: _currentUserId));
     await _loadCachedSnapshot(event.playlistId, emit);
 
     // _setupConnectivityListener subscribes to the change stream and
@@ -576,63 +563,6 @@ class PlaylistBloc extends Bloc<PlaylistEvent, PlaylistState> {
     });
   }
 
-  /// Loads and caches the current user id from storage. Safe to call multiple
-  /// times — the storage round-trip only happens once per bloc instance.
-  Future<void> _loadCurrentUserId() async {
-    if (_userIdLoaded) return;
-    _userIdLoaded = true;
-
-    final userJson = await _tokenStorageService.getUserProfile();
-    if (userJson != null && userJson.isNotEmpty) {
-      try {
-        final parsed = jsonDecode(userJson);
-        if (parsed is Map<String, dynamic>) {
-          final id = parsed['id'] ?? parsed['userId'];
-          if (id is String && id.isNotEmpty) {
-            _currentUserId = id;
-            return;
-          }
-        }
-      } on Object {
-        _currentUserId = null;
-      }
-    }
-
-    // Fallback: derive user id directly from JWT claims if profile storage is
-    // empty or stale.
-    final token = await _tokenStorageService.getToken();
-    _currentUserId = _extractUserIdFromJwt(token);
-  }
-
-  String? _extractUserIdFromJwt(String? token) {
-    if (token == null || token.isEmpty) return null;
-    final parts = token.split('.');
-    if (parts.length < 2) return null;
-
-    try {
-      final normalized = base64Url.normalize(parts[1]);
-      final payloadJson = utf8.decode(base64Url.decode(normalized));
-      final payload = jsonDecode(payloadJson);
-      if (payload is! Map<String, dynamic>) return null;
-
-      final candidates = <dynamic>[
-        payload['userId'],
-        payload['id'],
-        payload['sub'],
-      ];
-
-      for (final candidate in candidates) {
-        if (candidate is String && candidate.isNotEmpty) {
-          return candidate;
-        }
-      }
-    } on Object {
-      return null;
-    }
-
-    return null;
-  }
-
   PlaylistDetailsEntity? _applyRealtimePayload({
     required PlaylistDetailsEntity playlist,
     required String eventName,
@@ -763,6 +693,7 @@ class PlaylistBloc extends Bloc<PlaylistEvent, PlaylistState> {
       visibility: base.visibility,
       editLicense: base.editLicense,
       description: base.description,
+      collaboratorIds: base.collaboratorIds,
       tracks: tracks,
       tags: base.tags,
       updatedAt: updatedAt ?? base.updatedAt,

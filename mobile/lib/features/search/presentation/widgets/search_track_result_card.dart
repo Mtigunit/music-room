@@ -121,13 +121,13 @@ class TrackResultCard extends StatelessWidget {
   void _handleTrackAction(BuildContext context, TrackAction action) {
     switch (action) {
       case TrackAction.addToEvent:
-        AppSnackbar.showInfo(
+        AppSnackbar.showError(
           context,
           'Add to event feature coming soon.',
         );
         return;
       case TrackAction.saveToPlaylist:
-        AppSnackbar.showInfo(
+        AppSnackbar.showError(
           context,
           'Save to playlist feature coming soon.',
         );
