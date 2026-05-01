@@ -15,6 +15,8 @@ import { AUDIT_LOG_EVENT, AuditAction } from '../audit-log/audit-log.constants';
 import { createAuditLogEvent } from '../audit-log/audit-log.event';
 import type { ClientMetaDto } from '../common/dto/client-meta.dto';
 import { Visibility, PolicyType } from '@prisma/client';
+import { plainToInstance } from 'class-transformer';
+import { TimeWindowPolicyConfigDto } from '../events/dto/policies.dto';
 
 // utility function to measure distance
 function getDistanceFromLatLonInM(
@@ -71,16 +73,16 @@ export class TrackVotesService {
     // Check policies
     for (const policy of event.policies) {
       if (policy.policyType === PolicyType.TIME_WINDOW) {
-        const config = policy.config as {
-          startTime?: string;
-          endTime?: string;
-        };
+        const config = plainToInstance(
+          TimeWindowPolicyConfigDto,
+          policy.config,
+        );
         const now = new Date();
 
-        if (config.startTime != null && now < new Date(config.startTime)) {
+        if (config.startDate != null && now < new Date(config.startDate)) {
           throw new ForbiddenException('Voting has not started yet');
         }
-        if (config.endTime != null && now > new Date(config.endTime)) {
+        if (config.endDate != null && now > new Date(config.endDate)) {
           throw new ForbiddenException('Voting is closed');
         }
       }

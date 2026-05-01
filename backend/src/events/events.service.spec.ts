@@ -6,6 +6,9 @@ import { YoutubeService } from '../tracks/youtube.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { Visibility } from '@prisma/client';
 import { ForbiddenException, ConflictException } from '@nestjs/common';
+import { RedisService } from '../redis/redis.service';
+import { BULL_QUEUES } from './events.constants';
+import { getQueueToken } from '@nestjs/bullmq';
 
 describe('EventsService', () => {
   let service: EventsService;
@@ -66,6 +69,23 @@ describe('EventsService', () => {
         {
           provide: EventEmitter2,
           useValue: { emit: jest.fn() },
+        },
+        {
+          provide: RedisService,
+          useValue: {
+            getClient: jest.fn(() => ({
+              get: jest.fn(),
+              set: jest.fn(),
+              del: jest.fn(),
+            })),
+          },
+        },
+        {
+          provide: getQueueToken(BULL_QUEUES.EVENT_TIMEOUTS),
+          useValue: {
+            add: jest.fn(),
+            getJob: jest.fn(),
+          },
         },
       ],
     }).compile();

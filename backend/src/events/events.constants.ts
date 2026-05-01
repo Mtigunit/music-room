@@ -4,6 +4,9 @@ export const WS_EVENTS = {
   LEAVE: 'event:leave',
   START: 'event:start',
   END: 'event:end',
+  PLAYBACK_PLAY: 'playback:play',
+  PLAYBACK_PAUSE: 'playback:pause',
+  PLAYBACK_NEXT: 'playback:next',
   HOST_JOIN: 'event:host_join',
   HOST_LEAVE: 'event:host_leave',
   TRACK_VOTE: 'track:vote',
@@ -16,6 +19,8 @@ export const WS_EVENTS = {
   HOST_RECONNECTED: 'event:host_reconnected',
   USER_JOINED: 'event:user_joined',
   EVENT_COUNT: 'event:count',
+
+  PLAYBACK_STATUS: 'playback:status',
 
   TRACK_ADDED: 'track:added',
   TRACK_REMOVED: 'track:removed',

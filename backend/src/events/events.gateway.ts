@@ -7,22 +7,22 @@ import {
   WsException,
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
-import { Logger, UseGuards } from '@nestjs/common';
+import { Logger, UseGuards, forwardRef, Inject } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { WsAuthGuard } from '../websockets/guards/ws-auth.guard';
 import { WsThrottlerGuard } from '../websockets/guards/ws-throttler.guard';
 import { PrismaService } from '../prisma/prisma.service';
-import { EventStatus, Visibility } from '@prisma/client';
+import { EventStatus, Visibility, PlaybackStatus } from '@prisma/client';
+import { getPosition, EventsService } from './events.service';
+import { EventsRepository } from './events.repository';
+import { PlaybackPlayDto } from './dto/playback-play.dto';
+import { PlaybackPauseDto } from './dto/playback-pause.dto';
+import { PlaybackNextDto } from './dto/playback-next.dto';
 import { WsUser } from '../websockets/decorators/ws-user.decorator';
 import type { SocketUser } from '../websockets/socket-auth.service';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
-import {
-  WS_EVENTS,
-  REDIS_KEYS,
-  BULL_QUEUES,
-  BULL_JOBS,
-} from './events.constants';
+import { WS_EVENTS, REDIS_KEYS, BULL_QUEUES } from './events.constants';
 import { RedisService } from '../redis/redis.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AUDIT_LOG_EVENT, AuditAction } from '../audit-log/audit-log.constants';
@@ -41,9 +41,12 @@ export class EventsGateway implements OnGatewayDisconnect {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redisService: RedisService,
+    private readonly eventEmitter: EventEmitter2,
     @InjectQueue(BULL_QUEUES.EVENT_TIMEOUTS)
     private readonly eventTimeoutsQueue: Queue,
-    private readonly eventEmitter: EventEmitter2,
+    @Inject(forwardRef(() => EventsService))
+    private readonly eventsService: EventsService,
+    private readonly eventsRepository: EventsRepository,
   ) {}
 
   private getRoomCount(roomName: string): number {
@@ -63,17 +66,21 @@ export class EventsGateway implements OnGatewayDisconnect {
     const user = data?.user;
     if (!user) return;
 
-    const liveEvent = await this.prisma.event.findFirst({
-      where: { hostId: user.id, status: EventStatus.LIVE },
-    });
-    if (liveEvent) {
-      const redisClient = this.redisService.getClient();
-      const hostSocketKey = REDIS_KEYS.HOST_SOCKET(liveEvent.id);
-      const currentHostSocketId = await redisClient.get(hostSocketKey);
+    // Delegate business logic to service
+    const disconnectResult = await this.eventsService.handleHostDisconnect(
+      user.id,
+      client.id,
+    );
 
-      if (currentHostSocketId === client.id) {
-        await this.startHostGracePeriod(liveEvent.id, user.id);
-      }
+    if (disconnectResult) {
+      // Handle WebSocket concerns only
+      this.server
+        .to(`event_${disconnectResult.eventId}`)
+        .emit(WS_EVENTS.PLAYBACK_STATUS, {
+          status: PlaybackStatus.PAUSED,
+          currentTrackId: disconnectResult.currentTrackId,
+          pausedPlaybackPositionMs: disconnectResult.pausedPosition,
+        });
     }
   }
 
@@ -86,42 +93,6 @@ export class EventsGateway implements OnGatewayDisconnect {
         );
       });
     }
-  }
-
-  private async startHostGracePeriod(eventId: string, userId: string) {
-    const redisClient = this.redisService.getClient();
-    const softTimeoutJobId = `soft-${eventId}`;
-    const hardTimeoutJobId = `hard-${eventId}`;
-    this.logger.log(
-      `Host ${userId} disconnected or left event ${eventId}, starting grace period.`,
-    );
-    await redisClient.setex(
-      REDIS_KEYS.HOST_DISCONNECT(eventId),
-      (BULL_JOBS.SOFT_TIMEOUT + BULL_JOBS.HARD_TIMEOUT) / 1000,
-      userId,
-    );
-    await this.removeExistingTimeoutJob(softTimeoutJobId);
-    await this.eventTimeoutsQueue.add(
-      BULL_JOBS.HOST_SOFT_TIMEOUT,
-      { eventId, userId },
-      {
-        delay: BULL_JOBS.SOFT_TIMEOUT,
-        jobId: softTimeoutJobId,
-        removeOnComplete: true,
-        removeOnFail: true,
-      },
-    );
-    await this.removeExistingTimeoutJob(hardTimeoutJobId);
-    await this.eventTimeoutsQueue.add(
-      BULL_JOBS.HOST_HARD_TIMEOUT,
-      { eventId, userId },
-      {
-        delay: BULL_JOBS.HARD_TIMEOUT,
-        jobId: hardTimeoutJobId,
-        removeOnComplete: true,
-        removeOnFail: true,
-      },
-    );
   }
 
   @SubscribeMessage(WS_EVENTS.JOIN)
@@ -194,8 +165,8 @@ export class EventsGateway implements OnGatewayDisconnect {
     if (!event) throw new WsException('Event not found');
     if (event.hostId !== userId)
       throw new WsException('Forbidden: Only host can use host_join');
-    if (event.status === EventStatus.ENDED)
-      throw new WsException('Event has already ended');
+    if (event.status !== EventStatus.LIVE)
+      throw new WsException('Forbidden: Host can only join live events');
 
     const roomName = `event_${eventId}`;
     await client.join(roomName);
@@ -294,6 +265,15 @@ export class EventsGateway implements OnGatewayDisconnect {
 
     const event = await this.prisma.event.findUnique({
       where: { id: eventId },
+      select: {
+        id: true,
+        status: true,
+        hostId: true,
+        currentTrackId: true,
+        playbackStatus: true,
+        currentTrackStartedAt: true,
+        pausedPlaybackPositionMs: true,
+      },
     });
 
     if (!event) throw new WsException('Event not found');
@@ -306,7 +286,17 @@ export class EventsGateway implements OnGatewayDisconnect {
     this.broadcastRoomCount(roomName);
 
     if (event.status === EventStatus.LIVE) {
-      await this.startHostGracePeriod(eventId, userId);
+      // Delegate business logic to service
+      const position = getPosition(event);
+      await this.eventsService.startHostGracePeriod(eventId, userId);
+      await this.eventsRepository.pausePlayback(event.id, position);
+
+      // Handle WebSocket concerns only
+      this.server.to(roomName).emit(WS_EVENTS.PLAYBACK_STATUS, {
+        status: PlaybackStatus.PAUSED,
+        currentTrackId: event.currentTrackId,
+        pausedPlaybackPositionMs: position,
+      });
     }
 
     return { event: 'host_left', eventId };
@@ -323,36 +313,16 @@ export class EventsGateway implements OnGatewayDisconnect {
 
     const eventId = payload.eventId;
     const userId = user.id;
+    const socketId = client.id;
 
-    const existingLiveEvent = await this.prisma.event.findFirst({
-      where: {
-        hostId: userId,
-        status: EventStatus.LIVE,
-        id: { not: eventId },
-      },
-    });
-    if (existingLiveEvent) {
-      throw new WsException('Forbidden: Host already has another live event');
-    }
+    // Delegate business logic to service
+    const updatedEvent = await this.eventsService.startEvent(
+      eventId,
+      userId,
+      socketId,
+    );
 
-    const event = await this.prisma.event.findUnique({
-      where: { id: eventId },
-    });
-    if (!event) throw new WsException('Event not found');
-    if (event.hostId !== userId)
-      throw new WsException('Forbidden: Only host can start the event');
-    if (event.status === EventStatus.LIVE)
-      throw new WsException('Forbidden: Event is already live');
-
-    const updatedEvent = await this.prisma.event.update({
-      where: { id: eventId },
-      data: { status: EventStatus.LIVE, startDate: new Date() },
-    });
-
-    const redisClient = this.redisService.getClient();
-    await redisClient.set(REDIS_KEYS.EVENT_HOST(eventId), userId);
-    await redisClient.set(REDIS_KEYS.HOST_SOCKET(eventId), client.id);
-
+    // Handle WebSocket concerns only
     const roomName = `event_${eventId}`;
     await client.join(roomName);
 
@@ -363,6 +333,13 @@ export class EventsGateway implements OnGatewayDisconnect {
       hostId: userId,
     });
     this.broadcastRoomCount(roomName);
+
+    this.server.to(roomName).emit(WS_EVENTS.PLAYBACK_STATUS, {
+      status: PlaybackStatus.PAUSED,
+      currentTrackId: updatedEvent.currentTrackId,
+      pausedPlaybackPositionMs: 0,
+    });
+
     this.eventEmitter.emit(
       AUDIT_LOG_EVENT,
       createAuditLogEvent(userId, AuditAction.EVENT_START, meta, { eventId }),
@@ -383,29 +360,10 @@ export class EventsGateway implements OnGatewayDisconnect {
     const eventId = payload.eventId;
     const userId = user.id;
 
-    const event = await this.prisma.event.findUnique({
-      where: { id: eventId },
-    });
-    if (!event) throw new WsException('Event not found');
-    if (event.hostId !== userId)
-      throw new WsException('Forbidden: Only host can end the event');
-    if (event.status !== EventStatus.LIVE)
-      throw new WsException('Forbidden: Event is not live');
+    // Delegate business logic to service
+    await this.eventsService.endEvent(eventId, userId);
 
-    await this.prisma.event.update({
-      where: { id: eventId },
-      data: { status: EventStatus.ENDED },
-    });
-
-    const redisClient = this.redisService.getClient();
-    await redisClient.del(
-      ...[
-        REDIS_KEYS.EVENT_HOST(eventId),
-        REDIS_KEYS.HOST_SOCKET(eventId),
-        REDIS_KEYS.HOST_DISCONNECT(eventId),
-      ],
-    );
-
+    // Handle WebSocket concerns only
     const roomName = `event_${eventId}`;
     this.server.to(roomName).emit(WS_EVENTS.ENDED, { reason: 'host_ended' });
     this.server.in(roomName).socketsLeave(roomName);
@@ -419,5 +377,57 @@ export class EventsGateway implements OnGatewayDisconnect {
     );
 
     return { event: 'ended', eventId };
+  }
+
+  @SubscribeMessage(WS_EVENTS.PLAYBACK_PLAY)
+  async handlePlaybackPlay(
+    @MessageBody() payload: PlaybackPlayDto,
+    @WsUser() user: SocketUser,
+  ) {
+    if (!payload?.eventId) throw new WsException('eventId is required');
+    try {
+      const result = await this.eventsService.play(payload.eventId, user.id);
+      return { event: 'playback_play', ...result };
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      throw new WsException(errorMessage);
+    }
+  }
+
+  @SubscribeMessage(WS_EVENTS.PLAYBACK_PAUSE)
+  async handlePlaybackPause(
+    @MessageBody() payload: PlaybackPauseDto,
+    @WsUser() user: SocketUser,
+  ) {
+    if (!payload?.eventId) throw new WsException('eventId is required');
+    try {
+      const result = await this.eventsService.pause(payload.eventId, user.id);
+      return { event: 'playback_pause', ...result };
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      throw new WsException(errorMessage);
+    }
+  }
+
+  @SubscribeMessage(WS_EVENTS.PLAYBACK_NEXT)
+  async handlePlaybackNext(
+    @MessageBody() payload: PlaybackNextDto,
+    @WsUser() user: SocketUser,
+  ) {
+    if (!payload?.eventId) throw new WsException('eventId is required');
+    try {
+      const result = await this.eventsService.next(
+        payload.eventId,
+        user.id,
+        payload.trackId ?? null,
+      );
+      return { event: 'playback_next', ...result };
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      throw new WsException(errorMessage);
+    }
   }
 }

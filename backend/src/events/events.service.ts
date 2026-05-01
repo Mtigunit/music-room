@@ -5,6 +5,8 @@ import {
   ForbiddenException,
   ConflictException,
   BadRequestException,
+  forwardRef,
+  Inject,
 } from '@nestjs/common';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
@@ -13,18 +15,44 @@ import { EventsGateway } from './events.gateway';
 import { AUDIT_LOG_EVENT, AuditAction } from '../audit-log/audit-log.constants';
 import { createAuditLogEvent } from '../audit-log/audit-log.event';
 import { YoutubeService } from '../tracks/youtube.service';
-import { Visibility } from '@prisma/client';
+import { EventStatus, PlaybackStatus, Visibility } from '@prisma/client';
 import { TrackSearchResultDto } from '../tracks/dto/track-search-result.dto';
 import { ClientMetaDto } from '../common/dto/client-meta.dto';
+import { REDIS_KEYS, BULL_JOBS, BULL_QUEUES } from './events.constants';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
+import { RedisService } from '../redis/redis.service';
 import { WS_EVENTS } from './events.constants';
+
+export function getPosition(event: {
+  playbackStatus: PlaybackStatus;
+  currentTrackStartedAt: Date | null;
+  pausedPlaybackPositionMs: number | null;
+}): number {
+  if (
+    event.playbackStatus === PlaybackStatus.PAUSED ||
+    !event.currentTrackStartedAt
+  ) {
+    return event.pausedPlaybackPositionMs ?? 0;
+  }
+  return (
+    Date.now() -
+    new Date(event.currentTrackStartedAt).getTime() +
+    (event.pausedPlaybackPositionMs ?? 0)
+  );
+}
 
 @Injectable()
 export class EventsService {
   constructor(
     private readonly eventsRepository: EventsRepository,
+    @Inject(forwardRef(() => EventsGateway))
     private readonly eventsGateway: EventsGateway,
     private readonly youtubeService: YoutubeService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly redisService: RedisService,
+    @InjectQueue(BULL_QUEUES.EVENT_TIMEOUTS)
+    private readonly eventTimeoutsQueue: Queue,
   ) {}
 
   async create(
@@ -366,6 +394,17 @@ export class EventsService {
       userId,
     );
 
+    if (event.currentTrackId === null && event.status === EventStatus.LIVE) {
+      await this.eventsRepository.setInitialTrack(eventId, newTrack.id);
+      this.eventsGateway.server
+        .to(`event_${eventId}`)
+        .emit(WS_EVENTS.PLAYBACK_STATUS, {
+          status: PlaybackStatus.PAUSED,
+          currentTrackId: newTrack.id,
+          pausedPlaybackPositionMs: 0,
+        });
+    }
+
     const roomName = `event_${eventId}`;
     this.eventsGateway.server
       .to(roomName)
@@ -403,6 +442,12 @@ export class EventsService {
       );
     }
 
+    if (event.currentTrackId === eventTrack.id) {
+      throw new BadRequestException(
+        'Cannot remove a track that is currently playing',
+      );
+    }
+
     if (event.hostId !== userId && eventTrack.addedById !== userId) {
       throw new ForbiddenException(
         'Only the event host or the user who added this track can remove it',
@@ -430,5 +475,201 @@ export class EventsService {
     );
 
     return result;
+  }
+
+  async play(eventId: string, userId: string) {
+    const event = await this.eventsRepository.findById(eventId);
+    if (!event) throw new NotFoundException('Event not found');
+    if (event.hostId !== userId)
+      throw new ForbiddenException('Only host controls playback');
+    if (event.status !== EventStatus.LIVE)
+      throw new BadRequestException('Event is not LIVE');
+
+    const updatedEvent =
+      await this.eventsRepository.updatePlaybackPlay(eventId);
+
+    this.eventsGateway.server
+      .to(`event_${eventId}`)
+      .emit(WS_EVENTS.PLAYBACK_STATUS, {
+        status: PlaybackStatus.PLAYING,
+        currentTrackId: updatedEvent.currentTrackId,
+        currentTrackStartedAt: updatedEvent.currentTrackStartedAt,
+        pausedPlaybackPositionMs: updatedEvent.pausedPlaybackPositionMs,
+      });
+
+    return { status: PlaybackStatus.PLAYING };
+  }
+
+  async pause(eventId: string, userId: string) {
+    const event = await this.eventsRepository.findById(eventId);
+    if (!event) throw new NotFoundException('Event not found');
+    if (event.hostId !== userId)
+      throw new ForbiddenException('Only host controls playback');
+    if (event.status !== EventStatus.LIVE)
+      throw new BadRequestException('Event is not LIVE');
+
+    const positionMs = getPosition(event);
+    const updatedEvent = await this.eventsRepository.updatePlaybackPause(
+      eventId,
+      positionMs,
+    );
+
+    this.eventsGateway.server
+      .to(`event_${eventId}`)
+      .emit(WS_EVENTS.PLAYBACK_STATUS, {
+        status: PlaybackStatus.PAUSED,
+        currentTrackId: updatedEvent.currentTrackId,
+        pausedPlaybackPositionMs: positionMs,
+      });
+
+    return { status: PlaybackStatus.PAUSED };
+  }
+
+  async next(eventId: string, userId: string, trackId: string | null) {
+    const event = await this.eventsRepository.findById(eventId);
+    if (!event) throw new NotFoundException('Event not found');
+    if (event.hostId !== userId)
+      throw new ForbiddenException('Only host controls playback');
+
+    console.log('trackId', trackId);
+    console.log('currentTrackId', event.currentTrackId);
+    if (trackId && event.currentTrackId !== trackId) {
+      throw new ConflictException('Track mismatch—client state is stale');
+    }
+
+    const result = await this.eventsRepository.advanceQueue(eventId);
+    if (!result) throw new NotFoundException('Event not found');
+
+    const { event: updatedEvent, nextTrackId } = result;
+
+    if (nextTrackId) {
+      this.eventsGateway.server
+        .to(`event_${eventId}`)
+        .emit(WS_EVENTS.PLAYBACK_STATUS, {
+          status: PlaybackStatus.PLAYING,
+          currentTrackId: updatedEvent.currentTrackId,
+          currentTrackStartedAt: updatedEvent.currentTrackStartedAt,
+          pausedPlaybackPositionMs: 0,
+        });
+    } else {
+      this.eventsGateway.server
+        .to(`event_${eventId}`)
+        .emit(WS_EVENTS.PLAYBACK_STATUS, {
+          status: PlaybackStatus.PAUSED,
+          currentTrackId: null,
+          pausedPlaybackPositionMs: 0,
+        });
+    }
+
+    return { currentTrackId: updatedEvent.currentTrackId };
+  }
+
+  async startEvent(eventId: string, userId: string, socketId: string) {
+    // Check if host already has another live event
+    const existingLiveEvent = await this.eventsRepository.findById(eventId);
+    if (!existingLiveEvent) {
+      throw new NotFoundException('Event not found');
+    }
+    if (existingLiveEvent.hostId !== userId) {
+      throw new ForbiddenException('Only host can start the event');
+    }
+    if (existingLiveEvent.status === EventStatus.LIVE) {
+      throw new ForbiddenException('Event is already live');
+    }
+
+    const hostHasOtherLiveEvent = await this.eventsRepository.findHostLiveEvent(
+      userId,
+      eventId,
+    );
+    if (hostHasOtherLiveEvent) {
+      throw new ForbiddenException('Host already has another live event');
+    }
+
+    // Start the event with first track
+    const updatedEvent = await this.eventsRepository.startEvent(eventId);
+
+    // Store host information in Redis
+    const redisClient = this.redisService.getClient();
+    await redisClient.set(REDIS_KEYS.EVENT_HOST(eventId), userId);
+    await redisClient.set(REDIS_KEYS.HOST_SOCKET(eventId), socketId);
+
+    return updatedEvent;
+  }
+
+  async endEvent(eventId: string, userId: string) {
+    const event = await this.eventsRepository.findById(eventId);
+    if (!event) {
+      throw new NotFoundException('Event not found');
+    }
+    if (event.hostId !== userId) {
+      throw new ForbiddenException('Only host can end the event');
+    }
+    if (event.status !== EventStatus.LIVE) {
+      throw new ForbiddenException('Event is not live');
+    }
+
+    await this.eventsRepository.endEvent(eventId);
+
+    // Clean up Redis keys
+    const redisClient = this.redisService.getClient();
+    await redisClient.del(
+      ...[
+        REDIS_KEYS.EVENT_HOST(eventId),
+        REDIS_KEYS.HOST_SOCKET(eventId),
+        REDIS_KEYS.HOST_DISCONNECT(eventId),
+      ],
+    );
+
+    return event;
+  }
+
+  async handleHostDisconnect(userId: string, socketId: string) {
+    const liveEvent = await this.eventsRepository.findHostLiveEvent(userId);
+    if (!liveEvent) {
+      return null;
+    }
+
+    const redisClient = this.redisService.getClient();
+    const hostSocketKey = REDIS_KEYS.HOST_SOCKET(liveEvent.id);
+    const currentHostSocketId = await redisClient.get(hostSocketKey);
+
+    if (currentHostSocketId === socketId) {
+      // Start grace period and pause playback
+      await this.startHostGracePeriod(liveEvent.id, userId);
+
+      const position = getPosition(liveEvent);
+      await this.eventsRepository.pausePlayback(liveEvent.id, position);
+
+      return {
+        eventId: liveEvent.id,
+        currentTrackId: liveEvent.currentTrackId,
+        pausedPosition: position,
+      };
+    }
+
+    return null;
+  }
+
+  async startHostGracePeriod(eventId: string, userId: string) {
+    const redisClient = this.redisService.getClient();
+    await redisClient.set(REDIS_KEYS.HOST_DISCONNECT(eventId), userId);
+
+    await this.eventTimeoutsQueue.add(
+      BULL_JOBS.HOST_SOFT_TIMEOUT,
+      { eventId },
+      {
+        jobId: `soft-${eventId}`,
+        delay: BULL_JOBS.SOFT_TIMEOUT,
+      },
+    );
+
+    await this.eventTimeoutsQueue.add(
+      BULL_JOBS.HOST_HARD_TIMEOUT,
+      { eventId },
+      {
+        jobId: `hard-${eventId}`,
+        delay: BULL_JOBS.HARD_TIMEOUT,
+      },
+    );
   }
 }

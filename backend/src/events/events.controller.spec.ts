@@ -7,6 +7,9 @@ import { EventsGateway } from './events.gateway';
 import { YoutubeService } from '../tracks/youtube.service';
 import type { Request } from 'express';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { RedisService } from '../redis/redis.service';
+import { BULL_QUEUES } from './events.constants';
+import { getQueueToken } from '@nestjs/bullmq';
 
 describe('EventsController', () => {
   let controller: EventsController;
@@ -61,6 +64,23 @@ describe('EventsController', () => {
         {
           provide: EventEmitter2,
           useValue: { emit: jest.fn() },
+        },
+        {
+          provide: RedisService,
+          useValue: {
+            getClient: jest.fn(() => ({
+              get: jest.fn(),
+              set: jest.fn(),
+              del: jest.fn(),
+            })),
+          },
+        },
+        {
+          provide: getQueueToken(BULL_QUEUES.EVENT_TIMEOUTS),
+          useValue: {
+            add: jest.fn(),
+            getJob: jest.fn(),
+          },
         },
       ],
     }).compile();

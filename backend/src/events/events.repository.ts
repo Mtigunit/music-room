@@ -8,6 +8,7 @@ import {
   Visibility,
   Tags,
   EventStatus,
+  PlaybackStatus,
 } from '@prisma/client';
 import { TrackSearchResultDto } from '../tracks/dto/track-search-result.dto';
 
@@ -530,6 +531,142 @@ export class EventsRepository {
   async deleteEventTrack(id: string) {
     return this.prisma.eventTrack.delete({
       where: { id },
+    });
+  }
+
+  async updatePlaybackPlay(eventId: string) {
+    return this.prisma.event.update({
+      where: { id: eventId },
+      data: {
+        playbackStatus: PlaybackStatus.PLAYING,
+        currentTrackStartedAt: new Date(),
+      },
+    });
+  }
+
+  async updatePlaybackPause(eventId: string, positionMs: number) {
+    return this.prisma.event.update({
+      where: { id: eventId },
+      data: {
+        playbackStatus: PlaybackStatus.PAUSED,
+        currentTrackStartedAt: null,
+        pausedPlaybackPositionMs: positionMs,
+      },
+    });
+  }
+
+  async advanceQueue(eventId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const event = await tx.event.findUnique({ where: { id: eventId } });
+      if (!event) return null;
+
+      if (event.currentTrackId) {
+        await tx.eventTrack.update({
+          where: { id: event.currentTrackId },
+          data: { status: TrackStatus.ENDED },
+        });
+      }
+
+      const nextTrack = await tx.eventTrack.findFirst({
+        where: { eventId, status: TrackStatus.QUEUED },
+        orderBy: [{ voteScore: 'desc' }, { id: 'asc' }],
+      });
+
+      if (nextTrack) {
+        await tx.eventTrack.update({
+          where: { id: nextTrack.id },
+          data: { status: TrackStatus.PLAYING },
+        });
+        const updatedEvent = await tx.event.update({
+          where: { id: eventId },
+          data: {
+            currentTrackId: nextTrack.id,
+            currentTrackStartedAt: new Date(),
+            pausedPlaybackPositionMs: 0,
+            playbackStatus: PlaybackStatus.PLAYING,
+          },
+        });
+        return { event: updatedEvent, nextTrackId: nextTrack.id };
+      } else {
+        const updatedEvent = await tx.event.update({
+          where: { id: eventId },
+          data: {
+            currentTrackId: null,
+            currentTrackStartedAt: null,
+            pausedPlaybackPositionMs: 0,
+            playbackStatus: PlaybackStatus.PAUSED,
+          },
+        });
+        return { event: updatedEvent, nextTrackId: null };
+      }
+    });
+  }
+
+  async setInitialTrack(eventId: string, trackId: string) {
+    return this.prisma.event.update({
+      where: { id: eventId },
+      data: {
+        currentTrackId: trackId,
+        playbackStatus: PlaybackStatus.PAUSED,
+        currentTrackStartedAt: null,
+        pausedPlaybackPositionMs: 0,
+      },
+    });
+  }
+
+  async findHostLiveEvent(userId: string, excludeEventId?: string) {
+    return this.prisma.event.findFirst({
+      where: {
+        hostId: userId,
+        status: EventStatus.LIVE,
+        ...(excludeEventId && { id: { not: excludeEventId } }),
+      },
+      select: {
+        id: true,
+        currentTrackId: true,
+        playbackStatus: true,
+        currentTrackStartedAt: true,
+        pausedPlaybackPositionMs: true,
+      },
+    });
+  }
+
+  async startEvent(eventId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const firstTrack = await tx.eventTrack.findFirst({
+        where: { eventId, status: TrackStatus.QUEUED },
+        orderBy: [{ voteScore: 'desc' }, { id: 'asc' }],
+      });
+
+      return tx.event.update({
+        where: { id: eventId },
+        data: {
+          status: EventStatus.LIVE,
+          startDate: new Date(),
+          currentTrackId: firstTrack ? firstTrack.id : null,
+          playbackStatus: PlaybackStatus.PAUSED,
+          currentTrackStartedAt: null,
+          pausedPlaybackPositionMs: 0,
+        },
+      });
+    });
+  }
+
+  async endEvent(eventId: string) {
+    return this.prisma.event.update({
+      where: { id: eventId },
+      data: { status: EventStatus.ENDED },
+    });
+  }
+
+  async pausePlayback(eventId: string, position: number) {
+    return this.prisma.event.update({
+      where: { id: eventId },
+      data: {
+        playbackStatus: PlaybackStatus.PAUSED,
+        currentTrackStartedAt: null,
+        pausedPlaybackPositionMs: position,
+      },
     });
   }
 }

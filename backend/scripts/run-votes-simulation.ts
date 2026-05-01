@@ -7,8 +7,8 @@ import * as dotenv from 'dotenv';
 
 dotenv.config();
 
-const API_URL = process.env.API_URL || 'http://localhost:3000';
-const WS_URL = process.env.WS_URL || 'http://localhost:3000';
+const API_URL = 'http://localhost:3000';
+const WS_URL = 'http://localhost:3000';
 
 const USER1_EMAIL = 'vote-user1@example.com';
 const USER2_EMAIL = 'vote-user2@example.com';
@@ -29,7 +29,7 @@ const col = {
   cyan: '\x1b[36m',
   purple: '\x1b[35m',
 };
-const ok = (msg: string) => console.log(`${col.green}✔  ${msg}${col.reset}`);
+const ok   = (msg: string) => console.log(`${col.green}✔  ${msg}${col.reset}`);
 const fail = (msg: string) => console.log(`${col.red}✘  ${msg}${col.reset}`);
 const info = (msg: string) => console.log(`${col.cyan}ℹ  ${msg}${col.reset}`);
 const warn = (msg: string) => console.log(`${col.yellow}⚠  ${msg}${col.reset}`);
@@ -39,15 +39,15 @@ const step = (msg: string) => console.log(`\n${col.purple}━━ ${msg} ━━${
 let passed = 0, failed = 0;
 function assert(condition: boolean, label: string) {
   if (condition) { ok(label); passed++; }
-  else { fail(label); failed++; }
+  else           { fail(label); failed++; }
 }
 
 // ─── shared state ─────────────────────────────────────────────────────────────
-let publicEventId = '';
+let publicEventId  = '';
 let privateEventId = '';
-let inviteEventId = '';
-let timeEventId = '';
-let geoEventId = '';
+let inviteEventId  = '';
+let timeEventId    = '';
+let geoEventId     = '';
 
 let TRACK_ID_1 = '';
 let TRACK_ID_2 = '';
@@ -90,7 +90,6 @@ async function main() {
     const publicEvent = await apiCall('/events', 'POST', token1, {
       name: 'Public Vote Test Event',
       visibility: 'PUBLIC',
-      
       tracks: YOUTUBE_IDS,
       tags: ['POP'],
       startDate: new Date(Date.now() - 3600_000).toISOString(),
@@ -101,12 +100,21 @@ async function main() {
     const privateEvent = await apiCall('/events', 'POST', token1, {
       name: 'Private Vote Test Event',
       visibility: 'PRIVATE',
-      
       tracks: YOUTUBE_IDS,
       tags: ['POP'],
       startDate: new Date(Date.now() - 3600_000).toISOString(),
     });
     privateEventId = privateEvent.id;
+
+    // 3b-invite: Create EventInvite for User3 to test private event access
+    const user3 = await prisma.user.findUnique({ where: { email: USER3_EMAIL } });
+    await prisma.eventInvite.create({
+      data: {
+        eventId: privateEventId,
+        userId: user3!.id,
+      },
+    });
+    ok('EventInvite created for User3 to test private event');
 
     // 3c. Public but invite-only – user3 has no access
     const inviteEvent = await apiCall('/events', 'POST', token1, {
@@ -123,15 +131,14 @@ async function main() {
     const timeEvent = await apiCall('/events', 'POST', token1, {
       name: 'Time-Window Vote Test Event',
       visibility: 'PUBLIC',
-      
       tracks: YOUTUBE_IDS,
       tags: ['POP'],
       startDate: new Date(Date.now() - 3600_000).toISOString(),
       policies: [{
         policyType: PolicyType.TIME_WINDOW,
         config: {
-          startTime: new Date(Date.now() - 2 * 3600_000).toISOString(), // 2 h ago
-          endTime: new Date(Date.now() - 1 * 3600_000).toISOString(), // 1 h ago → CLOSED
+          startDate: new Date(Date.now() - 2 * 3600_000).toISOString(),
+          endDate:   new Date(Date.now() - 1 * 3600_000).toISOString(),
         },
       }],
     });
@@ -141,7 +148,6 @@ async function main() {
     const geoEvent = await apiCall('/events', 'POST', token1, {
       name: 'Geofence Vote Test Event',
       visibility: 'PUBLIC',
-      
       tracks: YOUTUBE_IDS,
       locationLat: 48.8584,
       locationLng: 2.2945,
@@ -176,16 +182,14 @@ async function main() {
 
     // ════════════════════════════════════════════════════════════════════════
     //  SUITE A – Multi-user voting on a PUBLIC event
-    //
-    //  server.to(eventId).emit() → broadcast reaches EVERY socket in the room,
-    //  including the voter's own socket. So for each vote we assert:
-    //    • ack        – direct return value (TrackVoteResultDto) to the voter
-    //    • self-bcast – voter also receives track:vote_updated broadcast
-    //    • peer-bcast – every other room member receives the same broadcast
     // ════════════════════════════════════════════════════════════════════════
     step('SUITE A – Multi-user voting on public event');
 
-    joinEvent(client1, publicEventId, true);
+    // Host must start the event before joining as host
+    step("starting event !!")
+    await startEvent(client1, publicEventId);
+     
+    // Host is already joined to room by event:start, guests join normally
     joinEvent(client2, publicEventId);
     joinEvent(client3, publicEventId);
     await sleep(400);
@@ -198,12 +202,12 @@ async function main() {
         waitForBroadcast(client3, TRACK_ID_1),
         emitVote(client1, publicEventId, TRACK_ID_1, 'up'),
       ]);
-      assert(ack?.score === 1, 'A-1 ack        – User1 UP Track1 → score 1');
-      assert(isValidResult(bcastSelf, publicEventId, TRACK_ID_1), 'A-1 self-bcast  – voter (Client1) received track:vote_updated');
-      assert(bcastSelf?.score === 1, 'A-1 self-bcast  – voter sees score 1');
-      assert(isValidResult(bcast2, publicEventId, TRACK_ID_1), 'A-1 peer-bcast  – Client2 received track:vote_updated');
-      assert(bcast2?.score === 1, 'A-1 peer-bcast  – Client2 sees score 1');
-      assert(isValidResult(bcast3, publicEventId, TRACK_ID_1), 'A-1 peer-bcast  – Client3 received track:vote_updated');
+      assert(ack?.score === 1,                                       'A-1 ack        – User1 UP Track1 → score 1');
+      assert(isValidResult(bcastSelf, publicEventId, TRACK_ID_1),   'A-1 self-bcast  – voter (Client1) received track:vote_updated');
+      assert(bcastSelf?.score === 1,                                 'A-1 self-bcast  – voter sees score 1');
+      assert(isValidResult(bcast2, publicEventId, TRACK_ID_1),      'A-1 peer-bcast  – Client2 received track:vote_updated');
+      assert(bcast2?.score === 1,                                    'A-1 peer-bcast  – Client2 sees score 1');
+      assert(isValidResult(bcast3, publicEventId, TRACK_ID_1),      'A-1 peer-bcast  – Client3 received track:vote_updated');
       printAck('A-1 ack         (User1)', ack);
       printBcast('A-1 self-bcast  (Client1)', bcastSelf);
       printBcast('A-1 peer-bcast  (Client2)', bcast2);
@@ -218,10 +222,10 @@ async function main() {
         waitForBroadcast(client3, TRACK_ID_1),
         emitVote(client2, publicEventId, TRACK_ID_1, 'up'),
       ]);
-      assert(ack?.score === 2, 'A-2 ack        – User2 UP Track1 → score 2');
+      assert(ack?.score === 2,       'A-2 ack        – User2 UP Track1 → score 2');
       assert(bcastSelf?.score === 2, 'A-2 self-bcast  – voter (Client2) sees score 2');
-      assert(bcast1?.score === 2, 'A-2 peer-bcast  – Client1 sees score 2');
-      assert(bcast3?.score === 2, 'A-2 peer-bcast  – Client3 sees score 2');
+      assert(bcast1?.score === 2,    'A-2 peer-bcast  – Client1 sees score 2');
+      assert(bcast3?.score === 2,    'A-2 peer-bcast  – Client3 sees score 2');
       printAck('A-2 ack         (User2)', ack);
       printBcast('A-2 self-bcast  (Client2)', bcastSelf);
       printBcast('A-2 peer-bcast  (Client1)', bcast1);
@@ -236,10 +240,10 @@ async function main() {
         waitForBroadcast(client3, TRACK_ID_1),
         emitVote(client3, publicEventId, TRACK_ID_1, 'up'),
       ]);
-      assert(ack?.score === 3, 'A-3 ack        – User3 UP Track1 → score 3 (public, outsider allowed)');
+      assert(ack?.score === 3,       'A-3 ack        – User3 UP Track1 → score 3 (public, outsider allowed)');
       assert(bcastSelf?.score === 3, 'A-3 self-bcast  – voter (Client3) sees score 3');
-      assert(bcast1?.score === 3, 'A-3 peer-bcast  – Client1 sees score 3');
-      assert(bcast2?.score === 3, 'A-3 peer-bcast  – Client2 sees score 3');
+      assert(bcast1?.score === 3,    'A-3 peer-bcast  – Client1 sees score 3');
+      assert(bcast2?.score === 3,    'A-3 peer-bcast  – Client2 sees score 3');
       printAck('A-3 ack         (User3)', ack);
       printBcast('A-3 self-bcast  (Client3)', bcastSelf);
       printBcast('A-3 peer-bcast  (Client1)', bcast1);
@@ -253,9 +257,9 @@ async function main() {
         waitForBroadcast(client2, TRACK_ID_2),
         emitVote(client1, publicEventId, TRACK_ID_2, 'down'),
       ]);
-      assert(ack?.score === -1, 'A-4 ack        – User1 DOWN Track2 → score -1');
+      assert(ack?.score === -1,       'A-4 ack        – User1 DOWN Track2 → score -1');
       assert(bcastSelf?.score === -1, 'A-4 self-bcast  – voter (Client1) sees score -1');
-      assert(bcast2?.score === -1, 'A-4 peer-bcast  – Client2 sees score -1');
+      assert(bcast2?.score === -1,    'A-4 peer-bcast  – Client2 sees score -1');
       printAck('A-4 ack         (User1)', ack);
       printBcast('A-4 self-bcast  (Client1)', bcastSelf);
       printBcast('A-4 peer-bcast  (Client2)', bcast2);
@@ -268,41 +272,39 @@ async function main() {
         waitForBroadcast(client2, TRACK_ID_2),
         emitVote(client2, publicEventId, TRACK_ID_2, 'down'),
       ]);
-      assert(ack?.score === -2, 'A-5 ack        – User2 DOWN Track2 → score -2');
+      assert(ack?.score === -2,       'A-5 ack        – User2 DOWN Track2 → score -2');
       assert(bcastSelf?.score === -2, 'A-5 self-bcast  – voter (Client2) sees score -2');
-      assert(bcast1?.score === -2, 'A-5 peer-bcast  – Client1 sees score -2');
+      assert(bcast1?.score === -2,    'A-5 peer-bcast  – Client1 sees score -2');
       printAck('A-5 ack         (User2)', ack);
       printBcast('A-5 self-bcast  (Client2)', bcastSelf);
       printBcast('A-5 peer-bcast  (Client1)', bcast1);
     }
 
-    // A-6: User1 flips UP→DOWN on Track1
-    //   User1 had +1, now -1 → diff -2 → score was 3, becomes 1
+    // A-6: User1 flips UP→DOWN on Track1  →  score 1
     {
       const [bcastSelf, bcast2, ack] = await Promise.all([
         waitForBroadcast(client1, TRACK_ID_1),
         waitForBroadcast(client2, TRACK_ID_1),
         emitVote(client1, publicEventId, TRACK_ID_1, 'down'),
       ]);
-      assert(ack?.score === 1, 'A-6 ack        – User1 flips to DOWN Track1 → score 1');
+      assert(ack?.score === 1,       'A-6 ack        – User1 flips to DOWN Track1 → score 1');
       assert(bcastSelf?.score === 1, 'A-6 self-bcast  – voter (Client1) sees score 1');
-      assert(bcast2?.score === 1, 'A-6 peer-bcast  – Client2 sees score 1');
+      assert(bcast2?.score === 1,    'A-6 peer-bcast  – Client2 sees score 1');
       printAck('A-6 ack         (User1 flip)', ack);
       printBcast('A-6 self-bcast  (Client1)', bcastSelf);
       printBcast('A-6 peer-bcast  (Client2)', bcast2);
     }
 
-    // A-7: User1 removes vote (none) on Track1
-    //   User1 had -1 → removed → diff +1 → score 2
+    // A-7: User1 removes vote (none) on Track1  →  score 2
     {
       const [bcastSelf, bcast2, ack] = await Promise.all([
         waitForBroadcast(client1, TRACK_ID_1),
         waitForBroadcast(client2, TRACK_ID_1),
         emitVote(client1, publicEventId, TRACK_ID_1, 'none'),
       ]);
-      assert(ack?.score === 2, 'A-7 ack        – User1 removes vote Track1 → score 2');
+      assert(ack?.score === 2,       'A-7 ack        – User1 removes vote Track1 → score 2');
       assert(bcastSelf?.score === 2, 'A-7 self-bcast  – voter (Client1) sees score 2');
-      assert(bcast2?.score === 2, 'A-7 peer-bcast  – Client2 sees score 2');
+      assert(bcast2?.score === 2,    'A-7 peer-bcast  – Client2 sees score 2');
       printAck('A-7 ack         (User1 none)', ack);
       printBcast('A-7 self-bcast  (Client1)', bcastSelf);
       printBcast('A-7 peer-bcast  (Client2)', bcast2);
@@ -327,12 +329,12 @@ async function main() {
       ]);
       await sleep(300);
       const dbScore = await getDbScore(publicEventId, TRACK_ID_3);
-      assert(dbScore === 2, `A-9 DB         – concurrent votes settle to score 2 (got ${dbScore})`);
-      assert(!isError(ack1), 'A-9 ack         – User1 received a valid ack');
-      assert(!isError(ack2), 'A-9 ack         – User2 received a valid ack');
-      assert(bcastSelf1 !== null, 'A-9 self-bcast  – Client1 received broadcast');
-      assert(bcastSelf2 !== null, 'A-9 self-bcast  – Client2 received broadcast');
-      assert(bcast3 !== null, 'A-9 peer-bcast  – Client3 received broadcast');
+      assert(dbScore === 2,           `A-9 DB         – concurrent votes settle to score 2 (got ${dbScore})`);
+      assert(!isError(ack1),          'A-9 ack         – User1 received a valid ack');
+      assert(!isError(ack2),          'A-9 ack         – User2 received a valid ack');
+      assert(bcastSelf1 !== null,     'A-9 self-bcast  – Client1 received broadcast');
+      assert(bcastSelf2 !== null,     'A-9 self-bcast  – Client2 received broadcast');
+      assert(bcast3 !== null,         'A-9 peer-bcast  – Client3 received broadcast');
       printAck('A-9 ack (User1)', ack1);
       printAck('A-9 ack (User2)', ack2);
       printBcast('A-9 bcast (Client3)', bcast3);
@@ -340,12 +342,18 @@ async function main() {
 
     await showDbState(publicEventId, 'Public Event – after Suite A');
 
+    // End the public event before starting a new one
+    step('ENDING PUBLIC EVENT');
+    await endEvent(client1, publicEventId);
+
     // ════════════════════════════════════════════════════════════════════════
     //  SUITE B – PRIVATE event (user3 rejected)
     // ════════════════════════════════════════════════════════════════════════
     step('SUITE B – Private event access control');
 
-    joinEvent(client1, privateEventId, true);
+    const startAckB = await startEvent(client1, privateEventId);
+    step('B-0 – Host started private event → event:start ack OK');
+    // Host is already joined to room by event:start, guest joins normally
     joinEvent(client3, privateEventId);
     await sleep(400);
 
@@ -356,19 +364,25 @@ async function main() {
       printAck('B-1 ack (User1/Host)', ack);
     }
 
-    // B-2: Outsider (user3) is rejected
+    // B-2: Invited user3 can now vote on private event
     {
       const ack = await emitVote(client3, privateEventId, TRACK_ID_1, 'up');
-      assert(isError(ack), 'B-2 ack – Outsider blocked on private event → ForbiddenException');
-      printAck('B-2 ack (User3 – expect error)', ack);
+      assert(!isError(ack), 'B-2 ack – Invited User3 can vote on private event → Success');
+      printAck('B-2 ack (User3 – invited user)', ack);
     }
+
+    // End the private event before starting a new one
+    step('ENDING PRIVATE EVENT');
+    await endEvent(client1, privateEventId);
 
     // ════════════════════════════════════════════════════════════════════════
     //  SUITE C – INVITE-ONLY event (user3 rejected)
     // ════════════════════════════════════════════════════════════════════════
     step('SUITE C – Invite-only event access control');
 
-    joinEvent(client1, inviteEventId, true);
+    const startAckC = await startEvent(client1, inviteEventId);
+    step('C-0 – Host started invite-only event → event:start ack OK');
+    // Host is already joined to room by event:start, guest joins normally
     joinEvent(client3, inviteEventId);
     await sleep(400);
 
@@ -386,12 +400,18 @@ async function main() {
       printAck('C-2 ack (User3 – expect error)', ack);
     }
 
+    // End the invite-only event before starting a new one
+    step('ENDING INVITE-ONLY EVENT');
+    await endEvent(client1, inviteEventId);
+
     // ════════════════════════════════════════════════════════════════════════
     //  SUITE D – TIME-WINDOW policy (window already CLOSED)
     // ════════════════════════════════════════════════════════════════════════
     step('SUITE D – Time-window policy (voting window already closed)');
 
-    joinEvent(client1, timeEventId, true);
+    const startAckD = await startEvent(client1, timeEventId);
+    step('D-0 – Host started time-window event → event:start ack OK');
+    // Host is already joined to room by event:start, guest joins normally
     joinEvent(client2, timeEventId);
     await sleep(400);
 
@@ -409,12 +429,18 @@ async function main() {
       printAck('D-2 ack (User2 – expect error: voting closed)', ack);
     }
 
+    // End the time-window event before starting a new one
+    step('ENDING TIME-WINDOW EVENT');
+    await endEvent(client1, timeEventId);
+
     // ════════════════════════════════════════════════════════════════════════
     //  SUITE E – GEOFENCE policy (event at Eiffel Tower, radius 100 m)
     // ════════════════════════════════════════════════════════════════════════
     step('SUITE E – Geofence policy (event at Eiffel Tower, radius 100 m)');
 
-    joinEvent(client1, geoEventId, true);
+    const startAckE = await startEvent(client1, geoEventId);
+    step('E-0 – Host started geo event → event:start ack OK');
+    // Host is already joined to room by event:start, guest joins normally
     joinEvent(client2, geoEventId);
     await sleep(400);
 
@@ -439,9 +465,9 @@ async function main() {
         waitForBroadcast(client2, TRACK_ID_1),
         emitVoteWithLocation(client1, geoEventId, TRACK_ID_1, 'up', 48.8584, 2.2945),
       ]);
-      assert(!isError(ack), 'E-3 ack        – Vote inside geofence (Eiffel Tower) → allowed');
-      assert(bcastSelf !== null, 'E-3 self-bcast  – voter (Client1) received track:vote_updated');
-      assert(bcast2 !== null, 'E-3 peer-bcast  – Client2 received track:vote_updated');
+      assert(!isError(ack),       'E-3 ack        – Vote inside geofence (Eiffel Tower) → allowed');
+      assert(bcastSelf !== null,  'E-3 self-bcast  – voter (Client1) received track:vote_updated');
+      assert(bcast2 !== null,     'E-3 peer-bcast  – Client2 received track:vote_updated');
       printAck('E-3 ack         (User1 inside fence)', ack);
       printBcast('E-3 self-bcast  (Client1)', bcastSelf);
       printBcast('E-3 peer-bcast  (Client2)', bcast2);
@@ -454,9 +480,9 @@ async function main() {
         waitForBroadcast(client2, TRACK_ID_1),
         emitVoteWithLocation(client2, geoEventId, TRACK_ID_1, 'up', 48.8585, 2.2946),
       ]);
-      assert(!isError(ack), 'E-4 ack        – User2 inside geofence → allowed');
+      assert(!isError(ack),      'E-4 ack        – User2 inside geofence → allowed');
       assert(bcastSelf !== null, 'E-4 self-bcast  – voter (Client2) received track:vote_updated');
-      assert(bcast1 !== null, 'E-4 peer-bcast  – Client1 received track:vote_updated');
+      assert(bcast1 !== null,    'E-4 peer-bcast  – Client1 received track:vote_updated');
       printAck('E-4 ack         (User2 inside fence)', ack);
       printBcast('E-4 self-bcast  (Client2)', bcastSelf);
       printBcast('E-4 peer-bcast  (Client1)', bcast1);
@@ -471,7 +497,7 @@ async function main() {
 
     const standaloneClient = await connectSocket('Client-Standalone (no room)', token3);
     clients.push(standaloneClient);
-    // Deliberately skip joinEvent – WS is connected but socket is in no room
+    // Deliberately skip startEvent + joinEvent – WS connected but socket in no room
     {
       const ack = await emitVote(standaloneClient, publicEventId, TRACK_ID_1, 'up');
       assert(isError(ack), 'F-1 ack – Vote without joining room → WsException "must join room"');
@@ -506,6 +532,35 @@ async function main() {
 //  HELPERS
 // ─────────────────────────────────────────────────────────────────────────────
 
+/**
+ * Emit event:start and await the ack.
+ * Must be called once per event before the host does event:host_join.
+ * Subsequent rejoins (after host_leave / disconnect) skip this step.
+ */
+function startEvent(client: Socket, eventId: string): Promise<any> {
+  return new Promise((resolve) => {
+    console.log(`[${client.id}] Starting event ${eventId}`);
+    const timer = setTimeout(() => resolve({ error: 'Timeout' }), 5000);
+    client.emit('event:start', { eventId }, (ack: any) => {
+      clearTimeout(timer);
+      console.log(`[${client.id}] event:start ack`, ack);
+      resolve(ack ?? null);
+    });
+  });
+}
+
+function endEvent(client: Socket, eventId: string): Promise<any> {
+  return new Promise((resolve) => {
+    console.log(`[${client.id}] Ending event ${eventId}`);
+    const timer = setTimeout(() => resolve({ error: 'Timeout' }), 5000);
+    client.emit('event:end', { eventId }, (ack: any) => {
+      clearTimeout(timer);
+      console.log(`[${client.id}] event:end ack`, ack);
+      resolve(ack ?? null);
+    });
+  });
+}
+
 /** Join an event room via the correct WS event. */
 function joinEvent(client: Socket, eventId: string, isHost = false) {
   if (isHost) {
@@ -517,7 +572,7 @@ function joinEvent(client: Socket, eventId: string, isHost = false) {
 
 /**
  * Emit track:vote and resolve with the ack payload.
- * Resolves null after 3 s if the server never acks (e.g. no callback).
+ * Resolves null after 3 s if the server never acks.
  */
 function emitVote(
   client: Socket,
@@ -632,36 +687,30 @@ async function cleanupAll() {
 async function login(identifier: string, password: string): Promise<string> {
   const res = await fetch(`${API_URL}/auth/login`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 
+      'Content-Type': 'application/json',
+      'x-platform': 'test-script',
+      'x-device-model': 'test-environment',
+      'x-app-version': '1.0.0'
+    },
     body: JSON.stringify({ identifier, password }),
   });
   if (!res.ok) throw new Error(`Login failed for ${identifier}: ${res.status} ${await res.text()}`);
   return ((await res.json()) as any).access_token;
 }
 
-// async function apiCall(path: string, method: string, token: string, body?: any) {
-//   const res = await fetch(`${API_URL}${path}`, {
-//     method,
-//     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-//     body: body ? JSON.stringify(body) : undefined,
-//   });
-//   if (!res.ok) throw new Error(`API Error [${method} ${path}]: ${res.status} – ${await res.text()}`);
-//   return res.json();
-// }
-
 async function apiCall(
   path: string,
   method: string,
   token: string,
-  body?: Record<string, any>
+  body?: Record<string, any>,
 ) {
   let formData: FormData | undefined;
 
   if (body) {
     formData = new FormData();
-
     Object.entries(body).forEach(([key, value]) => {
-      if (Array.isArray(value) || typeof value === "object") {
+      if (Array.isArray(value) || typeof value === 'object') {
         formData!.append(key, JSON.stringify(value));
       } else {
         formData!.append(key, String(value));
@@ -672,15 +721,16 @@ async function apiCall(
   const res = await fetch(`${API_URL}${path}`, {
     method,
     headers: {
-      Authorization: `Bearer ${token}`, // ✅ correct
+      Authorization: `Bearer ${token}`,
+      'x-platform': 'test-script',
+      'x-device-model': 'test-environment',
+      'x-app-version': '1.0.0'
     },
     body: formData,
   });
 
   if (!res.ok) {
-    throw new Error(
-      `API Error [${method} ${path}]: ${res.status} – ${await res.text()}`
-    );
+    throw new Error(`API Error [${method} ${path}]: ${res.status} – ${await res.text()}`);
   }
 
   return res.json();
@@ -688,7 +738,16 @@ async function apiCall(
 
 function connectSocket(name: string, token: string): Promise<Socket> {
   return new Promise((resolve, reject) => {
-    const client = io(WS_URL, { path: '/ws', auth: { token }, transports: ['websocket'] });
+    const client = io(WS_URL, { 
+      path: '/ws', 
+      auth: { token }, 
+      transports: ['websocket'],
+      extraHeaders: {
+        'x-platform': 'test-script',
+        'x-device-model': 'test-environment',
+        'x-app-version': '1.0.0'
+      }
+    });
 
     client.on('connect', () => {
       console.log(`${col.green}  [${name}]${col.reset} connected (id=${client.id})`);
@@ -699,11 +758,12 @@ function connectSocket(name: string, token: string): Promise<Socket> {
       reject(err);
     });
 
-    // Passive logger – assertions use waitForBroadcast() which registers its own handler
     client.on('track:vote_updated', (data: any) =>
       console.log(`${col.purple}  [${name}] ← track:vote_updated${col.reset}`, JSON.stringify(data)),
     );
-    client.on("exception", (data: any) => console.log(`${col.red}  [${name}] ← exception${col.reset}`, JSON.stringify(data)));
+    client.on('exception', (data: any) =>
+      console.log(`${col.red}  [${name}] ← exception${col.reset}`, JSON.stringify(data)),
+    );
     client.on('room:playlist:updated', (data: any) =>
       console.log(`${col.yellow}  [${name}] ← room:playlist:updated${col.reset}`, JSON.stringify(data)),
     );
