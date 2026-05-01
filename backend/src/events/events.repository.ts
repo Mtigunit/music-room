@@ -613,4 +613,60 @@ export class EventsRepository {
       },
     });
   }
+
+  async findHostLiveEvent(userId: string, excludeEventId?: string) {
+    return this.prisma.event.findFirst({
+      where: {
+        hostId: userId,
+        status: EventStatus.LIVE,
+        ...(excludeEventId && { id: { not: excludeEventId } }),
+      },
+      select: {
+        id: true,
+        currentTrackId: true,
+        playbackStatus: true,
+        currentTrackStartedAt: true,
+        pausedPlaybackPositionMs: true,
+      },
+    });
+  }
+
+  async startEvent(eventId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      const firstTrack = await tx.eventTrack.findFirst({
+        where: { eventId, status: TrackStatus.QUEUED },
+        orderBy: [{ voteScore: 'desc' }, { id: 'asc' }],
+      });
+
+      return tx.event.update({
+        where: { id: eventId },
+        data: {
+          status: EventStatus.LIVE,
+          startDate: new Date(),
+          currentTrackId: firstTrack ? firstTrack.id : null,
+          playbackStatus: PlaybackStatus.PAUSED,
+          currentTrackStartedAt: null,
+          pausedPlaybackPositionMs: 0,
+        },
+      });
+    });
+  }
+
+  async endEvent(eventId: string) {
+    return this.prisma.event.update({
+      where: { id: eventId },
+      data: { status: EventStatus.ENDED },
+    });
+  }
+
+  async pausePlayback(eventId: string, position: number) {
+    return this.prisma.event.update({
+      where: { id: eventId },
+      data: {
+        playbackStatus: PlaybackStatus.PAUSED,
+        currentTrackStartedAt: null,
+        pausedPlaybackPositionMs: position,
+      },
+    });
+  }
 }

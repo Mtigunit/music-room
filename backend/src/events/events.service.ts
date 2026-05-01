@@ -5,8 +5,6 @@ import {
   ForbiddenException,
   ConflictException,
   BadRequestException,
-  Inject,
-  forwardRef,
 } from '@nestjs/common';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
@@ -18,6 +16,10 @@ import { YoutubeService } from '../tracks/youtube.service';
 import { EventStatus, PlaybackStatus, Visibility } from '@prisma/client';
 import { TrackSearchResultDto } from '../tracks/dto/track-search-result.dto';
 import { ClientMetaDto } from '../common/dto/client-meta.dto';
+import { REDIS_KEYS, BULL_JOBS, BULL_QUEUES } from './events.constants';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Queue } from 'bullmq';
+import { RedisService } from '../redis/redis.service';
 import { WS_EVENTS } from './events.constants';
 
 export function getPosition(event: {
@@ -42,10 +44,12 @@ export function getPosition(event: {
 export class EventsService {
   constructor(
     private readonly eventsRepository: EventsRepository,
-    @Inject(forwardRef(() => EventsGateway))
     private readonly eventsGateway: EventsGateway,
     private readonly youtubeService: YoutubeService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly redisService: RedisService,
+    @InjectQueue(BULL_QUEUES.EVENT_TIMEOUTS)
+    private readonly eventTimeoutsQueue: Queue,
   ) {}
 
   async create(
@@ -527,7 +531,7 @@ export class EventsService {
     console.log('trackId', trackId);
     console.log('currentTrackId', event.currentTrackId);
     if (trackId && event.currentTrackId !== trackId) {
-      return { message: 'Stale track skip ignored' };
+      throw new ConflictException('Track mismatch—client state is stale');
     }
 
     const result = await this.eventsRepository.advanceQueue(eventId);
@@ -555,5 +559,114 @@ export class EventsService {
     }
 
     return { currentTrackId: updatedEvent.currentTrackId };
+  }
+
+  async startEvent(eventId: string, userId: string, socketId: string) {
+    // Check if host already has another live event
+    const existingLiveEvent = await this.eventsRepository.findById(eventId);
+    if (!existingLiveEvent) {
+      throw new NotFoundException('Event not found');
+    }
+    if (existingLiveEvent.hostId !== userId) {
+      throw new ForbiddenException('Only host can start the event');
+    }
+    if (existingLiveEvent.status === EventStatus.LIVE) {
+      throw new ForbiddenException('Event is already live');
+    }
+
+    const hostHasOtherLiveEvent = await this.eventsRepository.findHostLiveEvent(
+      userId,
+      eventId,
+    );
+    if (hostHasOtherLiveEvent) {
+      throw new ForbiddenException('Host already has another live event');
+    }
+
+    // Start the event with first track
+    const updatedEvent = await this.eventsRepository.startEvent(eventId);
+
+    // Store host information in Redis
+    const redisClient = this.redisService.getClient();
+    await redisClient.set(REDIS_KEYS.EVENT_HOST(eventId), userId);
+    await redisClient.set(REDIS_KEYS.HOST_SOCKET(eventId), socketId);
+
+    return updatedEvent;
+  }
+
+  async endEvent(eventId: string, userId: string) {
+    const event = await this.eventsRepository.findById(eventId);
+    if (!event) {
+      throw new NotFoundException('Event not found');
+    }
+    if (event.hostId !== userId) {
+      throw new ForbiddenException('Only host can end the event');
+    }
+    if (event.status !== EventStatus.LIVE) {
+      throw new ForbiddenException('Event is not live');
+    }
+
+    await this.eventsRepository.endEvent(eventId);
+
+    // Clean up Redis keys
+    const redisClient = this.redisService.getClient();
+    await redisClient.del(
+      ...[
+        REDIS_KEYS.EVENT_HOST(eventId),
+        REDIS_KEYS.HOST_SOCKET(eventId),
+        REDIS_KEYS.HOST_DISCONNECT(eventId),
+      ],
+    );
+
+    return event;
+  }
+
+  async handleHostDisconnect(userId: string, socketId: string) {
+    const liveEvent = await this.eventsRepository.findHostLiveEvent(userId);
+    if (!liveEvent) {
+      return null;
+    }
+
+    const redisClient = this.redisService.getClient();
+    const hostSocketKey = REDIS_KEYS.HOST_SOCKET(liveEvent.id);
+    const currentHostSocketId = await redisClient.get(hostSocketKey);
+
+    if (currentHostSocketId === socketId) {
+      // Start grace period and pause playback
+      await this.startHostGracePeriod(liveEvent.id, userId);
+
+      const position = getPosition(liveEvent);
+      await this.eventsRepository.pausePlayback(liveEvent.id, position);
+
+      return {
+        eventId: liveEvent.id,
+        currentTrackId: liveEvent.currentTrackId,
+        pausedPosition: position,
+      };
+    }
+
+    return null;
+  }
+
+  async startHostGracePeriod(eventId: string, userId: string) {
+    const redisClient = this.redisService.getClient();
+    await redisClient.set(REDIS_KEYS.HOST_DISCONNECT(eventId), userId);
+
+    await this.eventTimeoutsQueue.add(
+      BULL_JOBS.HOST_SOFT_TIMEOUT,
+      { eventId },
+      {
+        jobId: `soft-${eventId}`,
+        delay: BULL_JOBS.SOFT_TIMEOUT,
+      },
+    );
+
+    await this.eventTimeoutsQueue.add(
+      BULL_JOBS.HOST_HARD_TIMEOUT,
+      { eventId },
+      {
+        jobId: `hard-${eventId}`,
+        delay: BULL_JOBS.HARD_TIMEOUT,
+      },
+    );
   }
 }

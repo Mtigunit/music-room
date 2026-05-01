@@ -195,20 +195,8 @@ export class CreateEventDto {
   @ValidateNested({ each: true })
   @Type(() => LicensePolicyDto)
   @Transform(({ value }: { value: unknown }) => {
-    if (value === undefined || value === null || value === '') return undefined;
-    let parsed: unknown = value;
-    if (
-      typeof value === 'string' &&
-      value.trim().startsWith('[') &&
-      value.trim().endsWith(']')
-    ) {
-      try {
-        parsed = JSON.parse(value);
-      } catch {
-        return value;
-      }
-    }
-    const arr = Array.isArray(parsed) ? parsed : [parsed];
+    if (value === undefined || value === null) return undefined;
+    const arr = Array.isArray(value) ? value : [value];
     return plainToInstance(LicensePolicyDto, arr);
   })
   policies?: LicensePolicyDto[];
