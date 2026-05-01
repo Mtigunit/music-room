@@ -14,7 +14,7 @@ import {
   IsBoolean,
   IsDate,
 } from 'class-validator';
-import { Transform, Type } from 'class-transformer';
+import { Transform, Type, plainToInstance } from 'class-transformer';
 import { Visibility, PolicyType, Prisma, Tags } from '@prisma/client';
 
 const normalizeProviderTrackIds = (value: unknown): unknown => {
@@ -194,22 +194,22 @@ export class CreateEventDto {
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => LicensePolicyDto)
-  @Transform(({ value }) => {
+  @Transform(({ value }: { value: unknown }) => {
     if (value === undefined || value === null || value === '') return undefined;
+    let parsed: unknown = value;
     if (
       typeof value === 'string' &&
       value.trim().startsWith('[') &&
       value.trim().endsWith(']')
     ) {
       try {
-        return JSON.parse(value) as LicensePolicyDto[];
+        parsed = JSON.parse(value);
       } catch {
         return value;
       }
     }
-    return Array.isArray(value)
-      ? (value as LicensePolicyDto[])
-      : [value as LicensePolicyDto];
+    const arr = Array.isArray(parsed) ? parsed : [parsed];
+    return plainToInstance(LicensePolicyDto, arr);
   })
   policies?: LicensePolicyDto[];
 

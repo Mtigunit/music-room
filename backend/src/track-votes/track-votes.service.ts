@@ -72,15 +72,15 @@ export class TrackVotesService {
     for (const policy of event.policies) {
       if (policy.policyType === PolicyType.TIME_WINDOW) {
         const config = policy.config as {
-          startTime?: string;
-          endTime?: string;
+          startDate?: string;
+          endDate?: string;
         };
         const now = new Date();
 
-        if (config.startTime != null && now < new Date(config.startTime)) {
+        if (config.startDate != null && now < new Date(config.startDate)) {
           throw new ForbiddenException('Voting has not started yet');
         }
-        if (config.endTime != null && now > new Date(config.endTime)) {
+        if (config.endDate != null && now > new Date(config.endDate)) {
           throw new ForbiddenException('Voting is closed');
         }
       }

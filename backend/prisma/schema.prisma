@@ -10,7 +10,6 @@ datasource db {
 // ENUMS
 // ======================================================
 enum PlaybackStatus {
-  STOPPED
   PLAYING
   PAUSED
 }
@@ -18,7 +17,7 @@ enum PlaybackStatus {
 enum TrackStatus {
   QUEUED
   PLAYING
-  PLAYED
+  ENDED
 }
 
 enum Visibility {
@@ -207,7 +206,7 @@ model Event {
   locationLng     Float?
 
   // Track
-  playbackStatus           PlaybackStatus @default(STOPPED)
+  playbackStatus           PlaybackStatus @default(PAUSED)
   currentTrackStartedAt    DateTime?
   pausedPlaybackPositionMs Int?
   currentTrackId           String?      @unique
