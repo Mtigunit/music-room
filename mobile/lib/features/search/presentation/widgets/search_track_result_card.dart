@@ -1,6 +1,17 @@
+// ignore_for_file: discarded_futures, use_build_context_synchronously
+import 'dart:async';
+
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:music_room/core/widgets/app_snackbar.dart';
+import 'package:music_room/di/injection_container.dart';
+import 'package:music_room/features/events/data/datasources/event_remote_datasource.dart'
+    show MyEventItemModel;
+import 'package:music_room/features/playlist/domain/entities/playlist_entity.dart'
+    show PlaylistEntity, TrackSearchEntity;
 import 'package:music_room/features/search/data/models/search_result_models.dart';
+import 'package:music_room/features/search/presentation/widgets/modals/select_event_sheet.dart';
+import 'package:music_room/features/search/presentation/widgets/modals/select_playlist_sheet.dart';
 
 enum TrackAction { addToEvent, saveToPlaylist }
 
@@ -124,17 +135,103 @@ class SearchTrackResultCard extends StatelessWidget {
   void _handleTrackAction(BuildContext context, TrackAction action) {
     switch (action) {
       case TrackAction.addToEvent:
-        AppSnackbar.showError(
-          context,
-          'Add to event feature coming soon.',
-        );
+        _addToEvent(context);
         return;
       case TrackAction.saveToPlaylist:
-        AppSnackbar.showError(
-          context,
-          'Save to playlist feature coming soon.',
-        );
+        _saveToPlaylist(context);
         return;
+    }
+  }
+
+  Future<void> _saveToPlaylist(BuildContext context) async {
+    final selected = await showModalBottomSheet<PlaylistEntity>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => const SelectPlaylistSheet(),
+    );
+
+    if (selected == null) return;
+
+    final ds = InjectionContainer().playlistRemoteDataSource;
+    final track = TrackSearchEntity(
+      providerTrackId: item.providerTrackId,
+      title: item.title,
+      durationMs: item.durationMs,
+      artist: item.artist,
+      thumbnailUrl: item.thumbnailUrl,
+    );
+
+    // show ephemeral progress dialog
+    unawaited(
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(child: CircularProgressIndicator()),
+      ),
+    );
+
+    try {
+      await ds.addTrackToPlaylist(selected.id, track);
+      if (!context.mounted) return;
+      Navigator.of(context).pop(); // dismiss progress
+      AppSnackbar.showSuccess(context, 'Added to "${selected.name}"');
+    } on DioException catch (e) {
+      if (!context.mounted) return;
+      Navigator.of(context).pop();
+      final data = e.response?.data;
+      final msg = data is Map<String, dynamic>
+          ? data['message'] as String?
+          : null;
+      AppSnackbar.showError(
+        context,
+        msg ?? 'Unable to add track to playlist.',
+      );
+    } on Object {
+      if (!context.mounted) return;
+      Navigator.of(context).pop();
+      AppSnackbar.showError(context, 'Unable to add track to playlist.');
+    }
+  }
+
+  Future<void> _addToEvent(BuildContext context) async {
+    final selected = await showModalBottomSheet<MyEventItemModel>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => const SelectEventSheet(),
+    );
+
+    if (selected == null) return;
+
+    final eventId = selected.id;
+    final ds = InjectionContainer().musicVoteRemoteDataSource;
+
+    unawaited(
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(child: CircularProgressIndicator()),
+      ),
+    );
+
+    try {
+      await ds.addTrackToEvent(eventId, item.providerTrackId);
+      if (!context.mounted) return;
+      Navigator.of(context).pop();
+      AppSnackbar.showSuccess(context, 'Queued in "${selected.name}"');
+    } on DioException catch (e) {
+      if (!context.mounted) return;
+      Navigator.of(context).pop();
+      final data = e.response?.data;
+      final msg = data is Map<String, dynamic>
+          ? data['message'] as String?
+          : null;
+      AppSnackbar.showError(context, msg ?? 'Unable to queue track.');
+    } on Object {
+      if (!context.mounted) return;
+      Navigator.of(context).pop();
+      AppSnackbar.showError(context, 'Unable to queue track.');
     }
   }
 }

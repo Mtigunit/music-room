@@ -72,28 +72,32 @@ class SearchRemoteDataSource implements ISearchRemoteDataSource {
     Response<dynamic> response,
     T Function(Map<String, dynamic>) mapper,
   ) {
-    final body = response.data;
-    if (body == null) {
-      return <T>[];
-    }
+    try {
+      final body = response.data;
+      if (body == null) return <T>[];
 
-    final List<dynamic> items;
-    if (body is List<dynamic>) {
-      items = body;
-    } else if (body is Map<String, dynamic>) {
-      final data = body['data'];
-      if (data is List<dynamic>) {
-        items = data;
+      final List<dynamic> items;
+      if (body is List<dynamic>) {
+        items = body;
+      } else if (body is Map<String, dynamic>) {
+        final data = body['data'];
+        if (data is List<dynamic>) {
+          items = data;
+        } else {
+          items = const <dynamic>[];
+        }
       } else {
         items = const <dynamic>[];
       }
-    } else {
-      items = const <dynamic>[];
-    }
 
-    return items
-        .whereType<Map<String, dynamic>>()
-        .map(mapper)
-        .toList(growable: false);
+      return items
+          .whereType<Map<String, dynamic>>()
+          .map(mapper)
+          .toList(growable: false);
+    } on Object catch (_) {
+      // Be defensive: never throw from parsing — return empty list so callers
+      // can treat the result as 'no items' and stop loading.
+      return <T>[];
+    }
   }
 }
