@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 class SkeletonBox extends StatelessWidget {
   const SkeletonBox({
-    required this.animation,
+    required this.opacity,
     super.key,
     this.width,
     this.height,
@@ -10,7 +10,7 @@ class SkeletonBox extends StatelessWidget {
     this.shape = BoxShape.rectangle,
   });
 
-  final Animation<double> animation;
+  final double opacity;
   final double? width;
   final double? height;
   final BorderRadius? borderRadius;
@@ -23,12 +23,8 @@ class SkeletonBox extends StatelessWidget {
         ? Colors.white.withValues(alpha: 0.09)
         : Colors.black.withValues(alpha: 0.09);
 
-    return AnimatedBuilder(
-      animation: animation,
-      builder: (context, child) {
-        final opacity = 0.55 + (animation.value * 0.35);
-        return Opacity(opacity: opacity, child: child);
-      },
+    return Opacity(
+      opacity: opacity,
       child: Container(
         width: width,
         height: height,

@@ -33,22 +33,28 @@ class _PlaylistPageSkeletonState extends State<PlaylistPageSkeleton>
 
   @override
   Widget build(BuildContext context) {
-    return ListView.separated(
-      physics: const AlwaysScrollableScrollPhysics(),
-      padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
-      itemCount: 5,
-      separatorBuilder: (_, _) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        return _PlaylistTileSkeleton(animation: _controller);
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        final opacity = 0.55 + (_controller.value * 0.35);
+        return ListView.separated(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
+          itemCount: 5,
+          separatorBuilder: (_, _) => const SizedBox(height: 12),
+          itemBuilder: (context, index) {
+            return _PlaylistTileSkeleton(opacity: opacity);
+          },
+        );
       },
     );
   }
 }
 
 class _PlaylistTileSkeleton extends StatelessWidget {
-  const _PlaylistTileSkeleton({required this.animation});
+  const _PlaylistTileSkeleton({required this.opacity});
 
-  final Animation<double> animation;
+  final double opacity;
 
   @override
   Widget build(BuildContext context) {
@@ -68,7 +74,7 @@ class _PlaylistTileSkeleton extends StatelessWidget {
         child: Row(
           children: [
             SkeletonBox(
-              animation: animation,
+              opacity: opacity,
               width: 64,
               height: 64,
               borderRadius: BorderRadius.circular(12),
@@ -82,14 +88,14 @@ class _PlaylistTileSkeleton extends StatelessWidget {
                     children: [
                       Expanded(
                         child: SkeletonBox(
-                          animation: animation,
+                          opacity: opacity,
                           height: 16,
                           borderRadius: BorderRadius.circular(8),
                         ),
                       ),
                       const SizedBox(width: 8),
                       SkeletonBox(
-                        animation: animation,
+                        opacity: opacity,
                         width: 68,
                         height: 24,
                         borderRadius: BorderRadius.circular(999),
@@ -98,7 +104,7 @@ class _PlaylistTileSkeleton extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   SkeletonBox(
-                    animation: animation,
+                    opacity: opacity,
                     width: 180,
                     height: 14,
                     borderRadius: BorderRadius.circular(8),
@@ -109,13 +115,13 @@ class _PlaylistTileSkeleton extends StatelessWidget {
                     runSpacing: 8,
                     children: [
                       SkeletonBox(
-                        animation: animation,
+                        opacity: opacity,
                         width: 54,
                         height: 22,
                         borderRadius: BorderRadius.circular(999),
                       ),
                       SkeletonBox(
-                        animation: animation,
+                        opacity: opacity,
                         width: 72,
                         height: 22,
                         borderRadius: BorderRadius.circular(999),

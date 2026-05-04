@@ -39,39 +39,45 @@ class _SearchResultsSkeletonState extends State<SearchResultsSkeleton>
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.sizeOf(context).width;
-    final isWide = width >= 720;
-    final padding = EdgeInsets.fromLTRB(
-      isWide ? 28 : 20,
-      4,
-      isWide ? 28 : 20,
-      20,
-    );
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        final opacity = 0.55 + (_controller.value * 0.35);
+        final width = MediaQuery.sizeOf(context).width;
+        final isWide = width >= 720;
+        final padding = EdgeInsets.fromLTRB(
+          isWide ? 28 : 20,
+          4,
+          isWide ? 28 : 20,
+          20,
+        );
 
-    return ListView.separated(
-      padding: padding,
-      itemCount: 5,
-      separatorBuilder: (_, _) => const SizedBox(height: 12),
-      itemBuilder: (context, index) {
-        switch (widget.filter) {
-          case SearchFilterType.tracks:
-            return _TrackSkeleton(animation: _controller);
-          case SearchFilterType.users:
-            return _UserSkeleton(animation: _controller);
-          case SearchFilterType.events:
-            return _EventSkeleton(animation: _controller);
-          case SearchFilterType.playlists:
-            return _PlaylistSkeleton(animation: _controller);
-        }
+        return ListView.separated(
+          padding: padding,
+          itemCount: 5,
+          separatorBuilder: (_, _) => const SizedBox(height: 12),
+          itemBuilder: (context, index) {
+            switch (widget.filter) {
+              case SearchFilterType.tracks:
+                return _TrackSkeleton(opacity: opacity);
+              case SearchFilterType.users:
+                return _UserSkeleton(opacity: opacity);
+              case SearchFilterType.events:
+                return _EventSkeleton(opacity: opacity);
+              case SearchFilterType.playlists:
+                return _PlaylistSkeleton(opacity: opacity);
+            }
+          },
+        );
       },
     );
   }
 }
 
 class _TrackSkeleton extends StatelessWidget {
-  const _TrackSkeleton({required this.animation});
+  const _TrackSkeleton({required this.opacity});
 
-  final Animation<double> animation;
+  final double opacity;
 
   @override
   Widget build(BuildContext context) {
@@ -89,7 +95,7 @@ class _TrackSkeleton extends StatelessWidget {
       child: Row(
         children: [
           SkeletonBox(
-            animation: animation,
+            opacity: opacity,
             width: 64,
             height: 64,
             borderRadius: BorderRadius.circular(14),
@@ -100,13 +106,13 @@ class _TrackSkeleton extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SkeletonBox(
-                  animation: animation,
+                  opacity: opacity,
                   height: 16,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 const SizedBox(height: 6),
                 SkeletonBox(
-                  animation: animation,
+                  opacity: opacity,
                   width: 140,
                   height: 14,
                   borderRadius: BorderRadius.circular(8),
@@ -116,7 +122,7 @@ class _TrackSkeleton extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           SkeletonBox(
-            animation: animation,
+            opacity: opacity,
             width: 48,
             height: 48,
             borderRadius: BorderRadius.circular(16),
@@ -128,9 +134,9 @@ class _TrackSkeleton extends StatelessWidget {
 }
 
 class _UserSkeleton extends StatelessWidget {
-  const _UserSkeleton({required this.animation});
+  const _UserSkeleton({required this.opacity});
 
-  final Animation<double> animation;
+  final double opacity;
 
   @override
   Widget build(BuildContext context) {
@@ -149,7 +155,7 @@ class _UserSkeleton extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SkeletonBox(
-            animation: animation,
+            opacity: opacity,
             width: 60,
             height: 60,
             shape: BoxShape.circle,
@@ -163,14 +169,14 @@ class _UserSkeleton extends StatelessWidget {
                   children: [
                     Expanded(
                       child: SkeletonBox(
-                        animation: animation,
+                        opacity: opacity,
                         height: 16,
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
                     const SizedBox(width: 8),
                     SkeletonBox(
-                      animation: animation,
+                      opacity: opacity,
                       width: 74,
                       height: 24,
                       borderRadius: BorderRadius.circular(999),
@@ -179,13 +185,13 @@ class _UserSkeleton extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 SkeletonBox(
-                  animation: animation,
+                  opacity: opacity,
                   height: 14,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 const SizedBox(height: 6),
                 SkeletonBox(
-                  animation: animation,
+                  opacity: opacity,
                   width: 180,
                   height: 14,
                   borderRadius: BorderRadius.circular(8),
@@ -200,9 +206,9 @@ class _UserSkeleton extends StatelessWidget {
 }
 
 class _EventSkeleton extends StatelessWidget {
-  const _EventSkeleton({required this.animation});
+  const _EventSkeleton({required this.opacity});
 
-  final Animation<double> animation;
+  final double opacity;
 
   @override
   Widget build(BuildContext context) {
@@ -221,7 +227,7 @@ class _EventSkeleton extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SkeletonBox(
-            animation: animation,
+            opacity: opacity,
             width: 72,
             height: 72,
             borderRadius: BorderRadius.circular(14),
@@ -235,14 +241,14 @@ class _EventSkeleton extends StatelessWidget {
                   children: [
                     Expanded(
                       child: SkeletonBox(
-                        animation: animation,
+                        opacity: opacity,
                         height: 16,
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
                     const SizedBox(width: 8),
                     SkeletonBox(
-                      animation: animation,
+                      opacity: opacity,
                       width: 60,
                       height: 24,
                       borderRadius: BorderRadius.circular(999),
@@ -251,13 +257,13 @@ class _EventSkeleton extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 SkeletonBox(
-                  animation: animation,
+                  opacity: opacity,
                   height: 14,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 const SizedBox(height: 6),
                 SkeletonBox(
-                  animation: animation,
+                  opacity: opacity,
                   width: 180,
                   height: 14,
                   borderRadius: BorderRadius.circular(8),
@@ -268,13 +274,13 @@ class _EventSkeleton extends StatelessWidget {
                   runSpacing: 8,
                   children: [
                     SkeletonBox(
-                      animation: animation,
+                      opacity: opacity,
                       width: 84,
                       height: 22,
                       borderRadius: BorderRadius.circular(999),
                     ),
                     SkeletonBox(
-                      animation: animation,
+                      opacity: opacity,
                       width: 72,
                       height: 22,
                       borderRadius: BorderRadius.circular(999),
@@ -291,9 +297,9 @@ class _EventSkeleton extends StatelessWidget {
 }
 
 class _PlaylistSkeleton extends StatelessWidget {
-  const _PlaylistSkeleton({required this.animation});
+  const _PlaylistSkeleton({required this.opacity});
 
-  final Animation<double> animation;
+  final double opacity;
 
   @override
   Widget build(BuildContext context) {
@@ -312,7 +318,7 @@ class _PlaylistSkeleton extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SkeletonBox(
-            animation: animation,
+            opacity: opacity,
             width: 72,
             height: 72,
             borderRadius: BorderRadius.circular(14),
@@ -326,14 +332,14 @@ class _PlaylistSkeleton extends StatelessWidget {
                   children: [
                     Expanded(
                       child: SkeletonBox(
-                        animation: animation,
+                        opacity: opacity,
                         height: 16,
                         borderRadius: BorderRadius.circular(8),
                       ),
                     ),
                     const SizedBox(width: 8),
                     SkeletonBox(
-                      animation: animation,
+                      opacity: opacity,
                       width: 64,
                       height: 24,
                       borderRadius: BorderRadius.circular(999),
@@ -342,7 +348,7 @@ class _PlaylistSkeleton extends StatelessWidget {
                 ),
                 const SizedBox(height: 6),
                 SkeletonBox(
-                  animation: animation,
+                  opacity: opacity,
                   height: 14,
                   borderRadius: BorderRadius.circular(8),
                 ),
@@ -352,13 +358,13 @@ class _PlaylistSkeleton extends StatelessWidget {
                   runSpacing: 8,
                   children: [
                     SkeletonBox(
-                      animation: animation,
+                      opacity: opacity,
                       width: 68,
                       height: 22,
                       borderRadius: BorderRadius.circular(999),
                     ),
                     SkeletonBox(
-                      animation: animation,
+                      opacity: opacity,
                       width: 82,
                       height: 22,
                       borderRadius: BorderRadius.circular(999),

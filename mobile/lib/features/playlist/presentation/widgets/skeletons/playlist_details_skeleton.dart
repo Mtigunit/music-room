@@ -42,6 +42,28 @@ class _PlaylistDetailsSkeletonState extends State<PlaylistDetailsSkeleton>
       250.0,
     );
 
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, _) {
+        final opacity = 0.55 + (_controller.value * 0.35);
+        return _buildScrollView(
+          theme,
+          colorScheme,
+          safeAreaTop,
+          heroHeight,
+          opacity,
+        );
+      },
+    );
+  }
+
+  Widget _buildScrollView(
+    ThemeData theme,
+    ColorScheme colorScheme,
+    double safeAreaTop,
+    double heroHeight,
+    double opacity,
+  ) {
     return CustomScrollView(
       physics: const NeverScrollableScrollPhysics(),
       slivers: [
@@ -77,7 +99,7 @@ class _PlaylistDetailsSkeletonState extends State<PlaylistDetailsSkeleton>
                     ),
                     Center(
                       child: SkeletonBox(
-                        animation: _controller,
+                        opacity: opacity,
                         width: 72,
                         height: 72,
                         shape: BoxShape.circle,
@@ -92,13 +114,13 @@ class _PlaylistDetailsSkeletonState extends State<PlaylistDetailsSkeleton>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     SkeletonBox(
-                      animation: _controller,
+                      opacity: opacity,
                       height: 28,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     const SizedBox(height: 8),
                     SkeletonBox(
-                      animation: _controller,
+                      opacity: opacity,
                       width: 160,
                       height: 18,
                       borderRadius: BorderRadius.circular(10),
@@ -110,7 +132,7 @@ class _PlaylistDetailsSkeletonState extends State<PlaylistDetailsSkeleton>
                       children: List.generate(
                         4,
                         (_) => SkeletonBox(
-                          animation: _controller,
+                          opacity: opacity,
                           width: 74,
                           height: 28,
                           borderRadius: BorderRadius.circular(20),
@@ -119,20 +141,20 @@ class _PlaylistDetailsSkeletonState extends State<PlaylistDetailsSkeleton>
                     ),
                     const SizedBox(height: 14),
                     SkeletonBox(
-                      animation: _controller,
+                      opacity: opacity,
                       height: 16,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     const SizedBox(height: 8),
                     SkeletonBox(
-                      animation: _controller,
+                      opacity: opacity,
                       width: 220,
                       height: 16,
                       borderRadius: BorderRadius.circular(10),
                     ),
                     const SizedBox(height: 16),
                     SkeletonBox(
-                      animation: _controller,
+                      opacity: opacity,
                       height: 54,
                       borderRadius: BorderRadius.circular(22),
                     ),
@@ -150,13 +172,13 @@ class _PlaylistDetailsSkeletonState extends State<PlaylistDetailsSkeleton>
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 SkeletonBox(
-                  animation: _controller,
+                  opacity: opacity,
                   width: 90,
                   height: 24,
                   borderRadius: BorderRadius.circular(10),
                 ),
                 SkeletonBox(
-                  animation: _controller,
+                  opacity: opacity,
                   width: 110,
                   height: 16,
                   borderRadius: BorderRadius.circular(10),
@@ -172,7 +194,7 @@ class _PlaylistDetailsSkeletonState extends State<PlaylistDetailsSkeleton>
               (context, index) {
                 return Padding(
                   padding: EdgeInsets.only(bottom: index == 4 ? 0 : 12),
-                  child: _TrackTileSkeleton(animation: _controller),
+                  child: _TrackTileSkeleton(opacity: opacity),
                 );
               },
               childCount: 5,
@@ -185,9 +207,9 @@ class _PlaylistDetailsSkeletonState extends State<PlaylistDetailsSkeleton>
 }
 
 class _TrackTileSkeleton extends StatelessWidget {
-  const _TrackTileSkeleton({required this.animation});
+  const _TrackTileSkeleton({required this.opacity});
 
-  final Animation<double> animation;
+  final double opacity;
 
   @override
   Widget build(BuildContext context) {
@@ -206,7 +228,7 @@ class _TrackTileSkeleton extends StatelessWidget {
       child: Row(
         children: [
           SkeletonBox(
-            animation: animation,
+            opacity: opacity,
             width: 58,
             height: 58,
             borderRadius: BorderRadius.circular(14),
@@ -217,13 +239,13 @@ class _TrackTileSkeleton extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SkeletonBox(
-                  animation: animation,
+                  opacity: opacity,
                   height: 16,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 const SizedBox(height: 8),
                 SkeletonBox(
-                  animation: animation,
+                  opacity: opacity,
                   width: 140,
                   height: 14,
                   borderRadius: BorderRadius.circular(8),
@@ -237,14 +259,14 @@ class _TrackTileSkeleton extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               SkeletonBox(
-                animation: animation,
+                opacity: opacity,
                 width: 44,
                 height: 14,
                 borderRadius: BorderRadius.circular(8),
               ),
               const SizedBox(height: 10),
               SkeletonBox(
-                animation: animation,
+                opacity: opacity,
                 width: 22,
                 height: 22,
                 borderRadius: BorderRadius.circular(20),
