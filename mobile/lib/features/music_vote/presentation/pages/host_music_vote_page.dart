@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/di/injection_container.dart';
+import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
+import 'package:music_room/features/auth/presentation/state/auth_state.dart';
 import 'package:music_room/features/music_vote/presentation/state/music_vote_cubit.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/event_ended_overlay.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/music_vote_view.dart';
@@ -20,14 +22,25 @@ class HostMusicVotePage extends StatelessWidget {
 
   final String? eventId;
 
+  String? _currentUserId(BuildContext context) {
+    final authState = context.read<AuthBloc>().state;
+    if (authState is AuthAuthenticated) return authState.user.id;
+    if (authState is LoginSuccess) return authState.user.id;
+    if (authState is RegisterSuccess) return authState.user.id;
+    if (authState is GoogleLoginSuccess) return authState.user.id;
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final userId = _currentUserId(context);
+
     return BlocProvider(
       create: (_) {
         final cubit = MusicVoteCubit(
-          remoteDataSource: InjectionContainer().musicVoteRemoteDataSource,
+          repository: InjectionContainer().musicVoteRepository,
           socketClient: InjectionContainer().socketClient,
-          tokenStorageService: InjectionContainer().tokenStorageService,
+          userId: userId,
         );
         final id = eventId;
         if (id != null && id.isNotEmpty) {

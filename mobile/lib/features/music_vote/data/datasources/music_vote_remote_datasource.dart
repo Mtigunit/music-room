@@ -21,6 +21,9 @@ abstract class IMusicVoteRemoteDataSource {
     String eventId,
     String providerTrackId,
   );
+
+  /// DELETE /events/{eventId}/tracks/{providerTrackId} — remove a track.
+  Future<void> removeTrackFromEvent(String eventId, String providerTrackId);
 }
 
 class MusicVoteRemoteDataSource implements IMusicVoteRemoteDataSource {
@@ -126,6 +129,37 @@ class MusicVoteRemoteDataSource implements IMusicVoteRemoteDataSource {
       throw DioException(
         requestOptions: RequestOptions(
           path: '${AppConfig.eventsEndpoint}/$eventId/tracks',
+        ),
+        error: e,
+      );
+    }
+  }
+
+  @override
+  Future<void> removeTrackFromEvent(
+    String eventId,
+    String providerTrackId,
+  ) async {
+    try {
+      final response = await _apiClient.delete<dynamic>(
+        '${AppConfig.eventsEndpoint}/$eventId/tracks/$providerTrackId',
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return;
+      }
+
+      throw DioException(
+        requestOptions: response.requestOptions,
+        response: response,
+        type: DioExceptionType.badResponse,
+      );
+    } on DioException {
+      rethrow;
+    } on Object catch (e) {
+      throw DioException(
+        requestOptions: RequestOptions(
+          path: '${AppConfig.eventsEndpoint}/$eventId/tracks/$providerTrackId',
         ),
         error: e,
       );

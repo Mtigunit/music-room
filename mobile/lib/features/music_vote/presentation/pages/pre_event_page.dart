@@ -3,8 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/di/injection_container.dart';
+import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
+import 'package:music_room/features/auth/presentation/state/auth_state.dart';
 import 'package:music_room/features/music_vote/presentation/state/music_vote_cubit.dart';
-import 'package:music_room/features/music_vote/presentation/widgets/pre_event_info_view.dart';
+import 'package:music_room/features/music_vote/presentation/widgets/guest_event_info_view.dart';
+import 'package:music_room/features/music_vote/presentation/widgets/host_event_info_view.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/skeletons/pre_event_skeleton.dart';
 import 'package:music_room/routes/route_names.dart';
 
@@ -16,14 +19,25 @@ class PreEventPage extends StatelessWidget {
 
   final String eventId;
 
+  String? _currentUserId(BuildContext context) {
+    final authState = context.read<AuthBloc>().state;
+    if (authState is AuthAuthenticated) return authState.user.id;
+    if (authState is LoginSuccess) return authState.user.id;
+    if (authState is RegisterSuccess) return authState.user.id;
+    if (authState is GoogleLoginSuccess) return authState.user.id;
+    return null;
+  }
+
   @override
   Widget build(BuildContext context) {
+    final userId = _currentUserId(context);
+
     return BlocProvider(
       create: (_) {
         final cubit = MusicVoteCubit(
-          remoteDataSource: InjectionContainer().musicVoteRemoteDataSource,
+          repository: InjectionContainer().musicVoteRepository,
           socketClient: InjectionContainer().socketClient,
-          tokenStorageService: InjectionContainer().tokenStorageService,
+          userId: userId,
         );
         unawaited(cubit.loadRoom(eventId));
         return cubit;
@@ -50,10 +64,14 @@ class PreEventPage extends StatelessWidget {
             return const PreEventSkeleton();
           }
 
-          return PreEventInfoView(
-            event: state.event!,
-            tracks: state.tracks,
-          );
+          final event = state.event!;
+          final isHost = userId == event.hostId;
+
+          if (isHost) {
+            return HostEventInfoView(event: event, tracks: state.tracks);
+          } else {
+            return GuestEventInfoView(event: event, tracks: state.tracks);
+          }
         },
       ),
     );

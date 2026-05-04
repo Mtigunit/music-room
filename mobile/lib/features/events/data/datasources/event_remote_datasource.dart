@@ -121,9 +121,11 @@ class EventRemoteDataSource implements IEventRemoteDataSource {
   @override
   Future<String> createEvent(EventModel event, XFile? coverImage) async {
     try {
-      final formData = FormData.fromMap(
-        await _buildFormDataMap(event, coverImage),
-      );
+      final mapData = await _buildFormDataMap(event, coverImage);
+      debugPrint('--- [CREATE EVENT] SENDING DATA ---');
+      debugPrint(mapData.toString());
+
+      final formData = FormData.fromMap(mapData);
 
       final response = await _apiClient.post<Map<String, dynamic>>(
         AppConfig.eventsEndpoint,
@@ -131,9 +133,16 @@ class EventRemoteDataSource implements IEventRemoteDataSource {
       );
 
       return _parseCreateEventResponse(response);
-    } on DioException {
+    } on DioException catch (e) {
+      debugPrint('--- [CREATE EVENT] DIO ERROR THROWN ---');
+      debugPrint(e.toString());
+      if (e.response != null) {
+        debugPrint('Response Data: ${e.response?.data}');
+      }
       rethrow;
     } on Object catch (e) {
+      debugPrint('--- [CREATE EVENT] UNKNOWN ERROR THROWN ---');
+      debugPrint(e.toString());
       throw DioException(
         requestOptions: RequestOptions(path: AppConfig.eventsEndpoint),
         error: e,

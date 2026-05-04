@@ -96,6 +96,8 @@ class MusicVoteView extends StatelessWidget {
                   child: QueueSection(
                     tracks: state.tracks,
                     eventId: eventId,
+                    isHost: isHost,
+                    isEnded: state.event?.status == 'ENDED',
                   ),
                 ),
                 const SliverToBoxAdapter(child: SizedBox(height: 32)),
