@@ -12,6 +12,7 @@ import 'package:music_room/features/playlist/data/datasources/playlist_remote_da
 import 'package:music_room/features/playlist/domain/entities/playlist_entity.dart';
 import 'package:music_room/features/playlist/presentation/pages/create_playlist_page.dart';
 import 'package:music_room/features/playlist/presentation/pages/playlist_details_page.dart';
+import 'package:music_room/features/playlist/presentation/widgets/skeletons/playlist_page_skeleton.dart';
 
 class PlaylistPage extends StatefulWidget {
   const PlaylistPage({super.key});
@@ -228,9 +229,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
 
                             Expanded(
                               child: _isLoading
-                                  ? const Center(
-                                      child: CircularProgressIndicator(),
-                                    )
+                                  ? const PlaylistPageSkeleton()
                                   : _errorMessage != null
                                   ? EmptyStateWidget(
                                       icon: Icons.error_outline,

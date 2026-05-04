@@ -17,6 +17,7 @@ import 'package:music_room/features/playlist/presentation/state/playlist_event.d
 import 'package:music_room/features/playlist/presentation/state/playlist_state.dart';
 import 'package:music_room/features/playlist/presentation/widgets/playlist_track_search_modal.dart';
 import 'package:music_room/features/playlist/presentation/widgets/playlist_user_invite_bottom_sheet.dart';
+import 'package:music_room/features/playlist/presentation/widgets/skeletons/playlist_details_skeleton.dart';
 
 class PlaylistDetailsPage extends StatefulWidget {
   const PlaylistDetailsPage({
@@ -475,7 +476,7 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage>
       body: SafeArea(
         top: false,
         child: _isLoading
-            ? const Center(child: CircularProgressIndicator())
+            ? const PlaylistDetailsSkeleton()
             : _errorMessage != null
             ? _ErrorState(
                 message: _errorMessage!,
