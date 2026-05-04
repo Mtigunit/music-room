@@ -196,12 +196,20 @@ class SearchCubit extends Cubit<SearchState> {
 
     try {
       final results = switch (filter) {
-        SearchFilterType.tracks => await _remoteDataSource.searchTracks(query),
-        SearchFilterType.users => await _remoteDataSource.searchUsers(query),
-        SearchFilterType.events => await _remoteDataSource.searchEvents(query),
-        SearchFilterType.playlists => await _remoteDataSource.searchPlaylists(
-          query,
-        ),
+        SearchFilterType.tracks => List<SearchResultModel>.from(
+          await _remoteDataSource.searchTracks(query),
+        ).toList(growable: false),
+        SearchFilterType.users => List<SearchResultModel>.from(
+          await _remoteDataSource.searchUsers(query),
+        ).toList(growable: false),
+        SearchFilterType.events => List<SearchResultModel>.from(
+          await _remoteDataSource.searchEvents(query),
+        ).toList(growable: false),
+        SearchFilterType.playlists => List<SearchResultModel>.from(
+          await _remoteDataSource.searchPlaylists(
+            query,
+          ),
+        ).toList(growable: false),
       };
 
       if (isClosed || requestId != _requestId) {
