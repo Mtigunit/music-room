@@ -33,8 +33,13 @@ class _SelectEventSheetState extends State<SelectEventSheet> {
     });
 
     try {
-      final hosted = await _eventDs.fetchHostedEvents();
-      final invited = await _eventDs.fetchInvitedEvents();
+      // Fetch hosted and invited events in parallel to reduce load time.
+      final results = await Future.wait<List<MyEventItemModel>>([
+        _eventDs.fetchHostedEvents(),
+        _eventDs.fetchInvitedEvents(),
+      ]);
+      final hosted = results[0];
+      final invited = results[1];
       if (!mounted) return;
       setState(() {
         _events = [...hosted, ...invited];
