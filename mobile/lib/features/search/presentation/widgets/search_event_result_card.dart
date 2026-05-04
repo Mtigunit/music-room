@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:music_room/features/search/data/models/search_result_models.dart';
 
 class SearchEventResultCard extends StatelessWidget {
@@ -135,44 +136,11 @@ String _formatDateLabel(String? rawValue) {
   }
 
   final local = parsed.toLocal();
-  final month = _monthName(local.month);
-  final day = local.day;
-  final hour = local.hour % 12 == 0 ? 12 : local.hour % 12;
-  final minute = local.minute.toString().padLeft(2, '0');
-  final period = local.hour >= 12 ? 'PM' : 'AM';
-  return '$month $day, $hour:$minute $period';
+  // Use intl DateFormat for consistent, local-aware formatting.
+  return DateFormat('MMM d, h:mm a').format(local);
 }
 
-String _monthName(int month) {
-  switch (month) {
-    case 1:
-      return 'Jan';
-    case 2:
-      return 'Feb';
-    case 3:
-      return 'Mar';
-    case 4:
-      return 'Apr';
-    case 5:
-      return 'May';
-    case 6:
-      return 'Jun';
-    case 7:
-      return 'Jul';
-    case 8:
-      return 'Aug';
-    case 9:
-      return 'Sep';
-    case 10:
-      return 'Oct';
-    case 11:
-      return 'Nov';
-    case 12:
-      return 'Dec';
-    default:
-      return 'Date';
-  }
-}
+// Removed manual month mapping in favor of `intl` formatting.
 
 class _EventChip extends StatelessWidget {
   const _EventChip({
