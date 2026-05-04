@@ -18,10 +18,14 @@ class QueueSection extends StatefulWidget {
     required this.tracks,
     super.key,
     this.eventId,
+    this.isHost = false,
+    this.isEnded = false,
   });
 
   final List<EventTrackModel> tracks;
   final String? eventId;
+  final bool isHost;
+  final bool isEnded;
 
   @override
   State<QueueSection> createState() => _QueueSectionState();
@@ -108,6 +112,9 @@ class _QueueSectionState extends State<QueueSection> {
                     rank: index + 1,
                     voteCount: _voteCounts[track.id] ?? track.voteScore,
                     hasVoted: _votedIds.contains(track.id),
+                    isHost: widget.isHost,
+                    eventId: widget.eventId,
+                    isEnded: widget.isEnded,
                     onVote: () {
                       setState(() {
                         final recomputedHasVoted = _votedIds.contains(track.id);
@@ -333,6 +340,9 @@ class QueueTrackItem extends StatelessWidget {
     required this.hasVoted,
     required this.voteCount,
     required this.onVote,
+    this.isHost = false,
+    this.isEnded = false,
+    this.eventId,
     super.key,
   });
 
@@ -341,6 +351,48 @@ class QueueTrackItem extends StatelessWidget {
   final bool hasVoted;
   final int voteCount;
   final VoidCallback onVote;
+  final bool isHost;
+  final bool isEnded;
+  final String? eventId;
+
+  void _showRemoveConfirmation(BuildContext context) {
+    if (eventId == null) return;
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (dialogContext) {
+          return AlertDialog(
+            title: const Text('Remove Track?'),
+            content: Text(
+              "Are you sure you want to remove '${track.title}' "
+              'from the queue?',
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(dialogContext).pop(),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () {
+                  unawaited(
+                    context.read<MusicVoteCubit>().removeTrack(
+                      eventId!,
+                      track.providerTrackId,
+                    ),
+                  );
+                  Navigator.of(dialogContext).pop();
+                },
+                child: const Text(
+                  'Remove',
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -419,6 +471,22 @@ class QueueTrackItem extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 8),
+
+          // Remove button for host
+          if (isHost && !isEnded) ...[
+            IconButton(
+              onPressed: () => _showRemoveConfirmation(context),
+              icon: Icon(
+                Icons.close_rounded,
+                color: colorScheme.onSurface.withValues(alpha: 0.35),
+                size: 20,
+              ),
+              visualDensity: VisualDensity.compact,
+              padding: EdgeInsets.zero,
+              constraints: const BoxConstraints(),
+            ),
+            const SizedBox(width: 8),
+          ],
 
           // Vote chip
           _VoteChip(

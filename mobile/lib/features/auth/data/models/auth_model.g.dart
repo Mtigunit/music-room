@@ -30,9 +30,7 @@ VerifyResetOtpResponse _$VerifyResetOtpResponseFromJson(
 
 Map<String, dynamic> _$VerifyResetOtpResponseToJson(
   VerifyResetOtpResponse instance,
-) => <String, dynamic>{
-  'passwordResetToken': instance.passwordResetToken,
-};
+) => <String, dynamic>{'passwordResetToken': instance.passwordResetToken};
 
 MessageResponse _$MessageResponseFromJson(Map<String, dynamic> json) =>
     MessageResponse(message: json['message'] as String);

@@ -1,14 +1,12 @@
 import 'dart:async';
-import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/realtime/socket_client.dart';
 import 'package:music_room/core/realtime/socket_events.dart';
-import 'package:music_room/core/services/token_storage_service.dart';
-import 'package:music_room/features/music_vote/data/datasources/music_vote_remote_datasource.dart';
 import 'package:music_room/features/music_vote/data/models/event_detail_model.dart';
 import 'package:music_room/features/music_vote/data/models/event_track_model.dart';
+import 'package:music_room/features/music_vote/domain/repositories/music_vote_repository.dart';
 
 enum HostConnectionStatus { disconnected, reconnected }
 
@@ -71,23 +69,21 @@ class MusicVoteState {
 
 class MusicVoteCubit extends Cubit<MusicVoteState> {
   MusicVoteCubit({
-    required IMusicVoteRemoteDataSource remoteDataSource,
+    required MusicVoteRepository repository,
     required SocketClient socketClient,
-    required TokenStorageService tokenStorageService,
-  }) : _remoteDataSource = remoteDataSource,
+    String? userId,
+  }) : _repository = repository,
        _socketClient = socketClient,
-       _tokenStorageService = tokenStorageService,
+       _currentUserId = userId,
        super(const MusicVoteState());
 
-  final IMusicVoteRemoteDataSource _remoteDataSource;
+  final MusicVoteRepository _repository;
   final SocketClient _socketClient;
-  final TokenStorageService _tokenStorageService;
 
   String? _activeEventId;
   bool _socketListenersAttached = false;
 
-  String? _currentUserId;
-  bool _userIdLoaded = false;
+  final String? _currentUserId;
 
   /// Loads the event details and queued tracks concurrently.
   Future<void> loadRoom(String eventId) async {
@@ -97,8 +93,8 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
 
     try {
       final results = await Future.wait([
-        _remoteDataSource.getEventDetails(eventId),
-        _remoteDataSource.getEventTracks(eventId),
+        _repository.getEventDetails(eventId),
+        _repository.getEventTracks(eventId),
       ]);
 
       if (isClosed) return;
@@ -114,7 +110,6 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
         ),
       );
 
-      await _loadCurrentUserId();
       await _joinEventRoom();
     } on DioException catch (e) {
       if (isClosed) return;
@@ -142,12 +137,12 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
     emit(state.copyWith(isAddingTrack: true, clearError: true));
 
     try {
-      await _remoteDataSource.addTrackToEvent(eventId, providerTrackId);
+      await _repository.addTrack(eventId, providerTrackId);
 
       if (isClosed) return;
 
       // Re-fetch to get the server's canonical ordering.
-      final tracks = await _remoteDataSource.getEventTracks(eventId);
+      final tracks = await _repository.getEventTracks(eventId);
 
       if (isClosed) return;
 
@@ -168,6 +163,29 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
           error: 'Unable to add track.',
         ),
       );
+    }
+  }
+
+  /// Removes a track from the event queue and optimistically updates the
+  /// local state.
+  Future<void> removeTrack(String eventId, String providerTrackId) async {
+    try {
+      await _repository.removeTrack(eventId, providerTrackId);
+
+      if (isClosed) return;
+
+      // Optimistically update the local state: filter out the removed track.
+      final updatedTracks = state.tracks
+          .where((t) => t.providerTrackId != providerTrackId)
+          .toList();
+
+      emit(state.copyWith(tracks: updatedTracks, clearError: true));
+    } on DioException catch (e) {
+      if (isClosed) return;
+      emit(state.copyWith(error: _extractDioMessage(e)));
+    } on Object {
+      if (isClosed) return;
+      emit(state.copyWith(error: 'Unable to remove track.'));
     }
   }
 
@@ -273,7 +291,8 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
       ..on(SocketEvent.eventCount.value, _handleEventCount)
       ..on(SocketEvent.hostSoftDisconnect.value, _handleHostSoftDisconnect)
       ..on(SocketEvent.hostReconnected.value, _handleHostReconnected)
-      ..on(SocketEvent.trackAdd.value, _handleTrackAdded);
+      ..on(SocketEvent.trackAdded.value, _handleTrackAdded)
+      ..on(SocketEvent.trackRemoved.value, _handleTrackRemoved);
     _socketListenersAttached = true;
   }
 
@@ -287,7 +306,8 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
       ..off(SocketEvent.eventCount.value)
       ..off(SocketEvent.hostSoftDisconnect.value)
       ..off(SocketEvent.hostReconnected.value)
-      ..off(SocketEvent.trackAdd.value);
+      ..off(SocketEvent.trackAdded.value)
+      ..off(SocketEvent.trackRemoved.value);
     _socketListenersAttached = false;
   }
 
@@ -350,14 +370,38 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
     try {
       final newTrack = EventTrackModel.fromJson(payload);
 
-      // Prevent duplicate additions if already in list
-      if (state.tracks.any((t) => t.id == newTrack.id)) return;
+      // Prevent duplicate additions (Check by providerTrackId to be safe)
+      if (state.tracks.any(
+        (t) => t.providerTrackId == newTrack.providerTrackId,
+      )) {
+        return;
+      }
 
+      // Append to the bottom of the list
       final updatedTracks = List<EventTrackModel>.from(state.tracks)
         ..add(newTrack);
+
       emit(state.copyWith(tracks: updatedTracks));
     } on Object {
       // Silent ignore for malformed payload
+    }
+  }
+
+  void _handleTrackRemoved(dynamic payload) {
+    if (!_isRelevantEventPayload(payload)) return;
+    if (payload is! Map<String, dynamic>) return;
+
+    final providerTrackId = payload['providerTrackId'];
+    if (providerTrackId is! String || providerTrackId.isEmpty) return;
+
+    final updatedTracks = state.tracks
+        .where((t) => t.providerTrackId != providerTrackId)
+        .toList();
+
+    // Best Practice: Only emit if the list actually changed to prevent
+    // UI flicker
+    if (updatedTracks.length != state.tracks.length) {
+      emit(state.copyWith(tracks: updatedTracks));
     }
   }
 
@@ -424,7 +468,6 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
     if (eventId.isEmpty) return;
     if (!_socketClient.isConnected) return;
 
-    await _loadCurrentUserId();
     final hostId = event.hostId;
     final isHost = hostId.isNotEmpty && hostId == _currentUserId;
     final eventName = isHost
@@ -432,59 +475,6 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
         : SocketEvent.eventJoin.value;
 
     _socketClient.emit(eventName, <String, dynamic>{'eventId': eventId});
-  }
-
-  Future<void> _loadCurrentUserId() async {
-    if (_userIdLoaded) return;
-    _userIdLoaded = true;
-
-    final userJson = await _tokenStorageService.getUserProfile();
-    if (userJson != null && userJson.isNotEmpty) {
-      try {
-        final parsed = jsonDecode(userJson);
-        if (parsed is Map<String, dynamic>) {
-          final id = parsed['id'] ?? parsed['userId'];
-          if (id is String && id.isNotEmpty) {
-            _currentUserId = id;
-            return;
-          }
-        }
-      } on Object {
-        _currentUserId = null;
-      }
-    }
-
-    final token = await _tokenStorageService.getToken();
-    _currentUserId = _extractUserIdFromJwt(token);
-  }
-
-  String? _extractUserIdFromJwt(String? token) {
-    if (token == null || token.isEmpty) return null;
-    final parts = token.split('.');
-    if (parts.length < 2) return null;
-
-    try {
-      final normalized = base64Url.normalize(parts[1]);
-      final payloadJson = utf8.decode(base64Url.decode(normalized));
-      final payload = jsonDecode(payloadJson);
-      if (payload is! Map<String, dynamic>) return null;
-
-      final candidates = <dynamic>[
-        payload['userId'],
-        payload['id'],
-        payload['sub'],
-      ];
-
-      for (final candidate in candidates) {
-        if (candidate is String && candidate.isNotEmpty) {
-          return candidate;
-        }
-      }
-    } on Object {
-      return null;
-    }
-
-    return null;
   }
 
   String _extractDioMessage(DioException exception) {
