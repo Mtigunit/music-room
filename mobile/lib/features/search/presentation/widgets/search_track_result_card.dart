@@ -165,7 +165,11 @@ class SearchTrackResultCard extends StatelessWidget {
       thumbnailUrl: item.thumbnailUrl,
     );
 
-    // show ephemeral progress dialog
+    // show ephemeral progress dialog (fire-and-forget). Capture the
+    // navigator before awaiting network work so we can always attempt to
+    // dismiss the dialog in `finally`, even if this widget becomes
+    // unmounted while the request is in-flight.
+    final navigator = Navigator.of(context);
     unawaited(
       showDialog<void>(
         context: context,
@@ -174,26 +178,27 @@ class SearchTrackResultCard extends StatelessWidget {
       ),
     );
 
+    String? errorMsg;
     try {
       await ds.addTrackToPlaylist(selected.id, track);
-      if (!context.mounted) return;
-      Navigator.of(context).pop(); // dismiss progress
-      AppSnackbar.showSuccess(context, 'Added to "${selected.name}"');
     } on DioException catch (e) {
-      if (!context.mounted) return;
-      Navigator.of(context).pop();
       final data = e.response?.data;
-      final msg = data is Map<String, dynamic>
+      errorMsg = data is Map<String, dynamic>
           ? data['message'] as String?
           : null;
-      AppSnackbar.showError(
-        context,
-        msg ?? 'Unable to add track to playlist.',
-      );
     } on Object {
-      if (!context.mounted) return;
-      Navigator.of(context).pop();
-      AppSnackbar.showError(context, 'Unable to add track to playlist.');
+      errorMsg = 'Unable to add track to playlist.';
+    } finally {
+      if (navigator.mounted && navigator.canPop()) {
+        navigator.pop(); // dismiss progress
+      }
+    }
+
+    if (!context.mounted) return;
+    if (errorMsg == null) {
+      AppSnackbar.showSuccess(context, 'Added to "${selected.name}"');
+    } else {
+      AppSnackbar.showError(context, errorMsg);
     }
   }
 
@@ -211,6 +216,7 @@ class SearchTrackResultCard extends StatelessWidget {
     final eventId = selected.id;
     final ds = InjectionContainer().musicVoteRemoteDataSource;
 
+    final navigator = Navigator.of(context);
     unawaited(
       showDialog<void>(
         context: context,
@@ -219,29 +225,34 @@ class SearchTrackResultCard extends StatelessWidget {
       ),
     );
 
+    String? errorMsg;
     try {
       await ds.addTrackToEvent(eventId, item.providerTrackId);
-      if (!context.mounted) return;
-      Navigator.of(context).pop();
-      AppSnackbar.showSuccess(context, 'Queued in "${selected.name}"');
     } on DioException catch (e) {
-      if (!context.mounted) return;
-      Navigator.of(context).pop();
       final data = e.response?.data;
-      final msg = data is Map<String, dynamic>
+      errorMsg = data is Map<String, dynamic>
           ? data['message'] as String?
           : null;
-      AppSnackbar.showError(context, msg ?? 'Unable to queue track.');
     } on Object {
-      if (!context.mounted) return;
-      Navigator.of(context).pop();
-      AppSnackbar.showError(context, 'Unable to queue track.');
+      errorMsg = 'Unable to queue track.';
+    } finally {
+      if (navigator.mounted && navigator.canPop()) {
+        navigator.pop();
+      }
+    }
+
+    if (!context.mounted) return;
+    if (errorMsg == null) {
+      AppSnackbar.showSuccess(context, 'Queued in "${selected.name}"');
+    } else {
+      AppSnackbar.showError(context, errorMsg);
     }
   }
 }
 
 String _formatDuration(int durationMs) {
-  final totalSeconds = (durationMs / 1000).round();
+  // Use truncation to avoid rounding up near the boundary.
+  final totalSeconds = durationMs ~/ 1000;
   final minutes = totalSeconds ~/ 60;
   final seconds = totalSeconds % 60;
   return '${minutes}m ${seconds.toString().padLeft(2, '0')}s';
