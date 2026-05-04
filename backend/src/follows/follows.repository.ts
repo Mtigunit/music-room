@@ -1,10 +1,5 @@
-import {
-  Injectable,
-  NotFoundException,
-  ConflictException,
-} from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Prisma } from '@prisma/client';
 import type { Follows, User } from '@prisma/client';
 import type { PaginationDto } from '../common/dto/pagination.dto';
 
@@ -16,21 +11,9 @@ export class FollowsRepository {
     followerId: string,
     followingId: string,
   ): Promise<Follows> {
-    try {
-      return await this.prisma.follows.create({
-        data: { followerId, followingId },
-      });
-    } catch (error) {
-      if (error instanceof Prisma.PrismaClientKnownRequestError) {
-        if (error.code === 'P2003') {
-          throw new NotFoundException('User to follow not found');
-        }
-        if (error.code === 'P2002') {
-          throw new ConflictException('You are already following this user');
-        }
-      }
-      throw error;
-    }
+    return this.prisma.follows.create({
+      data: { followerId, followingId },
+    });
   }
 
   async deleteFollow(

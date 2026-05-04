@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { FollowsService } from './follows.service';
 import { FollowsRepository } from './follows.repository';
 import { ConflictException, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import type { User } from '@prisma/client';
 
 const mockUser: User = {
@@ -71,11 +72,27 @@ describe('FollowsService', () => {
 
     it('should throw NotFoundException if target user does not exist (handled by repository)', async () => {
       repository.isFollowing.mockResolvedValue(false);
-      repository.createFollow.mockRejectedValue(
-        new NotFoundException('User to follow not found'),
+      const prismaError = new Prisma.PrismaClientKnownRequestError(
+        'Foreign key constraint failed',
+        { code: 'P2003', clientVersion: '5.0.0' },
       );
+      repository.createFollow.mockRejectedValue(prismaError);
+
       await expect(service.followUser('follower', 'missing')).rejects.toThrow(
         NotFoundException,
+      );
+    });
+
+    it('should throw ConflictException if already following (race condition handled by repository)', async () => {
+      repository.isFollowing.mockResolvedValue(false);
+      const prismaError = new Prisma.PrismaClientKnownRequestError(
+        'Unique constraint failed',
+        { code: 'P2002', clientVersion: '5.0.0' },
+      );
+      repository.createFollow.mockRejectedValue(prismaError);
+
+      await expect(service.followUser('follower', 'following')).rejects.toThrow(
+        ConflictException,
       );
     });
 

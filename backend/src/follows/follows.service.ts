@@ -3,6 +3,7 @@ import {
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { FollowsRepository } from './follows.repository';
 import type { PaginationDto } from '../common/dto/pagination.dto';
 
@@ -23,7 +24,19 @@ export class FollowsService {
       throw new ConflictException('You are already following this user');
     }
 
-    return this.followsRepository.createFollow(followerId, followingId);
+    try {
+      return await this.followsRepository.createFollow(followerId, followingId);
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2003') {
+          throw new NotFoundException('User to follow not found');
+        }
+        if (error.code === 'P2002') {
+          throw new ConflictException('You are already following this user');
+        }
+      }
+      throw error;
+    }
   }
 
   async unfollowUser(followerId: string, followingId: string) {

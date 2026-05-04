@@ -52,7 +52,6 @@ describe('UsersController', () => {
             updateProfile: jest.fn(),
             updateAvatar: jest.fn(),
             searchUsers: jest.fn(),
-            areUsersFriends: jest.fn(),
             isFollowing: jest.fn(),
             getRelationship: jest.fn(),
           },
