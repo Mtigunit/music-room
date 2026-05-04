@@ -7,6 +7,7 @@ import {
   BadRequestException,
   forwardRef,
   Inject,
+  Logger,
 } from '@nestjs/common';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
@@ -44,6 +45,8 @@ export function getPosition(event: {
 
 @Injectable()
 export class EventsService {
+  private readonly logger = new Logger(EventsService.name);
+
   constructor(
     private readonly eventsRepository: EventsRepository,
     @Inject(forwardRef(() => EventsGateway))
@@ -638,7 +641,13 @@ export class EventsService {
       await this.startHostGracePeriod(liveEvent.id, userId);
 
       const position = getPosition(liveEvent);
-      await this.eventsRepository.pausePlayback(liveEvent.id, position);
+      try {
+        await this.eventsRepository.pausePlayback(liveEvent.id, position);
+      } catch (error) {
+        this.logger.warn(
+          `Could not pause playback for event ${liveEvent.id}: ${error instanceof Error ? error.message : 'Unknown'}`,
+        );
+      }
 
       return {
         eventId: liveEvent.id,
@@ -650,26 +659,21 @@ export class EventsService {
     return null;
   }
 
+  // events.service.ts
   async startHostGracePeriod(eventId: string, userId: string) {
     const redisClient = this.redisService.getClient();
     await redisClient.set(REDIS_KEYS.HOST_DISCONNECT(eventId), userId);
 
     await this.eventTimeoutsQueue.add(
       BULL_JOBS.HOST_SOFT_TIMEOUT,
-      { eventId },
-      {
-        jobId: `soft-${eventId}`,
-        delay: BULL_JOBS.SOFT_TIMEOUT,
-      },
+      { eventId, userId }, // ← add userId
+      { jobId: `soft-${eventId}`, delay: BULL_JOBS.SOFT_TIMEOUT },
     );
 
     await this.eventTimeoutsQueue.add(
       BULL_JOBS.HOST_HARD_TIMEOUT,
-      { eventId },
-      {
-        jobId: `hard-${eventId}`,
-        delay: BULL_JOBS.HARD_TIMEOUT,
-      },
+      { eventId, userId }, // ← add userId
+      { jobId: `hard-${eventId}`, delay: BULL_JOBS.HARD_TIMEOUT },
     );
   }
 }
