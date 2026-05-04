@@ -1,4 +1,3 @@
-// ignore_for_file: discarded_futures, use_build_context_synchronously
 import 'dart:async';
 
 import 'package:dio/dio.dart';
@@ -132,13 +131,16 @@ class SearchTrackResultCard extends StatelessWidget {
     );
   }
 
-  void _handleTrackAction(BuildContext context, TrackAction action) {
+  Future<void> _handleTrackAction(
+    BuildContext context,
+    TrackAction action,
+  ) async {
     switch (action) {
       case TrackAction.addToEvent:
-        _addToEvent(context);
+        await _addToEvent(context);
         return;
       case TrackAction.saveToPlaylist:
-        _saveToPlaylist(context);
+        await _saveToPlaylist(context);
         return;
     }
   }
@@ -151,6 +153,7 @@ class SearchTrackResultCard extends StatelessWidget {
       builder: (_) => const SelectPlaylistSheet(),
     );
 
+    if (!context.mounted) return;
     if (selected == null) return;
 
     final ds = InjectionContainer().playlistRemoteDataSource;
@@ -202,6 +205,7 @@ class SearchTrackResultCard extends StatelessWidget {
       builder: (_) => const SelectEventSheet(),
     );
 
+    if (!context.mounted) return;
     if (selected == null) return;
 
     final eventId = selected.id;
