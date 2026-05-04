@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
 import type { Follows, User } from '@prisma/client';
@@ -17,11 +21,13 @@ export class FollowsRepository {
         data: { followerId, followingId },
       });
     } catch (error) {
-      if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2003'
-      ) {
-        throw new NotFoundException('User to follow not found');
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2003') {
+          throw new NotFoundException('User to follow not found');
+        }
+        if (error.code === 'P2002') {
+          throw new ConflictException('You are already following this user');
+        }
       }
       throw error;
     }
