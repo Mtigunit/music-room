@@ -183,9 +183,18 @@ export class UsersController {
     }
 
     const isSelf = user.id === req.user!.id;
-    const isFriend = isSelf
-      ? false
-      : await this.usersService.areUsersFriends(req.user!.id, user.id);
+    let isFollowing = false;
+    let isFollowedBy = false;
+    let isFriend = false;
+
+    if (!isSelf) {
+      [isFollowing, isFollowedBy] = await Promise.all([
+        this.usersService.isFollowing(req.user!.id, user.id),
+        this.usersService.isFollowing(user.id, req.user!.id),
+      ]);
+
+      isFriend = isFollowing && isFollowedBy;
+    }
 
     // Visibility rules:
     // Everyone sees: id, username, avatarUrl, publicInfo, subscriptionTier
@@ -208,6 +217,10 @@ export class UsersController {
       response.privateInfo = user.privateInfo;
       response.preferences = user.preferences;
       response.email = user.email; // Email is private
+    } else {
+      response.isFollowing = isFollowing;
+      response.isFollowedBy = isFollowedBy;
+      response.isFriend = isFriend;
     }
 
     return response;

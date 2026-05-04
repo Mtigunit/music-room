@@ -53,6 +53,7 @@ describe('UsersController', () => {
             updateAvatar: jest.fn(),
             searchUsers: jest.fn(),
             areUsersFriends: jest.fn(),
+            isFollowing: jest.fn(),
           },
         },
       ],
@@ -203,13 +204,17 @@ describe('UsersController', () => {
 
     it('should return friend data when users are friends', async () => {
       service.findById.mockResolvedValue(mockUser);
-      service.areUsersFriends.mockResolvedValue(true);
+      service.isFollowing.mockResolvedValue(true);
 
       const result = await controller.getUser(mockUser.id, req);
 
-      expect(service.areUsersFriends).toHaveBeenCalledWith(
+      expect(service.isFollowing).toHaveBeenCalledWith(
         'viewer-uuid',
         mockUser.id,
+      );
+      expect(service.isFollowing).toHaveBeenCalledWith(
+        mockUser.id,
+        'viewer-uuid',
       );
       expect(result).toEqual({
         id: mockUser.id,
@@ -218,6 +223,9 @@ describe('UsersController', () => {
         publicInfo: mockUser.publicInfo,
         subscriptionTier: mockUser.subscriptionTier,
         friendInfo: mockUser.friendInfo,
+        isFollowing: true,
+        isFollowedBy: true,
+        isFriend: true,
       });
       expect(result).not.toHaveProperty('privateInfo');
       expect(result).not.toHaveProperty('email');
@@ -225,7 +233,10 @@ describe('UsersController', () => {
 
     it('should return only public data when users are not friends', async () => {
       service.findById.mockResolvedValue(mockUser);
-      service.areUsersFriends.mockResolvedValue(false);
+      // Let viewer follow target, but target does not follow back
+      service.isFollowing.mockImplementation((a: string) =>
+        Promise.resolve(a === 'viewer-uuid'),
+      );
 
       const result = await controller.getUser(mockUser.id, req);
 
@@ -235,6 +246,9 @@ describe('UsersController', () => {
         avatarUrl: mockUser.avatarUrl,
         publicInfo: mockUser.publicInfo,
         subscriptionTier: mockUser.subscriptionTier,
+        isFollowing: true,
+        isFollowedBy: false,
+        isFriend: false,
       });
       expect(result).not.toHaveProperty('friendInfo');
       expect(result).not.toHaveProperty('privateInfo');

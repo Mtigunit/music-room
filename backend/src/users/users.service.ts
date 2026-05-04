@@ -1,12 +1,22 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  Inject,
+  forwardRef,
+} from '@nestjs/common';
 import { UserRepository } from './user.repository';
 import { type User } from '@prisma/client';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import type { UpdateProfileDto } from './dto/update-profile.dto';
+import { FollowsService } from '../follows/follows.service';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly userRepository: UserRepository) {}
+  constructor(
+    private readonly userRepository: UserRepository,
+    @Inject(forwardRef(() => FollowsService))
+    private readonly followsService: FollowsService,
+  ) {}
 
   async findByEmail(email: string): Promise<User | null> {
     return this.userRepository.findByEmail(email);
@@ -82,9 +92,19 @@ export class UsersService {
     return this.userRepository.updateAvatar(userId, avatarPath);
   }
 
-  // eslint-disable-next-line @typescript-eslint/require-await, @typescript-eslint/no-unused-vars
-  async areUsersFriends(userIdA: string, userIdB: string): Promise<boolean> {
-    // TODO: Implement in Phase 2 with Follows system (mutual follows)
-    return false;
+  async areUsersFriends(userId1: string, userId2: string): Promise<boolean> {
+    const is1Following2 = await this.followsService.isFollowing(
+      userId1,
+      userId2,
+    );
+    const is2Following1 = await this.followsService.isFollowing(
+      userId2,
+      userId1,
+    );
+    return is1Following2 && is2Following1;
+  }
+
+  async isFollowing(followerId: string, followingId: string): Promise<boolean> {
+    return this.followsService.isFollowing(followerId, followingId);
   }
 }
