@@ -33,7 +33,19 @@ class ApiClient {
             options.headers['Authorization'] = 'Bearer $token';
           }
 
-          options.headers.addAll(await _clientMetaService.getHeaders());
+          final clientHeaders = <String, dynamic>{};
+          try {
+            clientHeaders.addAll(await _clientMetaService.getHeaders());
+          } on Object catch (error) {
+            if (AppConfig.isDebug) {
+              debugPrint(
+                '[ApiClient] Failed to load optional client metadata headers: '
+                '$error',
+              );
+            }
+          }
+
+          options.headers.addAll(clientHeaders);
 
           final isFormDataRequest = options.data is FormData;
 

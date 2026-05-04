@@ -53,8 +53,8 @@ class ClientMetaService {
 
       if (defaultTargetPlatform == TargetPlatform.windows) {
         final windowsInfo = await _deviceInfoPlugin.windowsInfo;
-        return windowsInfo.computerName.isNotEmpty
-            ? windowsInfo.computerName
+        return windowsInfo.productName.isNotEmpty
+            ? windowsInfo.productName
             : 'windows';
       }
 
