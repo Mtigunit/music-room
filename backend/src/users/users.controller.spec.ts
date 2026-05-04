@@ -54,6 +54,7 @@ describe('UsersController', () => {
             searchUsers: jest.fn(),
             areUsersFriends: jest.fn(),
             isFollowing: jest.fn(),
+            getRelationship: jest.fn(),
           },
         },
       ],
@@ -204,17 +205,17 @@ describe('UsersController', () => {
 
     it('should return friend data when users are friends', async () => {
       service.findById.mockResolvedValue(mockUser);
-      service.isFollowing.mockResolvedValue(true);
+      service.getRelationship.mockResolvedValue({
+        isFollowing: true,
+        isFollowedBy: true,
+        isFriend: true,
+      });
 
       const result = await controller.getUser(mockUser.id, req);
 
-      expect(service.isFollowing).toHaveBeenCalledWith(
+      expect(service.getRelationship).toHaveBeenCalledWith(
         'viewer-uuid',
         mockUser.id,
-      );
-      expect(service.isFollowing).toHaveBeenCalledWith(
-        mockUser.id,
-        'viewer-uuid',
       );
       expect(result).toEqual({
         id: mockUser.id,
@@ -234,9 +235,11 @@ describe('UsersController', () => {
     it('should return only public data when users are not friends', async () => {
       service.findById.mockResolvedValue(mockUser);
       // Let viewer follow target, but target does not follow back
-      service.isFollowing.mockImplementation((a: string) =>
-        Promise.resolve(a === 'viewer-uuid'),
-      );
+      service.getRelationship.mockResolvedValue({
+        isFollowing: true,
+        isFollowedBy: false,
+        isFriend: false,
+      });
 
       const result = await controller.getUser(mockUser.id, req);
 

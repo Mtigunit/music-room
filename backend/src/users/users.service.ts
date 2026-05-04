@@ -93,15 +93,20 @@ export class UsersService {
   }
 
   async areUsersFriends(userId1: string, userId2: string): Promise<boolean> {
-    const is1Following2 = await this.followsService.isFollowing(
-      userId1,
-      userId2,
-    );
-    const is2Following1 = await this.followsService.isFollowing(
-      userId2,
-      userId1,
-    );
-    return is1Following2 && is2Following1;
+    const { isFriend } = await this.getRelationship(userId1, userId2);
+    return isFriend;
+  }
+
+  async getRelationship(viewerId: string, targetId: string) {
+    const [isFollowing, isFollowedBy] = await Promise.all([
+      this.followsService.isFollowing(viewerId, targetId),
+      this.followsService.isFollowing(targetId, viewerId),
+    ]);
+    return {
+      isFollowing,
+      isFollowedBy,
+      isFriend: isFollowing && isFollowedBy,
+    };
   }
 
   async isFollowing(followerId: string, followingId: string): Promise<boolean> {

@@ -187,12 +187,8 @@ export class UsersController {
     let isFriend = false;
 
     if (!isSelf) {
-      [isFollowing, isFollowedBy] = await Promise.all([
-        this.usersService.isFollowing(req.user!.id, user.id),
-        this.usersService.isFollowing(user.id, req.user!.id),
-      ]);
-
-      isFriend = isFollowing && isFollowedBy;
+      ({ isFollowing, isFollowedBy, isFriend } =
+        await this.usersService.getRelationship(req.user!.id, user.id));
     }
 
     // Visibility rules:
