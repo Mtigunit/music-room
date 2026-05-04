@@ -60,7 +60,6 @@ export class UsersController {
       throw new NotFoundException('User not found');
     }
 
-    // We return everything except passwordHash and googleId
     return this.toSafeUser(user);
   }
 

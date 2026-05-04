@@ -1,7 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { FollowsService } from './follows.service';
 import { FollowsRepository } from './follows.repository';
-import { UsersService } from '../users/users.service';
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import type { User } from '@prisma/client';
 
@@ -25,7 +24,6 @@ const mockUser: User = {
 describe('FollowsService', () => {
   let service: FollowsService;
   let repository: jest.Mocked<FollowsRepository>;
-  let usersService: jest.Mocked<UsersService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -42,23 +40,15 @@ describe('FollowsService', () => {
             getMutualFriends: jest.fn(),
           },
         },
-        {
-          provide: UsersService,
-          useValue: {
-            findById: jest.fn(),
-          },
-        },
       ],
     }).compile();
 
     service = module.get<FollowsService>(FollowsService);
     repository = module.get(FollowsRepository);
-    usersService = module.get(UsersService);
   });
 
   describe('followUser', () => {
     it('should successfully follow a user', async () => {
-      usersService.findById.mockResolvedValue(mockUser);
       repository.isFollowing.mockResolvedValue(false);
       repository.createFollow.mockResolvedValue({
         followerId: 'follower',
@@ -79,15 +69,17 @@ describe('FollowsService', () => {
       );
     });
 
-    it('should throw NotFoundException if target user does not exist', async () => {
-      usersService.findById.mockResolvedValue(null);
+    it('should throw NotFoundException if target user does not exist (handled by repository)', async () => {
+      repository.isFollowing.mockResolvedValue(false);
+      repository.createFollow.mockRejectedValue(
+        new NotFoundException('User to follow not found'),
+      );
       await expect(service.followUser('follower', 'missing')).rejects.toThrow(
         NotFoundException,
       );
     });
 
     it('should throw ConflictException if already following', async () => {
-      usersService.findById.mockResolvedValue(mockUser);
       repository.isFollowing.mockResolvedValue(true);
       await expect(service.followUser('follower', 'following')).rejects.toThrow(
         ConflictException,
@@ -127,21 +119,18 @@ describe('FollowsService', () => {
     };
 
     it('getFollowers', async () => {
-      usersService.findById.mockResolvedValue(mockUser);
       repository.getFollowers.mockResolvedValue(mockResult);
       const res = await service.getFollowers('id', mockPagination);
       expect(res).toEqual(mockResult);
     });
 
     it('getFollowing', async () => {
-      usersService.findById.mockResolvedValue(mockUser);
       repository.getFollowing.mockResolvedValue(mockResult);
       const res = await service.getFollowing('id', mockPagination);
       expect(res).toEqual(mockResult);
     });
 
     it('getFriends', async () => {
-      usersService.findById.mockResolvedValue(mockUser);
       repository.getMutualFriends.mockResolvedValue(mockResult);
       const res = await service.getFriends('id', mockPagination);
       expect(res).toEqual(mockResult);

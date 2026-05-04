@@ -1,4 +1,4 @@
-import { Module, BadRequestException, forwardRef } from '@nestjs/common';
+import { Module, BadRequestException } from '@nestjs/common';
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import * as fs from 'fs';
@@ -13,7 +13,7 @@ import { FollowsModule } from '../follows/follows.module';
 @Module({
   imports: [
     PrismaModule,
-    forwardRef(() => FollowsModule),
+    FollowsModule,
     MulterModule.register({
       limits: {
         fileSize: 2 * 1024 * 1024, // 2MB limit
