@@ -3,6 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:music_room/core/config/app_config.dart';
 import 'package:music_room/core/network/api_client.dart';
 import 'package:music_room/core/realtime/socket_client.dart';
+import 'package:music_room/core/services/client_meta_service.dart';
 import 'package:music_room/core/services/connectivity_service.dart';
 import 'package:music_room/core/services/google_auth_service.dart';
 import 'package:music_room/core/services/token_storage_service.dart';
@@ -32,6 +33,7 @@ class InjectionContainer {
 
   late TokenStorageService _tokenStorageService;
   late ApiClient _apiClient;
+  late ClientMetaService _clientMetaService;
   late IAuthRemoteDataSource _authRemoteDataSource;
   late ISearchRemoteDataSource _searchRemoteDataSource;
   late IPlaylistRemoteDataSource _playlistRemoteDataSource;
@@ -55,12 +57,14 @@ class InjectionContainer {
     _googleAuthService = GoogleAuthService();
     final sharedPreferences = await SharedPreferences.getInstance();
     _connectivityService = ConnectivityService();
+    _clientMetaService = ClientMetaService();
 
     // Network
     final dio = Dio();
     _apiClient = ApiClient(
       dio: dio,
       tokenStorage: _tokenStorageService,
+      clientMetaService: _clientMetaService,
     );
     _socketClient = SocketClient(
       baseUrl: AppConfig.apiBaseUrl,
@@ -91,6 +95,7 @@ class InjectionContainer {
   // Getters
   TokenStorageService get tokenStorageService => _tokenStorageService;
   ApiClient get apiClient => _apiClient;
+  ClientMetaService get clientMetaService => _clientMetaService;
   IAuthRemoteDataSource get authRemoteDataSource => _authRemoteDataSource;
   ISearchRemoteDataSource get searchRemoteDataSource => _searchRemoteDataSource;
   IPlaylistRemoteDataSource get playlistRemoteDataSource =>
