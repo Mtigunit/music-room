@@ -9,6 +9,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { AppRepository } from './app.repository';
 import { AuditLogModule } from './audit-log/audit-log.module';
+import { FollowsModule } from './follows/follows.module';
 import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { EventsModule } from './events/events.module';
@@ -45,6 +46,7 @@ import { GlobalThrottlerModule } from './common/throttler/global-throttler.modul
     WebsocketsModule,
     TrackVotesModule,
     TracksModule,
+    FollowsModule,
     BullModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

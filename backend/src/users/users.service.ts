@@ -3,10 +3,14 @@ import { UserRepository } from './user.repository';
 import { type User } from '@prisma/client';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import type { UpdateProfileDto } from './dto/update-profile.dto';
+import { FollowsService } from '../follows/follows.service';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly userRepository: UserRepository) {}
+  constructor(
+    private readonly userRepository: UserRepository,
+    private readonly followsService: FollowsService,
+  ) {}
 
   async findByEmail(email: string): Promise<User | null> {
     return this.userRepository.findByEmail(email);
@@ -82,9 +86,24 @@ export class UsersService {
     return this.userRepository.updateAvatar(userId, avatarPath);
   }
 
-  // eslint-disable-next-line @typescript-eslint/require-await, @typescript-eslint/no-unused-vars
-  async areUsersFriends(userIdA: string, userIdB: string): Promise<boolean> {
-    // TODO: Implement in Phase 2 with Follows system (mutual follows)
-    return false;
+  async areUsersFriends(userId1: string, userId2: string): Promise<boolean> {
+    const { isFriend } = await this.getRelationship(userId1, userId2);
+    return isFriend;
+  }
+
+  async getRelationship(viewerId: string, targetId: string) {
+    const [isFollowing, isFollowedBy] = await Promise.all([
+      this.followsService.isFollowing(viewerId, targetId),
+      this.followsService.isFollowing(targetId, viewerId),
+    ]);
+    return {
+      isFollowing,
+      isFollowedBy,
+      isFriend: isFollowing && isFollowedBy,
+    };
+  }
+
+  async isFollowing(followerId: string, followingId: string): Promise<boolean> {
+    return this.followsService.isFollowing(followerId, followingId);
   }
 }

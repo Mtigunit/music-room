@@ -8,10 +8,12 @@ import { UserRepository } from './user.repository';
 import { PrismaModule } from '../prisma/prisma.module';
 import { UsersController } from './users.controller';
 import mime from 'mime-types';
+import { FollowsModule } from '../follows/follows.module';
 
 @Module({
   imports: [
     PrismaModule,
+    FollowsModule,
     MulterModule.register({
       limits: {
         fileSize: 2 * 1024 * 1024, // 2MB limit

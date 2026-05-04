@@ -20,4 +20,8 @@ export interface UserProfileResponse {
   privateInfo?: Prisma.JsonValue | null;
   preferences?: Prisma.JsonValue | null;
   email?: string;
+
+  isFollowing?: boolean;
+  isFollowedBy?: boolean;
+  isFriend?: boolean;
 }

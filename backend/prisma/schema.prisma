@@ -82,24 +82,23 @@ model User {
   hostedEvents         Event[]                @relation("EventHost")
   eventInvites         EventInvite[]
   delegations          ControlDelegation[]    @relation("Delegatee")
-  friendshipsInitiated Friendship[]           @relation("UserOne")
-  friendshipsReceived  Friendship[]           @relation("UserTwo")
+  followers            Follows[]              @relation("Followers")
+  following            Follows[]              @relation("Following")
   votes                Vote[]
   playlistTracks       PlaylistTrack[]
   eventTracksAdded     EventTrack[]           @relation("EventTrackAddedBy")
 }
 
-model Friendship {
-  id        String   @id @default(uuid())
-  userOneId String
-  userTwoId String
-  status    String   @default("pending") // "pending", "accepted", "blocked"
-  createdAt DateTime @default(now())
+model Follows {
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
 
-  userOne User @relation("UserOne", fields: [userOneId], references: [id], onDelete: Cascade)
-  userTwo User @relation("UserTwo", fields: [userTwoId], references: [id], onDelete: Cascade)
+  follower  User @relation("Following", fields: [followerId], references: [id], onDelete: Cascade)
+  following User @relation("Followers", fields: [followingId], references: [id], onDelete: Cascade)
 
-  @@unique([userOneId, userTwoId])
+  @@id([followerId, followingId])
+  @@index([followingId])
 }
 
 // ======================================================

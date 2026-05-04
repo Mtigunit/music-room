@@ -1,6 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { UsersService } from './users.service';
 import { UserRepository } from './user.repository';
+import { FollowsService } from '../follows/follows.service';
 import type { User } from '@prisma/client';
 
 const mockUser: User = {
@@ -39,6 +40,12 @@ describe('UsersService', () => {
             createOAuthUser: jest.fn(),
             linkGoogleAccount: jest.fn(),
             updatePassword: jest.fn(),
+          },
+        },
+        {
+          provide: FollowsService,
+          useValue: {
+            isFollowing: jest.fn(),
           },
         },
       ],
