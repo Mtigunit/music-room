@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:music_room/features/search/data/models/search_result_models.dart';
 
-class SearchPlaylistResultCard extends StatelessWidget {
-  const SearchPlaylistResultCard({required this.item, super.key});
+class SearchEventResultCard extends StatelessWidget {
+  const SearchEventResultCard({required this.item, super.key});
 
-  final SearchPlaylistResultModel item;
+  final SearchEventResultModel item;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final hasImage = item.thumbnailUrl != null && item.thumbnailUrl!.isNotEmpty;
+    final hasImage =
+        item.coverImageUrl != null && item.coverImageUrl!.isNotEmpty;
     final tags = item.tags.take(3).toList(growable: false);
 
     return Container(
@@ -29,22 +31,22 @@ class SearchPlaylistResultCard extends StatelessWidget {
             height: 72,
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(14),
-              color: colorScheme.secondary.withValues(alpha: 0.78),
+              color: colorScheme.secondary.withValues(alpha: 0.8),
             ),
             child: hasImage
                 ? ClipRRect(
                     borderRadius: BorderRadius.circular(14),
                     child: Image.network(
-                      item.thumbnailUrl!,
+                      item.coverImageUrl!,
                       fit: BoxFit.cover,
                       errorBuilder: (_, _, _) => Icon(
-                        Icons.queue_music,
+                        Icons.event,
                         color: colorScheme.primary,
                       ),
                     ),
                   )
                 : Icon(
-                    Icons.queue_music,
+                    Icons.event,
                     color: colorScheme.primary,
                   ),
           ),
@@ -68,9 +70,10 @@ class SearchPlaylistResultCard extends StatelessWidget {
                       ),
                     ),
                     const SizedBox(width: 8),
-                    _ResultChip(
-                      label: item.visibility,
+                    _EventChip(
+                      label: item.status,
                       colorScheme: colorScheme,
+                      filled: true,
                     ),
                   ],
                 ),
@@ -78,7 +81,7 @@ class SearchPlaylistResultCard extends StatelessWidget {
                 Text(
                   item.description?.isNotEmpty == true
                       ? item.description!
-                      : 'Curated by @${item.ownerName}',
+                      : 'Hosted by ${item.hostName}',
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -91,18 +94,22 @@ class SearchPlaylistResultCard extends StatelessWidget {
                   spacing: 8,
                   runSpacing: 8,
                   children: [
-                    _ResultChip(
-                      label: '${item.trackCount} tracks',
-                      colorScheme: colorScheme,
-                      filled: true,
-                    ),
-                    _ResultChip(
-                      label: '@${item.ownerName}',
+                    _EventChip(
+                      label: _formatDateLabel(item.startDate),
                       colorScheme: colorScheme,
                     ),
+                    _EventChip(
+                      label: '@${item.hostName}',
+                      colorScheme: colorScheme,
+                    ),
+                    if (item.locationLabel != null)
+                      _EventChip(
+                        label: item.locationLabel!,
+                        colorScheme: colorScheme,
+                      ),
                     if (tags.isNotEmpty)
                       ...tags.map(
-                        (tag) => _ResultChip(
+                        (tag) => _EventChip(
                           label: tag,
                           colorScheme: colorScheme,
                         ),
@@ -118,8 +125,25 @@ class SearchPlaylistResultCard extends StatelessWidget {
   }
 }
 
-class _ResultChip extends StatelessWidget {
-  const _ResultChip({
+String _formatDateLabel(String? rawValue) {
+  if (rawValue == null || rawValue.trim().isEmpty) {
+    return 'Scheduled event';
+  }
+
+  final parsed = DateTime.tryParse(rawValue);
+  if (parsed == null) {
+    return rawValue;
+  }
+
+  final local = parsed.toLocal();
+  // Use intl DateFormat for consistent, local-aware formatting.
+  return DateFormat('MMM d, h:mm a').format(local);
+}
+
+// Removed manual month mapping in favor of `intl` formatting.
+
+class _EventChip extends StatelessWidget {
+  const _EventChip({
     required this.label,
     required this.colorScheme,
     this.filled = false,

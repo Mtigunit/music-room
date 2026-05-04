@@ -1,29 +1,14 @@
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:music_room/core/config/app_config.dart';
 import 'package:music_room/core/network/api_client.dart';
-
-enum SearchFilterType { tracks, users, events, playlists }
-
-class SearchResultItem {
-  const SearchResultItem({
-    required this.title,
-    required this.subtitle,
-    required this.filterType,
-    this.imageUrl,
-    this.meta,
-  });
-
-  final String title;
-  final String subtitle;
-  final SearchFilterType filterType;
-  final String? imageUrl;
-  final String? meta;
-}
+import 'package:music_room/features/search/data/models/search_result_models.dart';
 
 abstract class ISearchRemoteDataSource {
-  Future<List<SearchResultItem>> searchEvents(String query);
-  Future<List<SearchResultItem>> searchTracks(String query);
-  Future<List<SearchResultItem>> searchPlaylists(String query);
-  Future<List<SearchResultItem>> searchUsers(String query);
+  Future<List<SearchEventResultModel>> searchEvents(String query);
+  Future<List<SearchTrackResultModel>> searchTracks(String query);
+  Future<List<SearchPlaylistResultModel>> searchPlaylists(String query);
+  Future<List<SearchUserResultModel>> searchUsers(String query);
 }
 
 class SearchRemoteDataSource implements ISearchRemoteDataSource {
@@ -32,150 +17,90 @@ class SearchRemoteDataSource implements ISearchRemoteDataSource {
 
   final ApiClient _apiClient;
 
-  static const List<SearchResultItem> _mockEvents = <SearchResultItem>[
-    SearchResultItem(
-      title: 'Sunset Rooftop Session',
-      subtitle: 'Afro house night in Brooklyn',
-      filterType: SearchFilterType.events,
-      meta: 'Tonight 8:30 PM',
-    ),
-    SearchResultItem(
-      title: 'Vinyl & Coffee Meetup',
-      subtitle: 'Bring your favorite crate finds',
-      filterType: SearchFilterType.events,
-      meta: 'Saturday',
-    ),
-    SearchResultItem(
-      title: 'Campus Open Decks',
-      subtitle: 'Student DJs and live requests',
-      filterType: SearchFilterType.events,
-      meta: 'Free entry',
-    ),
-  ];
-
-  static const List<SearchResultItem> _mockPlaylists = <SearchResultItem>[
-    SearchResultItem(
-      title: 'Late Night Drive',
-      subtitle: 'Synthwave and alt pop blend',
-      filterType: SearchFilterType.playlists,
-      meta: '42 tracks',
-    ),
-    SearchResultItem(
-      title: 'Gym Bass Boost',
-      subtitle: 'High energy EDM and trap',
-      filterType: SearchFilterType.playlists,
-      meta: '58 tracks',
-    ),
-    SearchResultItem(
-      title: 'Lo-Fi Focus',
-      subtitle: 'Calm beats for deep work',
-      filterType: SearchFilterType.playlists,
-      meta: '31 tracks',
-    ),
-  ];
-
-  static const List<SearchResultItem> _mockUsers = <SearchResultItem>[
-    SearchResultItem(
-      title: 'mia_dj',
-      subtitle: 'Mia Thompson',
-      filterType: SearchFilterType.users,
-      meta: 'Host',
-    ),
-    SearchResultItem(
-      title: 'beatbuilder',
-      subtitle: 'Carlos Rivera',
-      filterType: SearchFilterType.users,
-      meta: 'Producer',
-    ),
-    SearchResultItem(
-      title: 'nocturne.ana',
-      subtitle: 'Ana Martins',
-      filterType: SearchFilterType.users,
-      meta: 'DJ',
-    ),
-  ];
-
   @override
-  Future<List<SearchResultItem>> searchTracks(String query) async {
-    final response = await _apiClient.get<List<dynamic>>(
+  Future<List<SearchTrackResultModel>> searchTracks(String query) async {
+    final response = await _apiClient.get<dynamic>(
       AppConfig.trackSearchEndpoint,
-      queryParameters: {'q': query},
+      queryParameters: <String, dynamic>{'q': query.trim()},
     );
 
-    final data = response.data;
-    if (data == null) {
-      return const <SearchResultItem>[];
-    }
-
-    return data
-        .whereType<Map<String, dynamic>>()
-        .map(
-          (item) => SearchResultItem(
-            title: _safeString(item['title'], fallback: 'Untitled Track'),
-            subtitle: _safeString(item['artist'], fallback: 'Unknown Artist'),
-            filterType: SearchFilterType.tracks,
-            imageUrl: _nullableString(item['thumbnailUrl']),
-            meta: _formatDuration(item['durationMs']),
-          ),
-        )
-        .toList(growable: false);
+    return _parseListResponse(response, SearchTrackResultModel.fromJson);
   }
 
   @override
-  Future<List<SearchResultItem>> searchEvents(String query) async {
-    return _searchMockItems(_mockEvents, query);
+  Future<List<SearchEventResultModel>> searchEvents(String query) async {
+    final response = await _apiClient.get<dynamic>(
+      AppConfig.eventsEndpoint,
+      queryParameters: <String, dynamic>{
+        'search': query.trim(),
+        'page': 1,
+        'limit': 20,
+      },
+    );
+
+    return _parseListResponse(response, SearchEventResultModel.fromJson);
   }
 
   @override
-  Future<List<SearchResultItem>> searchPlaylists(String query) async {
-    return _searchMockItems(_mockPlaylists, query);
+  Future<List<SearchPlaylistResultModel>> searchPlaylists(String query) async {
+    final response = await _apiClient.get<dynamic>(
+      AppConfig.explorePlaylistsEndpoint,
+      queryParameters: <String, dynamic>{
+        'q': query.trim(),
+        'page': 1,
+        'limit': 20,
+      },
+    );
+
+    return _parseListResponse(response, SearchPlaylistResultModel.fromJson);
   }
 
   @override
-  Future<List<SearchResultItem>> searchUsers(String query) async {
-    return _searchMockItems(_mockUsers, query);
+  Future<List<SearchUserResultModel>> searchUsers(String query) async {
+    final response = await _apiClient.get<dynamic>(
+      AppConfig.searchUsersEndpoint,
+      queryParameters: <String, dynamic>{
+        'q': query.trim(),
+        'page': 1,
+        'limit': 20,
+      },
+    );
+
+    return _parseListResponse(response, SearchUserResultModel.fromJson);
   }
 
-  List<SearchResultItem> _searchMockItems(
-    List<SearchResultItem> source,
-    String query,
+  List<T> _parseListResponse<T, R>(
+    Response<R> response,
+    T Function(Map<String, dynamic>) mapper,
   ) {
-    final normalizedQuery = query.trim().toLowerCase();
-    if (normalizedQuery.isEmpty) {
-      return const <SearchResultItem>[];
+    try {
+      final body = response.data;
+      if (body == null) return <T>[];
+
+      final List<dynamic> items;
+      if (body is List<dynamic>) {
+        items = body;
+      } else if (body is Map<String, dynamic>) {
+        final data = body['data'];
+        if (data is List<dynamic>) {
+          items = data;
+        } else {
+          items = const <dynamic>[];
+        }
+      } else {
+        items = const <dynamic>[];
+      }
+
+      return items
+          .whereType<Map<String, dynamic>>()
+          .map(mapper)
+          .toList(growable: false);
+    } on Object catch (e, st) {
+      // Log parsing issues and rethrow so callers can treat this as a
+      // failure (instead of silently showing an empty result), which is
+      // often more helpful during development and for surfaced errors.
+      debugPrint('Failed to parse list response: $e\n$st');
+      rethrow;
     }
-
-    return source
-        .where((item) {
-          final searchable = '${item.title} ${item.subtitle} ${item.meta ?? ''}'
-              .toLowerCase();
-          return searchable.contains(normalizedQuery);
-        })
-        .toList(growable: false);
-  }
-
-  String _safeString(Object? value, {String fallback = ''}) {
-    if (value is String && value.trim().isNotEmpty) {
-      return value.trim();
-    }
-    return fallback;
-  }
-
-  String? _nullableString(Object? value) {
-    if (value is String && value.trim().isNotEmpty) {
-      return value.trim();
-    }
-    return null;
-  }
-
-  String? _formatDuration(Object? rawValue) {
-    if (rawValue is! num) {
-      return null;
-    }
-
-    final totalSeconds = (rawValue / 1000).round();
-    final minutes = totalSeconds ~/ 60;
-    final seconds = totalSeconds % 60;
-    return '${minutes}m ${seconds.toString().padLeft(2, '0')}s';
   }
 }

@@ -1,17 +1,32 @@
+import 'dart:async';
+
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:music_room/core/widgets/app_snackbar.dart';
-import 'package:music_room/features/search/data/datasources/search_remote_datasource.dart';
+import 'package:music_room/di/injection_container.dart';
+import 'package:music_room/features/events/data/datasources/event_remote_datasource.dart'
+    show MyEventItemModel;
+import 'package:music_room/features/playlist/domain/entities/playlist_entity.dart'
+    show PlaylistEntity, TrackSearchEntity;
+import 'package:music_room/features/search/data/models/search_result_models.dart';
+import 'package:music_room/features/search/presentation/widgets/modals/select_event_sheet.dart';
+import 'package:music_room/features/search/presentation/widgets/modals/select_playlist_sheet.dart';
 
 enum TrackAction { addToEvent, saveToPlaylist }
 
-class TrackResultCard extends StatelessWidget {
-  const TrackResultCard({required this.item, super.key});
+class SearchTrackResultCard extends StatelessWidget {
+  const SearchTrackResultCard({required this.item, super.key});
 
-  final SearchResultItem item;
+  final SearchTrackResultModel item;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final artist = item.artist ?? 'Unknown Artist';
+    final duration = item.durationMs > 0
+        ? ' · ${_formatDuration(item.durationMs)}'
+        : '';
+    final subtitle = '$artist$duration';
 
     return Container(
       decoration: BoxDecoration(
@@ -24,7 +39,7 @@ class TrackResultCard extends StatelessWidget {
       padding: const EdgeInsets.all(12),
       child: Row(
         children: [
-          TrackThumbnail(imageUrl: item.imageUrl),
+          TrackThumbnail(imageUrl: item.thumbnailUrl),
           const SizedBox(width: 14),
           Expanded(
             child: Column(
@@ -41,9 +56,7 @@ class TrackResultCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 Text(
-                  '${item.subtitle}'
-                  '${item.meta != null && item.meta!.isNotEmpty ? ' · '
-                            '${item.meta}' : ''}',
+                  subtitle,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -118,22 +131,131 @@ class TrackResultCard extends StatelessWidget {
     );
   }
 
-  void _handleTrackAction(BuildContext context, TrackAction action) {
+  Future<void> _handleTrackAction(
+    BuildContext context,
+    TrackAction action,
+  ) async {
     switch (action) {
       case TrackAction.addToEvent:
-        AppSnackbar.showError(
-          context,
-          'Add to event feature coming soon.',
-        );
+        await _addToEvent(context);
         return;
       case TrackAction.saveToPlaylist:
-        AppSnackbar.showError(
-          context,
-          'Save to playlist feature coming soon.',
-        );
+        await _saveToPlaylist(context);
         return;
     }
   }
+
+  Future<void> _saveToPlaylist(BuildContext context) async {
+    final selected = await showModalBottomSheet<PlaylistEntity>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => const SelectPlaylistSheet(),
+    );
+
+    if (!context.mounted) return;
+    if (selected == null) return;
+
+    final ds = InjectionContainer().playlistRemoteDataSource;
+    final track = TrackSearchEntity(
+      providerTrackId: item.providerTrackId,
+      title: item.title,
+      durationMs: item.durationMs,
+      artist: item.artist,
+      thumbnailUrl: item.thumbnailUrl,
+    );
+
+    // show ephemeral progress dialog (fire-and-forget). Capture the
+    // navigator before awaiting network work so we can always attempt to
+    // dismiss the dialog in `finally`, even if this widget becomes
+    // unmounted while the request is in-flight.
+    final navigator = Navigator.of(context);
+    unawaited(
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(child: CircularProgressIndicator()),
+      ),
+    );
+
+    String? errorMsg;
+    try {
+      await ds.addTrackToPlaylist(selected.id, track);
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      errorMsg = data is Map<String, dynamic>
+          ? data['message'] as String?
+          : null;
+    } on Object {
+      errorMsg = 'Unable to add track to playlist.';
+    } finally {
+      if (navigator.mounted && navigator.canPop()) {
+        navigator.pop(); // dismiss progress
+      }
+    }
+
+    if (!context.mounted) return;
+    if (errorMsg == null) {
+      AppSnackbar.showSuccess(context, 'Added to "${selected.name}"');
+    } else {
+      AppSnackbar.showError(context, errorMsg);
+    }
+  }
+
+  Future<void> _addToEvent(BuildContext context) async {
+    final selected = await showModalBottomSheet<MyEventItemModel>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      builder: (_) => const SelectEventSheet(),
+    );
+
+    if (!context.mounted) return;
+    if (selected == null) return;
+
+    final eventId = selected.id;
+    final ds = InjectionContainer().musicVoteRemoteDataSource;
+
+    final navigator = Navigator.of(context);
+    unawaited(
+      showDialog<void>(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(child: CircularProgressIndicator()),
+      ),
+    );
+
+    String? errorMsg;
+    try {
+      await ds.addTrackToEvent(eventId, item.providerTrackId);
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      errorMsg = data is Map<String, dynamic>
+          ? data['message'] as String?
+          : null;
+    } on Object {
+      errorMsg = 'Unable to queue track.';
+    } finally {
+      if (navigator.mounted && navigator.canPop()) {
+        navigator.pop();
+      }
+    }
+
+    if (!context.mounted) return;
+    if (errorMsg == null) {
+      AppSnackbar.showSuccess(context, 'Queued in "${selected.name}"');
+    } else {
+      AppSnackbar.showError(context, errorMsg);
+    }
+  }
+}
+
+String _formatDuration(int durationMs) {
+  // Use truncation to avoid rounding up near the boundary.
+  final totalSeconds = durationMs ~/ 1000;
+  final minutes = totalSeconds ~/ 60;
+  final seconds = totalSeconds % 60;
+  return '${minutes}m ${seconds.toString().padLeft(2, '0')}s';
 }
 
 class TrackMenuActionItem extends StatelessWidget {
