@@ -8,8 +8,8 @@ import * as dotenv from 'dotenv';
 // Note: If you run this script using `ts-node scripts/run-events-simulation.ts`, __dirname is `scripts`
 dotenv.config();
 
-const API_URL = process.env.API_URL || 'http://localhost:3000';
-const WS_URL = process.env.WS_URL || 'http://localhost:3000';
+const API_URL = 'http://localhost:3000';
+const WS_URL = 'http://localhost:3000';
 
 const HOST_EMAIL = 'events-host@example.com';
 const PARTICIPANT_EMAIL = 'events-participant@example.com';
@@ -92,34 +92,32 @@ async function main() {
 
         console.log('\n3. Connecting Host Socket and joining...');
         hostSocket = await connectSocket('Host', hostToken);
-        hostSocket.emit('host_join', { eventId: EVENT_ID }, (ack: any) => console.log('Host Join Ack:', ack));
-        await sleep(1500);
 
         console.log('\n4. Host STARTS the event...');
         hostSocket.emit('event:start', { eventId: EVENT_ID }, (ack: any) => console.log('Host Start Ack:', ack));
         await sleep(1500); // Wait to see the broadcast on Participant
 
-        console.log('\n5. Simulating Host Disconnection (Soft Timeout Test)...');
-        hostSocket.disconnect();
-        console.log('Waiting 6 seconds for Soft Timeout warning...');
-        await sleep(6000); 
+        // console.log('\n5. Simulating Host Disconnection (Soft Timeout Test)...');
+        // hostSocket.disconnect();
+        // console.log('Waiting 6 seconds for Soft Timeout warning...');
+        // await sleep(6000); 
 
-        console.log('\n6. Host Reconnects to cancel timeouts...');
-        hostSocket = await connectSocket('Host (Reconnected)', hostToken);
-        hostSocket.emit('host_join', { eventId: EVENT_ID }, (ack: any) => console.log('Host Rejoin Ack:', ack));
-        await sleep(2000);
+        // console.log('\n6. Host Reconnects to cancel timeouts...');
+        // hostSocket = await connectSocket('Host (Reconnected)', hostToken);
+        // hostSocket.emit('event:host_join', { eventId: EVENT_ID }, (ack: any) => console.log('Host Rejoin Ack:', ack));
+        // await sleep(2000);
 
         console.log('\n7. Host explicitly leaves event (Hard Timeout Test)...');
-        hostSocket.emit('host_leave', { eventId: EVENT_ID }, (ack: any) => console.log('Host Leave Ack:', ack));
-        
-        console.log('Waiting 92 seconds for Hard Timeout (Event should auto-end)...');
-        for (let i = 1; i <= 9; i++) {
-            await sleep(10000);
-            console.log(`... waited ${i * 10} seconds`);
-        }
-        await sleep(2000);
+        hostSocket.emit('event:host_leave', { eventId: EVENT_ID }, (ack: any) => console.log('Host Leave Ack:', ack));
 
-        console.log('\n--- TEST COMPLETE, SUCCESS! ---');
+        // console.log('Waiting 12 seconds for Soft Timeout (Event should NOT auto-end yet)...');
+        for (let i = 1; i <= 5; i++) {
+            await sleep(6000);
+            console.log(`... waited ${i * 6} seconds`);
+        }
+        // await sleep(2000);
+
+        // console.log('\n--- TEST COMPLETE, SUCCESS! ---');
 
     } catch (error) {
         console.error('❌ Test Failed:', error);
