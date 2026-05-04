@@ -68,8 +68,8 @@ class SearchRemoteDataSource implements ISearchRemoteDataSource {
     return _parseListResponse(response, SearchUserResultModel.fromJson);
   }
 
-  List<T> _parseListResponse<T>(
-    Response<dynamic> response,
+  List<T> _parseListResponse<T, R>(
+    Response<R> response,
     T Function(Map<String, dynamic>) mapper,
   ) {
     try {
