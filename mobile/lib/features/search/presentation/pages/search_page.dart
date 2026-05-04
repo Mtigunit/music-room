@@ -14,6 +14,7 @@ import 'package:music_room/features/search/presentation/widgets/search_message_s
 import 'package:music_room/features/search/presentation/widgets/search_result_card.dart';
 import 'package:music_room/features/search/presentation/widgets/search_track_result_card.dart';
 import 'package:music_room/features/search/presentation/widgets/search_user_result_card.dart';
+import 'package:music_room/features/search/presentation/widgets/skeletons/search_results_skeleton.dart';
 import 'package:music_room/routes/route_names.dart';
 
 class SearchPage extends StatefulWidget {
@@ -210,7 +211,6 @@ class _SearchPageState extends State<SearchPage> {
     final label = filterLabel.toLowerCase();
     final quotedQuery = '"$query"';
     final emptyMessage = 'Type something above to find $label results.';
-    final searchingMessage = 'Finding matches for $quotedQuery.';
     final noResultsMessage =
         'No $label matched $quotedQuery. Try a different search term.';
 
@@ -224,11 +224,9 @@ class _SearchPageState extends State<SearchPage> {
     }
 
     if (state.isLoading) {
-      return SearchMessageState(
+      return SearchResultsSkeleton(
         key: ValueKey<String>('loading-$filterLabel'),
-        title: 'Searching ${filterLabel.toLowerCase()}',
-        message: searchingMessage,
-        showSpinner: true,
+        filter: state.filter,
       );
     }
 
