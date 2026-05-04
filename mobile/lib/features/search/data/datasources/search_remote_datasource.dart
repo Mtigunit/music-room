@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:music_room/core/config/app_config.dart';
 import 'package:music_room/core/network/api_client.dart';
 import 'package:music_room/features/search/data/models/search_result_models.dart';
@@ -94,10 +95,12 @@ class SearchRemoteDataSource implements ISearchRemoteDataSource {
           .whereType<Map<String, dynamic>>()
           .map(mapper)
           .toList(growable: false);
-    } on Object catch (_) {
-      // Be defensive: never throw from parsing — return empty list so callers
-      // can treat the result as 'no items' and stop loading.
-      return <T>[];
+    } on Object catch (e, st) {
+      // Log parsing issues and rethrow so callers can treat this as a
+      // failure (instead of silently showing an empty result), which is
+      // often more helpful during development and for surfaced errors.
+      debugPrint('Failed to parse list response: $e\n$st');
+      rethrow;
     }
   }
 }
