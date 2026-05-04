@@ -1,19 +1,23 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:music_room/core/config/app_config.dart';
+import 'package:music_room/core/services/client_meta_service.dart';
 import 'package:music_room/core/services/token_storage_service.dart';
 
 class ApiClient {
   ApiClient({
     required Dio dio,
     required TokenStorageService tokenStorage,
+    required ClientMetaService clientMetaService,
   }) : _dio = dio,
+       _clientMetaService = clientMetaService,
        _tokenStorage = tokenStorage {
     _setupInterceptors();
   }
 
   final Dio _dio;
   final TokenStorageService _tokenStorage;
+  final ClientMetaService _clientMetaService;
 
   void _setupInterceptors() {
     _dio.options.baseUrl = AppConfig.apiBaseUrl;
@@ -28,6 +32,8 @@ class ApiClient {
           if (token != null) {
             options.headers['Authorization'] = 'Bearer $token';
           }
+
+          options.headers.addAll(await _clientMetaService.getHeaders());
 
           final isFormDataRequest = options.data is FormData;
 
