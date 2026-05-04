@@ -18,7 +18,7 @@ class SearchRemoteDataSource implements ISearchRemoteDataSource {
 
   @override
   Future<List<SearchTrackResultModel>> searchTracks(String query) async {
-    final response = await _apiClient.get<List<dynamic>>(
+    final response = await _apiClient.get<dynamic>(
       AppConfig.trackSearchEndpoint,
       queryParameters: <String, dynamic>{'q': query.trim()},
     );
