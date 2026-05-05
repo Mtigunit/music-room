@@ -194,6 +194,11 @@ class _SignUpPageState extends State<SignUpPage> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final authState = context.watch<AuthBloc>().state;
+    final isRegisterLoading = authState is RegisterLoading;
+    final isGoogleLoading = authState is GoogleLoginLoading;
+    final isOtpLoading = authState is OtpLoading;
+    final isAnyLoading = isRegisterLoading || isGoogleLoading || isOtpLoading;
 
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
@@ -242,6 +247,22 @@ class _SignUpPageState extends State<SignUpPage> {
           );
         } else if (state is RegisterFailure) {
           AppSnackbar.showError(context, state.failure.message);
+        } else if (state is GoogleLoginLoading) {
+          AppSnackbar.showInfo(
+            context,
+            'Creating account with Google...',
+            duration: const Duration(seconds: 1),
+          );
+        } else if (state is GoogleLoginSuccess) {
+          AppSnackbar.showSuccess(context, 'Account created with Google!');
+          unawaited(
+            Navigator.of(context).pushNamedAndRemoveUntil(
+              RouteNames.home,
+              (_) => false,
+            ),
+          );
+        } else if (state is GoogleLoginFailure) {
+          AppSnackbar.showError(context, state.failure.message);
         }
       },
       child: Scaffold(
@@ -268,7 +289,6 @@ class _SignUpPageState extends State<SignUpPage> {
 
                 BlocBuilder<AuthBloc, AuthState>(
                   builder: (context, state) {
-                    final isLoading = state is OtpLoading;
                     final isVerified = _isEmailVerified;
 
                     return AuthTextInputField(
@@ -279,14 +299,14 @@ class _SignUpPageState extends State<SignUpPage> {
                       keyboardType: TextInputType.emailAddress,
                       onChanged: _validateEmail,
                       errorText: _emailError,
-                      enabled: !isVerified,
+                      enabled: !isVerified && !isAnyLoading,
                       suffixWidget: GestureDetector(
-                        onTap: isLoading || isVerified
+                        onTap: isOtpLoading || isVerified || isAnyLoading
                             ? null
                             : _handleVerifyEmail,
                         child: Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12),
-                          child: isLoading
+                          child: isOtpLoading
                               ? SizedBox(
                                   width: 20,
                                   height: 20,
@@ -327,14 +347,13 @@ class _SignUpPageState extends State<SignUpPage> {
 
                 BlocBuilder<AuthBloc, AuthState>(
                   builder: (context, state) {
-                    final isLoading = state is RegisterLoading;
                     return SizedBox(
                       width: double.infinity,
                       height: 56,
                       child: AppButton(
-                        onPressed: isLoading ? null : _handleCreateAccount,
+                        onPressed: isAnyLoading ? null : _handleCreateAccount,
                         label: 'Create Account',
-                        isLoading: isLoading,
+                        isLoading: isRegisterLoading,
                         foregroundColor: Colors.white,
                         borderRadius: 16,
                         textStyle: const TextStyle(
@@ -352,11 +371,16 @@ class _SignUpPageState extends State<SignUpPage> {
 
                 SocialLoginButton(
                   provider: SocialProvider.google,
+                  isLoading: isGoogleLoading,
+                  isEnabled: !isAnyLoading,
                   onPressed: () {
-                    // TODO(mtigunit): Implement Google signup.
+                    if (isAnyLoading) {
+                      return;
+                    }
+
+                    context.read<AuthBloc>().add(const GoogleLoginRequested());
                   },
                 ),
-                const SizedBox(height: 12),
                 const SizedBox(height: 24),
 
                 Center(
