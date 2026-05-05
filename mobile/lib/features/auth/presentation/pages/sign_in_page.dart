@@ -87,8 +87,9 @@ class _SignInPageState extends State<SignInPage> {
     final colorScheme = Theme.of(context).colorScheme;
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final authState = context.watch<AuthBloc>().state;
-    final isLoading =
-        authState is LoginLoading || authState is GoogleLoginLoading;
+    final isLoginLoading = authState is LoginLoading;
+    final isGoogleLoading = authState is GoogleLoginLoading;
+    final isAnyLoading = isLoginLoading || isGoogleLoading;
 
     return BlocListener<AuthBloc, AuthState>(
       listener: (context, state) {
@@ -183,9 +184,9 @@ class _SignInPageState extends State<SignInPage> {
                       width: double.infinity,
                       height: 56,
                       child: AppButton(
-                        onPressed: isLoading ? null : _handleSignIn,
+                        onPressed: isAnyLoading ? null : _handleSignIn,
                         label: 'Sign in',
-                        isLoading: isLoading,
+                        isLoading: isLoginLoading,
                         foregroundColor: Colors.white,
                         borderRadius: 16,
                         textStyle: const TextStyle(
@@ -203,9 +204,10 @@ class _SignInPageState extends State<SignInPage> {
 
                 SocialLoginButton(
                   provider: SocialProvider.google,
-                  isLoading: isLoading,
+                  isLoading: isGoogleLoading,
+                  isEnabled: !isAnyLoading,
                   onPressed: () {
-                    if (isLoading) {
+                    if (isAnyLoading) {
                       return;
                     }
 

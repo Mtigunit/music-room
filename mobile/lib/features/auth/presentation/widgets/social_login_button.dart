@@ -8,12 +8,14 @@ class SocialLoginButton extends StatelessWidget {
     required this.provider,
     required this.onPressed,
     this.isLoading = false,
+    this.isEnabled = true,
     super.key,
   });
 
   final SocialProvider provider;
   final VoidCallback onPressed;
   final bool isLoading;
+  final bool isEnabled;
 
   String get _label {
     switch (provider) {
@@ -44,31 +46,45 @@ class SocialLoginButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final disabledColor = isDarkMode ? Colors.grey[700]! : Colors.grey[300]!;
+    final borderColor = isEnabled
+        ? (isDarkMode ? Colors.grey[700]! : Colors.grey[300]!)
+        : disabledColor;
+    final textColor = isEnabled
+        ? (isDarkMode ? Colors.white : Colors.black87)
+        : Colors.grey[600];
+    final iconOpacity = isEnabled ? 1.0 : 0.5;
 
     return SizedBox(
       width: double.infinity,
       height: 56,
       child: AppButton(
         variant: AppButtonVariant.outlined,
-        onPressed: onPressed,
+        onPressed: isEnabled ? onPressed : null,
         isLoading: isLoading,
         borderSide: BorderSide(
-          color: isDarkMode ? Colors.grey[700]! : Colors.grey[300]!,
+          color: borderColor,
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            _icon,
-            const SizedBox(width: 12),
-            Text(
-              _label,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w500,
-                color: isDarkMode ? Colors.white : Colors.black87,
+        child: Opacity(
+          opacity: isEnabled ? 1.0 : 0.6,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Opacity(
+                opacity: iconOpacity,
+                child: _icon,
               ),
-            ),
-          ],
+              const SizedBox(width: 12),
+              Text(
+                _label,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w500,
+                  color: textColor,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
