@@ -18,6 +18,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<ResetPasswordRequested>(_onResetPasswordRequested);
     on<RegisterRequested>(_onRegisterRequested);
     on<LogoutRequested>(_onLogoutRequested);
+    on<SessionExpiredRequested>(_onSessionExpiredRequested);
   }
 
   /// Handle Google OAuth login request
@@ -260,6 +261,15 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   ) async {
     await _authRepository.logout();
     emit(const LogoutSuccess());
+    emit(const AuthUnauthenticated());
+  }
+
+  /// Handle session expiration (token expired during active use)
+  Future<void> _onSessionExpiredRequested(
+    SessionExpiredRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    await _authRepository.logout();
     emit(const AuthUnauthenticated());
   }
 }

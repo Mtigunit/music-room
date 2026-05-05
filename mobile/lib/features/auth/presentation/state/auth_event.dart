@@ -116,3 +116,8 @@ class RegisterRequested extends AuthEvent {
 class LogoutRequested extends AuthEvent {
   const LogoutRequested();
 }
+
+/// Event triggered when session expires (token invalid/expired)
+class SessionExpiredRequested extends AuthEvent {
+  const SessionExpiredRequested();
+}

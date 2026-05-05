@@ -31,6 +31,9 @@ class SocketClient {
     final token = await _tokenProvider();
     if (token == null || token.isEmpty) return;
 
+    // Note: Token expiration is validated by ApiClient interceptor.
+    // If 401 is returned, the session expired event will be emitted.
+
     _socket?.dispose();
 
     final extraHeaders = <String, dynamic>{};
@@ -67,7 +70,8 @@ class SocketClient {
           })
           ..on('reconnect_attempt', (_) async {
             final refreshedToken = await _tokenProvider();
-            // Accessing the socket instance directly to update auth
+            // If no token available, socket will fail to reconnect
+            // Session expired handler in ApiClient will trigger logout
             _socket?.auth = <String, dynamic>{'token': refreshedToken ?? ''};
           })
           ..connect();

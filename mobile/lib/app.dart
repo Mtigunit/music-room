@@ -16,9 +16,17 @@ class App extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final authBloc = InjectionContainer().createAuthBloc()
+      ..add(const AuthStarted());
+
+    // Listen for session expiration events from API client
+    // This handles automatic logout when token expires during active use
+    InjectionContainer().apiClient.sessionExpired.listen((_) {
+      authBloc.add(const SessionExpiredRequested());
+    });
+
     return BlocProvider<AuthBloc>(
-      create: (_) =>
-          InjectionContainer().createAuthBloc()..add(const AuthStarted()),
+      create: (_) => authBloc,
       child: MaterialApp(
         onGenerateRoute: AppRouter.onGenerateRoute,
         theme: AppTheme.lightTheme(),
@@ -85,7 +93,7 @@ class _StartupRouteGateState extends State<_StartupRouteGate> {
               unawaited(InjectionContainer().socketClient.reconnectWithAuth());
             }
 
-            if (state is LogoutSuccess) {
+            if (state is LogoutSuccess || state is AuthUnauthenticated) {
               InjectionContainer().socketClient.disconnect();
               // After logout, navigate back to auth screen
               unawaited(
