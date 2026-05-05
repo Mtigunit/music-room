@@ -1,10 +1,8 @@
-import 'dart:convert';
-
-import 'package:crypto/crypto.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/foundation.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 
 class ClientMetaService {
   ClientMetaService({
@@ -64,57 +62,11 @@ class ClientMetaService {
   }
 
   Future<String> _generateDeviceId() async {
-    try {
-      final deviceInfo = await _deviceInfoPlugin.deviceInfo;
-      final fingerprintSeed = _buildFingerprintSeed(deviceInfo.data);
-      if (fingerprintSeed.isNotEmpty) {
-        return sha256.convert(utf8.encode(fingerprintSeed)).toString();
-      }
-    } on Object {
-      // Fall back below.
-    }
-
-    final fallbackSeed = <String>[
-      _resolvePlatform(),
-      DateTime.now().microsecondsSinceEpoch.toString(),
-    ].join('|');
-
-    return sha256.convert(utf8.encode(fallbackSeed)).toString();
-  }
-
-  String _buildFingerprintSeed(Map<String, dynamic> deviceData) {
-    final values = <Object?>[
-      deviceData['brand'],
-      deviceData['device'],
-      deviceData['display'],
-      deviceData['fingerprint'],
-      deviceData['hardware'],
-      deviceData['host'],
-      deviceData['id'],
-      deviceData['manufacturer'],
-      deviceData['model'],
-      deviceData['product'],
-      deviceData['name'],
-      deviceData['serialNumber'],
-      deviceData['systemName'],
-      deviceData['systemVersion'],
-      deviceData['modelName'],
-      deviceData['localizedModel'],
-      deviceData['identifierForVendor'],
-      deviceData['platform'],
-      deviceData['userAgent'],
-      deviceData['vendor'],
-      deviceData['language'],
-      deviceData['languages'],
-      deviceData['hardwareConcurrency'],
-      deviceData['maxTouchPoints'],
-    ];
-
-    return values
-        .whereType<Object>()
-        .map((value) => value.toString().trim())
-        .where((value) => value.isNotEmpty && value != 'unknown')
-        .join('|');
+    // Generate a truly unique device ID using UUID v4
+    // This ensures each installation gets a unique identifier,
+    // unlike fingerprint-based approaches which can collide
+    const uuid = Uuid();
+    return uuid.v4();
   }
 
   Future<String> _resolveDeviceModel() async {
