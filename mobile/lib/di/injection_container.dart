@@ -57,7 +57,9 @@ class InjectionContainer {
     _googleAuthService = GoogleAuthService();
     final sharedPreferences = await SharedPreferences.getInstance();
     _connectivityService = ConnectivityService();
-    _clientMetaService = ClientMetaService();
+    _clientMetaService = ClientMetaService(
+      sharedPreferences: sharedPreferences,
+    );
 
     // Network
     final dio = Dio();

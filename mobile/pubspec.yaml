@@ -29,6 +29,7 @@ environment:
 # versions available, run `flutter pub outdated`.
 dependencies:
   connectivity_plus: ^6.1.4
+  crypto: ^3.0.3
   cupertino_icons: ^1.0.9
   device_info_plus: ^11.5.0
   dio: ^5.4.0
