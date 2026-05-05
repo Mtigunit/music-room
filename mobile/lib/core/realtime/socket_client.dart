@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'package:flutter/foundation.dart';
 import 'package:music_room/core/config/app_config.dart';
+import 'package:music_room/core/services/client_meta_service.dart';
 import 'package:socket_io_client/socket_io_client.dart' as io;
 
 typedef AccessTokenProvider = Future<String?> Function();
@@ -8,11 +10,14 @@ class SocketClient {
   SocketClient({
     required String baseUrl,
     required AccessTokenProvider tokenProvider,
+    required ClientMetaService clientMetaService,
   }) : _baseUrl = baseUrl,
-       _tokenProvider = tokenProvider;
+       _tokenProvider = tokenProvider,
+       _clientMetaService = clientMetaService;
 
   final String _baseUrl;
   final AccessTokenProvider _tokenProvider;
+  final ClientMetaService _clientMetaService;
   io.Socket? _socket;
 
   final StreamController<Object> _connectErrorController =
@@ -28,6 +33,19 @@ class SocketClient {
 
     _socket?.dispose();
 
+    final extraHeaders = <String, dynamic>{};
+    try {
+      final clientHeaders = await _clientMetaService.getHeaders();
+      extraHeaders.addAll(clientHeaders);
+    } on Object catch (error) {
+      if (AppConfig.isDebug) {
+        debugPrint(
+          '[SocketClient] Failed to load optional client metadata headers: '
+          '$error',
+        );
+      }
+    }
+
     // Using cascade operator (..) to address 'cascade_invocations' lint
     _socket =
         io.io(
@@ -40,6 +58,7 @@ class SocketClient {
               'reconnectionAttempts': 50,
               'reconnectionDelay': 1000,
               'auth': <String, dynamic>{'token': token},
+              'extraHeaders': extraHeaders,
             },
           )
           ..on('connect_error', (dynamic error) {

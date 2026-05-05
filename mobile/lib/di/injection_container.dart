@@ -69,6 +69,7 @@ class InjectionContainer {
     _socketClient = SocketClient(
       baseUrl: AppConfig.apiBaseUrl,
       tokenProvider: _tokenStorageService.getToken,
+      clientMetaService: _clientMetaService,
     );
 
     // Data Sources
