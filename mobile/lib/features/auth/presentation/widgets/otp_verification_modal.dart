@@ -154,177 +154,183 @@ class _OtpVerificationModalState extends State<OtpVerificationModal> {
         ? const Color(0xFF2C3040)
         : const Color(0xFFE4E7F1);
 
+    // Get keyboard height to ensure content is visible above it
+    final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
+
     return SafeArea(
       bottom: false,
-      child: Container(
-        decoration: BoxDecoration(
-          color: surfaceColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
-        ),
-        padding: const EdgeInsets.fromLTRB(24, 10, 24, 20),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Align(
-              child: Container(
-                width: 58,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: isDarkMode
-                      ? const Color(0xFF3B3F50)
-                      : const Color(0xFFD0D5E3),
-                  borderRadius: BorderRadius.circular(99),
+      child: SingleChildScrollView(
+        child: Container(
+          decoration: BoxDecoration(
+            color: surfaceColor,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+          ),
+          padding: EdgeInsets.fromLTRB(24, 10, 24, 20 + keyboardHeight),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Align(
+                child: Container(
+                  width: 58,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: isDarkMode
+                        ? const Color(0xFF3B3F50)
+                        : const Color(0xFFD0D5E3),
+                    borderRadius: BorderRadius.circular(99),
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 26),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Text(
-                    'Verify your email',
-                    style: Theme.of(context).textTheme.displaySmall?.copyWith(
-                      fontSize: 44 / 2,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ),
-                GestureDetector(
-                  onTap: () => Navigator.of(context).pop(),
-                  child: Container(
-                    width: 40,
-                    height: 40,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: isDarkMode
-                          ? const Color(0xFF282C3C)
-                          : const Color(0xFFE8EBF3),
-                    ),
-                    child: Icon(
-                      Icons.close,
-                      color: mutedText,
-                      size: 20,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            RichText(
-              text: TextSpan(
-                style: Theme.of(context).textTheme.bodyLarge,
+              const SizedBox(height: 26),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  TextSpan(
-                    text: 'We sent a $_otpLength-digit code to\n',
-                    style: TextStyle(
-                      color: secondaryText,
-                      height: 1.45,
-                      fontWeight: FontWeight.w600,
+                  Expanded(
+                    child: Text(
+                      'Verify your email',
+                      style: Theme.of(context).textTheme.displaySmall?.copyWith(
+                        fontSize: 44 / 2,
+                        fontWeight: FontWeight.w800,
+                      ),
                     ),
                   ),
-                  TextSpan(
-                    text: widget.email,
-                    style: TextStyle(
-                      color: colorScheme.primary,
-                      fontWeight: FontWeight.w700,
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: Container(
+                      width: 40,
+                      height: 40,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: isDarkMode
+                            ? const Color(0xFF282C3C)
+                            : const Color(0xFFE8EBF3),
+                      ),
+                      child: Icon(
+                        Icons.close,
+                        color: mutedText,
+                        size: 20,
+                      ),
                     ),
                   ),
                 ],
               ),
-            ),
-            const SizedBox(height: 20),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: List.generate(
-                _otpLength,
-                (index) => SizedBox(
-                  width: 50,
-                  height: 68,
-                  child: TextField(
-                    controller: _controllers[index],
-                    focusNode: _focusNodes[index],
-                    maxLength: _otpLength,
-                    textAlign: TextAlign.center,
-                    keyboardType: TextInputType.number,
-                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                    onChanged: (value) {
-                      _onOtpDigitChanged(value, index);
-                      setState(() {});
-                    },
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w800,
+              const SizedBox(height: 12),
+              RichText(
+                text: TextSpan(
+                  style: Theme.of(context).textTheme.bodyLarge,
+                  children: [
+                    TextSpan(
+                      text: 'We sent a $_otpLength-digit code to\n',
+                      style: TextStyle(
+                        color: secondaryText,
+                        height: 1.45,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
-                    decoration: InputDecoration(
-                      filled: true,
-                      fillColor: inputFill,
-                      counterText: '',
-                      contentPadding: EdgeInsets.zero,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(18),
-                        borderSide: BorderSide(color: inputBorder),
+                    TextSpan(
+                      text: widget.email,
+                      style: TextStyle(
+                        color: colorScheme.primary,
+                        fontWeight: FontWeight.w700,
                       ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(18),
-                        borderSide: BorderSide(color: inputBorder),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(18),
-                        borderSide: BorderSide(
-                          color: colorScheme.primary,
-                          width: 2,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: List.generate(
+                  _otpLength,
+                  (index) => SizedBox(
+                    width: 50,
+                    height: 68,
+                    child: TextField(
+                      controller: _controllers[index],
+                      focusNode: _focusNodes[index],
+                      maxLength: _otpLength,
+                      textAlign: TextAlign.center,
+                      keyboardType: TextInputType.number,
+                      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                      onChanged: (value) {
+                        _onOtpDigitChanged(value, index);
+                        setState(() {});
+                      },
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(
+                            fontWeight: FontWeight.w800,
+                          ),
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: inputFill,
+                        counterText: '',
+                        contentPadding: EdgeInsets.zero,
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(18),
+                          borderSide: BorderSide(color: inputBorder),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(18),
+                          borderSide: BorderSide(color: inputBorder),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(18),
+                          borderSide: BorderSide(
+                            color: colorScheme.primary,
+                            width: 2,
+                          ),
                         ),
                       ),
                     ),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 18),
-            Row(
-              children: [
-                Text(
-                  'Resend in $_remainingSeconds s',
-                  style: TextStyle(
-                    color: secondaryText,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const Spacer(),
-                if (_canResend)
-                  AppButton(
-                    variant: AppButtonVariant.text,
-                    onPressed: _handleResend,
-                    label: 'Resend',
-                    foregroundColor: colorScheme.primary,
-                    textStyle: const TextStyle(
-                      fontWeight: FontWeight.w700,
+              const SizedBox(height: 18),
+              Row(
+                children: [
+                  Text(
+                    'Resend in $_remainingSeconds s',
+                    style: TextStyle(
+                      color: secondaryText,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: AppButton(
-                onPressed: _isOtpComplete ? _handleConfirm : null,
-                backgroundColor: colorScheme.primary,
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: disabledButton,
-                disabledForegroundColor: mutedText,
-                borderRadius: 20,
-                label: 'Confirm',
-                textStyle: const TextStyle(
-                  fontSize: 34 / 2,
-                  fontWeight: FontWeight.w700,
+                  const Spacer(),
+                  if (_canResend)
+                    AppButton(
+                      variant: AppButtonVariant.text,
+                      onPressed: _handleResend,
+                      label: 'Resend',
+                      foregroundColor: colorScheme.primary,
+                      textStyle: const TextStyle(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 14),
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: AppButton(
+                  onPressed: _isOtpComplete ? _handleConfirm : null,
+                  backgroundColor: colorScheme.primary,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: disabledButton,
+                  disabledForegroundColor: mutedText,
+                  borderRadius: 20,
+                  label: 'Confirm',
+                  textStyle: const TextStyle(
+                    fontSize: 34 / 2,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
-            ),
-            const SizedBox(height: 40),
-          ],
+              const SizedBox(height: 40),
+            ],
+          ),
         ),
       ),
     );
