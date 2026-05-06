@@ -82,7 +82,7 @@ class ApiClient {
           if (error.response?.statusCode == 401) {
             await _tokenStorage.clearToken();
             // Emit session expired event to trigger logout
-            _sessionExpiredController.add(null);
+            _emitSessionExpiredSafely();
           }
 
           if (AppConfig.isDebug) {
@@ -178,5 +178,13 @@ class ApiClient {
   /// Cleanup resources
   Future<void> dispose() async {
     await _sessionExpiredController.close();
+  }
+
+  void _emitSessionExpiredSafely() {
+    if (_sessionExpiredController.isClosed) {
+      return;
+    }
+
+    _sessionExpiredController.add(null);
   }
 }
