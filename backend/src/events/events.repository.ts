@@ -12,6 +12,13 @@ import {
 } from '@prisma/client';
 import { TrackSearchResultDto } from '../tracks/dto/track-search-result.dto';
 
+const firstTrackSelect = {
+  select: { track: { select: { thumbnailUrl: true } } },
+  take: 1,
+  where: { status: TrackStatus.QUEUED },
+  orderBy: [{ voteScore: 'desc' as const }, { id: 'asc' as const }],
+};
+
 @Injectable()
 export class EventsRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -304,17 +311,13 @@ export class EventsRepository {
 
     const [data, total] = await Promise.all([
       this.prisma.event.findMany({
-        where,
+        where: { ...where, tracks: { some: { status: TrackStatus.QUEUED } } },
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
         include: {
           host: { select: { id: true, username: true } },
-          tracks: {
-            select: { track: { select: { thumbnailUrl: true } } },
-            take: 1,
-            orderBy: { id: 'asc' },
-          },
+          tracks: firstTrackSelect,
         },
       }),
       this.prisma.event.count({ where }),
@@ -366,11 +369,7 @@ export class EventsRepository {
         orderBy: { createdAt: 'desc' },
         include: {
           host: { select: { id: true, username: true } },
-          tracks: {
-            select: { track: { select: { thumbnailUrl: true } } },
-            take: 1,
-            orderBy: { id: 'asc' },
-          },
+          tracks: firstTrackSelect,
         },
       }),
       this.prisma.event.count({ where }),
@@ -424,11 +423,7 @@ export class EventsRepository {
         orderBy: { createdAt: 'desc' },
         include: {
           host: { select: { id: true, username: true } },
-          tracks: {
-            select: { track: { select: { thumbnailUrl: true } } },
-            take: 1,
-            orderBy: { id: 'asc' },
-          },
+          tracks: firstTrackSelect,
         },
       }),
       this.prisma.event.count({ where }),
@@ -502,8 +497,8 @@ export class EventsRepository {
         artist: et.track.artist,
         durationMs: et.track.durationMs,
         thumbnailUrl: et.track.thumbnailUrl,
-        isVoted: userVote !== null, // true if the user voted
-        voteValue: userVote?.voteValue ?? null, // 1, -1, or null
+        isVoted: userVote !== null,
+        voteValue: userVote?.voteValue ?? null,
       };
     });
 
