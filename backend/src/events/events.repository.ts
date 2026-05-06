@@ -475,7 +475,10 @@ export class EventsRepository {
     const [tracks, total] = await Promise.all([
       this.prisma.eventTrack.findMany({
         where,
-        include: { track: true, votes: { where: { userId } } },
+        include: {
+          track: true,
+          votes: { where: { userId }, select: { voteValue: true } },
+        },
         orderBy: [{ voteScore: 'desc' }, { id: 'asc' }],
         skip,
         take,
