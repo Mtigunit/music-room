@@ -1,13 +1,18 @@
+import 'dart:async';
+
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:music_room/core/network/api_client.dart';
 import 'package:music_room/features/auth/domain/repositories/auth_repository.dart';
 import 'package:music_room/features/auth/presentation/state/auth_event.dart';
 import 'package:music_room/features/auth/presentation/state/auth_state.dart';
 
 /// BLoC for managing authentication state and events
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
-  AuthBloc({required AuthRepository authRepository})
-    : _authRepository = authRepository,
-      super(const AuthInitial()) {
+  AuthBloc({
+    required AuthRepository authRepository,
+    required ApiClient apiClient,
+  }) : _authRepository = authRepository,
+       super(const AuthInitial()) {
     on<AuthStarted>(_onAuthStarted);
     on<LoginRequested>(_onLoginRequested);
     on<GoogleLoginRequested>(_onGoogleLoginRequested);
@@ -19,6 +24,19 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<RegisterRequested>(_onRegisterRequested);
     on<LogoutRequested>(_onLogoutRequested);
     on<SessionExpiredRequested>(_onSessionExpiredRequested);
+
+    _sessionExpiredSubscription = apiClient.sessionExpired.listen((_) {
+      add(const SessionExpiredRequested());
+    });
+  }
+
+  final AuthRepository _authRepository;
+  late final StreamSubscription<void> _sessionExpiredSubscription;
+
+  @override
+  Future<void> close() async {
+    await _sessionExpiredSubscription.cancel();
+    return super.close();
   }
 
   /// Handle Google OAuth login request
@@ -47,8 +65,6 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       emit(GoogleLoginFailure(failure: failure!));
     }
   }
-
-  final AuthRepository _authRepository;
 
   /// Check if user is authenticated on app start
   Future<void> _onAuthStarted(
