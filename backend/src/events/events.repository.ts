@@ -308,16 +308,21 @@ export class EventsRepository {
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
-        include: { host: { select: { id: true, username: true } } },
+        include: {
+          host: { select: { id: true, username: true } },
+          tracks: { include: { track: { select: { thumbnailUrl: true } } } },
+        },
       }),
       this.prisma.event.count({ where }),
     ]);
 
     const formattedData = data.map((event) => {
-      const { host, ...rest } = event;
+      const { host, tracks, ...rest } = event;
+      const firstTrack = tracks[0];
       return {
         ...rest,
         host: host ? { id: host.id, name: host.username } : null,
+        firstTrack: firstTrack ? firstTrack.track.thumbnailUrl : null,
       };
     });
 
@@ -355,16 +360,21 @@ export class EventsRepository {
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
-        include: { host: { select: { id: true, username: true } } },
+        include: {
+          host: { select: { id: true, username: true } },
+          tracks: { include: { track: { select: { thumbnailUrl: true } } } },
+        },
       }),
       this.prisma.event.count({ where }),
     ]);
 
     const formattedData = data.map((event) => {
-      const { host, ...rest } = event;
+      const { host, tracks, ...rest } = event;
+      const firstTrack = tracks[0];
       return {
         ...rest,
         host: host ? { id: host.id, name: host.username } : null,
+        firstTrack: firstTrack ? firstTrack.track.thumbnailUrl : null,
       };
     });
 
@@ -404,16 +414,21 @@ export class EventsRepository {
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
-        include: { host: { select: { id: true, username: true } } },
+        include: {
+          host: { select: { id: true, username: true } },
+          tracks: { include: { track: { select: { thumbnailUrl: true } } } },
+        },
       }),
       this.prisma.event.count({ where }),
     ]);
 
     const formattedData = data.map((event) => {
-      const { host, ...rest } = event;
+      const { host, tracks, ...rest } = event;
+      const firstTrack = tracks[0];
       return {
         ...rest,
         host: host ? { id: host.id, name: host.username } : null,
+        firstTrack: firstTrack ? firstTrack.track.thumbnailUrl : null,
       };
     });
 
@@ -448,13 +463,13 @@ export class EventsRepository {
     });
   }
 
-  async getTracks(eventId: string, skip: number, take: number) {
+  async getTracks(eventId: string, skip: number, take: number, userId: string) {
     const where: Prisma.EventTrackWhereInput = { eventId };
 
     const [tracks, total] = await Promise.all([
       this.prisma.eventTrack.findMany({
         where,
-        include: { track: true },
+        include: { track: true, votes: { where: { userId } } },
         orderBy: [{ voteScore: 'desc' }, { id: 'asc' }],
         skip,
         take,
@@ -462,18 +477,23 @@ export class EventsRepository {
       this.prisma.eventTrack.count({ where }),
     ]);
 
-    const formattedTracks = tracks.map((et) => ({
-      id: et.id,
-      trackId: et.trackId,
-      addedById: et.addedById,
-      voteScore: et.voteScore,
-      status: et.status,
-      providerTrackId: et.track.providerTrackId,
-      title: et.track.title,
-      artist: et.track.artist,
-      durationMs: et.track.durationMs,
-      thumbnailUrl: et.track.thumbnailUrl,
-    }));
+    const formattedTracks = tracks.map((et) => {
+      const userVote = et.votes[0] ?? null;
+      return {
+        id: et.id,
+        trackId: et.trackId,
+        addedById: et.addedById,
+        voteScore: et.voteScore,
+        status: et.status,
+        providerTrackId: et.track.providerTrackId,
+        title: et.track.title,
+        artist: et.track.artist,
+        durationMs: et.track.durationMs,
+        thumbnailUrl: et.track.thumbnailUrl,
+        isVoted: userVote !== null, // true if the user voted
+        voteValue: userVote?.voteValue ?? null, // 1, -1, or null
+      };
+    });
 
     return { tracks: formattedTracks, total };
   }
