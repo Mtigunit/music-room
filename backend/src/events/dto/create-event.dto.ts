@@ -33,23 +33,27 @@ export function IsValidPoliciesArray(validationOptions?: ValidationOptions) {
         validate(value: unknown) {
           if (value === undefined || value === null) return true;
           if (!Array.isArray(value)) return false;
-          if (value.length !== 2) return false;
+          if (value.length === 0 || value.length > 2) return false;
 
           const types = value.map((p: LicensePolicyDto) => p.policyType);
-          const hasGeofence = types.includes(PolicyType.GEOFENCE);
-          const hasTimeWindow = types.includes(PolicyType.TIME_WINDOW);
 
-          return hasGeofence && hasTimeWindow;
+          // No duplicates allowed
+          const uniqueTypes = new Set(types);
+          if (uniqueTypes.size !== types.length) return false;
+
+          // Each policyType must be a valid PolicyType
+          const validTypes = Object.values(PolicyType);
+          return types.every((t) => validTypes.includes(t));
         },
         defaultMessage(args: ValidationArguments) {
           const value = args.value as unknown;
           if (!Array.isArray(value)) {
             return `${args.property} must be an array`;
           }
-          if (value.length !== 2) {
-            return `${args.property} must contain exactly 2 policies, got ${value.length}`;
+          if (value.length === 0 || value.length > 2) {
+            return `${args.property} must contain 1 or 2 policies, got ${value.length}`;
           }
-          return `${args.property} must contain exactly one GEOFENCE policy and one TIME_WINDOW policy`;
+          return `${args.property} must contain unique valid policy types (GEOFENCE, TIME_WINDOW)`;
         },
       },
     });
@@ -117,6 +121,29 @@ const normalizeProviderTrackIds = (value: unknown): string[] | undefined => {
   return [extractProviderTrackId(value)];
 };
 
+// Shared helper — parses a JSON array string and returns the parsed array,
+// or a sentinel string that will fail @IsArray() with a clear message
+const parseJsonArrayField = <T>(
+  value: unknown,
+  fieldName: string,
+): T[] | string | undefined => {
+  if (value === undefined || value === null || value === '') return undefined;
+  if (Array.isArray(value)) return value as T[];
+  if (
+    typeof value === 'string' &&
+    value.trim().startsWith('[') &&
+    value.trim().endsWith(']')
+  ) {
+    try {
+      return JSON.parse(value) as T[];
+    } catch {
+      return `INVALID_JSON_ARRAY:${fieldName}`;
+    }
+  }
+  // Single scalar value — wrap in array
+  return [value as T];
+};
+
 export class GeofenceConfigDto {
   [key: string]: Prisma.InputJsonValue | undefined;
 
@@ -169,21 +196,9 @@ export class CreateEventDto {
   @ArrayMaxSize(3)
   @IsEnum(Tags, { each: true })
   @ArrayUnique({ message: 'Tags must not contain duplicate values' })
-  @Transform(({ value }): Tags[] | undefined => {
-    if (value === undefined || value === null || value === '') return undefined;
-    if (
-      typeof value === 'string' &&
-      value.trim().startsWith('[') &&
-      value.trim().endsWith(']')
-    ) {
-      try {
-        return JSON.parse(value) as Tags[];
-      } catch {
-        return undefined;
-      }
-    }
-    return Array.isArray(value) ? (value as Tags[]) : ([value] as Tags[]);
-  })
+  @Transform(({ value }): Tags[] | string | undefined =>
+    parseJsonArrayField<Tags>(value, 'tags'),
+  )
   tags!: Tags[];
 
   @ApiProperty({ enum: Visibility })
@@ -261,7 +276,7 @@ export class CreateEventDto {
   @ValidateNested({ each: true })
   @IsValidPoliciesArray()
   @Type(() => LicensePolicyDto)
-  @Transform(({ value }): LicensePolicyDto[] | undefined => {
+  @Transform(({ value }): LicensePolicyDto[] | string | undefined => {
     if (value === undefined || value === null || value === '') return undefined;
 
     let parsed: unknown = value;
@@ -274,7 +289,7 @@ export class CreateEventDto {
       try {
         parsed = JSON.parse(value) as unknown;
       } catch {
-        return 'INVALID_JSON' as unknown as LicensePolicyDto[];
+        return 'INVALID_JSON_ARRAY:policies';
       }
     }
 
@@ -301,21 +316,9 @@ export class CreateEventDto {
   @IsOptional()
   @IsArray()
   @IsUUID('all', { each: true })
-  @Transform(({ value }): string[] | undefined => {
-    if (value === undefined || value === null || value === '') return undefined;
-    if (
-      typeof value === 'string' &&
-      value.trim().startsWith('[') &&
-      value.trim().endsWith(']')
-    ) {
-      try {
-        return JSON.parse(value) as string[];
-      } catch {
-        return undefined;
-      }
-    }
-    return Array.isArray(value) ? (value as string[]) : [value as string];
-  })
+  @Transform(({ value }): string[] | string | undefined =>
+    parseJsonArrayField<string>(value, 'playlistIds'),
+  )
   playlistIds?: string[];
 
   @ApiPropertyOptional({ type: [String] })
