@@ -308,6 +308,7 @@ export class EventsService {
       id,
       skip,
       limit,
+      userId,
     );
 
     return {

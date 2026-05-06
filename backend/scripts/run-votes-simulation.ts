@@ -140,7 +140,12 @@ async function main() {
           startDate: new Date(Date.now() - 2 * 3600_000).toISOString(),
           endDate:   new Date(Date.now() - 1 * 3600_000).toISOString(),
         },
-      }],
+      },
+      {
+        policyType: PolicyType.GEOFENCE,
+        config: { distance: 100 },
+      }
+    ],
     });
     timeEventId = timeEvent.id;
 
@@ -155,7 +160,15 @@ async function main() {
       policies: [{
         policyType: PolicyType.GEOFENCE,
         config: { distance: 100 },
-      }],
+      },
+      {
+        policyType: PolicyType.TIME_WINDOW,
+        config: {
+          startDate: new Date(Date.now() - 2 * 3600_000).toISOString(),
+          endDate:   new Date(Date.now() - 1 * 3600_000).toISOString(),
+        },
+      },
+    ],
       startDate: new Date(Date.now() - 3600_000).toISOString(),
     });
     geoEventId = geoEvent.id;
