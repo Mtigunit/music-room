@@ -15,7 +15,6 @@ import { TrackSearchResultDto } from '../tracks/dto/track-search-result.dto';
 const firstTrackSelect = {
   select: { track: { select: { thumbnailUrl: true } } },
   take: 1,
-  where: { status: TrackStatus.QUEUED },
   orderBy: [{ voteScore: 'desc' as const }, { id: 'asc' as const }],
 };
 
@@ -311,7 +310,7 @@ export class EventsRepository {
 
     const [data, total] = await Promise.all([
       this.prisma.event.findMany({
-        where: { ...where, tracks: { some: { status: TrackStatus.QUEUED } } },
+        where,
         skip,
         take: limit,
         orderBy: { createdAt: 'desc' },
