@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:music_room/core/config/app_config.dart';
@@ -18,6 +20,13 @@ class ApiClient {
   final Dio _dio;
   final TokenStorageService _tokenStorage;
   final ClientMetaService _clientMetaService;
+
+  // Stream controller for session expiration events
+  final StreamController<void> _sessionExpiredController =
+      StreamController<void>.broadcast();
+
+  /// Stream that emits when session expires (401 received)
+  Stream<void> get sessionExpired => _sessionExpiredController.stream;
 
   void _setupInterceptors() {
     _dio.options.baseUrl = AppConfig.apiBaseUrl;
@@ -72,6 +81,8 @@ class ApiClient {
           // Handle 401 Unauthorized (token expired)
           if (error.response?.statusCode == 401) {
             await _tokenStorage.clearToken();
+            // Emit session expired event to trigger logout
+            _sessionExpiredController.add(null);
           }
 
           if (AppConfig.isDebug) {
@@ -162,5 +173,10 @@ class ApiClient {
       queryParameters: queryParameters,
       options: options,
     );
+  }
+
+  /// Cleanup resources
+  Future<void> dispose() async {
+    await _sessionExpiredController.close();
   }
 }

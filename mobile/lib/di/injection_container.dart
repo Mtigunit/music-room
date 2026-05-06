@@ -116,7 +116,10 @@ class InjectionContainer {
       _musicVoteRemoteDataSource;
 
   AuthBloc createAuthBloc() {
-    return AuthBloc(authRepository: _authRepository);
+    return AuthBloc(
+      authRepository: _authRepository,
+      apiClient: _apiClient,
+    );
   }
 
   PlaylistBloc createPlaylistBloc() {

@@ -11,14 +11,33 @@ import 'package:music_room/features/auth/presentation/state/auth_state.dart';
 import 'package:music_room/routes/app_router.dart';
 import 'package:music_room/routes/route_names.dart';
 
-class App extends StatelessWidget {
+class App extends StatefulWidget {
   const App({super.key});
 
   @override
+  State<App> createState() => _AppState();
+}
+
+class _AppState extends State<App> {
+  late final AuthBloc _authBloc;
+
+  @override
+  void initState() {
+    super.initState();
+    _authBloc = InjectionContainer().createAuthBloc();
+    _authBloc.add(const AuthStarted());
+  }
+
+  @override
+  void dispose() {
+    unawaited(_authBloc.close());
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return BlocProvider<AuthBloc>(
-      create: (_) =>
-          InjectionContainer().createAuthBloc()..add(const AuthStarted()),
+    return BlocProvider<AuthBloc>.value(
+      value: _authBloc,
       child: MaterialApp(
         onGenerateRoute: AppRouter.onGenerateRoute,
         theme: AppTheme.lightTheme(),
@@ -85,7 +104,7 @@ class _StartupRouteGateState extends State<_StartupRouteGate> {
               unawaited(InjectionContainer().socketClient.reconnectWithAuth());
             }
 
-            if (state is LogoutSuccess) {
+            if (state is LogoutSuccess || state is AuthUnauthenticated) {
               InjectionContainer().socketClient.disconnect();
               // After logout, navigate back to auth screen
               unawaited(

@@ -50,7 +50,7 @@ class TokenStorageService {
       return false;
     }
 
-    if (_isJwtExpired(token)) {
+    if (isJwtExpired(token)) {
       await clearAll();
       return false;
     }
@@ -58,7 +58,9 @@ class TokenStorageService {
     return true;
   }
 
-  bool _isJwtExpired(String token) {
+  /// Check if a JWT token is expired
+  /// Public method for checking token expiration from other services
+  bool isJwtExpired(String token) {
     try {
       final parts = token.split('.');
       if (parts.length != 3) {
