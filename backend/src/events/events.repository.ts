@@ -310,7 +310,11 @@ export class EventsRepository {
         orderBy: { createdAt: 'desc' },
         include: {
           host: { select: { id: true, username: true } },
-          tracks: { include: { track: { select: { thumbnailUrl: true } } } },
+          tracks: {
+            select: { track: { select: { thumbnailUrl: true } } },
+            take: 1,
+            orderBy: { id: 'asc' },
+          },
         },
       }),
       this.prisma.event.count({ where }),
@@ -362,7 +366,11 @@ export class EventsRepository {
         orderBy: { createdAt: 'desc' },
         include: {
           host: { select: { id: true, username: true } },
-          tracks: { include: { track: { select: { thumbnailUrl: true } } } },
+          tracks: {
+            select: { track: { select: { thumbnailUrl: true } } },
+            take: 1,
+            orderBy: { id: 'asc' },
+          },
         },
       }),
       this.prisma.event.count({ where }),
@@ -416,7 +424,11 @@ export class EventsRepository {
         orderBy: { createdAt: 'desc' },
         include: {
           host: { select: { id: true, username: true } },
-          tracks: { include: { track: { select: { thumbnailUrl: true } } } },
+          tracks: {
+            select: { track: { select: { thumbnailUrl: true } } },
+            take: 1,
+            orderBy: { id: 'asc' },
+          },
         },
       }),
       this.prisma.event.count({ where }),

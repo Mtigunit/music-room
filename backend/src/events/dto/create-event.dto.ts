@@ -13,14 +13,13 @@ import {
   IsDateString,
   IsBoolean,
   IsDate,
-} from 'class-validator';
-import { Transform, Type, plainToInstance } from 'class-transformer';
-import { Visibility, PolicyType, Prisma, Tags } from '@prisma/client';
-import {
+  MinLength,
   registerDecorator,
   ValidationOptions,
   ValidationArguments,
 } from 'class-validator';
+import { Transform, Type, plainToInstance } from 'class-transformer';
+import { Visibility, PolicyType, Prisma, Tags } from '@prisma/client';
 
 export function IsValidPoliciesArray(validationOptions?: ValidationOptions) {
   return function (object: object, propertyName: string) {
@@ -37,11 +36,9 @@ export function IsValidPoliciesArray(validationOptions?: ValidationOptions) {
 
           const types = value.map((p: LicensePolicyDto) => p.policyType);
 
-          // No duplicates allowed
           const uniqueTypes = new Set(types);
           if (uniqueTypes.size !== types.length) return false;
 
-          // Each policyType must be a valid PolicyType
           const validTypes = Object.values(PolicyType);
           return types.every((t) => validTypes.includes(t));
         },
@@ -84,19 +81,19 @@ export function IsStartBeforeEnd(validationOptions?: ValidationOptions) {
   };
 }
 
-const normalizeProviderTrackIds = (value: unknown): string[] | undefined => {
+const normalizeProviderTrackIds = (value: unknown): unknown[] | undefined => {
   if (value === undefined || value === null || value === '') return undefined;
 
-  const extractProviderTrackId = (entry: unknown): string => {
+  const extractProviderTrackId = (entry: unknown): unknown => {
     if (typeof entry === 'string') return entry;
     if (entry && typeof entry === 'object' && 'providerTrackId' in entry) {
       const id = (entry as { providerTrackId?: unknown }).providerTrackId;
-      return typeof id === 'string' ? id : '';
+      return id;
     }
-    return typeof entry === 'string' ? entry : '';
+    return entry;
   };
 
-  const toArray = (entries: unknown[]): string[] =>
+  const toArray = (entries: unknown[]): unknown[] =>
     entries.map((entry) => extractProviderTrackId(entry));
 
   if (typeof value === 'string') {
@@ -108,7 +105,7 @@ const normalizeProviderTrackIds = (value: unknown): string[] | undefined => {
           ? toArray(parsed)
           : [extractProviderTrackId(parsed)];
       } catch {
-        return [value];
+        return 'INVALID_JSON_ARRAY:tracks' as unknown as unknown[];
       }
     }
     return [value];
@@ -121,8 +118,6 @@ const normalizeProviderTrackIds = (value: unknown): string[] | undefined => {
   return [extractProviderTrackId(value)];
 };
 
-// Shared helper — parses a JSON array string and returns the parsed array,
-// or a sentinel string that will fail @IsArray() with a clear message
 const parseJsonArrayField = <T>(
   value: unknown,
   fieldName: string,
@@ -140,7 +135,6 @@ const parseJsonArrayField = <T>(
       return `INVALID_JSON_ARRAY:${fieldName}`;
     }
   }
-  // Single scalar value — wrap in array
   return [value as T];
 };
 
@@ -295,6 +289,12 @@ export class CreateEventDto {
 
     const arr = Array.isArray(parsed) ? parsed : [parsed];
 
+    // Guard: if any item is null or not an object, return sentinel to
+    // fail @IsArray() cleanly with a 400 instead of throwing a 500
+    if (arr.some((item) => item === null || typeof item !== 'object')) {
+      return 'INVALID_POLICY_ITEM' as unknown as LicensePolicyDto[];
+    }
+
     return (arr as Record<string, unknown>[]).map((item) => {
       const policy = new LicensePolicyDto();
       policy.policyType = item.policyType as PolicyType;
@@ -315,20 +315,21 @@ export class CreateEventDto {
   @ApiPropertyOptional({ type: [String] })
   @IsOptional()
   @IsArray()
+  @IsString({ each: true })
+  @MinLength(1, { each: true, message: 'each track id must not be empty' })
+  @Transform(({ value }): unknown[] | undefined =>
+    normalizeProviderTrackIds(value),
+  )
+  tracks?: string[];
+
+  @ApiPropertyOptional({ type: [String] })
+  @IsOptional()
+  @IsArray()
   @IsUUID('all', { each: true })
   @Transform(({ value }): string[] | string | undefined =>
     parseJsonArrayField<string>(value, 'playlistIds'),
   )
   playlistIds?: string[];
-
-  @ApiPropertyOptional({ type: [String] })
-  @IsOptional()
-  @IsArray()
-  @IsString({ each: true })
-  @Transform(({ value }): string[] | undefined =>
-    normalizeProviderTrackIds(value),
-  )
-  tracks?: string[];
 
   @ApiProperty()
   @IsDate()
