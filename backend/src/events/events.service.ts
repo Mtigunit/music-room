@@ -140,19 +140,16 @@ export class EventsService {
       throw new NotFoundException(`Event with ID ${id} not found`);
     }
 
-    const {
-      tracks,
-      host,
-      invites,
-      policies,
-      invitingOnly,
-      hostId,
-      ...eventData
-    } = event;
+    const { tracks, host, invites, policies, invitingOnly, ...eventData } =
+      event;
+
+    const isInvited =
+      invites?.some((i: { userId: string }) => i.userId === userId) ?? false;
+
     if (
       event.visibility === Visibility.PRIVATE &&
       event.hostId !== userId &&
-      !invites.length
+      !isInvited
     ) {
       throw new ForbiddenException(
         'Forbidden: You do not have access to this event',
@@ -177,9 +174,10 @@ export class EventsService {
 
     return {
       ...eventData,
-      host: host ? { id: hostId, name: host.username } : null,
+      hostId: event.hostId, // retain hostId in top-level output
+      host: host ? { id: host.id, name: host.username } : null,
       tracks,
-      isInvited: (invites?.length ?? 0) > 0,
+      isInvited,
       isHost: event.hostId === userId,
       policies: {
         locationAndTime: (policies?.length ?? 0) > 0,
