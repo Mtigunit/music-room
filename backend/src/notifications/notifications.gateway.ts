@@ -27,7 +27,7 @@ export class NotificationsGateway
 
   constructor(private readonly socketAuthService: SocketAuthService) {}
 
-  handleConnection(client: Socket) {
+  async handleConnection(client: Socket) {
     const user = this.socketAuthService.getUser(client);
     if (!user) {
       client.disconnect(true);
@@ -35,10 +35,17 @@ export class NotificationsGateway
     }
 
     const roomName = buildNotificationRoom(user.id);
-    void client.join(roomName);
-    this.logger.log(
-      `Socket connected: id=${client.id} userId=${user.id} room=${roomName}`,
-    );
+    try {
+      await client.join(roomName);
+      this.logger.log(
+        `Socket connected: id=${client.id} userId=${user.id} room=${roomName}`,
+      );
+    } catch (error: unknown) {
+      this.logger.error(
+        `Failed to join room ${roomName} for socket ${client.id}: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+      client.disconnect(true);
+    }
   }
 
   handleDisconnect(client: Socket) {
