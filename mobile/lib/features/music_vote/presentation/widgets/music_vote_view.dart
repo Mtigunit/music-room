@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:music_room/core/widgets/top_toast.dart';
 import 'package:music_room/features/music_vote/presentation/state/music_vote_cubit.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/live_header.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/player_card.dart';
@@ -22,90 +23,99 @@ class MusicVoteView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<MusicVoteCubit, MusicVoteState>(
-      builder: (context, state) {
-        // Loading state
-        if (state.isLoading) {
-          return const MusicVoteSkeleton();
+    return BlocListener<MusicVoteCubit, MusicVoteState>(
+      listenWhen: (prev, curr) => prev.error != curr.error,
+      listener: (context, state) {
+        if (state.error != null && state.event != null) {
+          TopToast.show(context, state.error!);
+          context.read<MusicVoteCubit>().clearError();
         }
+      },
+      child: BlocBuilder<MusicVoteCubit, MusicVoteState>(
+        builder: (context, state) {
+          // Loading state
+          if (state.isLoading) {
+            return const MusicVoteSkeleton();
+          }
 
-        // Error state (with retry)
-        if (state.error != null && state.event == null) {
+          // Error state (with retry)
+          if (state.error != null && state.event == null) {
+            return Scaffold(
+              body: SafeArea(
+                child: CustomScrollView(
+                  physics: const BouncingScrollPhysics(),
+                  slivers: [
+                    SliverPersistentHeader(
+                      pinned: true,
+                      delegate: _StickyHeaderDelegate(
+                        child: _HeaderBackground(
+                          child: LiveHeader(
+                            eventId: eventId,
+                            isHost: isHost,
+                          ),
+                        ),
+                      ),
+                    ),
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: _ErrorBody(
+                        message: state.error!,
+                        onRetry: eventId != null && eventId!.isNotEmpty
+                            ? () => context.read<MusicVoteCubit>().loadRoom(
+                                eventId!,
+                              )
+                            : null,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          }
+
+          // Loaded state (LIVE)
+          final eventName = state.event?.name;
+
           return Scaffold(
             body: SafeArea(
               child: CustomScrollView(
                 physics: const BouncingScrollPhysics(),
                 slivers: [
+                  // ── Sticky header ─────────────────────────────────────
                   SliverPersistentHeader(
                     pinned: true,
                     delegate: _StickyHeaderDelegate(
                       child: _HeaderBackground(
                         child: LiveHeader(
                           eventId: eventId,
+                          eventName: eventName,
                           isHost: isHost,
                         ),
                       ),
                     ),
                   ),
-                  SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: _ErrorBody(
-                      message: state.error!,
-                      onRetry: eventId != null && eventId!.isNotEmpty
-                          ? () => context.read<MusicVoteCubit>().loadRoom(
-                              eventId!,
-                            )
-                          : null,
+
+                  // ── Player card (still mocked) ────────────────────────
+                  const SliverToBoxAdapter(child: SizedBox(height: 8)),
+                  SliverToBoxAdapter(child: PlayerCard(isHost: isHost)),
+                  const SliverToBoxAdapter(child: SizedBox(height: 24)),
+
+                  // ── Queue / Up Next ───────────────────────────────────
+                  SliverToBoxAdapter(
+                    child: QueueSection(
+                      tracks: state.tracks,
+                      eventId: eventId,
+                      isHost: isHost,
+                      isEnded: state.event?.status == 'ENDED',
                     ),
                   ),
+                  const SliverToBoxAdapter(child: SizedBox(height: 32)),
                 ],
               ),
             ),
           );
-        }
-
-        // Loaded state (LIVE)
-        final eventName = state.event?.name;
-
-        return Scaffold(
-          body: SafeArea(
-            child: CustomScrollView(
-              physics: const BouncingScrollPhysics(),
-              slivers: [
-                // ── Sticky header ────────────────────────────────────────────
-                SliverPersistentHeader(
-                  pinned: true,
-                  delegate: _StickyHeaderDelegate(
-                    child: _HeaderBackground(
-                      child: LiveHeader(
-                        eventId: eventId,
-                        eventName: eventName,
-                        isHost: isHost,
-                      ),
-                    ),
-                  ),
-                ),
-
-                // ── Player card (still mocked) ───────────────────────────────
-                const SliverToBoxAdapter(child: SizedBox(height: 8)),
-                SliverToBoxAdapter(child: PlayerCard(isHost: isHost)),
-                const SliverToBoxAdapter(child: SizedBox(height: 24)),
-
-                // ── Queue / Up Next ──────────────────────────────────────────
-                SliverToBoxAdapter(
-                  child: QueueSection(
-                    tracks: state.tracks,
-                    eventId: eventId,
-                    isHost: isHost,
-                    isEnded: state.event?.status == 'ENDED',
-                  ),
-                ),
-                const SliverToBoxAdapter(child: SizedBox(height: 32)),
-              ],
-            ),
-          ),
-        );
-      },
+        },
+      ),
     );
   }
 }

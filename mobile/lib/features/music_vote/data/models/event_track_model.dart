@@ -12,6 +12,7 @@ class EventTrackModel {
     required this.artist,
     required this.durationMs,
     required this.thumbnailUrl,
+    this.isVoted = false,
   });
 
   factory EventTrackModel.fromJson(Map<String, dynamic> json) {
@@ -38,6 +39,7 @@ class EventTrackModel {
       thumbnailUrl:
           json['thumbnailUrl'] as String? ??
           (trackData?['thumbnailUrl'] as String? ?? ''),
+      isVoted: json['isVoted'] as bool? ?? false,
     );
   }
 
@@ -51,6 +53,35 @@ class EventTrackModel {
   final String artist;
   final int durationMs;
   final String thumbnailUrl;
+  final bool isVoted;
+
+  EventTrackModel copyWith({
+    String? id,
+    String? trackId,
+    String? addedById,
+    int? voteScore,
+    String? status,
+    String? providerTrackId,
+    String? title,
+    String? artist,
+    int? durationMs,
+    String? thumbnailUrl,
+    bool? isVoted,
+  }) {
+    return EventTrackModel(
+      id: id ?? this.id,
+      trackId: trackId ?? this.trackId,
+      addedById: addedById ?? this.addedById,
+      voteScore: voteScore ?? this.voteScore,
+      status: status ?? this.status,
+      providerTrackId: providerTrackId ?? this.providerTrackId,
+      title: title ?? this.title,
+      artist: artist ?? this.artist,
+      durationMs: durationMs ?? this.durationMs,
+      thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
+      isVoted: isVoted ?? this.isVoted,
+    );
+  }
 
   /// Formats durationMs into a human-readable "M:SS" string.
   String get formattedDuration {

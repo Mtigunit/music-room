@@ -5,11 +5,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
 import 'package:music_room/features/auth/presentation/state/auth_state.dart';
+import 'package:music_room/features/music_vote/presentation/pages/guest_music_vote_page.dart';
+import 'package:music_room/features/music_vote/presentation/pages/host_music_vote_page.dart';
 import 'package:music_room/features/music_vote/presentation/state/music_vote_cubit.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/guest_event_info_view.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/host_event_info_view.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/skeletons/pre_event_skeleton.dart';
-import 'package:music_room/routes/route_names.dart';
 
 class PreEventPage extends StatelessWidget {
   const PreEventPage({
@@ -46,12 +47,24 @@ class PreEventPage extends StatelessWidget {
         listenWhen: (prev, curr) =>
             prev.event?.status != 'LIVE' && curr.event?.status == 'LIVE',
         listener: (context, state) {
-          unawaited(
-            Navigator.of(context).pushReplacementNamed(
-              RouteNames.musicVote,
-              arguments: eventId,
-            ),
-          );
+          final isHost = state.event?.hostId == userId;
+          if (isHost) {
+            unawaited(
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute<void>(
+                  builder: (_) => HostMusicVotePage(eventId: eventId),
+                ),
+              ),
+            );
+          } else {
+            unawaited(
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute<void>(
+                  builder: (_) => GuestMusicVotePage(eventId: eventId),
+                ),
+              ),
+            );
+          }
         },
         builder: (context, state) {
           if (state.isLoading || state.event == null) {
