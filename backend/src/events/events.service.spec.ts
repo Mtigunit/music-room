@@ -126,7 +126,7 @@ describe('EventsService', () => {
   });
 
   describe('findOne', () => {
-    it('should return event details if accessible', async () => {
+    it('should return event details with host flags if user is host', async () => {
       const eventId = 'event-1';
       const userId = 'user-1';
       const mockEvent = {
@@ -145,6 +145,31 @@ describe('EventsService', () => {
       const result = await service.findOne(eventId, userId);
 
       expect(result.id).toBe(eventId);
+      expect(result.isHost).toBe(true);
+      expect(result.isInvited).toBe(false);
+    });
+
+    it('should return event details with invited flags if user is invited', async () => {
+      const eventId = 'event-1';
+      const userId = 'user-2';
+      const mockEvent = {
+        id: eventId,
+        hostId: 'user-1', // different host
+        visibility: Visibility.PRIVATE,
+        tracks: [],
+        invites: [{ userId: 'user-2' }], // user is invited
+        host: { id: 'user-1', username: 'host' },
+      };
+
+      jest
+        .spyOn(repository, 'findByIdWithDetails')
+        .mockResolvedValue(mockEvent as any);
+
+      const result = await service.findOne(eventId, userId);
+
+      expect(result.id).toBe(eventId);
+      expect(result.isHost).toBe(false);
+      expect(result.isInvited).toBe(true);
     });
 
     it('should throw ForbiddenException for private event without access', async () => {
