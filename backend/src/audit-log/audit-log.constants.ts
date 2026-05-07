@@ -37,6 +37,10 @@ export enum AuditAction {
 
   // Votes
   VOTE_CAST = 'VOTE_CAST',
+
+  // Notifications
+  NOTIFICATION_LIST = 'NOTIFICATION_LIST',
+  NOTIFICATION_READ = 'NOTIFICATION_READ',
 }
 
 /**

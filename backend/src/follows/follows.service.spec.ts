@@ -2,8 +2,11 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { FollowsService } from './follows.service';
 import { FollowsRepository } from './follows.repository';
 import { ConflictException, NotFoundException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { NotificationType, Prisma } from '@prisma/client';
 import type { User } from '@prisma/client';
+import { NotificationPayloadType } from '../notifications/dto/notification-payload.dto';
+import { NOTIFICATION_TRIGGER_EVENT } from '../notifications/notifications.constants';
 
 const mockUser: User = {
   id: 'user-id',
@@ -25,6 +28,7 @@ const mockUser: User = {
 describe('FollowsService', () => {
   let service: FollowsService;
   let repository: jest.Mocked<FollowsRepository>;
+  let eventEmitter: jest.Mocked<EventEmitter2>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -41,11 +45,18 @@ describe('FollowsService', () => {
             getMutualFriends: jest.fn(),
           },
         },
+        {
+          provide: EventEmitter2,
+          useValue: {
+            emit: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
     service = module.get<FollowsService>(FollowsService);
     repository = module.get(FollowsRepository);
+    eventEmitter = module.get(EventEmitter2);
   });
 
   describe('followUser', () => {
@@ -61,6 +72,17 @@ describe('FollowsService', () => {
       expect(repository.createFollow).toHaveBeenCalledWith(
         'follower',
         'following',
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        NOTIFICATION_TRIGGER_EVENT,
+        expect.objectContaining({
+          recipientId: 'following',
+          type: NotificationType.FOLLOW,
+          payload: {
+            payloadType: NotificationPayloadType.USER,
+            id: 'follower',
+          },
+        }),
       );
     });
 

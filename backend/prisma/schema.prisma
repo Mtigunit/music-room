@@ -51,6 +51,12 @@ enum SubscriptionTier {
   PREMIUM
 }
 
+enum NotificationType {
+  FOLLOW
+  EVENT_INVITE
+  EVENT_START
+}
+
 // ======================================================
 // 1. USER MANAGEMENT & SOCIAL
 // ======================================================
@@ -87,6 +93,7 @@ model User {
   votes                Vote[]
   playlistTracks       PlaylistTrack[]
   eventTracksAdded     EventTrack[]           @relation("EventTrackAddedBy")
+  notifications        Notification[]
 }
 
 model Follows {
@@ -99,6 +106,21 @@ model Follows {
 
   @@id([followerId, followingId])
   @@index([followingId])
+}
+
+model Notification {
+  id        String           @id @default(uuid())
+  userId    String
+  type      NotificationType
+  title     String
+  message   String?
+  payload   Json
+  readAt    DateTime?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }
 
 // ======================================================

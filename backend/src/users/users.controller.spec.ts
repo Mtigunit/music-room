@@ -96,16 +96,16 @@ describe('UsersController', () => {
 
   describe('updateProfile', () => {
     it('should update the profile and return the safe user', async () => {
-      const updatedUser = { ...mockUser, publicInfo: { bio: 'new bio' } };
+      const updatedUser = { ...mockUser, publicInfo: { shortBio: 'new bio' } };
       service.updateProfile.mockResolvedValue(updatedUser as any);
 
       const req = { user: { id: mockUser.id } } as unknown as Request;
-      const dto = { publicInfo: { bio: 'new bio' } };
+      const dto = { publicInfo: { shortBio: 'new bio' } };
 
       const result = await controller.updateProfile(req, dto);
 
       expect(service.updateProfile).toHaveBeenCalledWith(mockUser.id, dto);
-      expect(result.publicInfo).toEqual({ bio: 'new bio' });
+      expect(result.publicInfo).toEqual({ shortBio: 'new bio' });
       expect(result).not.toHaveProperty('passwordHash');
     });
   });

@@ -7,7 +7,6 @@ import {
   BadRequestException,
   forwardRef,
   Inject,
-  Logger,
 } from '@nestjs/common';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
@@ -21,6 +20,7 @@ import {
   PlaybackStatus,
   PolicyType,
   Visibility,
+  NotificationType,
 } from '@prisma/client';
 import { TrackSearchResultDto } from '../tracks/dto/track-search-result.dto';
 import { ClientMetaDto } from '../common/dto/client-meta.dto';
@@ -29,6 +29,9 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { RedisService } from '../redis/redis.service';
 import { WS_EVENTS } from './events.constants';
+import { NOTIFICATION_TRIGGER_EVENT } from '../notifications/notifications.constants';
+import type { NotificationTriggerEvent } from '../notifications/notifications.event';
+import { NotificationPayloadType } from '../notifications/dto/notification-payload.dto';
 
 export function getPosition(event: {
   playbackStatus: PlaybackStatus;
@@ -50,8 +53,6 @@ export function getPosition(event: {
 
 @Injectable()
 export class EventsService {
-  private readonly logger = new Logger(EventsService.name);
-
   constructor(
     private readonly eventsRepository: EventsRepository,
     @Inject(forwardRef(() => EventsGateway))
@@ -289,6 +290,18 @@ export class EventsService {
         invitedUserId,
       }),
     );
+
+    const notificationEvent: NotificationTriggerEvent = {
+      recipientId: invitedUserId,
+      type: NotificationType.EVENT_INVITE,
+      payload: {
+        payloadType: NotificationPayloadType.EVENT,
+        id: eventId,
+        meta: { eventName: event.name },
+      },
+      context: { eventName: event.name },
+    };
+    this.eventEmitter.emit(NOTIFICATION_TRIGGER_EVENT, notificationEvent);
 
     return result;
   }
@@ -596,7 +609,8 @@ export class EventsService {
 
   async startEvent(eventId: string, userId: string, socketId: string) {
     // Check if host already has another live event
-    const existingLiveEvent = await this.eventsRepository.findById(eventId);
+    const existingLiveEvent =
+      await this.eventsRepository.findByIdWithInvites(eventId);
     if (!existingLiveEvent) {
       throw new NotFoundException('Event not found');
     }
@@ -622,6 +636,25 @@ export class EventsService {
     const redisClient = this.redisService.getClient();
     await redisClient.set(REDIS_KEYS.EVENT_HOST(eventId), userId);
     await redisClient.set(REDIS_KEYS.HOST_SOCKET(eventId), socketId);
+
+    const recipientIds = new Set<string>(
+      existingLiveEvent.invites.map((invite) => invite.userId),
+    );
+    recipientIds.delete(existingLiveEvent.hostId);
+
+    for (const recipientId of recipientIds) {
+      const notificationEvent: NotificationTriggerEvent = {
+        recipientId,
+        type: NotificationType.EVENT_START,
+        payload: {
+          payloadType: NotificationPayloadType.EVENT,
+          id: eventId,
+          meta: { eventName: existingLiveEvent.name },
+        },
+        context: { eventName: existingLiveEvent.name },
+      };
+      this.eventEmitter.emit(NOTIFICATION_TRIGGER_EVENT, notificationEvent);
+    }
 
     return updatedEvent;
   }
@@ -668,13 +701,7 @@ export class EventsService {
       await this.startHostGracePeriod(liveEvent.id, userId);
 
       const position = getPosition(liveEvent);
-      try {
-        await this.eventsRepository.pausePlayback(liveEvent.id, position);
-      } catch (error) {
-        this.logger.warn(
-          `Could not pause playback for event ${liveEvent.id}: ${error instanceof Error ? error.message : 'Unknown'}`,
-        );
-      }
+      await this.eventsRepository.pausePlayback(liveEvent.id, position);
 
       return {
         eventId: liveEvent.id,
@@ -686,21 +713,26 @@ export class EventsService {
     return null;
   }
 
-  // events.service.ts
   async startHostGracePeriod(eventId: string, userId: string) {
     const redisClient = this.redisService.getClient();
     await redisClient.set(REDIS_KEYS.HOST_DISCONNECT(eventId), userId);
 
     await this.eventTimeoutsQueue.add(
       BULL_JOBS.HOST_SOFT_TIMEOUT,
-      { eventId, userId }, // ← add userId
-      { jobId: `soft-${eventId}`, delay: BULL_JOBS.SOFT_TIMEOUT },
+      { eventId, userId },
+      {
+        jobId: `soft-${eventId}`,
+        delay: BULL_JOBS.SOFT_TIMEOUT,
+      },
     );
 
     await this.eventTimeoutsQueue.add(
       BULL_JOBS.HOST_HARD_TIMEOUT,
-      { eventId, userId }, // ← add userId
-      { jobId: `hard-${eventId}`, delay: BULL_JOBS.HARD_TIMEOUT },
+      { eventId, userId },
+      {
+        jobId: `hard-${eventId}`,
+        delay: BULL_JOBS.HARD_TIMEOUT,
+      },
     );
   }
 }

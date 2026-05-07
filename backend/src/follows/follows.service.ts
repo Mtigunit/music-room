@@ -3,13 +3,20 @@ import {
   ConflictException,
   NotFoundException,
 } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { Prisma, NotificationType } from '@prisma/client';
 import { FollowsRepository } from './follows.repository';
 import type { PaginationDto } from '../common/dto/pagination.dto';
+import { NotificationPayloadType } from '../notifications/dto/notification-payload.dto';
+import { NOTIFICATION_TRIGGER_EVENT } from '../notifications/notifications.constants';
+import type { NotificationTriggerEvent } from '../notifications/notifications.event';
 
 @Injectable()
 export class FollowsService {
-  constructor(private readonly followsRepository: FollowsRepository) {}
+  constructor(
+    private readonly followsRepository: FollowsRepository,
+    private readonly eventEmitter: EventEmitter2,
+  ) {}
 
   async followUser(followerId: string, followingId: string) {
     if (followerId === followingId) {
@@ -25,7 +32,23 @@ export class FollowsService {
     }
 
     try {
-      return await this.followsRepository.createFollow(followerId, followingId);
+      const follow = await this.followsRepository.createFollow(
+        followerId,
+        followingId,
+      );
+
+      const event: NotificationTriggerEvent = {
+        recipientId: followingId,
+        type: NotificationType.FOLLOW,
+        payload: {
+          payloadType: NotificationPayloadType.USER,
+          id: followerId,
+        },
+      };
+
+      this.eventEmitter.emit(NOTIFICATION_TRIGGER_EVENT, event);
+
+      return follow;
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError) {
         if (error.code === 'P2003') {
