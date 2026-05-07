@@ -4,16 +4,19 @@ import { EventsRepository } from './events.repository';
 import { EventsGateway } from './events.gateway';
 import { YoutubeService } from '../tracks/youtube.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { Visibility } from '@prisma/client';
+import { NotificationType, Visibility } from '@prisma/client';
 import { ForbiddenException, ConflictException } from '@nestjs/common';
 import { RedisService } from '../redis/redis.service';
 import { BULL_QUEUES } from './events.constants';
 import { getQueueToken } from '@nestjs/bullmq';
+import { NOTIFICATION_TRIGGER_EVENT } from '../notifications/notifications.constants';
+import { NotificationPayloadType } from '../notifications/dto/notification-payload.dto';
 
 describe('EventsService', () => {
   let service: EventsService;
   let repository: EventsRepository;
   let youtubeService: YoutubeService;
+  let eventEmitter: jest.Mocked<EventEmitter2>;
 
   const mockMeta = {
     ipAddress: '127.0.0.1',
@@ -93,6 +96,7 @@ describe('EventsService', () => {
     service = module.get<EventsService>(EventsService);
     repository = module.get<EventsRepository>(EventsRepository);
     youtubeService = module.get<YoutubeService>(YoutubeService);
+    eventEmitter = module.get(EventEmitter2);
   });
 
   it('should be defined', () => {
@@ -188,6 +192,41 @@ describe('EventsService', () => {
       await expect(
         service.inviteUser(eventId, userId, userId, mockMeta),
       ).rejects.toThrow(ConflictException);
+    });
+
+    it('should emit a notification event when a user is invited', async () => {
+      const eventId = 'event-1';
+      const hostId = 'host-1';
+      const invitedUserId = 'user-2';
+
+      jest.spyOn(repository, 'findById').mockResolvedValue({
+        id: eventId,
+        hostId,
+        name: 'Launch Party',
+      } as any);
+      jest.spyOn(repository, 'findUserById').mockResolvedValue({
+        id: invitedUserId,
+      } as any);
+      jest.spyOn(repository, 'findInvite').mockResolvedValue(null);
+      jest.spyOn(repository, 'createInvite').mockResolvedValue({
+        id: 'invite-1',
+      } as any);
+
+      await service.inviteUser(eventId, hostId, invitedUserId, mockMeta);
+
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        NOTIFICATION_TRIGGER_EVENT,
+        expect.objectContaining({
+          recipientId: invitedUserId,
+          type: NotificationType.EVENT_INVITE,
+          payload: {
+            payloadType: NotificationPayloadType.EVENT,
+            id: eventId,
+            meta: { eventName: 'Launch Party' },
+          },
+          context: { eventName: 'Launch Party' },
+        }),
+      );
     });
   });
 

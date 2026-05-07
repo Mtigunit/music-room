@@ -91,6 +91,12 @@ describe('AuthController', () => {
       emailVerificationToken: 'valid-token',
     };
 
+    const authUser = {
+      id: 'user-1',
+      email: registerDto.email,
+      username: registerDto.username,
+    };
+
     const mockMeta = {
       platform: 'unknown',
       deviceModel: 'unknown',
@@ -98,7 +104,7 @@ describe('AuthController', () => {
     };
 
     it('should call authService.register and return the token', async () => {
-      const expectedResult = { access_token: 'jwt-token' };
+      const expectedResult = { access_token: 'jwt-token', user: authUser };
       authService.register.mockResolvedValue(expectedResult);
 
       const result = await controller.register(registerDto, mockMeta);
@@ -126,6 +132,12 @@ describe('AuthController', () => {
       password: 'password123',
     };
 
+    const authUser = {
+      id: 'user-1',
+      email: 'test@example.com',
+      username: 'testuser',
+    };
+
     const mockMeta = {
       platform: 'unknown',
       deviceModel: 'unknown',
@@ -133,7 +145,7 @@ describe('AuthController', () => {
     };
 
     it('should call authService.login and return the token', async () => {
-      const expectedResult = { access_token: 'jwt-token' };
+      const expectedResult = { access_token: 'jwt-token', user: authUser };
       authService.login.mockResolvedValue(expectedResult);
 
       const result = await controller.login(loginDto, mockMeta);
@@ -162,8 +174,14 @@ describe('AuthController', () => {
       appVersion: 'unknown',
     };
 
+    const authUser = {
+      id: 'user-1',
+      email: 'test@example.com',
+      username: 'testuser',
+    };
+
     it('should call authService.googleAuth and return the token', async () => {
-      const expectedResult = { access_token: 'jwt-token' };
+      const expectedResult = { access_token: 'jwt-token', user: authUser };
       authService.googleAuth.mockResolvedValue(expectedResult);
 
       const result = await controller.googleAuth(

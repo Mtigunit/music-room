@@ -23,6 +23,7 @@ import { TracksModule } from './tracks/tracks.module';
 import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware';
 import { BullModule } from '@nestjs/bullmq';
 import { GlobalThrottlerModule } from './common/throttler/global-throttler.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { GlobalThrottlerModule } from './common/throttler/global-throttler.modul
     TrackVotesModule,
     TracksModule,
     FollowsModule,
+    NotificationsModule,
     BullModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
