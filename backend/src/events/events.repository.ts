@@ -65,6 +65,7 @@ export class EventsRepository {
           take: 10,
           orderBy: [{ voteScore: 'desc' }, { id: 'asc' }],
         },
+        policies: { select: { config: true, policyType: true } },
       },
     });
 

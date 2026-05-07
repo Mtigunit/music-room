@@ -16,7 +16,12 @@ import { EventsGateway } from './events.gateway';
 import { AUDIT_LOG_EVENT, AuditAction } from '../audit-log/audit-log.constants';
 import { createAuditLogEvent } from '../audit-log/audit-log.event';
 import { YoutubeService } from '../tracks/youtube.service';
-import { EventStatus, PlaybackStatus, Visibility } from '@prisma/client';
+import {
+  EventStatus,
+  PlaybackStatus,
+  PolicyType,
+  Visibility,
+} from '@prisma/client';
 import { TrackSearchResultDto } from '../tracks/dto/track-search-result.dto';
 import { ClientMetaDto } from '../common/dto/client-meta.dto';
 import { REDIS_KEYS, BULL_JOBS, BULL_QUEUES } from './events.constants';
@@ -135,7 +140,8 @@ export class EventsService {
       throw new NotFoundException(`Event with ID ${id} not found`);
     }
 
-    const { tracks, host, invites, ...eventData } = event;
+    const { tracks, host, invites, policies, invitingOnly, ...eventData } =
+      event;
     if (
       event.visibility === Visibility.PRIVATE &&
       event.hostId !== userId &&
@@ -146,10 +152,32 @@ export class EventsService {
       );
     }
 
+    const timeWindowPolicy = policies?.find(
+      (p) => p.policyType === PolicyType.TIME_WINDOW,
+    );
+
+    let startDate: Date | undefined;
+    let endDate: Date | undefined;
+
+    if (timeWindowPolicy?.config) {
+      const config = timeWindowPolicy.config as {
+        startDate: string;
+        endDate: string;
+      };
+      if (config.startDate) startDate = new Date(config.startDate);
+      if (config.endDate) endDate = new Date(config.endDate);
+    }
+
     return {
       ...eventData,
       host: host ? { id: host.id, name: host.username } : null,
       tracks,
+      policies: {
+        locationAndTime: (policies?.length ?? 0) > 0,
+        invitingOnly,
+        ...(startDate && { startDate }),
+        ...(endDate && { endDate }),
+      },
     };
   }
 
@@ -535,8 +563,6 @@ export class EventsService {
     if (event.hostId !== userId)
       throw new ForbiddenException('Only host controls playback');
 
-    console.log('trackId', trackId);
-    console.log('currentTrackId', event.currentTrackId);
     if (trackId && event.currentTrackId !== trackId) {
       throw new ConflictException('Track mismatch—client state is stale');
     }
