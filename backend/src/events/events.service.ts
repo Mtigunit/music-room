@@ -173,7 +173,7 @@ export class EventsService {
       host: host ? { id: host.id, name: host.username } : null,
       tracks,
       policies: {
-        locationAndTime: policies.length > 0,
+        locationAndTime: (policies?.length ?? 0) > 0,
         invitingOnly,
         ...(startDate && { startDate }),
         ...(endDate && { endDate }),
@@ -563,8 +563,6 @@ export class EventsService {
     if (event.hostId !== userId)
       throw new ForbiddenException('Only host controls playback');
 
-    console.log('trackId', trackId);
-    console.log('currentTrackId', event.currentTrackId);
     if (trackId && event.currentTrackId !== trackId) {
       throw new ConflictException('Track mismatch—client state is stale');
     }
