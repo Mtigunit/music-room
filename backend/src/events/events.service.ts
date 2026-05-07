@@ -155,9 +155,6 @@ export class EventsService {
     const timeWindowPolicy = policies?.find(
       (p) => p.policyType === PolicyType.TIME_WINDOW,
     );
-    const locationPolicy = policies?.find(
-      (p) => p.policyType === PolicyType.GEOFENCE,
-    );
 
     let startDate: Date | undefined;
     let endDate: Date | undefined;
@@ -176,8 +173,8 @@ export class EventsService {
       host: host ? { id: host.id, name: host.username } : null,
       tracks,
       policies: {
-        locationAndTime: !!(locationPolicy || timeWindowPolicy),
-        inviteOnly: invitingOnly,
+        locationAndTime: policies.length > 0,
+        invitingOnly,
         ...(startDate && { startDate }),
         ...(endDate && { endDate }),
       },
