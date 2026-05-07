@@ -21,7 +21,7 @@ async function bootstrap() {
     if (isShuttingDown) {
       return;
     }
-    isShuttingDown = true;
+    // isShuttingDown = true;
 
     logger.log(`Received ${signal}; shutting down...`);
     try {
