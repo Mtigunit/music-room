@@ -34,7 +34,7 @@ export class NotificationsService {
     });
 
     const response = this.toResponseDto(notification);
-    this.notificationsGateway.sendPush(userId, response);
+    this.notificationsGateway.emitNewNotification(userId, response);
 
     return response;
   }

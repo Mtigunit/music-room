@@ -30,7 +30,7 @@ describe('NotificationsService', () => {
         {
           provide: NotificationsGateway,
           useValue: {
-            sendPush: jest.fn(),
+            emitNewNotification: jest.fn(),
           },
         },
         {
@@ -86,7 +86,7 @@ describe('NotificationsService', () => {
         message: 'You were invited to an event.',
       });
 
-      expect(gateway.sendPush).toHaveBeenCalledWith(userId, {
+      expect(gateway.emitNewNotification).toHaveBeenCalledWith(userId, {
         id: 'notif-1',
         type: NotificationType.EVENT_INVITE,
         title: 'Event invite',
@@ -201,7 +201,10 @@ describe('NotificationsService', () => {
 
       const result = await service.markAsRead(userId, notificationId, meta);
 
-      expect(repository.markAsRead).toHaveBeenCalledWith(userId, notificationId);
+      expect(repository.markAsRead).toHaveBeenCalledWith(
+        userId,
+        notificationId,
+      );
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         AUDIT_LOG_EVENT,
         expect.objectContaining({
@@ -239,7 +242,10 @@ describe('NotificationsService', () => {
         service.markAsRead(userId, notificationId, meta),
       ).rejects.toThrow(NotFoundException);
 
-      expect(repository.markAsRead).toHaveBeenCalledWith(userId, notificationId);
+      expect(repository.markAsRead).toHaveBeenCalledWith(
+        userId,
+        notificationId,
+      );
       expect(eventEmitter.emit).not.toHaveBeenCalled();
     });
   });

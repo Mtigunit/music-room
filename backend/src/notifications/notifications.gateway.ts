@@ -55,7 +55,10 @@ export class NotificationsGateway
     );
   }
 
-  sendPush(userId: string, notification: NotificationResponseDto): void {
+  emitNewNotification(
+    userId: string,
+    notification: NotificationResponseDto,
+  ): void {
     const roomName = buildNotificationRoom(userId);
     this.server.to(roomName).emit(NOTIFICATION_NEW_EVENT, notification);
   }
