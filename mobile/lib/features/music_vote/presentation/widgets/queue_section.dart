@@ -13,7 +13,7 @@ import 'package:music_room/features/music_vote/presentation/state/music_vote_cub
 ///
 /// Receives real [tracks] from the parent [BlocBuilder] and the [eventId]
 /// for the "Add Song" CTA.
-class QueueSection extends StatefulWidget {
+class QueueSection extends StatelessWidget {
   const QueueSection({
     required this.tracks,
     super.key,
@@ -28,21 +28,9 @@ class QueueSection extends StatefulWidget {
   final bool isEnded;
 
   @override
-  State<QueueSection> createState() => _QueueSectionState();
-}
-
-class _QueueSectionState extends State<QueueSection> {
-  /// Track which items the user has voted for (by track ID).
-  final Set<String> _votedIds = {};
-
-  /// Local mutable copy of vote counts for UI responsiveness.
-  final Map<String, int> _voteCounts = {};
-
-  @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final tracks = widget.tracks;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -53,7 +41,7 @@ class _QueueSectionState extends State<QueueSection> {
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: _AddSongButton(
             colorScheme: colorScheme,
-            eventId: widget.eventId,
+            eventId: eventId,
           ),
         ),
         const SizedBox(height: 20),
@@ -110,24 +98,17 @@ class _QueueSectionState extends State<QueueSection> {
                   child: QueueTrackItem(
                     track: track,
                     rank: index + 1,
-                    voteCount: _voteCounts[track.id] ?? track.voteScore,
-                    hasVoted: _votedIds.contains(track.id),
-                    isHost: widget.isHost,
-                    eventId: widget.eventId,
-                    isEnded: widget.isEnded,
+                    voteCount: track.voteScore,
+                    hasVoted: track.isVoted,
+                    isHost: isHost,
+                    eventId: eventId,
+                    isEnded: isEnded,
                     onVote: () {
-                      setState(() {
-                        final recomputedHasVoted = _votedIds.contains(track.id);
-                        final currentVotes =
-                            _voteCounts[track.id] ?? track.voteScore;
-                        if (recomputedHasVoted) {
-                          _votedIds.remove(track.id);
-                          _voteCounts[track.id] = currentVotes - 1;
-                        } else {
-                          _votedIds.add(track.id);
-                          _voteCounts[track.id] = currentVotes + 1;
-                        }
-                      });
+                      final voteType = track.isVoted ? 'none' : 'up';
+                      context.read<MusicVoteCubit>().voteTrack(
+                        trackId: track.trackId,
+                        voteType: voteType,
+                      );
                     },
                   ),
                 );

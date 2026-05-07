@@ -19,6 +19,9 @@ enum SocketEvent {
   hostReconnected,
   trackAdded,
   trackRemoved,
+  trackVote,
+  trackVoteUpdated,
+  exception,
 }
 
 extension SocketEventName on SocketEvent {
@@ -62,6 +65,12 @@ extension SocketEventName on SocketEvent {
         return 'track:added';
       case SocketEvent.trackRemoved:
         return 'track:removed';
+      case SocketEvent.trackVote:
+        return 'track:vote';
+      case SocketEvent.trackVoteUpdated:
+        return 'track:vote_updated';
+      case SocketEvent.exception:
+        return 'exception';
     }
   }
 }

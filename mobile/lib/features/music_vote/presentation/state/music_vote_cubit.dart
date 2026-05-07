@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/realtime/socket_client.dart';
 import 'package:music_room/core/realtime/socket_events.dart';
@@ -83,6 +84,10 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
   String? _activeEventId;
   bool _socketListenersAttached = false;
 
+  /// Tracks in-flight vote attempts: trackId → intended voteType ('up'|'none').
+  /// The UI is NOT updated until the server confirms via [track:vote_updated].
+  final Map<String, String> _pendingVotes = {};
+
   final String? _currentUserId;
 
   /// Loads the event details and queued tracks concurrently.
@@ -100,7 +105,11 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
       if (isClosed) return;
 
       final event = results[0] as EventDetailModel;
-      final tracks = results[1] as List<EventTrackModel>;
+      final tracks = List<EventTrackModel>.from(
+        results[1] as List<EventTrackModel>,
+      );
+
+      _sortTracks(tracks);
 
       emit(
         state.copyWith(
@@ -142,7 +151,9 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
       if (isClosed) return;
 
       // Re-fetch to get the server's canonical ordering.
-      final tracks = await _repository.getEventTracks(eventId);
+      final fetchedTracks = await _repository.getEventTracks(eventId);
+      final tracks = List<EventTrackModel>.from(fetchedTracks);
+      _sortTracks(tracks);
 
       if (isClosed) return;
 
@@ -210,6 +221,9 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
     }
 
     try {
+      debugPrint(
+        '🚀 [MusicVoteCubit] Emitting: eventStart for eventId: $eventId',
+      );
       _socketClient.emit(SocketEvent.eventStart.value, <String, dynamic>{
         'eventId': eventId,
       });
@@ -245,6 +259,9 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
     }
 
     try {
+      debugPrint(
+        '🚀 [MusicVoteCubit] Emitting: eventEnd for eventId: $eventId',
+      );
       _socketClient.emit(SocketEvent.eventEnd.value, <String, dynamic>{
         'eventId': eventId,
       });
@@ -271,7 +288,34 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
         ? SocketEvent.eventHostLeave.value
         : SocketEvent.eventLeave.value;
 
+    debugPrint(
+      '🚀 [MusicVoteCubit] Emitting: $eventName for eventId: $eventId',
+    );
     _socketClient.emit(eventName, <String, dynamic>{'eventId': eventId});
+  }
+
+  void voteTrack({required String trackId, required String voteType}) {
+    if (voteType != 'up' && voteType != 'none') {
+      return;
+    }
+
+    final eventId = _activeEventId ?? state.event?.id;
+    if (eventId == null || eventId.isEmpty) return;
+
+    // Store the pending vote intention — the UI will only update
+    // when the server confirms via track:vote_updated.
+    _pendingVotes[trackId] = voteType;
+
+    final payload = <String, dynamic>{
+      'eventId': eventId,
+      'trackId': trackId,
+      'vote': voteType,
+    };
+
+    _socketClient.emit(SocketEvent.trackVote.value, payload);
+    debugPrint(
+      '🚀 [MusicVoteCubit] Emitting: track:vote with payload: $payload',
+    );
   }
 
   Future<void> _ensureSocketConnected() async {
@@ -292,7 +336,9 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
       ..on(SocketEvent.hostSoftDisconnect.value, _handleHostSoftDisconnect)
       ..on(SocketEvent.hostReconnected.value, _handleHostReconnected)
       ..on(SocketEvent.trackAdded.value, _handleTrackAdded)
-      ..on(SocketEvent.trackRemoved.value, _handleTrackRemoved);
+      ..on(SocketEvent.trackRemoved.value, _handleTrackRemoved)
+      ..on(SocketEvent.trackVoteUpdated.value, _handleTrackVoteUpdated)
+      ..on(SocketEvent.exception.value, _handleSocketException);
     _socketListenersAttached = true;
   }
 
@@ -307,11 +353,16 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
       ..off(SocketEvent.hostSoftDisconnect.value)
       ..off(SocketEvent.hostReconnected.value)
       ..off(SocketEvent.trackAdded.value)
-      ..off(SocketEvent.trackRemoved.value);
+      ..off(SocketEvent.trackRemoved.value)
+      ..off(SocketEvent.trackVoteUpdated.value)
+      ..off(SocketEvent.exception.value);
     _socketListenersAttached = false;
   }
 
   void _handleEventStarted(dynamic payload) {
+    debugPrint(
+      '📡 [MusicVoteCubit] Received: eventStarted with payload: $payload',
+    );
     if (!_isRelevantEventPayload(payload)) return;
     final status = _extractStatus(payload) ?? 'LIVE';
     final startDate = _extractStartDate(payload);
@@ -319,10 +370,16 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
   }
 
   void _handleEventEnded(dynamic payload) {
+    debugPrint(
+      '📡 [MusicVoteCubit] Received: eventEnded with payload: $payload',
+    );
     if (!_isRelevantEventPayload(payload)) return;
 
     final eventId = _activeEventId ?? state.event?.id;
     if (eventId != null && eventId.isNotEmpty && _socketClient.isConnected) {
+      debugPrint(
+        '🚀 [MusicVoteCubit] Emitting: eventLeave for eventId: $eventId',
+      );
       _socketClient.emit(SocketEvent.eventLeave.value, <String, dynamic>{
         'eventId': eventId,
       });
@@ -332,6 +389,9 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
   }
 
   void _handleEventStatus(dynamic payload) {
+    debugPrint(
+      '📡 [MusicVoteCubit] Received: eventStatus with payload: $payload',
+    );
     if (!_isRelevantEventPayload(payload)) return;
     final status = _extractStatus(payload);
     if (status == null) return;
@@ -340,6 +400,9 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
   }
 
   void _handleEventCount(dynamic payload) {
+    debugPrint(
+      '📡 [MusicVoteCubit] Received: eventCount with payload: $payload',
+    );
     if (!_isRelevantEventPayload(payload)) return;
     if (payload is Map<String, dynamic>) {
       final count = payload['count'];
@@ -350,6 +413,9 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
   }
 
   void _handleHostSoftDisconnect(dynamic payload) {
+    debugPrint(
+      '📡 [MusicVoteCubit] Received: hostSoftDisconnect payload: $payload',
+    );
     if (!_isRelevantEventPayload(payload)) return;
     emit(
       state.copyWith(hostConnectionStatus: HostConnectionStatus.disconnected),
@@ -357,6 +423,9 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
   }
 
   void _handleHostReconnected(dynamic payload) {
+    debugPrint(
+      '📡 [MusicVoteCubit] Received: hostReconnected payload: $payload',
+    );
     if (!_isRelevantEventPayload(payload)) return;
     emit(
       state.copyWith(hostConnectionStatus: HostConnectionStatus.reconnected),
@@ -364,6 +433,9 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
   }
 
   void _handleTrackAdded(dynamic payload) {
+    debugPrint(
+      '📡 [MusicVoteCubit] Received: trackAdded with payload: $payload',
+    );
     if (!_isRelevantEventPayload(payload)) return;
     if (payload is! Map<String, dynamic>) return;
 
@@ -371,15 +443,18 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
       final newTrack = EventTrackModel.fromJson(payload);
 
       // Prevent duplicate additions (Check by providerTrackId to be safe)
-      if (state.tracks.any(
-        (t) => t.providerTrackId == newTrack.providerTrackId,
-      )) {
-        return;
-      }
+      final exists = state.tracks.any(
+        (t) =>
+            t.providerTrackId == newTrack.providerTrackId ||
+            t.id == newTrack.id,
+      );
+      if (exists) return;
 
       // Append to the bottom of the list
       final updatedTracks = List<EventTrackModel>.from(state.tracks)
         ..add(newTrack);
+
+      _sortTracks(updatedTracks);
 
       emit(state.copyWith(tracks: updatedTracks));
     } on Object {
@@ -388,6 +463,9 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
   }
 
   void _handleTrackRemoved(dynamic payload) {
+    debugPrint(
+      '📡 [MusicVoteCubit] Received: trackRemoved with payload: $payload',
+    );
     if (!_isRelevantEventPayload(payload)) return;
     if (payload is! Map<String, dynamic>) return;
 
@@ -402,6 +480,51 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
     // UI flicker
     if (updatedTracks.length != state.tracks.length) {
       emit(state.copyWith(tracks: updatedTracks));
+    }
+  }
+
+  void _handleTrackVoteUpdated(dynamic payload) {
+    debugPrint(
+      '📡 [MusicVoteCubit] Received: trackVoteUpdated with payload: $payload',
+    );
+    if (!_isRelevantEventPayload(payload)) return;
+    if (payload is! Map<String, dynamic>) return;
+
+    try {
+      final trackId = payload['trackId'];
+      final score = payload['score'];
+
+      if (trackId is! String || score is! int) {
+        return;
+      }
+
+      final trackIndex = state.tracks.indexWhere((t) => t.trackId == trackId);
+      if (trackIndex == -1) {
+        _pendingVotes.remove(trackId);
+        return;
+      }
+
+      final updatedTracks = List<EventTrackModel>.from(state.tracks);
+
+      // If there is a pending vote from the current user for this track,
+      // apply the isVoted state now that the server has confirmed the score.
+      final pendingVote = _pendingVotes.remove(trackId);
+      if (pendingVote != null) {
+        updatedTracks[trackIndex] = updatedTracks[trackIndex].copyWith(
+          voteScore: score,
+          isVoted: pendingVote == 'up',
+        );
+      } else {
+        updatedTracks[trackIndex] = updatedTracks[trackIndex].copyWith(
+          voteScore: score,
+        );
+      }
+
+      _sortTracks(updatedTracks);
+
+      emit(state.copyWith(tracks: updatedTracks));
+    } on Object {
+      // Silent ignore for malformed payload
     }
   }
 
@@ -461,6 +584,16 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
     );
   }
 
+  void _sortTracks(List<EventTrackModel> tracks) {
+    tracks.sort((a, b) {
+      final voteDiff = b.voteScore.compareTo(a.voteScore);
+      if (voteDiff != 0) return voteDiff;
+      // Tie breaker by id length or lexicographical
+      // (a fallback since addedAt doesn't exist on this model).
+      return a.id.compareTo(b.id);
+    });
+  }
+
   Future<void> _joinEventRoom() async {
     final event = state.event;
     if (event == null) return;
@@ -474,6 +607,9 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
         ? SocketEvent.eventHostJoin.value
         : SocketEvent.eventJoin.value;
 
+    debugPrint(
+      '🚀 [MusicVoteCubit] Emitting: $eventName for eventId: $eventId',
+    );
     _socketClient.emit(eventName, <String, dynamic>{'eventId': eventId});
   }
 
@@ -499,6 +635,45 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
     }
 
     return 'A network error occurred.';
+  }
+
+  void clearError() {
+    if (!isClosed) {
+      emit(state.copyWith(clearError: true));
+    }
+  }
+
+  void _handleSocketException(dynamic payload) {
+    debugPrint('📡 [MusicVoteCubit] ← exception: $payload');
+
+    if (isClosed) return;
+
+    var errorMessage = 'Something went wrong on our end. Please try again.';
+
+    if (payload is Map<String, dynamic>) {
+      final msg = payload['message'];
+      if (msg is String && msg.isNotEmpty) {
+        errorMessage = msg;
+      } else if (msg is List && msg.isNotEmpty) {
+        errorMessage = msg.first.toString();
+      } else if (payload['error'] is String) {
+        errorMessage = payload['error'] as String;
+      }
+    } else if (payload is String && payload.isNotEmpty) {
+      errorMessage = payload;
+    }
+
+    // Clear pending votes — since the server rejected the action,
+    // and the UI was never optimistically updated, no rollback is needed.
+    _pendingVotes.clear();
+
+    // Map common technical errors to user-friendly ones
+    if (errorMessage.contains('Internal Server Error') ||
+        errorMessage.contains('500')) {
+      errorMessage = 'Something went wrong on our end. Please try again.';
+    }
+
+    emit(state.copyWith(error: errorMessage));
   }
 
   @override
