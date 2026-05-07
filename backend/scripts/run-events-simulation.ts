@@ -97,6 +97,10 @@ async function main() {
         hostSocket.emit('event:start', { eventId: EVENT_ID }, (ack: any) => console.log('Host Start Ack:', ack));
         await sleep(1500); // Wait to see the broadcast on Participant
 
+
+        hostSocket.emit('event:end', { eventId: EVENT_ID }, (ack: any) => console.log('Host End Ack:', ack));
+        await sleep(5000); // Wait to see the broadcast on Participant
+
         // console.log('\n5. Simulating Host Disconnection (Soft Timeout Test)...');
         // hostSocket.disconnect();
         // console.log('Waiting 6 seconds for Soft Timeout warning...');
@@ -107,14 +111,14 @@ async function main() {
         // hostSocket.emit('event:host_join', { eventId: EVENT_ID }, (ack: any) => console.log('Host Rejoin Ack:', ack));
         // await sleep(2000);
 
-        console.log('\n7. Host explicitly leaves event (Hard Timeout Test)...');
-        hostSocket.emit('event:host_leave', { eventId: EVENT_ID }, (ack: any) => console.log('Host Leave Ack:', ack));
+        // console.log('\n7. Host explicitly leaves event (Hard Timeout Test)...');
+        // hostSocket.emit('event:host_leave', { eventId: EVENT_ID }, (ack: any) => console.log('Host Leave Ack:', ack));
 
         // console.log('Waiting 12 seconds for Soft Timeout (Event should NOT auto-end yet)...');
-        for (let i = 1; i <= 5; i++) {
-            await sleep(6000);
-            console.log(`... waited ${i * 6} seconds`);
-        }
+        // for (let i = 1; i <= 5; i++) {
+        //     await sleep(6000);
+        //     console.log(`... waited ${i * 6} seconds`);
+        // }
         // await sleep(2000);
 
         // console.log('\n--- TEST COMPLETE, SUCCESS! ---');
@@ -201,10 +205,12 @@ function connectSocket(name: string, token: string): Promise<Socket> {
         // Listen for all event-related broadcasts
         client.on('event:status', (data) => console.log(`\x1b[34m[${name}]\x1b[0m Received 'event:status':`, data));
         client.on('event:started', (data) => console.log(`\x1b[35m[${name}]\x1b[0m Received 'event:started':`, data));
+        client.on('event:count', (data) => console.log(`\x1b[35m[${name}]\x1b[0m Received 'event:count':`, data));
         client.on('event:ended', (data) => console.log(`\x1b[31m[${name}]\x1b[0m Received 'event:ended':`, data));
         client.on('event:host_soft_disconnect', (data) => console.log(`\x1b[33m[${name}]\x1b[0m Received 'event:host_soft_disconnect':`, data));
         client.on('event:host_reconnected', (data) => console.log(`\x1b[32m[${name}]\x1b[0m Received 'event:host_reconnected':`, data));
         client.on('disconnect', (reason) => console.log(`\x1b[36m[${name}]\x1b[0m Disconnected. Reason:`, reason));
+        client.on('exception', (reason) => console.log(`\x1b[36m[${name}]\x1b[0m Exception. Reason:`, reason));
     });
 }
 

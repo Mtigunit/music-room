@@ -52,14 +52,16 @@ export class EventsRepository {
     });
   }
 
-  async findByIdWithDetails(id: string) {
+  async findByIdWithDetails(id: string, userId: string) {
     const event = await this.prisma.event.findUnique({
       where: { id },
       include: {
         host: {
           select: { id: true, username: true },
         },
-        invites: true,
+        invites: {
+          where: { userId },
+        },
         tracks: {
           include: { track: true },
           take: 10,
@@ -318,18 +320,20 @@ export class EventsRepository {
         include: {
           host: { select: { id: true, username: true } },
           tracks: firstTrackSelect,
+          invites: { select: { userId: true } },
         },
       }),
       this.prisma.event.count({ where }),
     ]);
 
     const formattedData = data.map((event) => {
-      const { host, tracks, ...rest } = event;
+      const { host, tracks, invites, ...rest } = event;
       const firstTrack = tracks[0];
       return {
         ...rest,
         host: host ? { id: host.id, name: host.username } : null,
         firstTrack: firstTrack ? firstTrack.track.thumbnailUrl : null,
+        membersCount: (invites?.length ?? 0) + 1,
       };
     });
 
@@ -370,18 +374,20 @@ export class EventsRepository {
         include: {
           host: { select: { id: true, username: true } },
           tracks: firstTrackSelect,
+          invites: { select: { userId: true } },
         },
       }),
       this.prisma.event.count({ where }),
     ]);
 
     const formattedData = data.map((event) => {
-      const { host, tracks, ...rest } = event;
+      const { host, tracks, invites, ...rest } = event;
       const firstTrack = tracks[0];
       return {
         ...rest,
         host: host ? { id: host.id, name: host.username } : null,
         firstTrack: firstTrack ? firstTrack.track.thumbnailUrl : null,
+        membersCount: (invites?.length ?? 0) + 1,
       };
     });
 
@@ -424,18 +430,20 @@ export class EventsRepository {
         include: {
           host: { select: { id: true, username: true } },
           tracks: firstTrackSelect,
+          invites: { select: { userId: true } },
         },
       }),
       this.prisma.event.count({ where }),
     ]);
 
     const formattedData = data.map((event) => {
-      const { host, tracks, ...rest } = event;
+      const { host, tracks, invites, ...rest } = event;
       const firstTrack = tracks[0];
       return {
         ...rest,
         host: host ? { id: host.id, name: host.username } : null,
         firstTrack: firstTrack ? firstTrack.track.thumbnailUrl : null,
+        membersCount: (invites?.length ?? 0) + 1,
       };
     });
 
