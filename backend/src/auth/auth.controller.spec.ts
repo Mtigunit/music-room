@@ -198,7 +198,7 @@ describe('AuthController', () => {
 
     it('should propagate UnauthorizedException from service', async () => {
       authService.googleAuth.mockRejectedValue(
-        new UnauthorizedException('Invalid google token'),
+        new UnauthorizedException('Invalid Google token'),
       );
 
       await expect(

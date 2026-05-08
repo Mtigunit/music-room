@@ -159,8 +159,9 @@ describe('UsersController', () => {
 
   describe('linkGoogleAccount', () => {
     const mockMeta: ClientMetaDto = {
-      ipAddress: '127.0.0.1',
-      userAgent: 'jest',
+      platform: 'jest',
+      deviceModel: 'jest',
+      appVersion: 'jest',
     };
 
     it('should link the account successfully by delegating to the service', async () => {
@@ -191,8 +192,9 @@ describe('UsersController', () => {
 
   describe('unlinkGoogleAccount', () => {
     const mockMeta: ClientMetaDto = {
-      ipAddress: '127.0.0.1',
-      userAgent: 'jest',
+      platform: 'jest',
+      deviceModel: 'jest',
+      appVersion: 'jest',
     };
 
     it('should unlink successfully by delegating to the service', async () => {
