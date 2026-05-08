@@ -83,17 +83,17 @@ model User {
   updatedAt DateTime @updatedAt
 
   // Relationships
-  playlists            Playlist[]             @relation("PlaylistOwner")
-  collaborations       PlaylistCollaborator[]
-  hostedEvents         Event[]                @relation("EventHost")
-  eventInvites         EventInvite[]
-  delegations          ControlDelegation[]    @relation("Delegatee")
-  followers            Follows[]              @relation("Followers")
-  following            Follows[]              @relation("Following")
-  votes                Vote[]
-  playlistTracks       PlaylistTrack[]
-  eventTracksAdded     EventTrack[]           @relation("EventTrackAddedBy")
-  notifications        Notification[]
+  playlists        Playlist[]             @relation("PlaylistOwner")
+  collaborations   PlaylistCollaborator[]
+  hostedEvents     Event[]                @relation("EventHost")
+  eventInvites     EventInvite[]
+  delegations      ControlDelegation[]    @relation("Delegatee")
+  followers        Follows[]              @relation("Followers")
+  following        Follows[]              @relation("Following")
+  votes            Vote[]
+  playlistTracks   PlaylistTrack[]
+  eventTracksAdded EventTrack[]           @relation("EventTrackAddedBy")
+  notifications    Notification[]
 }
 
 model Follows {
@@ -116,7 +116,7 @@ model Notification {
   message   String?
   payload   Json
   readAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime         @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -145,39 +145,38 @@ model Track {
 model Playlist {
   id          String              @id @default(uuid())
   name        String
-  visibility  Visibility  @default(PUBLIC)
-  description String?             // OPTIONAL text description
-  tags        Tags[]       @default([]) // ARRAY of tags
+  visibility  Visibility          @default(PUBLIC)
+  description String? // OPTIONAL text description
+  tags        Tags[]              @default([]) // ARRAY of tags
   ownerId     String
   editLicense PlaylistEditLicense @default(OPEN)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
 
   // --- Relations ---
   owner         User                   @relation("PlaylistOwner", fields: [ownerId], references: [id])
   tracks        PlaylistTrack[]
   collaborators PlaylistCollaborator[] // Users licensed to co-edit if visibility is PRIVATE
-  counter       PlaylistCounter?      // For generating unique position values in a concurrent environment
+  counter       PlaylistCounter? // For generating unique position values in a concurrent environment
 }
 
 model PlaylistTrack {
   id         String   @id @default(uuid())
   playlistId String
   trackId    String
-  position   Int      // Strict integer used for drag-and-drop ordering
-  addedById  String   // The user who added this specific track
+  position   Int // Strict integer used for drag-and-drop ordering
+  addedById  String // The user who added this specific track
   addedAt    DateTime @default(now())
 
   // --- Relations ---
-  playlist   Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
-  track      Track    @relation(fields: [trackId], references: [id]) // Link to the central Audio Dictionary
-  addedBy    User     @relation(fields: [addedById], references: [id])
+  playlist Playlist @relation(fields: [playlistId], references: [id], onDelete: Cascade)
+  track    Track    @relation(fields: [trackId], references: [id]) // Link to the central Audio Dictionary
+  addedBy  User     @relation(fields: [addedById], references: [id])
 
   // --- The Secret Sauce for Drag-and-Drop ---
   // This constraint guarantees that two tracks can NEVER occupy the exact same position
   // in the same playlist. This forces the PostgreSQL row-level locks to do their job!
   @@unique([playlistId, position])
-
   // Enforces that the exact same Track cannot be added multiple times to the same playlist.
   @@unique([playlistId, trackId])
 }
@@ -211,34 +210,34 @@ enum EventStatus {
 // 4. FEATURE 1: TRACK VOTE (Live Party Event)
 // ======================================================
 model Event {
-  id          String   @id @default(uuid())
+  id String @id @default(uuid())
 
   // Event metadata
-  name        String
-  description String?
-  coverImage  String
-  status      EventStatus    @default(UPCOMING)
-  visibility  Visibility   @default(PUBLIC)
-  invitingOnly Boolean @default(false)
-  tags        Tags[]
+  name         String
+  description  String?
+  coverImage   String
+  status       EventStatus @default(UPCOMING)
+  visibility   Visibility  @default(PUBLIC)
+  invitingOnly Boolean     @default(false)
+  tags         Tags[]
   // hoster metadata
-  hostId      String
-  locationLat     Float?
-  locationLng     Float?
+  hostId       String
+  locationLat  Float?
+  locationLng  Float?
 
   // Track
   playbackStatus           PlaybackStatus @default(PAUSED)
   currentTrackStartedAt    DateTime?
   pausedPlaybackPositionMs Int?
-  currentTrackId           String?      @unique
+  currentTrackId           String?        @unique
 
-  createdAt    DateTime @default(now())
-  startDate     DateTime
+  createdAt DateTime @default(now())
+  startDate DateTime
 
   // Strict 1-to-1 Relation for currentTrackId
-  host        User     @relation("EventHost", fields: [hostId], references: [id])
-  currentTrack             EventTrack?  @relation("EventCurrentTrack", fields: [currentTrackId], references: [id])
-  tracks       EventTrack[]    @relation("EventTracks")
+  host         User                @relation("EventHost", fields: [hostId], references: [id])
+  currentTrack EventTrack?         @relation("EventCurrentTrack", fields: [currentTrackId], references: [id])
+  tracks       EventTrack[]        @relation("EventTracks")
   invites      EventInvite[]
   policies     LicensePolicy[]
   delegations  ControlDelegation[]
@@ -262,7 +261,7 @@ model EventTrack {
   votes Vote[]
 
   // Back-relation for the 1-to-1 current track
-  currentIn       Event?      @relation("EventCurrentTrack")
+  currentIn Event? @relation("EventCurrentTrack")
 
   @@unique([eventId, trackId])
 }
@@ -294,14 +293,13 @@ model EventInvite {
   @@unique([eventId, userId])
 }
 
-
 enum PolicyType {
   GEOFENCE
   TIME_WINDOW
 }
 
 model LicensePolicy {
-  id         String @id @default(uuid())
+  id         String     @id @default(uuid())
   eventId    String
   policyType PolicyType
   config     Json
@@ -332,12 +330,12 @@ model ControlDelegation {
 model AuditLog {
   id          String   @id @default(uuid())
   userId      String?
-  action      String   // Validated at app-level via AuditAction enum
+  action      String // Validated at app-level via AuditAction enum
   platform    String
   deviceModel String
   appVersion  String
-  metadata    Json?    @default("{}")  // Action-specific context (trackId, playlistId, etc.)
-  ipAddress   String?                  // For security auditing
+  metadata    Json?    @default("{}") // Action-specific context (trackId, playlistId, etc.)
+  ipAddress   String? // For security auditing
   timestamp   DateTime @default(now())
 
   @@index([userId])

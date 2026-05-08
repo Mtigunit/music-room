@@ -1,15 +1,25 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ConflictException,
+  BadRequestException,
+} from '@nestjs/common';
 import { UserRepository } from './user.repository';
 import { type User } from '@prisma/client';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import type { UpdateProfileDto } from './dto/update-profile.dto';
 import { FollowsService } from '../follows/follows.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { AUDIT_LOG_EVENT, AuditAction } from '../audit-log/audit-log.constants';
+import { createAuditLogEvent } from '../audit-log/audit-log.event';
+import { ClientMetaDto } from '../common/dto/client-meta.dto';
 
 @Injectable()
 export class UsersService {
   constructor(
     private readonly userRepository: UserRepository,
     private readonly followsService: FollowsService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
   async findByEmail(email: string): Promise<User | null> {
@@ -56,8 +66,58 @@ export class UsersService {
     });
   }
 
-  async linkGoogleAccount(userId: string, googleId: string): Promise<User> {
-    return this.userRepository.linkGoogleAccount(userId, googleId);
+  async linkGoogleAccount(
+    userId: string,
+    googleId: string,
+    meta?: ClientMetaDto,
+  ): Promise<User> {
+    const existing = await this.userRepository.findByGoogleId(googleId);
+    if (existing && existing.id !== userId) {
+      throw new ConflictException(
+        'This Google account is already linked to another profile',
+      );
+    }
+
+    const user = await this.userRepository.linkGoogleAccount(userId, googleId);
+
+    if (meta) {
+      this.eventEmitter.emit(
+        AUDIT_LOG_EVENT,
+        createAuditLogEvent(userId, AuditAction.LINK_GOOGLE, meta, {
+          googleId,
+        }),
+      );
+    }
+
+    return user;
+  }
+
+  async unlinkGoogleAccount(
+    userId: string,
+    meta?: ClientMetaDto,
+  ): Promise<User> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    if (!user.passwordHash) {
+      throw new BadRequestException(
+        'Cannot unlink Google account without setting a password first',
+      );
+    }
+
+    const updatedUser = await this.userRepository.unlinkGoogleAccount(userId);
+
+    if (meta) {
+      this.eventEmitter.emit(
+        AUDIT_LOG_EVENT,
+        createAuditLogEvent(userId, AuditAction.UNLINK_GOOGLE, meta, {
+          previousGoogleId: user.googleId,
+        }),
+      );
+    }
+
+    return updatedUser;
   }
 
   async updatePassword(userId: string, passwordHash: string): Promise<User> {

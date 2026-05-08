@@ -138,17 +138,11 @@ export class AuthService {
     user: { id: string; email: string; username: string };
   }> {
     try {
-      const ticket = await this.googleClient.verifyIdToken({
-        idToken,
-        audience: this.configService.getOrThrow<string>('GOOGLE_CLIENT_ID'),
-      });
-      const payload = ticket.getPayload();
-
-      if (!payload || !payload.email || !payload.sub) {
-        throw new UnauthorizedException('Invalid Google token payload');
-      }
-
-      const { email, sub: googleId, given_name } = payload;
+      const {
+        email,
+        sub: googleId,
+        given_name,
+      } = await this.verifyGoogleIdToken(idToken);
 
       // 1. Check if user exists by googleId
       let user = await this.usersService.findByGoogleId(googleId);
@@ -255,6 +249,33 @@ export class AuthService {
         email,
       }),
     );
+  }
+
+  async verifyGoogleIdToken(
+    idToken: string,
+  ): Promise<{ email: string; sub: string; given_name?: string }> {
+    try {
+      const ticket = await this.googleClient.verifyIdToken({
+        idToken,
+        audience: this.configService.getOrThrow<string>('GOOGLE_CLIENT_ID'),
+      });
+      const payload = ticket.getPayload();
+
+      if (!payload || !payload.email || !payload.sub) {
+        throw new UnauthorizedException('Invalid Google token payload');
+      }
+
+      return {
+        email: payload.email,
+        sub: payload.sub,
+        given_name: payload.given_name,
+      };
+    } catch (error) {
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      throw new UnauthorizedException('Invalid google token');
+    }
   }
 
   private verifyEmailToken(token: string): string {

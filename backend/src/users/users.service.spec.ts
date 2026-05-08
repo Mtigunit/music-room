@@ -2,6 +2,15 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { UsersService } from './users.service';
 import { UserRepository } from './user.repository';
 import { FollowsService } from '../follows/follows.service';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import {
+  ConflictException,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
+import { AUDIT_LOG_EVENT, AuditAction } from '../audit-log/audit-log.constants';
+import { createAuditLogEvent } from '../audit-log/audit-log.event';
+import { ClientMetaDto } from '../common/dto/client-meta.dto';
 import type { User } from '@prisma/client';
 
 const mockUser: User = {
@@ -24,6 +33,7 @@ const mockUser: User = {
 describe('UsersService', () => {
   let service: UsersService;
   let repository: jest.Mocked<UserRepository>;
+  let eventEmitter: jest.Mocked<EventEmitter2>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -39,6 +49,7 @@ describe('UsersService', () => {
             create: jest.fn(),
             createOAuthUser: jest.fn(),
             linkGoogleAccount: jest.fn(),
+            unlinkGoogleAccount: jest.fn(),
             updatePassword: jest.fn(),
           },
         },
@@ -48,11 +59,18 @@ describe('UsersService', () => {
             isFollowing: jest.fn(),
           },
         },
+        {
+          provide: EventEmitter2,
+          useValue: {
+            emit: jest.fn(),
+          },
+        },
       ],
     }).compile();
 
     service = module.get<UsersService>(UsersService);
     repository = module.get(UserRepository);
+    eventEmitter = module.get(EventEmitter2);
   });
 
   afterEach(() => {
@@ -179,7 +197,6 @@ describe('UsersService', () => {
       );
 
       expect(result).toEqual(mockUser);
-      expect(result).toEqual(mockUser);
       expect(repository.createOAuthUser).toHaveBeenCalledWith({
         email: 'google@example.com',
         username: 'googleuser',
@@ -192,18 +209,100 @@ describe('UsersService', () => {
   // ─── linkGoogleAccount ────────────────────────────────
 
   describe('linkGoogleAccount', () => {
-    it('should delegate to repository to link Google account', async () => {
+    it('should throw ConflictException if google account is already linked to another user', async () => {
+      repository.findByGoogleId.mockResolvedValue({
+        id: 'different-uuid',
+      } as User);
+
+      await expect(
+        service.linkGoogleAccount('user-uuid-123', 'google-sub-123'),
+      ).rejects.toThrow(ConflictException);
+    });
+
+    it('should delegate to repository to link Google account when no collision', async () => {
+      const mockMeta: ClientMetaDto = {
+        ipAddress: '127.0.0.1',
+        platform: 'web',
+        deviceModel: 'desktop',
+        appVersion: '1.0.0',
+      };
+      repository.findByGoogleId.mockResolvedValue(null);
       repository.linkGoogleAccount.mockResolvedValue(mockUser);
 
       const result = await service.linkGoogleAccount(
         'user-uuid-123',
         'google-sub-123',
+        mockMeta,
       );
 
       expect(result).toEqual(mockUser);
       expect(repository.linkGoogleAccount).toHaveBeenCalledWith(
         'user-uuid-123',
         'google-sub-123',
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        AUDIT_LOG_EVENT,
+        createAuditLogEvent(
+          'user-uuid-123',
+          AuditAction.LINK_GOOGLE,
+          mockMeta,
+          {
+            googleId: 'google-sub-123',
+          },
+        ),
+      );
+    });
+  });
+
+  // ─── unlinkGoogleAccount ──────────────────────────────
+
+  describe('unlinkGoogleAccount', () => {
+    it('should throw NotFoundException if user not found', async () => {
+      repository.findById.mockResolvedValue(null);
+
+      await expect(
+        service.unlinkGoogleAccount('user-uuid-123'),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw BadRequestException if user has no password', async () => {
+      const noPasswordUser = { ...mockUser, passwordHash: null } as User;
+      repository.findById.mockResolvedValue(noPasswordUser);
+
+      await expect(
+        service.unlinkGoogleAccount('user-uuid-123'),
+      ).rejects.toThrow(BadRequestException);
+    });
+
+    it('should delegate to repository to unlink Google account if password is set', async () => {
+      const mockMeta: ClientMetaDto = {
+        ipAddress: '127.0.0.1',
+        platform: 'web',
+        deviceModel: 'desktop',
+        appVersion: '1.0.0',
+      };
+      repository.findById.mockResolvedValue(mockUser);
+      repository.unlinkGoogleAccount.mockResolvedValue(mockUser);
+
+      const result = await service.unlinkGoogleAccount(
+        'user-uuid-123',
+        mockMeta,
+      );
+
+      expect(result).toEqual(mockUser);
+      expect(repository.unlinkGoogleAccount).toHaveBeenCalledWith(
+        'user-uuid-123',
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        AUDIT_LOG_EVENT,
+        createAuditLogEvent(
+          'user-uuid-123',
+          AuditAction.UNLINK_GOOGLE,
+          mockMeta,
+          {
+            previousGoogleId: mockUser.googleId,
+          },
+        ),
       );
     });
   });

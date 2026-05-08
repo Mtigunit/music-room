@@ -14,6 +14,9 @@ import {
   NotFoundException,
   BadRequestException,
   Logger,
+  Inject,
+  forwardRef,
+  Delete,
 } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -31,6 +34,10 @@ import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { SearchUsersDto } from './dto/search-users.dto';
+import { LinkGoogleDto } from './dto/link-google.dto';
+import { AuthService } from '../auth/auth.service';
+import { ClientMeta } from '../common/decorators/client-meta.decorator';
+import { ClientMetaDto } from '../common/dto/client-meta.dto';
 import type { User } from '@prisma/client';
 import type { UserProfileResponse } from './interfaces/user-profile-response.interface';
 
@@ -41,7 +48,11 @@ import type { UserProfileResponse } from './interfaces/user-profile-response.int
 export class UsersController {
   private readonly logger = new Logger(UsersController.name);
 
-  constructor(private readonly usersService: UsersService) {}
+  constructor(
+    private readonly usersService: UsersService,
+    @Inject(forwardRef(() => AuthService))
+    private readonly authService: AuthService,
+  ) {}
 
   private toSafeUser(user: User): Omit<User, 'passwordHash' | 'googleId'> {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -141,6 +152,58 @@ export class UsersController {
     }
 
     return this.toSafeUser(user);
+  }
+
+  @Post('link-google')
+  @ApiOperation({ summary: 'Manually link a Google account' })
+  @ApiResponse({
+    status: 200,
+    description: 'Google account linked successfully.',
+  })
+  @ApiResponse({
+    status: 409,
+    description: 'Google ID is already linked to another account.',
+  })
+  async linkGoogleAccount(
+    @Request() req: Express.Request,
+    @Body() dto: LinkGoogleDto,
+    @ClientMeta() meta: ClientMetaDto,
+  ) {
+    const { sub: googleId } = await this.authService.verifyGoogleIdToken(
+      dto.idToken,
+    );
+
+    const updatedUser = await this.usersService.linkGoogleAccount(
+      req.user!.id,
+      googleId,
+      meta,
+    );
+    return this.toSafeUser(updatedUser);
+  }
+
+  @Delete('link-google')
+  @ApiOperation({ summary: 'Manually unlink a Google account' })
+  @ApiResponse({
+    status: 200,
+    description: 'Google account unlinked successfully.',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'Cannot unlink without a password set.',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User not found.',
+  })
+  async unlinkGoogleAccount(
+    @Request() req: Express.Request,
+    @ClientMeta() meta: ClientMetaDto,
+  ) {
+    const updatedUser = await this.usersService.unlinkGoogleAccount(
+      req.user!.id,
+      meta,
+    );
+    return this.toSafeUser(updatedUser);
   }
 
   @Get('search')
