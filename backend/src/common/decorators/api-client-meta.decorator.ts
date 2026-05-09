@@ -16,6 +16,12 @@ export function ApiClientMeta() {
       schema: { default: 'unknown' },
     }),
     ApiHeader({
+      name: 'x-device-id',
+      required: false,
+      description: 'Client hardware device ID',
+      schema: { default: 'unknown' },
+    }),
+    ApiHeader({
       name: 'x-app-version',
       required: false,
       description: 'Client app version (e.g., 1.0.0)',

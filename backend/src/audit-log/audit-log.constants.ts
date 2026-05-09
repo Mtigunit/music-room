@@ -53,6 +53,7 @@ export enum AuditAction {
 export const SYSTEM_AUDIT_META = {
   platform: 'system',
   deviceModel: 'worker',
+  deviceId: 'worker',
   appVersion: 'unknown',
   ipAddress: '127.0.0.1',
 } as const;

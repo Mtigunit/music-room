@@ -17,6 +17,7 @@ export class AuditLogRepository {
         action: event.action,
         platform: event.platform,
         deviceModel: event.deviceModel,
+        deviceId: event.deviceId,
         appVersion: event.appVersion,
         ...(event.metadata !== undefined
           ? { metadata: event.metadata as Prisma.InputJsonValue }

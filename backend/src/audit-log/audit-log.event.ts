@@ -17,6 +17,9 @@ export class AuditLogEvent {
   /** Client device model (e.g. 'iPhone 15 Pro'). */
   deviceModel: string;
 
+  /** Client hardware device ID. */
+  deviceId: string;
+
   /** Client app version (e.g. '1.2.0'). */
   appVersion: string;
 
@@ -42,6 +45,7 @@ export function createAuditLogEvent(
     action,
     platform: meta.platform,
     deviceModel: meta.deviceModel,
+    deviceId: meta.deviceId,
     appVersion: meta.appVersion,
     ipAddress: meta.ipAddress,
     metadata,

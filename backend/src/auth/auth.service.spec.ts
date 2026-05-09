@@ -156,6 +156,7 @@ describe('AuthService', () => {
     const mockMeta = {
       platform: 'unknown',
       deviceModel: 'unknown',
+      deviceId: 'unknown',
       appVersion: 'unknown',
       ipAddress: '127.0.0.1',
     };
@@ -255,6 +256,7 @@ describe('AuthService', () => {
     const mockMeta = {
       platform: 'unknown',
       deviceModel: 'unknown',
+      deviceId: 'unknown',
       appVersion: 'unknown',
       ipAddress: '127.0.0.1',
     };
@@ -338,6 +340,7 @@ describe('AuthService', () => {
       deviceModel: 'unknown',
       appVersion: 'unknown',
       ipAddress: '127.0.0.1',
+      deviceId: 'unknown',
     };
 
     beforeEach(() => {
@@ -510,6 +513,7 @@ describe('AuthService', () => {
     const mockMeta = {
       platform: 'unknown',
       deviceModel: 'unknown',
+      deviceId: 'unknown',
       appVersion: 'unknown',
       ipAddress: '127.0.0.1',
     };
