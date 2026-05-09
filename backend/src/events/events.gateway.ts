@@ -93,17 +93,6 @@ export class EventsGateway implements OnGatewayDisconnect {
     }
   }
 
-  private async removeExistingTimeoutJob(jobId: string) {
-    const existingJob = await this.eventTimeoutsQueue.getJob(jobId);
-    if (existingJob) {
-      existingJob.remove().catch((error: Error) => {
-        this.logger.error(
-          `Failed to remove existing timeout job with ID ${jobId} | Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        );
-      });
-    }
-  }
-
   @SubscribeMessage(WS_EVENTS.JOIN)
   async handleEventJoin(
     @ConnectedSocket() client: Socket,
@@ -215,7 +204,12 @@ export class EventsGateway implements OnGatewayDisconnect {
       await redisClient.del(REDIS_KEYS.HOST_DISCONNECT(eventId));
 
       const softJob = await this.eventTimeoutsQueue.getJob(`soft-${eventId}`);
-      if (softJob) await softJob.remove();
+      if (softJob)
+        await softJob.remove().catch((error: Error) => {
+          this.logger.error(
+            `Failed to remove soft timeout job for event ${eventId} | Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          );
+        });
 
       const hardJob = await this.eventTimeoutsQueue.getJob(`hard-${eventId}`);
       if (hardJob)
@@ -412,7 +406,11 @@ export class EventsGateway implements OnGatewayDisconnect {
   ) {
     if (!payload?.eventId) throw new WsException('eventId is required');
     try {
-      const result = await this.eventsService.play(payload.eventId, user.id);
+      const result = await this.eventsService.play(
+        payload.eventId,
+        user.id,
+        'test-device-id',
+      );
       return { event: 'playback_play', ...result };
     } catch (error: unknown) {
       const errorMessage =
@@ -428,7 +426,11 @@ export class EventsGateway implements OnGatewayDisconnect {
   ) {
     if (!payload?.eventId) throw new WsException('eventId is required');
     try {
-      const result = await this.eventsService.pause(payload.eventId, user.id);
+      const result = await this.eventsService.pause(
+        payload.eventId,
+        user.id,
+        'test-device-id',
+      );
       return { event: 'playback_pause', ...result };
     } catch (error: unknown) {
       const errorMessage =
@@ -448,6 +450,7 @@ export class EventsGateway implements OnGatewayDisconnect {
         payload.eventId,
         user.id,
         payload.trackId ?? null,
+        'test-device-id',
       );
       return { event: 'playback_next', ...result };
     } catch (error: unknown) {

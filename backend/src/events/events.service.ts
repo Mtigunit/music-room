@@ -135,8 +135,12 @@ export class EventsService {
     return this.eventsRepository.findInvited(userId, options);
   }
 
-  async findOne(id: string, userId: string) {
-    const event = await this.eventsRepository.findByIdWithDetails(id, userId);
+  async findOne(id: string, userId: string, deviceId?: string) {
+    const event = await this.eventsRepository.findByIdWithDetails(
+      id,
+      userId,
+      deviceId,
+    );
     if (!event) {
       throw new NotFoundException(`Event with ID ${id} not found`);
     }
@@ -147,17 +151,15 @@ export class EventsService {
       invites,
       policies,
       invitingOnly,
+      hostId,
+      delegations,
       currentTrackId,
       ...eventData
     } = event;
-
-    const isInvited =
-      invites?.some((i: { userId: string }) => i.userId === userId) ?? false;
-
     if (
       event.visibility === Visibility.PRIVATE &&
       event.hostId !== userId &&
-      !isInvited
+      !invites.length
     ) {
       throw new ForbiddenException(
         'Forbidden: You do not have access to this event',
@@ -184,8 +186,7 @@ export class EventsService {
       await this.eventsRepository.getCurrentTrackPayload(currentTrackId);
     return {
       ...eventData,
-      hostId: event.hostId, // retain hostId in top-level output
-      host: host ? { id: host.id, name: host.username } : null,
+      host: host ? { id: hostId, name: host.username } : null,
       tracks,
       currentTrack:
         currentTrack === null
@@ -195,8 +196,9 @@ export class EventsService {
               currentTrackStartedAt: event.currentTrackStartedAt,
               pausedPlaybackPositionMs: event.pausedPlaybackPositionMs,
             },
-      isInvited,
+      isInvited: (invites?.length ?? 0) > 0,
       isHost: event.hostId === userId,
+      isDelegated: (delegations?.length ?? 0) > 0,
       policies: {
         locationAndTime: (policies?.length ?? 0) > 0,
         invitingOnly,
@@ -554,11 +556,23 @@ export class EventsService {
     return result;
   }
 
-  async play(eventId: string, userId: string) {
+  async play(eventId: string, userId: string, deviceId?: string) {
     const event = await this.eventsRepository.findById(eventId);
     if (!event) throw new NotFoundException('Event not found');
-    if (event.hostId !== userId)
-      throw new ForbiddenException('Only host controls playback');
+    if (event.hostId !== userId) {
+      const delegation = await this.eventsRepository.findActiveDelegation(
+        eventId,
+        userId,
+      );
+      if (!delegation) {
+        throw new ForbiddenException('Only host controls playback');
+      }
+      if (deviceId && delegation.deviceId !== deviceId) {
+        throw new ForbiddenException(
+          'Control delegation not valid on this device',
+        );
+      }
+    }
     if (event.status !== EventStatus.LIVE)
       throw new BadRequestException('Event is not LIVE');
 
@@ -582,14 +596,45 @@ export class EventsService {
               },
       });
 
+    if (event.hostId !== userId) {
+      this.eventEmitter.emit(
+        AUDIT_LOG_EVENT,
+        createAuditLogEvent(
+          userId,
+          AuditAction.DELEGATED_PLAY,
+          {
+            platform: 'unknown',
+            deviceModel: 'unknown',
+            appVersion: 'unknown',
+          } as ClientMetaDto,
+          {
+            eventId,
+            deviceId,
+          },
+        ),
+      );
+    }
+
     return { status: PlaybackStatus.PLAYING };
   }
 
-  async pause(eventId: string, userId: string) {
+  async pause(eventId: string, userId: string, deviceId?: string) {
     const event = await this.eventsRepository.findById(eventId);
     if (!event) throw new NotFoundException('Event not found');
-    if (event.hostId !== userId)
-      throw new ForbiddenException('Only host controls playback');
+    if (event.hostId !== userId) {
+      const delegation = await this.eventsRepository.findActiveDelegation(
+        eventId,
+        userId,
+      );
+      if (!delegation) {
+        throw new ForbiddenException('Only host controls playback');
+      }
+      if (deviceId && delegation.deviceId !== deviceId) {
+        throw new ForbiddenException(
+          'Control delegation not valid on this device',
+        );
+      }
+    }
     if (event.status !== EventStatus.LIVE)
       throw new BadRequestException('Event is not LIVE');
 
@@ -616,14 +661,50 @@ export class EventsService {
               },
       });
 
+    if (event.hostId !== userId) {
+      this.eventEmitter.emit(
+        AUDIT_LOG_EVENT,
+        createAuditLogEvent(
+          userId,
+          AuditAction.DELEGATED_PAUSE,
+          {
+            platform: 'unknown',
+            deviceModel: 'unknown',
+            appVersion: 'unknown',
+          } as ClientMetaDto,
+          {
+            eventId,
+            deviceId,
+          },
+        ),
+      );
+    }
+
     return { status: PlaybackStatus.PAUSED };
   }
 
-  async next(eventId: string, userId: string, trackId: string | null) {
+  async next(
+    eventId: string,
+    userId: string,
+    trackId: string | null,
+    deviceId?: string,
+  ) {
     const event = await this.eventsRepository.findById(eventId);
     if (!event) throw new NotFoundException('Event not found');
-    if (event.hostId !== userId)
-      throw new ForbiddenException('Only host controls playback');
+    if (event.hostId !== userId) {
+      const delegation = await this.eventsRepository.findActiveDelegation(
+        eventId,
+        userId,
+      );
+      if (!delegation) {
+        throw new ForbiddenException('Only host controls playback');
+      }
+      if (deviceId && delegation.deviceId !== deviceId) {
+        throw new ForbiddenException(
+          'Control delegation not valid on this device',
+        );
+      }
+    }
 
     if (trackId && event.currentTrackId !== trackId) {
       throw new ConflictException('Track mismatch—client state is stale');
@@ -658,6 +739,25 @@ export class EventsService {
           status: PlaybackStatus.PAUSED,
           currentTrack: null,
         });
+    }
+
+    if (event.hostId !== userId) {
+      this.eventEmitter.emit(
+        AUDIT_LOG_EVENT,
+        createAuditLogEvent(
+          userId,
+          AuditAction.DELEGATED_NEXT,
+          {
+            platform: 'unknown',
+            deviceModel: 'unknown',
+            appVersion: 'unknown',
+          } as ClientMetaDto,
+          {
+            eventId,
+            deviceId,
+          },
+        ),
+      );
     }
 
     return { currentTrackId: updatedEvent.currentTrackId };
