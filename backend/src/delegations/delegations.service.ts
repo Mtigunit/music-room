@@ -73,7 +73,13 @@ export class DelegationsService {
       throw new ForbiddenException('Only the host can revoke delegation');
     }
 
-    await this.delegationsRepository.revoke(eventId, delegateeId);
+    const result = await this.delegationsRepository.revoke(
+      eventId,
+      delegateeId,
+    );
+    if (result.count === 0) {
+      throw new NotFoundException('Delegation not found');
+    }
 
     this.eventEmitter.emit(
       AUDIT_LOG_EVENT,

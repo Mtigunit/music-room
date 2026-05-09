@@ -27,25 +27,32 @@ export class DelegationsRepository {
   }
 
   async createOrUpdate(eventId: string, delegateeId: string, deviceId: string) {
-    return this.prisma.$transaction(async (tx) => {
-      await tx.controlDelegation.updateMany({
-        where: { eventId, delegateeId },
-        data: { isActive: false },
-      });
-      return tx.controlDelegation.create({
-        data: {
+    return this.prisma.controlDelegation.upsert({
+      where: {
+        eventId_delegateeId_deviceId: {
           eventId,
           delegateeId,
           deviceId,
-          isActive: true,
         },
-      });
+      },
+      create: {
+        eventId,
+        delegateeId,
+        deviceId,
+        isActive: true,
+      },
+      update: {
+        isActive: true,
+      },
     });
   }
 
   async revoke(eventId: string, delegateeId: string) {
     return this.prisma.controlDelegation.updateMany({
-      where: { eventId, delegateeId, isActive: true },
+      where: {
+        eventId,
+        delegateeId,
+      },
       data: { isActive: false },
     });
   }
