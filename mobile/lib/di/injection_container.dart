@@ -13,7 +13,10 @@ import 'package:music_room/features/auth/domain/repositories/auth_repository.dar
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
 import 'package:music_room/features/events/data/datasources/event_remote_datasource.dart';
 import 'package:music_room/features/events/data/datasources/track_remote_datasource.dart';
+import 'package:music_room/features/events/domain/repositories/event_repository.dart';
 import 'package:music_room/features/music_vote/data/datasources/music_vote_remote_datasource.dart';
+import 'package:music_room/features/music_vote/data/repositories/music_vote_repository_impl.dart';
+import 'package:music_room/features/music_vote/domain/repositories/music_vote_repository.dart';
 import 'package:music_room/features/playlist/data/datasources/playlist_cache_datasource.dart';
 import 'package:music_room/features/playlist/data/datasources/playlist_remote_datasource.dart';
 import 'package:music_room/features/playlist/presentation/state/playlist_bloc.dart';
@@ -45,7 +48,9 @@ class InjectionContainer {
   late IPlaylistCacheDataSource _playlistCacheDataSource;
   late ITrackRemoteDataSource _trackRemoteDataSource;
   late IEventRemoteDataSource _eventRemoteDataSource;
+  late EventRepository _eventRepository;
   late IMusicVoteRemoteDataSource _musicVoteRemoteDataSource;
+  late MusicVoteRepository _musicVoteRepository;
 
   /// Initialize all dependencies
   Future<void> init() async {
@@ -93,6 +98,12 @@ class InjectionContainer {
       tokenStorage: _tokenStorageService,
       googleAuthService: _googleAuthService,
     );
+    _eventRepository = EventRepository(
+      remoteDataSource: _eventRemoteDataSource,
+    );
+    _musicVoteRepository = MusicVoteRepositoryImpl(
+      remoteDataSource: _musicVoteRemoteDataSource,
+    );
   }
 
   // Getters
@@ -112,8 +123,10 @@ class InjectionContainer {
       _playlistCacheDataSource;
   ITrackRemoteDataSource get trackRemoteDataSource => _trackRemoteDataSource;
   IEventRemoteDataSource get eventRemoteDataSource => _eventRemoteDataSource;
+  EventRepository get eventRepository => _eventRepository;
   IMusicVoteRemoteDataSource get musicVoteRemoteDataSource =>
       _musicVoteRemoteDataSource;
+  MusicVoteRepository get musicVoteRepository => _musicVoteRepository;
 
   AuthBloc createAuthBloc() {
     return AuthBloc(

@@ -22,6 +22,7 @@ class MyEventItemModel {
     required this.status,
     required this.startDate,
     required this.hostName,
+    required this.hostId,
     this.coverImage,
   });
 
@@ -38,6 +39,9 @@ class MyEventItemModel {
       status: json['status'] as String,
       startDate: DateTime.parse(json['startDate'] as String),
       hostName: hostName,
+      hostId: (hostMap is Map<String, dynamic> && hostMap['id'] is String)
+          ? hostMap['id'] as String
+          : (json['hostId'] as String? ?? ''),
       coverImage: _buildCoverImageUrl(json['coverImage'] as String?),
     );
   }
@@ -52,6 +56,9 @@ class MyEventItemModel {
 
   /// Display name of the event host (from `host.name` in the JSON payload).
   final String hostName;
+
+  /// Unique identifier of the event host.
+  final String hostId;
 
   /// URL string for the cover image, if provided by the backend.
   final String? coverImage;
@@ -91,6 +98,12 @@ abstract class IEventRemoteDataSource {
     int page = 1,
     int limit = 20,
   });
+
+  /// Returns public events for discovery.
+  Future<List<MyEventItemModel>> fetchPublicEvents({
+    int page = 1,
+    int limit = 20,
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -108,9 +121,13 @@ class EventRemoteDataSource implements IEventRemoteDataSource {
   @override
   Future<String> createEvent(EventModel event, XFile? coverImage) async {
     try {
-      final formData = FormData.fromMap(
-        await _buildFormDataMap(event, coverImage),
-      );
+      final mapData = await _buildFormDataMap(event, coverImage);
+      if (kDebugMode) {
+        debugPrint('--- [CREATE EVENT] SENDING DATA ---');
+        debugPrint(mapData.toString());
+      }
+
+      final formData = FormData.fromMap(mapData);
 
       final response = await _apiClient.post<Map<String, dynamic>>(
         AppConfig.eventsEndpoint,
@@ -118,9 +135,16 @@ class EventRemoteDataSource implements IEventRemoteDataSource {
       );
 
       return _parseCreateEventResponse(response);
-    } on DioException {
+    } on DioException catch (e) {
+      debugPrint('--- [CREATE EVENT] DIO ERROR THROWN ---');
+      debugPrint(e.toString());
+      if (e.response != null) {
+        debugPrint('Response Data: ${e.response?.data}');
+      }
       rethrow;
     } on Object catch (e) {
+      debugPrint('--- [CREATE EVENT] UNKNOWN ERROR THROWN ---');
+      debugPrint(e.toString());
       throw DioException(
         requestOptions: RequestOptions(path: AppConfig.eventsEndpoint),
         error: e,
@@ -171,6 +195,30 @@ class EventRemoteDataSource implements IEventRemoteDataSource {
     } on Object catch (e) {
       throw DioException(
         requestOptions: RequestOptions(path: AppConfig.eventsHostingEndpoint),
+        error: e,
+      );
+    }
+  }
+
+  // ── Fetch Public Events ──────────────────────────────────────────────────
+
+  @override
+  Future<List<MyEventItemModel>> fetchPublicEvents({
+    int page = 1,
+    int limit = 20,
+  }) async {
+    try {
+      final response = await _apiClient.get<dynamic>(
+        AppConfig.eventsEndpoint,
+        queryParameters: {'page': page, 'limit': limit},
+      );
+
+      return _parseEventListResponse(response);
+    } on DioException {
+      rethrow;
+    } on Object catch (e) {
+      throw DioException(
+        requestOptions: RequestOptions(path: AppConfig.eventsEndpoint),
         error: e,
       );
     }

@@ -22,11 +22,8 @@ abstract class IMusicVoteRemoteDataSource {
     String providerTrackId,
   );
 
-  /// POST /events/{eventId}/start — transition event to LIVE.
-  Future<EventDetailModel> startEvent(String eventId);
-
-  /// POST /events/{eventId}/end — transition event to ENDED.
-  Future<EventDetailModel> endEvent(String eventId);
+  /// DELETE /events/{eventId}/tracks/{providerTrackId} — remove a track.
+  Future<void> removeTrackFromEvent(String eventId, String providerTrackId);
 }
 
 class MusicVoteRemoteDataSource implements IMusicVoteRemoteDataSource {
@@ -139,14 +136,17 @@ class MusicVoteRemoteDataSource implements IMusicVoteRemoteDataSource {
   }
 
   @override
-  Future<EventDetailModel> startEvent(String eventId) async {
+  Future<void> removeTrackFromEvent(
+    String eventId,
+    String providerTrackId,
+  ) async {
     try {
-      final response = await _apiClient.post<Map<String, dynamic>>(
-        '${AppConfig.eventsEndpoint}/$eventId/start',
+      final response = await _apiClient.delete<dynamic>(
+        '${AppConfig.eventsEndpoint}/$eventId/tracks/$providerTrackId',
       );
 
-      if (response.statusCode == 200 && response.data != null) {
-        return EventDetailModel.fromJson(response.data!);
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return;
       }
 
       throw DioException(
@@ -159,35 +159,7 @@ class MusicVoteRemoteDataSource implements IMusicVoteRemoteDataSource {
     } on Object catch (e) {
       throw DioException(
         requestOptions: RequestOptions(
-          path: '${AppConfig.eventsEndpoint}/$eventId/start',
-        ),
-        error: e,
-      );
-    }
-  }
-
-  @override
-  Future<EventDetailModel> endEvent(String eventId) async {
-    try {
-      final response = await _apiClient.post<Map<String, dynamic>>(
-        '${AppConfig.eventsEndpoint}/$eventId/end',
-      );
-
-      if (response.statusCode == 200 && response.data != null) {
-        return EventDetailModel.fromJson(response.data!);
-      }
-
-      throw DioException(
-        requestOptions: response.requestOptions,
-        response: response,
-        type: DioExceptionType.badResponse,
-      );
-    } on DioException {
-      rethrow;
-    } on Object catch (e) {
-      throw DioException(
-        requestOptions: RequestOptions(
-          path: '${AppConfig.eventsEndpoint}/$eventId/end',
+          path: '${AppConfig.eventsEndpoint}/$eventId/tracks/$providerTrackId',
         ),
         error: e,
       );

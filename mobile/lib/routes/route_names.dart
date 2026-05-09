@@ -4,7 +4,6 @@ class RouteNames {
   static const String onboarding = '/onboarding';
   static const String auth = '/auth';
   static const String signUp = '/sign-up';
-  static const String musicVote = '/music-vote';
   static const String preEvent = '/pre-event';
   static const String playlist = '/playlist';
   static const String musicControl = '/music-control';

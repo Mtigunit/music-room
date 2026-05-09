@@ -387,7 +387,7 @@ class _Step4AccessState extends State<Step4Access> {
           ),
           const SizedBox(height: 28),
 
-          // ── Start Event button ────────────────────────────────────────
+          // ── Create Event button ────────────────────────────────────────
           ElevatedButton(
             onPressed: widget.isSubmitting ? null : widget.onSubmit,
             style: ElevatedButton.styleFrom(
@@ -412,7 +412,7 @@ class _Step4AccessState extends State<Step4Access> {
                       color: theme.colorScheme.onPrimary,
                     ),
                   )
-                : const Text('Start Event'),
+                : const Text('Create Event'),
           ),
           const SizedBox(height: 32),
         ],

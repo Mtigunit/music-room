@@ -17,10 +17,12 @@ class LiveHeader extends StatelessWidget {
     super.key,
     this.eventId,
     this.eventName,
+    this.isHost = false,
   });
 
   final String? eventId;
   final String? eventName;
+  final bool isHost;
 
   @override
   Widget build(BuildContext context) {
@@ -69,12 +71,21 @@ class LiveHeader extends StatelessWidget {
                       size: 20,
                     ),
                     const SizedBox(width: 6),
-                    Text(
-                      '+138 listening',
-                      style: textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurface.withValues(alpha: 0.55),
-                        fontSize: 12,
-                      ),
+                    BlocBuilder<MusicVoteCubit, MusicVoteState>(
+                      buildWhen: (previous, current) =>
+                          previous.listenerCount != current.listenerCount,
+                      builder: (context, state) {
+                        final count = state.listenerCount ?? 0;
+                        return Text(
+                          '+$count listening',
+                          style: textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurface.withValues(
+                              alpha: 0.55,
+                            ),
+                            fontSize: 12,
+                          ),
+                        );
+                      },
                     ),
                   ],
                 ),
@@ -83,16 +94,27 @@ class LiveHeader extends StatelessWidget {
           ),
 
           // ── Action icons ─────────────────────────────────────────────────
-          IconButton(
-            padding: EdgeInsets.zero,
-            icon: const Icon(Icons.person_add_alt_1_outlined),
-            onPressed: () => _showInviteSheet(context),
-          ),
-          IconButton(
-            padding: EdgeInsets.zero,
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () => _showManageRoomSheet(context),
-          ),
+          if (isHost) ...[
+            IconButton(
+              padding: EdgeInsets.zero,
+              icon: const Icon(Icons.person_add_alt_1_outlined),
+              onPressed: () => _showInviteSheet(context),
+            ),
+            IconButton(
+              padding: EdgeInsets.zero,
+              icon: const Icon(Icons.settings_outlined),
+              onPressed: () => _showManageRoomSheet(context),
+            ),
+          ] else ...[
+            IconButton(
+              padding: EdgeInsets.zero,
+              icon: Icon(
+                Icons.exit_to_app_rounded,
+                color: colorScheme.error.withValues(alpha: 0.8),
+              ),
+              onPressed: () => _showLeaveConfirmation(context),
+            ),
+          ],
         ],
       ),
     );
@@ -151,6 +173,45 @@ class LiveHeader extends StatelessWidget {
         builder: (_) => BlocProvider.value(
           value: context.read<MusicVoteCubit>(),
           child: DelegationBottomSheet(eventId: resolvedEventId),
+        ),
+      ),
+    );
+  }
+
+  void _showLeaveConfirmation(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    unawaited(
+      showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Leave Event?'),
+          content: const Text(
+            'Are you sure you want to leave this room?',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () {
+                final cubit = context.read<MusicVoteCubit>();
+                final eventId = this.eventId ?? cubit.state.event?.id;
+
+                Navigator.pop(dialogContext); // Close dialog
+                if (eventId != null) {
+                  cubit.leaveEvent(eventId);
+                }
+                Navigator.pop(context); // Exit page
+              },
+              child: Text(
+                'Leave',
+                style: TextStyle(color: colorScheme.error),
+              ),
+            ),
+          ],
         ),
       ),
     );

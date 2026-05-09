@@ -276,6 +276,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
         ),
       ),
       floatingActionButton: FloatingActionButton(
+        heroTag: null,
         onPressed: _showPlaylistSearchModal,
         backgroundColor: colorScheme.primary,
         foregroundColor: colorScheme.onPrimary,

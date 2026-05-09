@@ -4,6 +4,24 @@ enum SocketEvent {
   playlistTrackAdded,
   playlistTrackRemoved,
   playlistTrackReordered,
+
+  eventJoin,
+  eventHostJoin,
+  eventStart,
+  eventEnd,
+  eventStatus,
+  eventStarted,
+  eventEnded,
+  eventCount,
+  eventLeave,
+  eventHostLeave,
+  hostSoftDisconnect,
+  hostReconnected,
+  trackAdded,
+  trackRemoved,
+  trackVote,
+  trackVoteUpdated,
+  exception,
 }
 
 extension SocketEventName on SocketEvent {
@@ -19,6 +37,40 @@ extension SocketEventName on SocketEvent {
         return 'playlist:track:removed';
       case SocketEvent.playlistTrackReordered:
         return 'playlist:track:reordered';
+      case SocketEvent.eventJoin:
+        return 'event:join';
+      case SocketEvent.eventHostJoin:
+        return 'event:host_join';
+      case SocketEvent.eventStart:
+        return 'event:start';
+      case SocketEvent.eventEnd:
+        return 'event:end';
+      case SocketEvent.eventStatus:
+        return 'event:status';
+      case SocketEvent.eventStarted:
+        return 'event:started';
+      case SocketEvent.eventEnded:
+        return 'event:ended';
+      case SocketEvent.eventCount:
+        return 'event:count';
+      case SocketEvent.eventLeave:
+        return 'event:leave';
+      case SocketEvent.eventHostLeave:
+        return 'event:host_leave';
+      case SocketEvent.hostSoftDisconnect:
+        return 'event:host_soft_disconnect';
+      case SocketEvent.hostReconnected:
+        return 'event:host_reconnected';
+      case SocketEvent.trackAdded:
+        return 'track:added';
+      case SocketEvent.trackRemoved:
+        return 'track:removed';
+      case SocketEvent.trackVote:
+        return 'track:vote';
+      case SocketEvent.trackVoteUpdated:
+        return 'track:vote_updated';
+      case SocketEvent.exception:
+        return 'exception';
     }
   }
 }
