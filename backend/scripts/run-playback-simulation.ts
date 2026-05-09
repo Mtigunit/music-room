@@ -116,7 +116,9 @@ async function main() {
       assert(hostBcast?.status === 'LIVE', 'Host received event:started');
       assert(guestBcast?.status === 'LIVE', 'Guest received event:started');
       assert(statusBcast?.status === 'PAUSED', 'Initial status is PAUSED');
-      assert(statusBcast?.currentTrackId === TRACK_ID_1, 'Initial track is Track 1');
+      console.log(statusBcast);
+      console.log(TRACK_ID_1);
+      assert(statusBcast?.currentTrack.id === TRACK_ID_1, 'Initial track is Track 1');
     }
 
     // ════════════════════════════════════════════════════════════════════════
@@ -131,7 +133,7 @@ async function main() {
         emitEvent(hostClient, 'playback:play', { eventId }),
       ]);
       assert(bcast?.status === 'PLAYING', 'A-1 bcast – Guest sees PLAYING');
-      assert(bcast?.currentTrackId === TRACK_ID_1, 'A-1 bcast – Track 1 playing');
+      assert(bcast?.currentTrack.id === TRACK_ID_1, 'A-1 bcast – Track 1 playing');
       ok('Playback started');
     }
 
@@ -167,7 +169,7 @@ async function main() {
         waitForBroadcast(guestClient, 'playback:status'),
         emitEvent(hostClient, 'playback:next', { eventId }),
       ]);
-      assert(bcast?.currentTrackId === TRACK_ID_2, 'B-1 bcast – Now playing Track 2');
+      assert(bcast?.currentTrack.id === TRACK_ID_2, 'B-1 bcast – Now playing Track 2');
       assert(bcast?.status === 'PLAYING', 'B-1 bcast – Automatically starts playing');
       ok('Skipped to Track 2');
     }
@@ -178,7 +180,7 @@ async function main() {
         waitForBroadcast(guestClient, 'playback:status'),
         emitEvent(hostClient, 'playback:next', { eventId, trackId: TRACK_ID_2 }),
       ]);
-      assert(bcast?.currentTrackId === TRACK_ID_3, 'B-2 bcast – Now playing Track 3');
+      assert(bcast?.currentTrack.id === TRACK_ID_3, 'B-2 bcast – Now playing Track 3');
       ok('Skipped to Track 3 with valid staleness check');
     }
 
@@ -188,7 +190,7 @@ async function main() {
         waitForBroadcast(guestClient, 'playback:status'),
         emitEvent(hostClient, 'playback:next', { eventId }),
       ]);
-      assert(bcast?.currentTrackId === null, 'B-3 bcast – Queue empty, currentTrackId null');
+      assert(bcast?.currentTrack === null, 'B-3 bcast – Queue empty, currentTrackId null');
       assert(bcast?.status === 'PAUSED', 'B-3 bcast – Status PAUSED at end of queue');
       ok('Reached end of queue');
     }

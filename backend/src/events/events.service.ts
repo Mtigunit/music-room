@@ -452,7 +452,14 @@ export class EventsService {
         .to(`event_${eventId}`)
         .emit(WS_EVENTS.PLAYBACK_STATUS, {
           status: PlaybackStatus.PAUSED,
-          currentTrackId: newTrack.id,
+          currentTrack: {
+            id: newTrack.track.id,
+            providerTrackId: newTrack.track.providerTrackId,
+            title: newTrack.track.title,
+            artist: newTrack.track.artist,
+            durationMs: newTrack.track.durationMs,
+            thumbnailUrl: newTrack.track.thumbnailUrl,
+          },
           pausedPlaybackPositionMs: 0,
         });
     }
@@ -539,12 +546,15 @@ export class EventsService {
 
     const updatedEvent =
       await this.eventsRepository.updatePlaybackPlay(eventId);
+    const currentTrack = await this.eventsRepository.getCurrentTrackPayload(
+      updatedEvent.currentTrackId,
+    );
 
     this.eventsGateway.server
       .to(`event_${eventId}`)
       .emit(WS_EVENTS.PLAYBACK_STATUS, {
         status: PlaybackStatus.PLAYING,
-        currentTrackId: updatedEvent.currentTrackId,
+        currentTrack,
         currentTrackStartedAt: updatedEvent.currentTrackStartedAt,
         pausedPlaybackPositionMs: updatedEvent.pausedPlaybackPositionMs,
       });
@@ -565,12 +575,15 @@ export class EventsService {
       eventId,
       positionMs,
     );
+    const currentTrack = await this.eventsRepository.getCurrentTrackPayload(
+      updatedEvent.currentTrackId,
+    );
 
     this.eventsGateway.server
       .to(`event_${eventId}`)
       .emit(WS_EVENTS.PLAYBACK_STATUS, {
         status: PlaybackStatus.PAUSED,
-        currentTrackId: updatedEvent.currentTrackId,
+        currentTrack,
         pausedPlaybackPositionMs: positionMs,
       });
 
@@ -593,11 +606,14 @@ export class EventsService {
     const { event: updatedEvent, nextTrackId } = result;
 
     if (nextTrackId) {
+      const currentTrack = await this.eventsRepository.getCurrentTrackPayload(
+        updatedEvent.currentTrackId,
+      );
       this.eventsGateway.server
         .to(`event_${eventId}`)
         .emit(WS_EVENTS.PLAYBACK_STATUS, {
           status: PlaybackStatus.PLAYING,
-          currentTrackId: updatedEvent.currentTrackId,
+          currentTrack,
           currentTrackStartedAt: updatedEvent.currentTrackStartedAt,
           pausedPlaybackPositionMs: 0,
         });
@@ -606,7 +622,7 @@ export class EventsService {
         .to(`event_${eventId}`)
         .emit(WS_EVENTS.PLAYBACK_STATUS, {
           status: PlaybackStatus.PAUSED,
-          currentTrackId: null,
+          currentTrack: null,
           pausedPlaybackPositionMs: 0,
         });
     }

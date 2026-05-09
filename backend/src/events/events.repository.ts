@@ -554,6 +554,23 @@ export class EventsRepository {
     });
   }
 
+  async getCurrentTrackPayload(eventTrackId: string | null) {
+    if (!eventTrackId) return null;
+    const eventTrack = await this.prisma.eventTrack.findUnique({
+      where: { id: eventTrackId },
+      include: { track: true },
+    });
+    if (!eventTrack) return null;
+    return {
+      id: eventTrack.id,
+      providerTrackId: eventTrack.track.providerTrackId,
+      title: eventTrack.track.title,
+      artist: eventTrack.track.artist,
+      durationMs: eventTrack.track.durationMs,
+      thumbnailUrl: eventTrack.track.thumbnailUrl,
+    };
+  }
+
   async createEventTrack(eventId: string, trackId: string, addedById: string) {
     return await this.prisma.eventTrack.create({
       data: {
