@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { UserRepository } from './user.repository';
-import { type User } from '@prisma/client';
+import { Prisma, type User } from '@prisma/client';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import type { UpdateProfileDto } from './dto/update-profile.dto';
 import { FollowsService } from '../follows/follows.service';
@@ -202,6 +202,10 @@ export class UsersService {
       throw new UnauthorizedException('Invalid current password');
     }
 
+    if (dto.newEmail === user.email) {
+      throw new BadRequestException('New email is the same as the current one');
+    }
+
     // 2. Check if new email is already in use
     const existing = await this.userRepository.findByEmail(dto.newEmail);
     if (existing) {
@@ -244,7 +248,19 @@ export class UsersService {
       throw new BadRequestException('Invalid email update request state');
     }
 
-    const updatedUser = await this.userRepository.updateEmail(userId, newEmail);
+    // 2. Perform DB update
+    let updatedUser: User;
+    try {
+      updatedUser = await this.userRepository.updateEmail(userId, newEmail);
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException('New email address is already in use');
+      }
+      throw error;
+    }
 
     this.logger.log(`Email updated for user ${userId} to ${newEmail}`);
 

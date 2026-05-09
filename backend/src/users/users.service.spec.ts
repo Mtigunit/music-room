@@ -7,7 +7,7 @@ import { UserRepository } from './user.repository';
 import { FollowsService } from '../follows/follows.service';
 import { OtpService } from '../otp/otp.service';
 import { MailService } from '../mail/mail.service';
-import type { User } from '@prisma/client';
+import { Prisma, type User } from '@prisma/client';
 
 jest.mock('bcrypt');
 
@@ -176,6 +176,17 @@ describe('UsersService', () => {
       expect(otpService.sendOtp).toHaveBeenCalled();
       expect(mailService.sendSecurityAlert).toHaveBeenCalled();
     });
+
+    it('should throw BadRequestException if new email same as current', async () => {
+      repository.findById.mockResolvedValue(mockUser);
+      const sameEmailDto = {
+        newEmail: mockUser.email,
+        password: 'password123',
+      };
+      await expect(
+        service.requestEmailUpdate(mockUser.id, sameEmailDto, mockMeta),
+      ).rejects.toThrow('New email is the same as the current one');
+    });
   });
 
   describe('verifyEmailUpdate', () => {
@@ -200,6 +211,27 @@ describe('UsersService', () => {
         mockUser.id,
         'new@email.com',
       );
+    });
+
+    it('should throw ConflictException on database unique constraint error', async () => {
+      otpService.verifyOtp.mockResolvedValue({
+        token: 'v-token',
+        data: { newEmail: 'new@email.com' },
+      });
+      repository.findByEmail.mockResolvedValue(null); // No collision in check
+
+      const prismaError = new Prisma.PrismaClientKnownRequestError(
+        'Unique constraint failed on the fields: (`email`)',
+        {
+          code: 'P2002',
+          clientVersion: '5.0.0',
+        },
+      );
+      repository.updateEmail.mockRejectedValue(prismaError);
+
+      await expect(
+        service.verifyEmailUpdate(mockUser.id, '123456', mockMeta),
+      ).rejects.toThrow(ConflictException);
     });
   });
 });
