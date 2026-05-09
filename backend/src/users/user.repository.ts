@@ -150,6 +150,13 @@ export class UserRepository {
     });
   }
 
+  async updateUsername(userId: string, newUsername: string): Promise<User> {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { username: newUsername },
+    });
+  }
+
   async incrementTokenVersion(userId: string): Promise<User> {
     return this.prisma.user.update({
       where: { id: userId },

@@ -60,6 +60,7 @@ describe('UsersService', () => {
             unlinkGoogleAccount: jest.fn(),
             updatePassword: jest.fn(),
             updateEmail: jest.fn(),
+            updateUsername: jest.fn(),
             updateEmailAndIncrementToken: jest.fn(),
             incrementTokenVersion: jest.fn(),
             updateAvatar: jest.fn(),
@@ -232,6 +233,51 @@ describe('UsersService', () => {
       await expect(
         service.verifyEmailUpdate(mockUser.id, '123456', mockMeta),
       ).rejects.toThrow(ConflictException);
+    });
+  });
+
+  describe('updateUsername', () => {
+    const dto = { username: 'new_username' };
+
+    it('should update username successfully', async () => {
+      repository.findById.mockResolvedValue(mockUser);
+      repository.updateUsername.mockResolvedValue({
+        ...mockUser,
+        username: dto.username,
+      });
+
+      const result = await service.updateUsername(mockUser.id, dto, mockMeta);
+
+      expect(result.username).toBe(dto.username);
+      expect(repository.updateUsername).toHaveBeenCalledWith(
+        mockUser.id,
+        dto.username,
+      );
+    });
+
+    it('should throw BadRequestException if username is the same', async () => {
+      repository.findById.mockResolvedValue(mockUser);
+      const sameUsernameDto = { username: mockUser.username };
+
+      await expect(
+        service.updateUsername(mockUser.id, sameUsernameDto, mockMeta),
+      ).rejects.toThrow('New username is the same as the current one');
+    });
+
+    it('should throw ConflictException if username is already taken', async () => {
+      repository.findById.mockResolvedValue(mockUser);
+      const prismaError = new Prisma.PrismaClientKnownRequestError(
+        'Unique constraint failed on the fields: (`username`)',
+        {
+          code: 'P2002',
+          clientVersion: '5.0.0',
+        },
+      );
+      repository.updateUsername.mockRejectedValue(prismaError);
+
+      await expect(
+        service.updateUsername(mockUser.id, dto, mockMeta),
+      ).rejects.toThrow('Username is already taken');
     });
   });
 });

@@ -19,6 +19,7 @@ import { OtpService, OtpData } from '../otp/otp.service';
 import { MailService } from '../mail/mail.service';
 import { RequestEmailUpdateDto } from './dto/request-email-update.dto';
 import { ClientMetaDto } from '../common/dto/client-meta.dto';
+import { UpdateUsernameDto } from './dto/update-username.dto';
 
 @Injectable()
 export class UsersService {
@@ -273,6 +274,48 @@ export class UsersService {
     );
 
     return updatedUser;
+  }
+
+  async updateUsername(
+    userId: string,
+    dto: UpdateUsernameDto,
+    meta: ClientMetaDto,
+  ): Promise<User> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (dto.username === user.username) {
+      throw new BadRequestException(
+        'New username is the same as the current one',
+      );
+    }
+
+    try {
+      const updatedUser = await this.userRepository.updateUsername(
+        userId,
+        dto.username,
+      );
+
+      this.eventEmitter.emit(
+        AUDIT_LOG_EVENT,
+        createAuditLogEvent(userId, AuditAction.UPDATE_USERNAME, meta, {
+          oldUsername: user.username,
+          newUsername: dto.username,
+        }),
+      );
+
+      return updatedUser;
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2002'
+      ) {
+        throw new ConflictException('Username is already taken');
+      }
+      throw error;
+    }
   }
 
   async incrementTokenVersion(userId: string): Promise<User> {

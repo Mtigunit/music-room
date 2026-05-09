@@ -41,6 +41,7 @@ import { AuthService } from '../auth/auth.service';
 import { ClientMeta } from '../common/decorators/client-meta.decorator';
 import { RequestEmailUpdateDto } from './dto/request-email-update.dto';
 import { VerifyEmailUpdateDto } from './dto/verify-email-update.dto';
+import { UpdateUsernameDto } from './dto/update-username.dto';
 import { ApiClientMeta } from '../common/decorators/api-client-meta.decorator';
 import { ClientMetaDto } from '../common/dto/client-meta.dto';
 import type { User } from '@prisma/client';
@@ -256,6 +257,28 @@ export class UsersController {
     const user = await this.usersService.verifyEmailUpdate(
       req.user!.id,
       dto.code,
+      meta,
+    );
+    return this.toSafeUser(user);
+  }
+
+  @Patch('me/username')
+  @ApiClientMeta()
+  @ApiOperation({ summary: 'Update the authenticated user username' })
+  @ApiResponse({ status: 200, description: 'Username updated successfully.' })
+  @ApiResponse({
+    status: 400,
+    description: 'Same username or validation error.',
+  })
+  @ApiResponse({ status: 409, description: 'Username already taken.' })
+  async updateUsername(
+    @Request() req: Express.Request,
+    @Body() dto: UpdateUsernameDto,
+    @ClientMeta() meta: ClientMetaDto,
+  ) {
+    const user = await this.usersService.updateUsername(
+      req.user!.id,
+      dto,
       meta,
     );
     return this.toSafeUser(user);
