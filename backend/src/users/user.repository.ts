@@ -142,4 +142,39 @@ export class UserRepository {
       data: { avatarUrl: avatarPath },
     });
   }
+
+  async updateEmailAndIncrementToken(
+    userId: string,
+    newEmail: string,
+  ): Promise<User> {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        email: newEmail,
+        tokenVersion: { increment: 1 },
+      },
+    });
+  }
+
+  async updatePasswordAndIncrementToken(
+    userId: string,
+    passwordHash: string,
+  ): Promise<User> {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        passwordHash,
+        tokenVersion: { increment: 1 },
+      },
+    });
+  }
+
+  async incrementTokenVersion(userId: string): Promise<User> {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        tokenVersion: { increment: 1 },
+      },
+    });
+  }
 }

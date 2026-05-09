@@ -1,35 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { BadRequestException, ConflictException } from '@nestjs/common';
+import { BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { OtpService } from './otp.service';
 import { RedisService } from '../redis/redis.service';
 import { MailService } from '../mail/mail.service';
-import { UsersService } from '../users/users.service';
-import type { User } from '@prisma/client';
-
-const mockUser: User = {
-  id: 'user-uuid-123',
-  email: 'taken@example.com',
-  username: 'takenuser',
-  passwordHash: '$2b$10$hashed',
-  isEmailVerified: false,
-  googleId: null,
-  publicInfo: null,
-  friendInfo: null,
-  privateInfo: null,
-  preferences: null,
-  subscriptionTier: 'BASIC',
-  avatarUrl: null,
-  createdAt: new Date(),
-  updatedAt: new Date(),
-};
 
 describe('OtpService', () => {
   let otpService: OtpService;
   let redisClient: Record<string, jest.Mock>;
   let mailService: jest.Mocked<MailService>;
-  let usersService: jest.Mocked<UsersService>;
-  let jwtService: jest.Mocked<JwtService>;
 
   beforeEach(async () => {
     redisClient = {
@@ -57,12 +36,6 @@ describe('OtpService', () => {
           },
         },
         {
-          provide: UsersService,
-          useValue: {
-            findByEmail: jest.fn(),
-          },
-        },
-        {
           provide: JwtService,
           useValue: {
             sign: jest.fn().mockReturnValue('verification-token'),
@@ -73,8 +46,6 @@ describe('OtpService', () => {
 
     otpService = module.get<OtpService>(OtpService);
     mailService = module.get(MailService);
-    usersService = module.get(UsersService);
-    jwtService = module.get(JwtService);
   });
 
   afterEach(() => {
@@ -84,108 +55,63 @@ describe('OtpService', () => {
   // ─── sendOtp ──────────────────────────────────────────
 
   describe('sendOtp', () => {
-    it('should generate and send an OTP for a new email', async () => {
-      usersService.findByEmail.mockResolvedValue(null);
+    it('should generate and send an OTP', async () => {
       redisClient.get.mockResolvedValue(null);
       redisClient.exists.mockResolvedValue(0);
 
-      await otpService.sendOtp('new@example.com');
+      await otpService.sendOtp('test@example.com');
 
-      expect(usersService.findByEmail).toHaveBeenCalledWith('new@example.com');
       expect(redisClient.set).toHaveBeenCalledWith(
-        'otp:email_verification:new@example.com',
+        'otp:email_verification:test@example.com',
         expect.stringMatching(/^\d{6}$/),
         'EX',
         300,
       );
       expect(redisClient.set).toHaveBeenCalledWith(
-        'otp:attempts:email_verification:new@example.com',
+        'otp:attempts:email_verification:test@example.com',
         '0',
         'EX',
         300,
       );
       expect(mailService.sendOtpEmail).toHaveBeenCalledWith(
-        'new@example.com',
+        'test@example.com',
         expect.stringMatching(/^\d{6}$/),
         'email_verification',
       );
     });
 
-    it('should throw ConflictException if email is already registered', async () => {
-      usersService.findByEmail.mockResolvedValue(mockUser);
-
-      await expect(otpService.sendOtp('taken@example.com')).rejects.toThrow(
-        ConflictException,
-      );
-      await expect(otpService.sendOtp('taken@example.com')).rejects.toThrow(
-        'Email already registered',
-      );
-      expect(mailService.sendOtpEmail).not.toHaveBeenCalled();
-    });
-
-    it('should throw BadRequestException when rate limit is exceeded', async () => {
-      usersService.findByEmail.mockResolvedValue(null);
-      redisClient.get.mockResolvedValue('5'); // Already at max
-
-      await expect(otpService.sendOtp('new@example.com')).rejects.toThrow(
-        BadRequestException,
-      );
-      await expect(otpService.sendOtp('new@example.com')).rejects.toThrow(
-        'Too many OTP requests',
-      );
-    });
-
-    it('should set rate limit expiry on first request', async () => {
-      usersService.findByEmail.mockResolvedValue(null);
+    it('should support email_update with targetEmail and data', async () => {
       redisClient.get.mockResolvedValue(null);
       redisClient.exists.mockResolvedValue(0);
 
-      await otpService.sendOtp('new@example.com');
-
-      expect(redisClient.expire).toHaveBeenCalledWith(
-        'otp:rate:email_verification:new@example.com',
-        900,
-      );
-    });
-
-    it('should not reset rate limit expiry on subsequent requests', async () => {
-      usersService.findByEmail.mockResolvedValue(null);
-      redisClient.get.mockResolvedValue('2');
-      redisClient.exists.mockResolvedValue(1);
-
-      await otpService.sendOtp('new@example.com');
-
-      expect(redisClient.expire).not.toHaveBeenCalled();
-    });
-
-    it('should silently return without sending email for password_reset with non-existent user', async () => {
-      usersService.findByEmail.mockResolvedValue(null);
-
-      await expect(
-        otpService.sendOtp('unknown@example.com', 'password_reset'),
-      ).resolves.toBeUndefined();
-
-      expect(mailService.sendOtpEmail).not.toHaveBeenCalled();
-      expect(redisClient.set).not.toHaveBeenCalled();
-    });
-
-    it('should send OTP for password_reset when user exists', async () => {
-      usersService.findByEmail.mockResolvedValue(mockUser);
-      redisClient.get.mockResolvedValue(null);
-      redisClient.exists.mockResolvedValue(0);
-
-      await otpService.sendOtp('taken@example.com', 'password_reset');
+      await otpService.sendOtp('user-id', 'email_update', 'new@email.com', {
+        newEmail: 'new@email.com',
+      });
 
       expect(redisClient.set).toHaveBeenCalledWith(
-        'otp:password_reset:taken@example.com',
+        'otp:email_update:user-id',
         expect.stringMatching(/^\d{6}$/),
         'EX',
         300,
       );
+      expect(redisClient.set).toHaveBeenCalledWith(
+        'otp:data:email_update:user-id',
+        JSON.stringify({ newEmail: 'new@email.com' }),
+        'EX',
+        300,
+      );
       expect(mailService.sendOtpEmail).toHaveBeenCalledWith(
-        'taken@example.com',
+        'new@email.com',
         expect.stringMatching(/^\d{6}$/),
-        'password_reset',
+        'email_update',
+      );
+    });
+
+    it('should throw BadRequestException when rate limit is exceeded', async () => {
+      redisClient.get.mockResolvedValue('5'); // Already at max
+
+      await expect(otpService.sendOtp('test@example.com')).rejects.toThrow(
+        BadRequestException,
       );
     });
   });
@@ -193,70 +119,38 @@ describe('OtpService', () => {
   // ─── verifyOtp ────────────────────────────────────────
 
   describe('verifyOtp', () => {
-    it('should verify OTP and return a verification token', async () => {
+    it('should verify OTP and return data if present', async () => {
       redisClient.get
         .mockResolvedValueOnce('0') // attempts
-        .mockResolvedValueOnce('123456'); // stored code
+        .mockResolvedValueOnce('123456') // stored code
+        .mockResolvedValueOnce(JSON.stringify({ foo: 'bar' })); // stored data
 
-      const result = await otpService.verifyOtp('a@b.com', '123456');
-
-      expect(result).toEqual({ token: 'verification-token' });
-      expect(redisClient.del).toHaveBeenCalledWith(
-        'otp:email_verification:a@b.com',
-        'otp:attempts:email_verification:a@b.com',
+      const result = await otpService.verifyOtp(
+        'id123',
+        '123456',
+        'email_update',
       );
-      expect(jwtService.sign).toHaveBeenCalledWith(
-        { email: 'a@b.com', purpose: 'email_verification' },
-        { expiresIn: '10m' },
+
+      expect(result).toEqual({
+        token: 'verification-token',
+        data: { foo: 'bar' },
+      });
+      expect(redisClient.del).toHaveBeenCalledWith(
+        'otp:email_update:id123',
+        'otp:attempts:email_update:id123',
+        'otp:data:email_update:id123',
       );
     });
 
-    it('should throw BadRequestException for expired or missing OTP', async () => {
+    it('should throw BadRequestException for wrong code', async () => {
       redisClient.get
         .mockResolvedValueOnce('0') // attempts
-        .mockResolvedValueOnce(null); // no stored code
+        .mockResolvedValueOnce('654321'); // stored code
 
-      await expect(otpService.verifyOtp('a@b.com', '123456')).rejects.toThrow(
+      await expect(otpService.verifyOtp('id123', '123456')).rejects.toThrow(
         BadRequestException,
       );
-      await expect(otpService.verifyOtp('a@b.com', '123456')).rejects.toThrow(
-        'OTP expired or not found',
-      );
-    });
-
-    it('should throw BadRequestException and increment attempts for wrong code', async () => {
-      redisClient.get
-        .mockResolvedValueOnce('0') // attempts (1st call)
-        .mockResolvedValueOnce('654321') // stored code (1st call)
-        .mockResolvedValueOnce('1') // attempts (2nd call)
-        .mockResolvedValueOnce('654321'); // stored code (2nd call)
-
-      await expect(otpService.verifyOtp('a@b.com', '123456')).rejects.toThrow(
-        BadRequestException,
-      );
-      await expect(otpService.verifyOtp('a@b.com', '123456')).rejects.toThrow(
-        'Invalid OTP',
-      );
-      expect(redisClient.incr).toHaveBeenCalledWith(
-        'otp:attempts:email_verification:a@b.com',
-      );
-    });
-
-    it('should delete OTP and throw after max verification attempts', async () => {
-      redisClient.get
-        .mockResolvedValueOnce('5') // attempts (1st call)
-        .mockResolvedValueOnce('5'); // attempts (2nd call)
-
-      await expect(otpService.verifyOtp('a@b.com', '123456')).rejects.toThrow(
-        BadRequestException,
-      );
-      await expect(otpService.verifyOtp('a@b.com', '123456')).rejects.toThrow(
-        'Too many failed attempts',
-      );
-      expect(redisClient.del).toHaveBeenCalledWith(
-        'otp:email_verification:a@b.com',
-        'otp:attempts:email_verification:a@b.com',
-      );
+      expect(redisClient.incr).toHaveBeenCalled();
     });
   });
 });

@@ -37,6 +37,9 @@ import { SearchUsersDto } from './dto/search-users.dto';
 import { LinkGoogleDto } from './dto/link-google.dto';
 import { AuthService } from '../auth/auth.service';
 import { ClientMeta } from '../common/decorators/client-meta.decorator';
+import { RequestEmailUpdateDto } from './dto/request-email-update.dto';
+import { VerifyEmailUpdateDto } from './dto/verify-email-update.dto';
+import { ApiClientMeta } from '../common/decorators/api-client-meta.decorator';
 import { ClientMetaDto } from '../common/dto/client-meta.dto';
 import type { User } from '@prisma/client';
 import type { UserProfileResponse } from './interfaces/user-profile-response.interface';
@@ -155,6 +158,7 @@ export class UsersController {
   }
 
   @Post('link-google')
+  @ApiClientMeta()
   @ApiOperation({ summary: 'Manually link a Google account' })
   @ApiResponse({
     status: 200,
@@ -182,6 +186,7 @@ export class UsersController {
   }
 
   @Delete('link-google')
+  @ApiClientMeta()
   @ApiOperation({ summary: 'Manually unlink a Google account' })
   @ApiResponse({
     status: 200,
@@ -204,6 +209,45 @@ export class UsersController {
       meta,
     );
     return this.toSafeUser(updatedUser);
+  }
+
+  @Post('me/email/request')
+  @ApiClientMeta()
+  @ApiOperation({ summary: 'Request an email update (Phase 1)' })
+  @ApiResponse({ status: 201, description: 'OTP sent to new email.' })
+  @ApiResponse({ status: 401, description: 'Invalid current password.' })
+  @ApiResponse({
+    status: 409,
+    description: 'New email address already in use.',
+  })
+  async requestEmailUpdate(
+    @Request() req: Express.Request,
+    @Body() dto: RequestEmailUpdateDto,
+    @ClientMeta() meta: ClientMetaDto,
+  ) {
+    await this.usersService.requestEmailUpdate(req.user!.id, dto, meta);
+    return {
+      message:
+        'OTP sent to your new email. Please verify it to complete the update.',
+    };
+  }
+
+  @Post('me/email/verify')
+  @ApiClientMeta()
+  @ApiOperation({ summary: 'Verify email update OTP (Phase 2)' })
+  @ApiResponse({ status: 200, description: 'Email updated successfully.' })
+  @ApiResponse({ status: 400, description: 'Invalid or expired OTP.' })
+  async verifyEmailUpdate(
+    @Request() req: Express.Request,
+    @Body() dto: VerifyEmailUpdateDto,
+    @ClientMeta() meta: ClientMetaDto,
+  ) {
+    const user = await this.usersService.verifyEmailUpdate(
+      req.user!.id,
+      dto.code,
+      meta,
+    );
+    return this.toSafeUser(user);
   }
 
   @Get('search')

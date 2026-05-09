@@ -4,13 +4,11 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { OtpService } from './otp.service';
 import { RedisModule } from '../redis/redis.module';
 import { MailModule } from '../mail/mail.module';
-import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
     RedisModule,
     MailModule,
-    UsersModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],

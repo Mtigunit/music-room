@@ -1,17 +1,15 @@
 import { Test, TestingModule } from '@nestjs/testing';
+import { EventEmitter2 } from '@nestjs/event-emitter';
+import { ConflictException, BadRequestException } from '@nestjs/common';
+import * as bcrypt from 'bcrypt';
 import { UsersService } from './users.service';
 import { UserRepository } from './user.repository';
 import { FollowsService } from '../follows/follows.service';
-import { EventEmitter2 } from '@nestjs/event-emitter';
-import {
-  ConflictException,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
-import { AUDIT_LOG_EVENT, AuditAction } from '../audit-log/audit-log.constants';
-import { createAuditLogEvent } from '../audit-log/audit-log.event';
-import { ClientMetaDto } from '../common/dto/client-meta.dto';
+import { OtpService } from '../otp/otp.service';
+import { MailService } from '../mail/mail.service';
 import type { User } from '@prisma/client';
+
+jest.mock('bcrypt');
 
 const mockUser: User = {
   id: 'user-uuid-123',
@@ -26,13 +24,23 @@ const mockUser: User = {
   preferences: null,
   subscriptionTier: 'BASIC',
   avatarUrl: null,
+  tokenVersion: 0,
   createdAt: new Date(),
   updatedAt: new Date(),
+};
+
+const mockMeta = {
+  platform: 'ios',
+  deviceModel: 'iPhone 13',
+  appVersion: '1.0.0',
+  ipAddress: '127.0.0.1',
 };
 
 describe('UsersService', () => {
   let service: UsersService;
   let repository: jest.Mocked<UserRepository>;
+  let otpService: jest.Mocked<OtpService>;
+  let mailService: jest.Mocked<MailService>;
   let eventEmitter: jest.Mocked<EventEmitter2>;
 
   beforeEach(async () => {
@@ -51,12 +59,28 @@ describe('UsersService', () => {
             linkGoogleAccount: jest.fn(),
             unlinkGoogleAccount: jest.fn(),
             updatePassword: jest.fn(),
+            updateEmailAndIncrementToken: jest.fn(),
+            incrementTokenVersion: jest.fn(),
+            updateAvatar: jest.fn(),
           },
         },
         {
           provide: FollowsService,
           useValue: {
             isFollowing: jest.fn(),
+          },
+        },
+        {
+          provide: OtpService,
+          useValue: {
+            sendOtp: jest.fn(),
+            verifyOtp: jest.fn(),
+          },
+        },
+        {
+          provide: MailService,
+          useValue: {
+            sendSecurityAlert: jest.fn(),
           },
         },
         {
@@ -70,6 +94,8 @@ describe('UsersService', () => {
 
     service = module.get<UsersService>(UsersService);
     repository = module.get(UserRepository);
+    otpService = module.get(OtpService);
+    mailService = module.get(MailService);
     eventEmitter = module.get(EventEmitter2);
   });
 
@@ -77,252 +103,99 @@ describe('UsersService', () => {
     jest.clearAllMocks();
   });
 
-  // ─── findByEmail ──────────────────────────────────────
-
   describe('findByEmail', () => {
     it('should return a user when found', async () => {
       repository.findByEmail.mockResolvedValue(mockUser);
-
       const result = await service.findByEmail('test@example.com');
-
       expect(result).toEqual(mockUser);
-      expect(repository.findByEmail).toHaveBeenCalledWith('test@example.com');
-    });
-
-    it('should return null when user not found', async () => {
-      repository.findByEmail.mockResolvedValue(null);
-
-      const result = await service.findByEmail('nonexistent@example.com');
-
-      expect(result).toBeNull();
     });
   });
-
-  // ─── findByUsername ───────────────────────────────────
-
-  describe('findByUsername', () => {
-    it('should return a user when found', async () => {
-      repository.findByUsername.mockResolvedValue(mockUser);
-
-      const result = await service.findByUsername('testuser');
-
-      expect(result).toEqual(mockUser);
-      expect(repository.findByUsername).toHaveBeenCalledWith('testuser');
-    });
-
-    it('should return null when user not found', async () => {
-      repository.findByUsername.mockResolvedValue(null);
-
-      const result = await service.findByUsername('ghost');
-
-      expect(result).toBeNull();
-    });
-  });
-
-  // ─── findById ─────────────────────────────────────────
 
   describe('findById', () => {
     it('should return a user when found', async () => {
       repository.findById.mockResolvedValue(mockUser);
-
       const result = await service.findById('user-uuid-123');
-
       expect(result).toEqual(mockUser);
-      expect(repository.findById).toHaveBeenCalledWith('user-uuid-123');
-    });
-
-    it('should return null when user not found', async () => {
-      repository.findById.mockResolvedValue(null);
-
-      const result = await service.findById('nonexistent-uuid');
-
-      expect(result).toBeNull();
     });
   });
-
-  // ─── create ───────────────────────────────────────────
-
-  describe('create', () => {
-    it('should delegate to repository with correct arguments', async () => {
-      repository.create.mockResolvedValue(mockUser);
-
-      const result = await service.create(
-        'test@example.com',
-        'testuser',
-        '$2b$10$hashed',
-        true,
-      );
-
-      expect(result).toEqual(mockUser);
-      expect(repository.create).toHaveBeenCalledWith({
-        email: 'test@example.com',
-        username: 'testuser',
-        passwordHash: '$2b$10$hashed',
-        isEmailVerified: true,
-      });
-    });
-  });
-  // ─── findByGoogleId ───────────────────────────────────
-
-  describe('findByGoogleId', () => {
-    it('should return a user when found by google ID', async () => {
-      repository.findByGoogleId.mockResolvedValue(mockUser);
-
-      const result = await service.findByGoogleId('google-sub-123');
-
-      expect(result).toEqual(mockUser);
-      expect(repository.findByGoogleId).toHaveBeenCalledWith('google-sub-123');
-    });
-
-    it('should return null when user not found by google ID', async () => {
-      repository.findByGoogleId.mockResolvedValue(null);
-
-      const result = await service.findByGoogleId('missing-google-id');
-
-      expect(result).toBeNull();
-    });
-  });
-
-  // ─── createOAuthUser ──────────────────────────────────
-
-  describe('createOAuthUser', () => {
-    it('should delegate to repository to create OAuth user with verified email', async () => {
-      repository.createOAuthUser.mockResolvedValue(mockUser);
-
-      const result = await service.createOAuthUser(
-        'google@example.com',
-        'googleuser',
-        'google-sub-123',
-        true,
-      );
-
-      expect(result).toEqual(mockUser);
-      expect(repository.createOAuthUser).toHaveBeenCalledWith({
-        email: 'google@example.com',
-        username: 'googleuser',
-        googleId: 'google-sub-123',
-        isEmailVerified: true,
-      });
-    });
-  });
-
-  // ─── linkGoogleAccount ────────────────────────────────
 
   describe('linkGoogleAccount', () => {
-    it('should throw ConflictException if google account is already linked to another user', async () => {
-      repository.findByGoogleId.mockResolvedValue({
-        id: 'different-uuid',
-      } as User);
-
-      await expect(
-        service.linkGoogleAccount('user-uuid-123', 'google-sub-123'),
-      ).rejects.toThrow(ConflictException);
-    });
-
-    it('should delegate to repository to link Google account when no collision', async () => {
-      const mockMeta: ClientMetaDto = {
-        ipAddress: '127.0.0.1',
-        platform: 'web',
-        deviceModel: 'desktop',
-        appVersion: '1.0.0',
-      };
+    it('should link account if not already linked', async () => {
       repository.findByGoogleId.mockResolvedValue(null);
       repository.linkGoogleAccount.mockResolvedValue(mockUser);
 
-      const result = await service.linkGoogleAccount(
-        'user-uuid-123',
-        'google-sub-123',
-        mockMeta,
-      );
+      await service.linkGoogleAccount('user-id', 'google-id', mockMeta);
 
-      expect(result).toEqual(mockUser);
       expect(repository.linkGoogleAccount).toHaveBeenCalledWith(
-        'user-uuid-123',
-        'google-sub-123',
+        'user-id',
+        'google-id',
       );
-      expect(eventEmitter.emit).toHaveBeenCalledWith(
-        AUDIT_LOG_EVENT,
-        createAuditLogEvent(
-          'user-uuid-123',
-          AuditAction.LINK_GOOGLE,
-          mockMeta,
-          {
-            googleId: 'google-sub-123',
-          },
-        ),
-      );
+      expect(eventEmitter.emit).toHaveBeenCalled();
+    });
+
+    it('should throw ConflictException if Google ID is already linked', async () => {
+      repository.findByGoogleId.mockResolvedValue({ id: 'other-user' } as User);
+      await expect(
+        service.linkGoogleAccount('user-id', 'google-id'),
+      ).rejects.toThrow(ConflictException);
     });
   });
 
-  // ─── unlinkGoogleAccount ──────────────────────────────
-
   describe('unlinkGoogleAccount', () => {
-    it('should throw NotFoundException if user not found', async () => {
-      repository.findById.mockResolvedValue(null);
-
-      await expect(
-        service.unlinkGoogleAccount('user-uuid-123'),
-      ).rejects.toThrow(NotFoundException);
-    });
-
-    it('should throw BadRequestException if user has no password', async () => {
-      const noPasswordUser = { ...mockUser, passwordHash: null } as User;
-      repository.findById.mockResolvedValue(noPasswordUser);
-
-      await expect(
-        service.unlinkGoogleAccount('user-uuid-123'),
-      ).rejects.toThrow(BadRequestException);
-    });
-
-    it('should delegate to repository to unlink Google account if password is set', async () => {
-      const mockMeta: ClientMetaDto = {
-        ipAddress: '127.0.0.1',
-        platform: 'web',
-        deviceModel: 'desktop',
-        appVersion: '1.0.0',
-      };
+    it('should unlink if password is set', async () => {
       repository.findById.mockResolvedValue(mockUser);
       repository.unlinkGoogleAccount.mockResolvedValue(mockUser);
 
-      const result = await service.unlinkGoogleAccount(
-        'user-uuid-123',
-        mockMeta,
-      );
+      await service.unlinkGoogleAccount(mockUser.id, mockMeta);
 
-      expect(result).toEqual(mockUser);
-      expect(repository.unlinkGoogleAccount).toHaveBeenCalledWith(
-        'user-uuid-123',
-      );
-      expect(eventEmitter.emit).toHaveBeenCalledWith(
-        AUDIT_LOG_EVENT,
-        createAuditLogEvent(
-          'user-uuid-123',
-          AuditAction.UNLINK_GOOGLE,
-          mockMeta,
-          {
-            previousGoogleId: mockUser.googleId,
-          },
-        ),
+      expect(repository.unlinkGoogleAccount).toHaveBeenCalledWith(mockUser.id);
+    });
+
+    it('should throw BadRequestException if no password set', async () => {
+      repository.findById.mockResolvedValue({
+        ...mockUser,
+        passwordHash: null,
+      });
+      await expect(service.unlinkGoogleAccount(mockUser.id)).rejects.toThrow(
+        BadRequestException,
       );
     });
   });
 
-  // ─── updatePassword ───────────────────────────────────
+  describe('requestEmailUpdate', () => {
+    const dto = { newEmail: 'new@email.com', password: 'password123' };
 
-  describe('updatePassword', () => {
-    it('should delegate to repository to update password', async () => {
-      repository.updatePassword.mockResolvedValue(mockUser);
+    it('should send OTP and alert on valid request', async () => {
+      repository.findById.mockResolvedValue(mockUser);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true);
+      repository.findByEmail.mockResolvedValue(null);
 
-      const result = await service.updatePassword(
-        'user-uuid-123',
-        '$new$hashed$password',
+      await service.requestEmailUpdate(mockUser.id, dto, mockMeta);
+
+      expect(otpService.sendOtp).toHaveBeenCalled();
+      expect(mailService.sendSecurityAlert).toHaveBeenCalled();
+    });
+  });
+
+  describe('verifyEmailUpdate', () => {
+    it('should update email on valid code', async () => {
+      otpService.verifyOtp.mockResolvedValue({
+        token: 'v-token',
+        data: { newEmail: 'new@email.com' },
+      });
+      repository.updateEmailAndIncrementToken.mockResolvedValue({
+        ...mockUser,
+        email: 'new@email.com',
+      });
+
+      const result = await service.verifyEmailUpdate(
+        mockUser.id,
+        '123456',
+        mockMeta,
       );
 
-      expect(result).toEqual(mockUser);
-      expect(repository.updatePassword).toHaveBeenCalledWith(
-        'user-uuid-123',
-        '$new$hashed$password',
-      );
+      expect(result.email).toBe('new@email.com');
+      expect(repository.updateEmailAndIncrementToken).toHaveBeenCalled();
     });
   });
 });

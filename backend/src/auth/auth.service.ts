@@ -3,6 +3,7 @@ import {
   ConflictException,
   UnauthorizedException,
   BadRequestException,
+  Logger,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { JwtService } from '@nestjs/jwt';
@@ -11,6 +12,7 @@ import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { OAuth2Client } from 'google-auth-library';
 import { UsersService } from '../users/users.service';
+import { OtpService, OtpVerificationPayload } from '../otp/otp.service';
 import type { RegisterDto } from './dto/register.dto';
 import type { LoginDto } from './dto/login.dto';
 import type { ResetPasswordDto } from './dto/reset-password.dto';
@@ -22,13 +24,9 @@ import type { ClientMetaDto } from '../common/dto/client-meta.dto';
 
 const BCRYPT_SALT_ROUNDS = 10;
 
-interface OtpVerificationPayload {
-  email: string;
-  purpose: string;
-}
-
 @Injectable()
 export class AuthService {
+  private readonly logger = new Logger(AuthService.name);
   private readonly googleClient: OAuth2Client;
 
   constructor(
@@ -36,10 +34,31 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly otpService: OtpService,
   ) {
     this.googleClient = new OAuth2Client(
       this.configService.getOrThrow<string>('GOOGLE_CLIENT_ID'),
     );
+  }
+
+  async sendRegistrationOtp(email: string): Promise<void> {
+    const existingUser = await this.usersService.findByEmail(email);
+    if (existingUser) {
+      throw new ConflictException('Email already registered');
+    }
+    await this.otpService.sendOtp(email, 'email_verification');
+  }
+
+  async sendPasswordResetOtp(email: string): Promise<void> {
+    const existingUser = await this.usersService.findByEmail(email);
+    if (!existingUser) {
+      // Silently return to prevent email enumeration attacks.
+      this.logger.warn(
+        `Password reset requested for non-existent email: ${email}`,
+      );
+      return;
+    }
+    await this.otpService.sendOtp(email, 'password_reset');
   }
 
   async register(
@@ -229,7 +248,7 @@ export class AuthService {
 
     const email = payload.email;
 
-    if (email !== dto.email) {
+    if (!email || email !== dto.email) {
       throw new BadRequestException(
         'Reset token does not match the provided email',
       );
@@ -241,7 +260,10 @@ export class AuthService {
     }
 
     const passwordHash = await bcrypt.hash(dto.newPassword, BCRYPT_SALT_ROUNDS);
-    await this.usersService.updatePassword(user.id, passwordHash);
+    await this.usersService.updatePasswordAndIncrementToken(
+      user.id,
+      passwordHash,
+    );
 
     this.eventEmitter.emit(
       AUDIT_LOG_EVENT,
@@ -286,7 +308,7 @@ export class AuthService {
         throw new BadRequestException('Invalid verification token');
       }
 
-      return payload.email;
+      return payload.email!;
     } catch {
       throw new BadRequestException(
         'Invalid or expired email verification token',
@@ -298,11 +320,16 @@ export class AuthService {
     id: string;
     email: string;
     username: string;
+    tokenVersion: number;
   }): {
     access_token: string;
     user: { id: string; email: string; username: string };
   } {
-    const payload: JwtPayload = { sub: user.id, email: user.email };
+    const payload: JwtPayload = {
+      sub: user.id,
+      email: user.email,
+      tokenVersion: user.tokenVersion,
+    };
 
     return {
       access_token: this.jwtService.sign(payload),

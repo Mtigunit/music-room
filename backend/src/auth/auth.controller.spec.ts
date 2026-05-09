@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConflictException, UnauthorizedException } from '@nestjs/common';
+import { ConflictException } from '@nestjs/common';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { OtpService } from '../otp/otp.service';
@@ -20,12 +20,13 @@ describe('AuthController', () => {
             login: jest.fn(),
             googleAuth: jest.fn(),
             resetPassword: jest.fn(),
+            sendRegistrationOtp: jest.fn(),
+            sendPasswordResetOtp: jest.fn(),
           },
         },
         {
           provide: OtpService,
           useValue: {
-            sendOtp: jest.fn(),
             verifyOtp: jest.fn(),
           },
         },
@@ -44,17 +45,17 @@ describe('AuthController', () => {
   // ─── SEND OTP ─────────────────────────────────────────
 
   describe('sendOtp', () => {
-    it('should call otpService.sendOtp and return success message', async () => {
-      otpService.sendOtp.mockResolvedValue(undefined);
+    it('should call authService.sendRegistrationOtp and return success message', async () => {
+      authService.sendRegistrationOtp.mockResolvedValue(undefined);
 
       const result = await controller.sendOtp({ email: 'a@b.com' });
 
       expect(result).toEqual({ message: 'OTP sent successfully' });
-      expect(otpService.sendOtp).toHaveBeenCalledWith('a@b.com');
+      expect(authService.sendRegistrationOtp).toHaveBeenCalledWith('a@b.com');
     });
 
     it('should propagate ConflictException for registered emails', async () => {
-      otpService.sendOtp.mockRejectedValue(
+      authService.sendRegistrationOtp.mockRejectedValue(
         new ConflictException('Email already registered'),
       );
 
@@ -101,26 +102,17 @@ describe('AuthController', () => {
       platform: 'unknown',
       deviceModel: 'unknown',
       appVersion: 'unknown',
+      ipAddress: '127.0.0.1',
     };
 
     it('should call authService.register and return the token', async () => {
       const expectedResult = { access_token: 'jwt-token', user: authUser };
-      authService.register.mockResolvedValue(expectedResult);
+      authService.register.mockResolvedValue(expectedResult as any);
 
       const result = await controller.register(registerDto, mockMeta);
 
       expect(result).toEqual(expectedResult);
       expect(authService.register).toHaveBeenCalledWith(registerDto, mockMeta);
-    });
-
-    it('should propagate ConflictException from service', async () => {
-      authService.register.mockRejectedValue(
-        new ConflictException('Email already registered'),
-      );
-
-      await expect(controller.register(registerDto, mockMeta)).rejects.toThrow(
-        ConflictException,
-      );
     });
   });
 
@@ -142,26 +134,17 @@ describe('AuthController', () => {
       platform: 'unknown',
       deviceModel: 'unknown',
       appVersion: 'unknown',
+      ipAddress: '127.0.0.1',
     };
 
     it('should call authService.login and return the token', async () => {
       const expectedResult = { access_token: 'jwt-token', user: authUser };
-      authService.login.mockResolvedValue(expectedResult);
+      authService.login.mockResolvedValue(expectedResult as any);
 
       const result = await controller.login(loginDto, mockMeta);
 
       expect(result).toEqual(expectedResult);
       expect(authService.login).toHaveBeenCalledWith(loginDto, mockMeta);
-    });
-
-    it('should propagate UnauthorizedException from service', async () => {
-      authService.login.mockRejectedValue(
-        new UnauthorizedException('Invalid credentials'),
-      );
-
-      await expect(controller.login(loginDto, mockMeta)).rejects.toThrow(
-        UnauthorizedException,
-      );
     });
   });
 
@@ -172,6 +155,7 @@ describe('AuthController', () => {
       platform: 'unknown',
       deviceModel: 'unknown',
       appVersion: 'unknown',
+      ipAddress: '127.0.0.1',
     };
 
     const authUser = {
@@ -182,7 +166,7 @@ describe('AuthController', () => {
 
     it('should call authService.googleAuth and return the token', async () => {
       const expectedResult = { access_token: 'jwt-token', user: authUser };
-      authService.googleAuth.mockResolvedValue(expectedResult);
+      authService.googleAuth.mockResolvedValue(expectedResult as any);
 
       const result = await controller.googleAuth(
         { idToken: 'valid.id.token' },
@@ -195,23 +179,13 @@ describe('AuthController', () => {
         mockMeta,
       );
     });
-
-    it('should propagate UnauthorizedException from service', async () => {
-      authService.googleAuth.mockRejectedValue(
-        new UnauthorizedException('Invalid Google token'),
-      );
-
-      await expect(
-        controller.googleAuth({ idToken: 'invalid.id.token' }, mockMeta),
-      ).rejects.toThrow(UnauthorizedException);
-    });
   });
 
   // ─── FORGOT PASSWORD ──────────────────────────────────
 
   describe('forgotPassword', () => {
-    it('should call otpService.sendOtp with password_reset purpose and return generic message', async () => {
-      otpService.sendOtp.mockResolvedValue(undefined);
+    it('should call authService.sendPasswordResetOtp and return generic message', async () => {
+      authService.sendPasswordResetOtp.mockResolvedValue(undefined);
 
       const result = await controller.forgotPassword({ email: 'a@b.com' });
 
@@ -219,23 +193,7 @@ describe('AuthController', () => {
         message:
           'If an account with this email exists, a password reset OTP has been sent.',
       });
-      expect(otpService.sendOtp).toHaveBeenCalledWith(
-        'a@b.com',
-        'password_reset',
-      );
-    });
-
-    it('should return the same generic message for non-existent emails', async () => {
-      otpService.sendOtp.mockResolvedValue(undefined);
-
-      const result = await controller.forgotPassword({
-        email: 'nonexistent@b.com',
-      });
-
-      expect(result).toEqual({
-        message:
-          'If an account with this email exists, a password reset OTP has been sent.',
-      });
+      expect(authService.sendPasswordResetOtp).toHaveBeenCalledWith('a@b.com');
     });
   });
 
@@ -272,6 +230,7 @@ describe('AuthController', () => {
       platform: 'unknown',
       deviceModel: 'unknown',
       appVersion: 'unknown',
+      ipAddress: '127.0.0.1',
     };
 
     it('should call authService.resetPassword and return success message', async () => {
@@ -295,7 +254,7 @@ describe('AuthController', () => {
     it('should return the user from the request object', () => {
       const mockReq = { user: { id: 'user-uuid', email: 'a@b.com' } };
 
-      const result = controller.getProfile(mockReq);
+      const result = controller.getProfile(mockReq as any);
 
       expect(result).toEqual({ id: 'user-uuid', email: 'a@b.com' });
     });

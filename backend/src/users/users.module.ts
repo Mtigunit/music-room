@@ -9,6 +9,8 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { UsersController } from './users.controller';
 import mime from 'mime-types';
 import { FollowsModule } from '../follows/follows.module';
+import { OtpModule } from '../otp/otp.module';
+import { MailModule } from '../mail/mail.module';
 
 import { AuthModule } from '../auth/auth.module';
 
@@ -17,6 +19,8 @@ import { AuthModule } from '../auth/auth.module';
     forwardRef(() => AuthModule),
     PrismaModule,
     FollowsModule,
+    OtpModule,
+    MailModule,
     MulterModule.register({
       limits: {
         fileSize: 2 * 1024 * 1024, // 2MB limit

@@ -53,7 +53,7 @@ export class AuthController {
   @ApiResponse({ status: 409, description: 'Email already registered.' })
   @ApiResponse({ status: 400, description: 'Rate limit exceeded.' })
   async sendOtp(@Body() dto: SendOtpDto) {
-    await this.otpService.sendOtp(dto.email);
+    await this.authService.sendRegistrationOtp(dto.email);
     return { message: 'OTP sent successfully' };
   }
 
@@ -130,7 +130,7 @@ export class AuthController {
     description: 'Rate limited.',
   })
   async forgotPassword(@Body() dto: ForgotPasswordDto) {
-    await this.otpService.sendOtp(dto.email, 'password_reset');
+    await this.authService.sendPasswordResetOtp(dto.email);
     return {
       message:
         'If an account with this email exists, a password reset OTP has been sent.',

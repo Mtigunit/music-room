@@ -10,6 +10,7 @@ import * as bcrypt from 'bcrypt';
 import { OAuth2Client } from 'google-auth-library';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
+import { OtpService } from '../otp/otp.service';
 import type { User } from '@prisma/client';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 
@@ -29,6 +30,7 @@ const mockUser: User = {
   preferences: null,
   subscriptionTier: 'BASIC',
   avatarUrl: null,
+  tokenVersion: 0,
   createdAt: new Date(),
   updatedAt: new Date(),
 };
@@ -59,6 +61,8 @@ describe('AuthService', () => {
             createOAuthUser: jest.fn(),
             linkGoogleAccount: jest.fn(),
             updatePassword: jest.fn(),
+            updatePasswordAndIncrementToken: jest.fn(),
+            incrementTokenVersion: jest.fn(),
           },
         },
         {
@@ -81,6 +85,13 @@ describe('AuthService', () => {
         {
           provide: EventEmitter2,
           useValue: { emit: jest.fn() },
+        },
+        {
+          provide: OtpService,
+          useValue: {
+            sendOtp: jest.fn(),
+            verifyOtp: jest.fn(),
+          },
         },
       ],
     }).compile();
@@ -478,7 +489,7 @@ describe('AuthService', () => {
       expect(jwtService.verify).toHaveBeenCalledWith('valid-reset-token');
       expect(usersService.findByEmail).toHaveBeenCalledWith('test@example.com');
       expect(bcrypt.hash).toHaveBeenCalledWith('NewPassword123!', 10);
-      expect(usersService.updatePassword).toHaveBeenCalledWith(
+      expect(usersService.updatePasswordAndIncrementToken).toHaveBeenCalledWith(
         mockUser.id,
         '$2b$10$newhashedpassword',
       );
