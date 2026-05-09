@@ -39,6 +39,7 @@ describe('AuthService', () => {
   let authService: AuthService;
   let usersService: jest.Mocked<UsersService>;
   let jwtService: jest.Mocked<JwtService>;
+  let otpService: jest.Mocked<OtpService>;
   let verifyIdTokenMock: jest.Mock;
 
   beforeEach(async () => {
@@ -99,6 +100,7 @@ describe('AuthService', () => {
     authService = module.get<AuthService>(AuthService);
     usersService = module.get(UsersService);
     jwtService = module.get(JwtService);
+    otpService = module.get(OtpService);
   });
 
   afterEach(() => {
@@ -106,6 +108,42 @@ describe('AuthService', () => {
   });
 
   // ─── REGISTER ─────────────────────────────────────────
+
+  describe('sendRegistrationOtp', () => {
+    it('should throw ConflictException if email is already registered', async () => {
+      usersService.findByEmail.mockResolvedValue(mockUser);
+      await expect(
+        authService.sendRegistrationOtp('test@example.com'),
+      ).rejects.toThrow(ConflictException);
+      expect(otpService.sendOtp).not.toHaveBeenCalled();
+    });
+
+    it('should call otpService.sendOtp if email is new', async () => {
+      usersService.findByEmail.mockResolvedValue(null);
+      await authService.sendRegistrationOtp('new@example.com');
+      expect(otpService.sendOtp).toHaveBeenCalledWith(
+        'new@example.com',
+        'email_verification',
+      );
+    });
+  });
+
+  describe('sendPasswordResetOtp', () => {
+    it('should call otpService.sendOtp if email exists', async () => {
+      usersService.findByEmail.mockResolvedValue(mockUser);
+      await authService.sendPasswordResetOtp('test@example.com');
+      expect(otpService.sendOtp).toHaveBeenCalledWith(
+        'test@example.com',
+        'password_reset',
+      );
+    });
+
+    it('should silently return if email does not exist (enumeration protection)', async () => {
+      usersService.findByEmail.mockResolvedValue(null);
+      await authService.sendPasswordResetOtp('unknown@example.com');
+      expect(otpService.sendOtp).not.toHaveBeenCalled();
+    });
+  });
 
   describe('register', () => {
     const registerDto = {
@@ -489,7 +527,7 @@ describe('AuthService', () => {
       expect(jwtService.verify).toHaveBeenCalledWith('valid-reset-token');
       expect(usersService.findByEmail).toHaveBeenCalledWith('test@example.com');
       expect(bcrypt.hash).toHaveBeenCalledWith('NewPassword123!', 10);
-      expect(usersService.updatePasswordAndIncrementToken).toHaveBeenCalledWith(
+      expect(usersService.updatePassword).toHaveBeenCalledWith(
         mockUser.id,
         '$2b$10$newhashedpassword',
       );
@@ -549,6 +587,23 @@ describe('AuthService', () => {
       await expect(
         authService.resetPassword(resetDto, mockMeta),
       ).rejects.toThrow('User does not exist');
+    });
+  });
+
+  describe('logoutAll', () => {
+    const mockMeta = {
+      platform: 'ios',
+      deviceModel: 'iPhone 15',
+      appVersion: '1.0.0',
+      ipAddress: '127.0.0.1',
+    };
+
+    it('should increment token version and emit audit event', async () => {
+      await authService.logoutAll(mockUser.id, mockMeta);
+
+      expect(usersService.incrementTokenVersion).toHaveBeenCalledWith(
+        mockUser.id,
+      );
     });
   });
 });

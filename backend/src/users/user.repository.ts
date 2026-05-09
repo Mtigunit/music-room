@@ -143,29 +143,10 @@ export class UserRepository {
     });
   }
 
-  async updateEmailAndIncrementToken(
-    userId: string,
-    newEmail: string,
-  ): Promise<User> {
+  async updateEmail(userId: string, newEmail: string): Promise<User> {
     return this.prisma.user.update({
       where: { id: userId },
-      data: {
-        email: newEmail,
-        tokenVersion: { increment: 1 },
-      },
-    });
-  }
-
-  async updatePasswordAndIncrementToken(
-    userId: string,
-    passwordHash: string,
-  ): Promise<User> {
-    return this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        passwordHash,
-        tokenVersion: { increment: 1 },
-      },
+      data: { email: newEmail },
     });
   }
 

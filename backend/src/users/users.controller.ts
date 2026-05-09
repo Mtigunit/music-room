@@ -17,6 +17,8 @@ import {
   Inject,
   forwardRef,
   Delete,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -216,6 +218,11 @@ export class UsersController {
   @ApiOperation({ summary: 'Request an email update (Phase 1)' })
   @ApiResponse({ status: 201, description: 'OTP sent to new email.' })
   @ApiResponse({ status: 401, description: 'Invalid current password.' })
+  @ApiResponse({ status: 404, description: 'User not found.' })
+  @ApiResponse({
+    status: 400,
+    description: 'A password is required to change your email address.',
+  })
   @ApiResponse({
     status: 409,
     description: 'New email address already in use.',
@@ -235,8 +242,12 @@ export class UsersController {
   @Post('me/email/verify')
   @ApiClientMeta()
   @ApiOperation({ summary: 'Verify email update OTP (Phase 2)' })
+  @HttpCode(HttpStatus.OK)
   @ApiResponse({ status: 200, description: 'Email updated successfully.' })
-  @ApiResponse({ status: 400, description: 'Invalid or expired OTP.' })
+  @ApiResponse({
+    status: 400,
+    description: 'Invalid OTP, expired OTP, or invalid request state.',
+  })
   async verifyEmailUpdate(
     @Request() req: Express.Request,
     @Body() dto: VerifyEmailUpdateDto,

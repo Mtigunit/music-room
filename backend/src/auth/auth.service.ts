@@ -260,16 +260,22 @@ export class AuthService {
     }
 
     const passwordHash = await bcrypt.hash(dto.newPassword, BCRYPT_SALT_ROUNDS);
-    await this.usersService.updatePasswordAndIncrementToken(
-      user.id,
-      passwordHash,
-    );
+    await this.usersService.updatePassword(user.id, passwordHash);
 
     this.eventEmitter.emit(
       AUDIT_LOG_EVENT,
       createAuditLogEvent(user.id, AuditAction.PASSWORD_RESET, meta, {
         email,
       }),
+    );
+  }
+
+  async logoutAll(userId: string, meta: ClientMetaDto): Promise<void> {
+    await this.usersService.incrementTokenVersion(userId);
+
+    this.eventEmitter.emit(
+      AUDIT_LOG_EVENT,
+      createAuditLogEvent(userId, AuditAction.LOGOUT_ALL, meta),
     );
   }
 
@@ -327,7 +333,6 @@ export class AuthService {
   } {
     const payload: JwtPayload = {
       sub: user.id,
-      email: user.email,
       tokenVersion: user.tokenVersion,
     };
 

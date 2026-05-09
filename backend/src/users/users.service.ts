@@ -183,8 +183,14 @@ export class UsersService {
     meta: ClientMetaDto,
   ): Promise<void> {
     const user = await this.userRepository.findById(userId);
-    if (!user || !user.passwordHash) {
+    if (!user) {
       throw new NotFoundException('User not found');
+    }
+
+    if (!user.passwordHash) {
+      throw new BadRequestException(
+        'A password is required to change your email address',
+      );
     }
 
     // 1. Verify password
@@ -226,7 +232,6 @@ export class UsersService {
     code: string,
     meta: ClientMetaDto,
   ): Promise<User> {
-    // 1. Verify OTP and get newEmail from stored data
     const { data }: { data?: OtpData } = await this.otpService.verifyOtp(
       userId,
       code,
@@ -236,14 +241,10 @@ export class UsersService {
     const newEmail = data?.newEmail;
 
     if (!newEmail) {
-      throw new ConflictException('Invalid email update request state');
+      throw new BadRequestException('Invalid email update request state');
     }
 
-    // 2. Perform DB update and increment tokenVersion
-    const updatedUser = await this.userRepository.updateEmailAndIncrementToken(
-      userId,
-      newEmail,
-    );
+    const updatedUser = await this.userRepository.updateEmail(userId, newEmail);
 
     this.logger.log(`Email updated for user ${userId} to ${newEmail}`);
 
@@ -256,16 +257,6 @@ export class UsersService {
     );
 
     return updatedUser;
-  }
-
-  async updatePasswordAndIncrementToken(
-    userId: string,
-    passwordHash: string,
-  ): Promise<User> {
-    return this.userRepository.updatePasswordAndIncrementToken(
-      userId,
-      passwordHash,
-    );
   }
 
   async incrementTokenVersion(userId: string): Promise<User> {

@@ -59,6 +59,7 @@ describe('UsersService', () => {
             linkGoogleAccount: jest.fn(),
             unlinkGoogleAccount: jest.fn(),
             updatePassword: jest.fn(),
+            updateEmail: jest.fn(),
             updateEmailAndIncrementToken: jest.fn(),
             incrementTokenVersion: jest.fn(),
             updateAvatar: jest.fn(),
@@ -183,7 +184,7 @@ describe('UsersService', () => {
         token: 'v-token',
         data: { newEmail: 'new@email.com' },
       });
-      repository.updateEmailAndIncrementToken.mockResolvedValue({
+      repository.updateEmail.mockResolvedValue({
         ...mockUser,
         email: 'new@email.com',
       });
@@ -195,7 +196,10 @@ describe('UsersService', () => {
       );
 
       expect(result.email).toBe('new@email.com');
-      expect(repository.updateEmailAndIncrementToken).toHaveBeenCalled();
+      expect(repository.updateEmail).toHaveBeenCalledWith(
+        mockUser.id,
+        'new@email.com',
+      );
     });
   });
 });
