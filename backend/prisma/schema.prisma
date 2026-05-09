@@ -334,6 +334,7 @@ model AuditLog {
   action      String // Validated at app-level via AuditAction enum
   platform    String
   deviceModel String
+  deviceId    String
   appVersion  String
   metadata    Json?    @default("{}") // Action-specific context (trackId, playlistId, etc.)
   ipAddress   String? // For security auditing

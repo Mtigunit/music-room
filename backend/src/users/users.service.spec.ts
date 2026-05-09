@@ -32,6 +32,7 @@ const mockUser: User = {
 const mockMeta = {
   platform: 'ios',
   deviceModel: 'iPhone 13',
+  deviceId: 'unknown',
   appVersion: '1.0.0',
   ipAddress: '127.0.0.1',
 };

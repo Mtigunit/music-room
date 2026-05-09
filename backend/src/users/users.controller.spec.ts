@@ -14,6 +14,7 @@ const mockUser: User = {
   passwordHash: '$2b$10$hashedpassword',
   isEmailVerified: true,
   googleId: 'google-123',
+  tokenVersion: 0,
   publicInfo: { shortBio: 'public bio' },
   friendInfo: { location: 'test#1234' },
   privateInfo: { physicalAddress: '123 street' },
@@ -35,6 +36,7 @@ const mockSafeUser = {
   preferences: mockUser.preferences,
   subscriptionTier: mockUser.subscriptionTier,
   avatarUrl: mockUser.avatarUrl,
+  tokenVersion: mockUser.tokenVersion,
   createdAt: mockUser.createdAt,
   updatedAt: mockUser.updatedAt,
 };
@@ -161,6 +163,7 @@ describe('UsersController', () => {
     const mockMeta: ClientMetaDto = {
       platform: 'jest',
       deviceModel: 'jest',
+      deviceId: 'jest',
       appVersion: 'jest',
     };
 
@@ -194,6 +197,7 @@ describe('UsersController', () => {
     const mockMeta: ClientMetaDto = {
       platform: 'jest',
       deviceModel: 'jest',
+      deviceId: 'jest',
       appVersion: 'jest',
     };
 

@@ -78,6 +78,7 @@ describe('TrackVotesGateway', () => {
           headers: {
             'x-platform': 'android',
             'x-device-model': 'Pixel 7',
+            'x-device-id': 'device-123',
             'x-app-version': '1.0.0',
           },
           address: '192.168.1.1',
@@ -87,6 +88,7 @@ describe('TrackVotesGateway', () => {
       const mockMeta = {
         platform: 'android',
         deviceModel: 'Pixel 7',
+        deviceId: 'device-123',
         appVersion: '1.0.0',
         ipAddress: '192.168.1.1',
       };
@@ -103,6 +105,7 @@ describe('TrackVotesGateway', () => {
       expect(service.recordVote).toHaveBeenCalledWith(payload, 'user-123', {
         platform: 'android',
         deviceModel: 'Pixel 7',
+        deviceId: 'device-123',
         appVersion: '1.0.0',
         ipAddress: '192.168.1.1',
       });

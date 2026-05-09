@@ -21,6 +21,7 @@ export const ClientMeta = createParamDecorator(
   (_data: unknown, ctx: ExecutionContext): ClientMetaDto => {
     let platform: string | undefined;
     let deviceModel: string | undefined;
+    let deviceId: string | undefined;
     let appVersion: string | undefined;
     let ipAddress: string | undefined;
     const type = ctx.getType();
@@ -29,6 +30,7 @@ export const ClientMeta = createParamDecorator(
       const request = ctx.switchToHttp().getRequest<Request>();
       platform = normalizeHeader(request.headers['x-platform']);
       deviceModel = normalizeHeader(request.headers['x-device-model']);
+      deviceId = normalizeHeader(request.headers['x-device-id']);
       appVersion = normalizeHeader(request.headers['x-app-version']);
       ipAddress = request.ip || request.socket?.remoteAddress;
     } else if (type === 'ws') {
@@ -44,6 +46,7 @@ export const ClientMeta = createParamDecorator(
       deviceModel = normalizeHeader(
         client.handshake?.headers?.['x-device-model'],
       );
+      deviceId = normalizeHeader(client.handshake?.headers?.['x-device-id']);
       appVersion = normalizeHeader(
         client.handshake?.headers?.['x-app-version'],
       );
@@ -51,16 +54,17 @@ export const ClientMeta = createParamDecorator(
     }
 
     // Graceful fallback logging for optional client metadata
-    if (!platform || !deviceModel || !appVersion) {
+    if (!platform || !deviceModel || !deviceId || !appVersion) {
       logger.debug(
         `Missing optional client metadata headers on ${type} request. ` +
-          `Expected x-platform, x-device-model, x-app-version. Falling back to 'unknown'.`,
+          `Expected x-platform, x-device-model, x-device-id, x-app-version. Falling back to 'unknown'.`,
       );
     }
 
     return {
       platform: platform || 'unknown',
       deviceModel: deviceModel || 'unknown',
+      deviceId: deviceId || 'unknown',
       appVersion: appVersion || 'unknown',
       ipAddress: ipAddress,
     };

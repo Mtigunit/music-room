@@ -19,6 +19,14 @@ export class ClientMetaDto {
   deviceModel: string = 'unknown';
 
   @ApiProperty({
+    description: 'Client hardware device ID',
+    default: 'unknown',
+  })
+  @IsString()
+  @IsOptional()
+  deviceId: string = 'unknown';
+
+  @ApiProperty({
     description: 'Client app version (e.g., 1.0.0)',
     default: 'unknown',
   })

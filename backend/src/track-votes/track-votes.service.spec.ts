@@ -41,6 +41,7 @@ describe('TrackVotesService', () => {
     const mockMeta = {
       platform: 'unknown',
       deviceModel: 'unknown',
+      deviceId: 'unknown',
       appVersion: 'unknown',
       ipAddress: '127.0.0.1',
     };
