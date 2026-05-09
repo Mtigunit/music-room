@@ -53,7 +53,7 @@ export class AuthController {
   @ApiResponse({ status: 409, description: 'Email already registered.' })
   @ApiResponse({ status: 400, description: 'Rate limit exceeded.' })
   async sendOtp(@Body() dto: SendOtpDto) {
-    await this.otpService.sendOtp(dto.email);
+    await this.authService.sendRegistrationOtp(dto.email);
     return { message: 'OTP sent successfully' };
   }
 
@@ -130,7 +130,7 @@ export class AuthController {
     description: 'Rate limited.',
   })
   async forgotPassword(@Body() dto: ForgotPasswordDto) {
-    await this.otpService.sendOtp(dto.email, 'password_reset');
+    await this.authService.sendPasswordResetOtp(dto.email);
     return {
       message:
         'If an account with this email exists, a password reset OTP has been sent.',
@@ -176,5 +176,22 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Unauthorized.' })
   getProfile(@Request() req: AuthenticatedRequest) {
     return req.user;
+  }
+
+  @Post('logout-all')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiClientMeta()
+  @ApiOperation({
+    summary: 'Logout from all devices (invalidates all sessions)',
+  })
+  @ApiResponse({ status: 200, description: 'Logged out from all devices.' })
+  @ApiResponse({ status: 401, description: 'Unauthorized.' })
+  async logoutAll(
+    @Request() req: AuthenticatedRequest,
+    @ClientMeta() meta: ClientMetaDto,
+  ) {
+    await this.authService.logoutAll(req.user.id, meta);
+    return { message: 'Successfully logged out from all devices' };
   }
 }

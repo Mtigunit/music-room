@@ -142,4 +142,20 @@ export class UserRepository {
       data: { avatarUrl: avatarPath },
     });
   }
+
+  async updateEmail(userId: string, newEmail: string): Promise<User> {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { email: newEmail },
+    });
+  }
+
+  async incrementTokenVersion(userId: string): Promise<User> {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        tokenVersion: { increment: 1 },
+      },
+    });
+  }
 }

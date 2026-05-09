@@ -25,6 +25,10 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       throw new UnauthorizedException('User no longer exists');
     }
 
+    if (user.tokenVersion !== payload.tokenVersion) {
+      throw new UnauthorizedException('Session expired');
+    }
+
     return { id: user.id, email: user.email };
   }
 }
