@@ -1,4 +1,4 @@
-import { Module, BadRequestException } from '@nestjs/common';
+import { Module, BadRequestException, forwardRef } from '@nestjs/common';
 import { MulterModule } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import * as fs from 'fs';
@@ -10,8 +10,11 @@ import { UsersController } from './users.controller';
 import mime from 'mime-types';
 import { FollowsModule } from '../follows/follows.module';
 
+import { AuthModule } from '../auth/auth.module';
+
 @Module({
   imports: [
+    forwardRef(() => AuthModule),
     PrismaModule,
     FollowsModule,
     MulterModule.register({

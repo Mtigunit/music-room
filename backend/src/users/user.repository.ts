@@ -50,6 +50,13 @@ export class UserRepository {
     });
   }
 
+  async unlinkGoogleAccount(userId: string): Promise<User> {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { googleId: null },
+    });
+  }
+
   async updatePassword(userId: string, passwordHash: string): Promise<User> {
     return this.prisma.user.update({
       where: { id: userId },

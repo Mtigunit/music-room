@@ -1,7 +1,9 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
+import { AuthService } from '../auth/auth.service';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { ClientMetaDto } from '../common/dto/client-meta.dto';
 import type { User } from '@prisma/client';
 import type { Request } from 'express';
 
@@ -40,6 +42,7 @@ const mockSafeUser = {
 describe('UsersController', () => {
   let controller: UsersController;
   let service: jest.Mocked<UsersService>;
+  let authService: jest.Mocked<AuthService>;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -54,6 +57,15 @@ describe('UsersController', () => {
             searchUsers: jest.fn(),
             isFollowing: jest.fn(),
             getRelationship: jest.fn(),
+            findByGoogleId: jest.fn(),
+            linkGoogleAccount: jest.fn(),
+            unlinkGoogleAccount: jest.fn(),
+          },
+        },
+        {
+          provide: AuthService,
+          useValue: {
+            verifyGoogleIdToken: jest.fn(),
           },
         },
       ],
@@ -61,6 +73,7 @@ describe('UsersController', () => {
 
     controller = module.get<UsersController>(UsersController);
     service = module.get(UsersService);
+    authService = module.get(AuthService);
   });
 
   afterEach(() => {
@@ -139,6 +152,63 @@ describe('UsersController', () => {
         '/uploads/new-avatar.png',
       );
       expect(result.avatarUrl).toEqual('/uploads/new-avatar.png');
+    });
+  });
+
+  // ─── linkGoogleAccount ────────────────────────────────
+
+  describe('linkGoogleAccount', () => {
+    const mockMeta: ClientMetaDto = {
+      platform: 'jest',
+      deviceModel: 'jest',
+      appVersion: 'jest',
+    };
+
+    it('should link the account successfully by delegating to the service', async () => {
+      authService.verifyGoogleIdToken.mockResolvedValue({
+        sub: 'google-123',
+        email: 'test@gmail.com',
+      });
+      service.linkGoogleAccount.mockResolvedValue(mockUser as User);
+
+      const req = { user: { id: mockUser.id } } as unknown as Request;
+      const dto = { idToken: 'valid.token' };
+
+      const result = await controller.linkGoogleAccount(req, dto, mockMeta);
+
+      expect(authService.verifyGoogleIdToken).toHaveBeenCalledWith(
+        'valid.token',
+      );
+      expect(service.linkGoogleAccount).toHaveBeenCalledWith(
+        mockUser.id,
+        'google-123',
+        mockMeta,
+      );
+      expect(result).toEqual(mockSafeUser);
+    });
+  });
+
+  // ─── unlinkGoogleAccount ──────────────────────────────
+
+  describe('unlinkGoogleAccount', () => {
+    const mockMeta: ClientMetaDto = {
+      platform: 'jest',
+      deviceModel: 'jest',
+      appVersion: 'jest',
+    };
+
+    it('should unlink successfully by delegating to the service', async () => {
+      const updatedUser = { ...mockUser, googleId: null };
+      service.unlinkGoogleAccount.mockResolvedValue(updatedUser as any);
+      const req = { user: { id: mockUser.id } } as unknown as Request;
+
+      const result = await controller.unlinkGoogleAccount(req, mockMeta);
+
+      expect(service.unlinkGoogleAccount).toHaveBeenCalledWith(
+        mockUser.id,
+        mockMeta,
+      );
+      expect(result).toEqual(mockSafeUser);
     });
   });
 
