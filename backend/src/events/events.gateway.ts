@@ -74,11 +74,14 @@ export class EventsGateway implements OnGatewayDisconnect {
 
     if (disconnectResult) {
       // Handle WebSocket concerns only
+      const currentTrack = await this.eventsRepository.getCurrentTrackPayload(
+        disconnectResult.currentTrackId,
+      );
       this.server
         .to(`event_${disconnectResult.eventId}`)
         .emit(WS_EVENTS.PLAYBACK_STATUS, {
           status: PlaybackStatus.PAUSED,
-          currentTrackId: disconnectResult.currentTrackId,
+          currentTrack,
           pausedPlaybackPositionMs: disconnectResult.pausedPosition,
         });
     }
@@ -292,9 +295,12 @@ export class EventsGateway implements OnGatewayDisconnect {
       await this.eventsRepository.pausePlayback(event.id, position);
 
       // Handle WebSocket concerns only
+      const currentTrack = await this.eventsRepository.getCurrentTrackPayload(
+        event.currentTrackId,
+      );
       this.server.to(roomName).emit(WS_EVENTS.PLAYBACK_STATUS, {
         status: PlaybackStatus.PAUSED,
-        currentTrackId: event.currentTrackId,
+        currentTrack,
         pausedPlaybackPositionMs: position,
       });
     }
@@ -336,7 +342,9 @@ export class EventsGateway implements OnGatewayDisconnect {
 
     this.server.to(roomName).emit(WS_EVENTS.PLAYBACK_STATUS, {
       status: PlaybackStatus.PAUSED,
-      currentTrackId: updatedEvent.currentTrackId,
+      currentTrack: await this.eventsRepository.getCurrentTrackPayload(
+        updatedEvent.currentTrackId,
+      ),
       pausedPlaybackPositionMs: 0,
     });
 

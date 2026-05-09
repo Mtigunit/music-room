@@ -51,6 +51,7 @@ describe('EventsService', () => {
             findAll: jest.fn(),
             findHosting: jest.fn(),
             findInvited: jest.fn(),
+            getCurrentTrackPayload: jest.fn(),
           },
         },
         {
@@ -136,17 +137,22 @@ describe('EventsService', () => {
         tracks: [],
         invites: [],
         host: { id: userId, username: 'host' },
+        currentTrackId: 'et-1',
       };
 
       jest
         .spyOn(repository, 'findByIdWithDetails')
         .mockResolvedValue(mockEvent as any);
+      jest
+        .spyOn(repository, 'getCurrentTrackPayload')
+        .mockResolvedValue({ id: 'et-1', title: 'Track 1' } as any);
 
       const result = await service.findOne(eventId, userId);
 
       expect(result.id).toBe(eventId);
       expect(result.isHost).toBe(true);
       expect(result.isInvited).toBe(false);
+      expect(result.currentTrack).toEqual({ id: 'et-1', title: 'Track 1' });
     });
 
     it('should return event details with invited flags if user is invited', async () => {
@@ -159,17 +165,20 @@ describe('EventsService', () => {
         tracks: [],
         invites: [{ userId: 'user-2' }], // user is invited
         host: { id: 'user-1', username: 'host' },
+        currentTrackId: null,
       };
 
       jest
         .spyOn(repository, 'findByIdWithDetails')
         .mockResolvedValue(mockEvent as any);
+      jest.spyOn(repository, 'getCurrentTrackPayload').mockResolvedValue(null);
 
       const result = await service.findOne(eventId, userId);
 
       expect(result.id).toBe(eventId);
       expect(result.isHost).toBe(false);
       expect(result.isInvited).toBe(true);
+      expect(result.currentTrack).toBeNull();
     });
 
     it('should throw ForbiddenException for private event without access', async () => {
