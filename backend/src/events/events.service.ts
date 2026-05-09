@@ -141,8 +141,15 @@ export class EventsService {
       throw new NotFoundException(`Event with ID ${id} not found`);
     }
 
-    const { tracks, host, invites, policies, invitingOnly, ...eventData } =
-      event;
+    const {
+      tracks,
+      host,
+      invites,
+      policies,
+      invitingOnly,
+      currentTrackId,
+      ...eventData
+    } = event;
 
     const isInvited =
       invites?.some((i: { userId: string }) => i.userId === userId) ?? false;
@@ -173,11 +180,15 @@ export class EventsService {
       if (config.endDate) endDate = new Date(config.endDate);
     }
 
+    const currentTrack =
+      await this.eventsRepository.getCurrentTrackPayload(currentTrackId);
+
     return {
       ...eventData,
       hostId: event.hostId, // retain hostId in top-level output
       host: host ? { id: host.id, name: host.username } : null,
       tracks,
+      currentTrack,
       isInvited,
       isHost: event.hostId === userId,
       policies: {
@@ -453,7 +464,7 @@ export class EventsService {
         .emit(WS_EVENTS.PLAYBACK_STATUS, {
           status: PlaybackStatus.PAUSED,
           currentTrack: {
-            id: newTrack.track.id,
+            id: newTrack.id,
             providerTrackId: newTrack.track.providerTrackId,
             title: newTrack.track.title,
             artist: newTrack.track.artist,
