@@ -44,6 +44,7 @@ class _TopToastWidgetState extends State<_TopToastWidget>
   late AnimationController _controller;
   late Animation<Offset> _offsetAnimation;
   late Animation<double> _fadeAnimation;
+  Timer? _dismissTimer;
 
   @override
   void initState() {
@@ -82,13 +83,14 @@ class _TopToastWidgetState extends State<_TopToastWidget>
       }
     }
 
-    Timer(const Duration(seconds: 3), () {
+    _dismissTimer = Timer(const Duration(seconds: 3), () {
       unawaited(closeToast());
     });
   }
 
   @override
   void dispose() {
+    _dismissTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }

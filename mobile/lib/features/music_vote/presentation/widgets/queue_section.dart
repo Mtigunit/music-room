@@ -104,6 +104,7 @@ class QueueSection extends StatelessWidget {
                     bottom: index == tracks.length - 1 ? 0 : 8,
                   ),
                   child: QueueTrackItem(
+                    key: ValueKey(track.id),
                     track: track,
                     rank: index + 1,
                     voteCount: track.voteScore,
@@ -580,7 +581,7 @@ class _QueueTrackItemState extends State<QueueTrackItem> {
               votes: widget.voteCount,
               hasVoted: widget.hasVoted,
               colorScheme: colorScheme,
-              onVote: _handleVote,
+              onVote: () => unawaited(_handleVote()),
             ),
         ],
       ),

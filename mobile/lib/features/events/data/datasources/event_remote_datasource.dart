@@ -122,8 +122,10 @@ class EventRemoteDataSource implements IEventRemoteDataSource {
   Future<String> createEvent(EventModel event, XFile? coverImage) async {
     try {
       final mapData = await _buildFormDataMap(event, coverImage);
-      debugPrint('--- [CREATE EVENT] SENDING DATA ---');
-      debugPrint(mapData.toString());
+      if (kDebugMode) {
+        debugPrint('--- [CREATE EVENT] SENDING DATA ---');
+        debugPrint(mapData.toString());
+      }
 
       final formData = FormData.fromMap(mapData);
 
