@@ -2,30 +2,38 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:music_room/core/widgets/dynamic_search_bottom_sheet.dart';
+import 'package:music_room/core/widgets/top_toast.dart';
 import 'package:music_room/core/widgets/track_search_list_tile.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/events/presentation/state/track_search_cubit.dart';
+import 'package:music_room/features/music_vote/data/models/event_detail_model.dart';
 import 'package:music_room/features/music_vote/data/models/event_track_model.dart';
 import 'package:music_room/features/music_vote/presentation/state/music_vote_cubit.dart';
 
 /// The "Up Next" queue section with vote chips and controls.
 ///
 /// Receives real [tracks] from the parent [BlocBuilder] and the [eventId]
-/// for the "Add Song" CTA.
+/// for the "Add Song" CTA. Uses [policies] to enforce time-window and
+/// GPS-based voting restrictions.
 class QueueSection extends StatelessWidget {
   const QueueSection({
     required this.tracks,
+    required this.policies,
     super.key,
     this.eventId,
     this.isHost = false,
     this.isEnded = false,
+    this.canVote = true,
   });
 
   final List<EventTrackModel> tracks;
+  final EventPolicies policies;
   final String? eventId;
   final bool isHost;
   final bool isEnded;
+  final bool canVote;
 
   @override
   Widget build(BuildContext context) {
@@ -103,13 +111,8 @@ class QueueSection extends StatelessWidget {
                     isHost: isHost,
                     eventId: eventId,
                     isEnded: isEnded,
-                    onVote: () {
-                      final voteType = track.isVoted ? 'none' : 'up';
-                      context.read<MusicVoteCubit>().voteTrack(
-                        trackId: track.trackId,
-                        voteType: voteType,
-                      );
-                    },
+                    policies: policies,
+                    canVote: canVote,
                   ),
                 );
               }),
@@ -314,16 +317,17 @@ class _AddSongSearchSheet extends StatelessWidget {
 // Individual queue track item
 // ────────────────────────────────────────────────────────────────────────────
 
-class QueueTrackItem extends StatelessWidget {
+class QueueTrackItem extends StatefulWidget {
   const QueueTrackItem({
     required this.track,
     required this.rank,
     required this.hasVoted,
     required this.voteCount,
-    required this.onVote,
+    required this.policies,
     this.isHost = false,
     this.isEnded = false,
     this.eventId,
+    this.canVote = true,
     super.key,
   });
 
@@ -331,13 +335,21 @@ class QueueTrackItem extends StatelessWidget {
   final int rank;
   final bool hasVoted;
   final int voteCount;
-  final VoidCallback onVote;
+  final EventPolicies policies;
   final bool isHost;
   final bool isEnded;
   final String? eventId;
+  final bool canVote;
+
+  @override
+  State<QueueTrackItem> createState() => _QueueTrackItemState();
+}
+
+class _QueueTrackItemState extends State<QueueTrackItem> {
+  bool _isFetchingLocation = false;
 
   void _showRemoveConfirmation(BuildContext context) {
-    if (eventId == null) return;
+    if (widget.eventId == null) return;
     unawaited(
       showDialog<void>(
         context: context,
@@ -345,7 +357,7 @@ class QueueTrackItem extends StatelessWidget {
           return AlertDialog(
             title: const Text('Remove Track?'),
             content: Text(
-              "Are you sure you want to remove '${track.title}' "
+              "Are you sure you want to remove '${widget.track.title}' "
               'from the queue?',
             ),
             actions: [
@@ -357,8 +369,8 @@ class QueueTrackItem extends StatelessWidget {
                 onPressed: () {
                   unawaited(
                     context.read<MusicVoteCubit>().removeTrack(
-                      eventId!,
-                      track.providerTrackId,
+                      widget.eventId!,
+                      widget.track.providerTrackId,
                     ),
                   );
                   Navigator.of(dialogContext).pop();
@@ -375,6 +387,91 @@ class QueueTrackItem extends StatelessWidget {
     );
   }
 
+  /// Handles the vote action, gating on time-window and GPS policies.
+  Future<void> _handleVote() async {
+    // 1. Check time-window restriction
+    if (!widget.policies.isVotingOpen) return;
+
+    final cubit = context.read<MusicVoteCubit>();
+    final voteType = widget.hasVoted ? 'none' : 'up';
+
+    // 2. If locationAndTime policy is active, fetch GPS before voting
+    if (widget.policies.locationAndTime) {
+      setState(() => _isFetchingLocation = true);
+
+      try {
+        final position = await _acquirePosition();
+        if (!mounted) return;
+
+        setState(() => _isFetchingLocation = false);
+
+        cubit.voteTrack(
+          trackId: widget.track.trackId,
+          voteType: voteType,
+          lat: position.latitude,
+          lng: position.longitude,
+        );
+      } on LocationServiceDisabledException {
+        if (!mounted) return;
+        setState(() => _isFetchingLocation = false);
+        TopToast.show(
+          context,
+          'Please enable location services to vote at this event.',
+        );
+      } on PermissionDeniedException {
+        if (!mounted) return;
+        setState(() => _isFetchingLocation = false);
+        TopToast.show(
+          context,
+          'This event requires your location to verify you are at the venue.',
+        );
+      } on Object {
+        if (!mounted) return;
+        setState(() => _isFetchingLocation = false);
+        TopToast.show(
+          context,
+          'Unable to determine your location. Please try again.',
+        );
+      }
+      return;
+    }
+
+    // 3. No location policy — vote directly
+    cubit.voteTrack(
+      trackId: widget.track.trackId,
+      voteType: voteType,
+    );
+  }
+
+  /// Acquires the device position, handling permission flow.
+  Future<Position> _acquirePosition() async {
+    final serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) {
+      throw const LocationServiceDisabledException();
+    }
+
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+      if (permission == LocationPermission.denied) {
+        throw const PermissionDeniedException('Location permission denied');
+      }
+    }
+
+    if (permission == LocationPermission.deniedForever) {
+      throw const PermissionDeniedException(
+        'Location permissions are permanently denied',
+      );
+    }
+
+    return Geolocator.getCurrentPosition(
+      locationSettings: const LocationSettings(
+        accuracy: LocationAccuracy.high,
+        timeLimit: Duration(seconds: 10),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -382,6 +479,7 @@ class QueueTrackItem extends StatelessWidget {
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final cardBg = isDark ? const Color(0xFF1E1E2E) : colorScheme.surface;
+    final votingOpen = widget.policies.isVotingOpen;
 
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
@@ -398,7 +496,7 @@ class QueueTrackItem extends StatelessWidget {
           SizedBox(
             width: 22,
             child: Text(
-              '$rank',
+              '${widget.rank}',
               textAlign: TextAlign.center,
               style: textTheme.bodyMedium?.copyWith(
                 fontWeight: FontWeight.w800,
@@ -409,7 +507,7 @@ class QueueTrackItem extends StatelessWidget {
           const SizedBox(width: 12),
 
           // Album art thumbnail
-          _QueueTrackThumbnail(thumbnailUrl: track.thumbnailUrl),
+          _QueueTrackThumbnail(thumbnailUrl: widget.track.thumbnailUrl),
           const SizedBox(width: 12),
 
           // Track info
@@ -419,7 +517,7 @@ class QueueTrackItem extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  track.title,
+                  widget.track.title,
                   style: textTheme.bodyMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
@@ -437,7 +535,8 @@ class QueueTrackItem extends StatelessWidget {
                     const SizedBox(width: 3),
                     Flexible(
                       child: Text(
-                        '${track.artist} · ${track.formattedDuration}',
+                        '${widget.track.artist} · '
+                        '${widget.track.formattedDuration}',
                         style: textTheme.bodySmall?.copyWith(
                           color: colorScheme.onSurface.withValues(alpha: 0.5),
                           fontSize: 11,
@@ -454,7 +553,7 @@ class QueueTrackItem extends StatelessWidget {
           const SizedBox(width: 8),
 
           // Remove button for host
-          if (isHost && !isEnded) ...[
+          if (widget.isHost && !widget.isEnded) ...[
             IconButton(
               onPressed: () => _showRemoveConfirmation(context),
               icon: Icon(
@@ -469,13 +568,20 @@ class QueueTrackItem extends StatelessWidget {
             const SizedBox(width: 8),
           ],
 
-          // Vote chip
-          _VoteChip(
-            votes: voteCount,
-            hasVoted: hasVoted,
-            colorScheme: colorScheme,
-            onVote: onVote,
-          ),
+          // Vote chip / Voting Closed / Not Invited / Fetching Location
+          if (_isFetchingLocation)
+            const _LocationLoadingChip()
+          else if (!widget.canVote)
+            _VoteLockedChip(colorScheme: colorScheme)
+          else if (!votingOpen)
+            _VotingClosedChip(colorScheme: colorScheme)
+          else
+            _VoteChip(
+              votes: widget.voteCount,
+              hasVoted: widget.hasVoted,
+              colorScheme: colorScheme,
+              onVote: _handleVote,
+            ),
         ],
       ),
     );
@@ -589,6 +695,122 @@ class _VoteChip extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Shown in place of the vote chip when the user is not invited to a
+/// restricted event (invitingOnly policy is active).
+class _VoteLockedChip extends StatelessWidget {
+  const _VoteLockedChip({required this.colorScheme});
+
+  final ColorScheme colorScheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: colorScheme.onSurface.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.lock_rounded,
+            size: 16,
+            color: colorScheme.onSurface.withValues(alpha: 0.35),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'Invite',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: colorScheme.onSurface.withValues(alpha: 0.35),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Shown in place of the vote chip when the event's time window has expired
+/// or hasn't started yet.
+class _VotingClosedChip extends StatelessWidget {
+  const _VotingClosedChip({required this.colorScheme});
+
+  final ColorScheme colorScheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: colorScheme.onSurface.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.lock_clock_rounded,
+            size: 16,
+            color: colorScheme.onSurface.withValues(alpha: 0.35),
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'Closed',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: colorScheme.onSurface.withValues(alpha: 0.35),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A compact loading spinner shown while fetching the user's GPS position.
+class _LocationLoadingChip extends StatelessWidget {
+  const _LocationLoadingChip();
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: colorScheme.primary.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: colorScheme.primary,
+            ),
+          ),
+          const SizedBox(height: 3),
+          Text(
+            'GPS',
+            style: TextStyle(
+              fontSize: 9,
+              fontWeight: FontWeight.w700,
+              color: colorScheme.primary.withValues(alpha: 0.7),
+            ),
+          ),
+        ],
       ),
     );
   }

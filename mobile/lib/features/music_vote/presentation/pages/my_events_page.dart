@@ -41,6 +41,7 @@ class MyEventsPage extends StatelessWidget {
 
           return Scaffold(
             floatingActionButton: FloatingActionButton(
+              heroTag: null,
               onPressed: () => _openDiscoverSheet(context),
               backgroundColor: colorScheme.primary,
               foregroundColor: colorScheme.onPrimary,

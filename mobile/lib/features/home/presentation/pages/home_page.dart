@@ -130,6 +130,7 @@ class HomePage extends StatelessWidget {
             bottom: 16,
             right: 24,
             child: FloatingActionButton.extended(
+              heroTag: null,
               onPressed: () {
                 unawaited(
                   Navigator.of(context).push<void>(

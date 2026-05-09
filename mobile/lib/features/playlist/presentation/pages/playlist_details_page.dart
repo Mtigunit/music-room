@@ -1079,6 +1079,7 @@ class _PlaylistSpeedDial extends StatelessWidget {
               width: actionIconDiameter,
               height: actionIconDiameter,
               child: FloatingActionButton(
+                heroTag: null,
                 onPressed: hasOnlyAddAction
                     ? (isAddingTrack ? null : onAddSongs)
                     : () {

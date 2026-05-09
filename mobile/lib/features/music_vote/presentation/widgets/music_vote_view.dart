@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/widgets/top_toast.dart';
+import 'package:music_room/features/music_vote/data/models/event_detail_model.dart';
 import 'package:music_room/features/music_vote/presentation/state/music_vote_cubit.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/live_header.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/player_card.dart';
@@ -104,9 +105,14 @@ class MusicVoteView extends StatelessWidget {
                   SliverToBoxAdapter(
                     child: QueueSection(
                       tracks: state.tracks,
+                      policies: state.event?.policies ?? const EventPolicies(),
                       eventId: eventId,
                       isHost: isHost,
                       isEnded: state.event?.status == 'ENDED',
+                      canVote:
+                          !(state.event?.policies.invitingOnly ?? false) ||
+                          (state.event?.isInvited ?? false) ||
+                          (state.event?.isHost ?? false),
                     ),
                   ),
                   const SliverToBoxAdapter(child: SizedBox(height: 32)),

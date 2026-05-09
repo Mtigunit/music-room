@@ -5,11 +5,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
 import 'package:music_room/features/auth/presentation/state/auth_state.dart';
+import 'package:music_room/features/music_vote/presentation/pages/guest_event_info_view.dart';
 import 'package:music_room/features/music_vote/presentation/pages/guest_music_vote_page.dart';
+import 'package:music_room/features/music_vote/presentation/pages/host_event_info_view.dart';
 import 'package:music_room/features/music_vote/presentation/pages/host_music_vote_page.dart';
 import 'package:music_room/features/music_vote/presentation/state/music_vote_cubit.dart';
-import 'package:music_room/features/music_vote/presentation/widgets/guest_event_info_view.dart';
-import 'package:music_room/features/music_vote/presentation/widgets/host_event_info_view.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/skeletons/pre_event_skeleton.dart';
 
 class PreEventPage extends StatelessWidget {
@@ -50,7 +50,7 @@ class PreEventPage extends StatelessWidget {
           final isHost = state.event?.hostId == userId;
           if (isHost) {
             unawaited(
-              Navigator.of(context).pushReplacement(
+              Navigator.of(context).push(
                 MaterialPageRoute<void>(
                   builder: (_) => HostMusicVotePage(eventId: eventId),
                 ),
@@ -58,7 +58,7 @@ class PreEventPage extends StatelessWidget {
             );
           } else {
             unawaited(
-              Navigator.of(context).pushReplacement(
+              Navigator.of(context).push(
                 MaterialPageRoute<void>(
                   builder: (_) => GuestMusicVotePage(eventId: eventId),
                 ),

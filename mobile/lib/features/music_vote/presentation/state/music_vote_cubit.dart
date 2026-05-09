@@ -83,6 +83,7 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
 
   String? _activeEventId;
   bool _socketListenersAttached = false;
+  bool _hasJoinedLiveRoom = false;
 
   /// Tracks in-flight vote attempts: trackId → intended voteType ('up'|'none').
   /// The UI is NOT updated until the server confirms via [track:vote_updated].
@@ -93,6 +94,7 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
   /// Loads the event details and queued tracks concurrently.
   Future<void> loadRoom(String eventId) async {
     _activeEventId = eventId;
+    _hasJoinedLiveRoom = false;
     emit(state.copyWith(isLoading: true, clearError: true));
     await _ensureSocketConnected();
 
@@ -294,7 +296,12 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
     _socketClient.emit(eventName, <String, dynamic>{'eventId': eventId});
   }
 
-  void voteTrack({required String trackId, required String voteType}) {
+  void voteTrack({
+    required String trackId,
+    required String voteType,
+    double? lat,
+    double? lng,
+  }) {
     if (voteType != 'up' && voteType != 'none') {
       return;
     }
@@ -310,6 +317,8 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
       'eventId': eventId,
       'trackId': trackId,
       'vote': voteType,
+      'locationLat': ?lat,
+      'locationLng': ?lng,
     };
 
     _socketClient.emit(SocketEvent.trackVote.value, payload);
@@ -376,13 +385,8 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
     if (!_isRelevantEventPayload(payload)) return;
 
     final eventId = _activeEventId ?? state.event?.id;
-    if (eventId != null && eventId.isNotEmpty && _socketClient.isConnected) {
-      debugPrint(
-        '🚀 [MusicVoteCubit] Emitting: eventLeave for eventId: $eventId',
-      );
-      _socketClient.emit(SocketEvent.eventLeave.value, <String, dynamic>{
-        'eventId': eventId,
-      });
+    if (eventId != null && eventId.isNotEmpty) {
+      leaveEvent(eventId);
     }
 
     _applyEventStatus('ENDED');
@@ -556,20 +560,8 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
     final current = state.event;
     if (current == null) return;
 
-    final updated = EventDetailModel(
-      id: current.id,
-      name: current.name,
-      description: current.description,
-      coverImage: current.coverImage,
+    final updated = current.copyWith(
       status: status,
-      visibility: current.visibility,
-      invitingOnly: current.invitingOnly,
-      tags: current.tags,
-      hostId: current.hostId,
-      locationLat: current.locationLat,
-      locationLng: current.locationLng,
-      playbackStatus: current.playbackStatus,
-      currentTrackId: current.currentTrackId,
       startDate: startDate ?? current.startDate,
     );
 
@@ -595,8 +587,10 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
   }
 
   Future<void> _joinEventRoom() async {
+    if (_hasJoinedLiveRoom) return;
     final event = state.event;
     if (event == null) return;
+    if (event.status != 'LIVE') return;
     final eventId = _activeEventId ?? event.id;
     if (eventId.isEmpty) return;
     if (!_socketClient.isConnected) return;
@@ -611,6 +605,7 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
       '🚀 [MusicVoteCubit] Emitting: $eventName for eventId: $eventId',
     );
     _socketClient.emit(eventName, <String, dynamic>{'eventId': eventId});
+    _hasJoinedLiveRoom = true;
   }
 
   String _extractDioMessage(DioException exception) {
@@ -679,10 +674,10 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
   @override
   Future<void> close() {
     final eventId = _activeEventId ?? state.event?.id;
+    debugPrint('👋 [MusicVoteCubit] Closing with eventId: $eventId');
     if (eventId != null && eventId.isNotEmpty) {
       leaveEvent(eventId);
     }
-
     _detachSocketListeners();
     return super.close();
   }
