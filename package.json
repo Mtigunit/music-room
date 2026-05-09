@@ -4,20 +4,20 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "npm run test -w backend",
-    "build": "npm run build -w backend",
-    "format": "npm run format -w backend",
-    "format:check": "npm run format:check -w backend",
-    "start": "npm run start -w backend",
-    "start:dev": "npm run start:dev -w backend",
-    "start:debug": "npm run start:debug -w backend",
-    "start:prod": "npm run start:prod -w backend",
-    "lint": "npm run lint -w backend",
-    "lint:fix": "npm run lint:fix -w backend",
-    "test:watch": "npm run test:watch -w backend",
-    "test:cov": "npm run test:cov -w backend",
-    "test:debug": "npm run test:debug -w backend",
-    "test:e2e": "npm run test:e2e -w backend",
+    "test": "npm --prefix backend run test",
+    "build": "npm --prefix backend run build",
+    "format": "npm --prefix backend run format",
+    "format:check": "npm --prefix backend run format:check",
+    "start": "npm --prefix backend run start",
+    "start:dev": "npm --prefix backend run start:dev",
+    "start:debug": "npm --prefix backend run start:debug",
+    "start:prod": "npm --prefix backend run start:prod",
+    "lint": "npm --prefix backend run lint",
+    "lint:fix": "npm --prefix backend run lint:fix",
+    "test:watch": "npm --prefix backend run test:watch",
+    "test:cov": "npm --prefix backend run test:cov",
+    "test:debug": "npm --prefix backend run test:debug",
+    "test:e2e": "npm --prefix backend run test:e2e",
     "prepare": "npx lefthook install"
   },
   "repository": {
@@ -32,9 +32,6 @@
     "url": "https://github.com/Mtigunit/music-room/issues"
   },
   "homepage": "https://github.com/Mtigunit/music-room#readme",
-  "workspaces": [
-    "backend"
-  ],
   "devDependencies": {
     "@commitlint/cli": "^20.5.0",
     "@commitlint/config-conventional": "^20.5.0",
