@@ -72,8 +72,10 @@ jobs:
             cd /${{ secrets.SERVER_USER }}/music-room
 
             # 2. Pull the latest code from GitHub
-            git fetch origin main
-            git reset --hard origin/main
+            # git fetch origin main
+            # git reset --hard origin/main
+            git fetch origin infra/prep-deploy-env
+            git switch infra/prep-deploy-env
 
             # 3. Rebuild and restart the Docker containers in the background
             docker compose -f docker-compose.yml up -d --build
