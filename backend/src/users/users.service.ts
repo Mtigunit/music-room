@@ -20,6 +20,7 @@ import { MailService } from '../mail/mail.service';
 import { RequestEmailUpdateDto } from './dto/request-email-update.dto';
 import { ClientMetaDto } from '../common/dto/client-meta.dto';
 import { UpdateUsernameDto } from './dto/update-username.dto';
+import { UpdatePasswordDto } from './dto/update-password.dto';
 
 @Injectable()
 export class UsersService {
@@ -133,6 +134,54 @@ export class UsersService {
 
   async updatePassword(userId: string, passwordHash: string): Promise<User> {
     return this.userRepository.updatePassword(userId, passwordHash);
+  }
+
+  async changePassword(
+    userId: string,
+    dto: UpdatePasswordDto,
+    meta: ClientMetaDto,
+  ): Promise<User> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (!user.passwordHash) {
+      throw new BadRequestException(
+        'Cannot change password for OAuth-only accounts. Please link a password first.',
+      );
+    }
+
+    const isCurrentValid = await bcrypt.compare(
+      dto.currentPassword,
+      user.passwordHash,
+    );
+    if (!isCurrentValid) {
+      throw new UnauthorizedException('Invalid current password');
+    }
+
+    const isSameAsOld = await bcrypt.compare(
+      dto.newPassword,
+      user.passwordHash,
+    );
+    if (isSameAsOld) {
+      throw new BadRequestException(
+        'New password cannot be the same as the current one',
+      );
+    }
+
+    const hashedNew = await bcrypt.hash(dto.newPassword, 10);
+    const updatedUser = await this.userRepository.updatePassword(
+      userId,
+      hashedNew,
+    );
+
+    this.eventEmitter.emit(
+      AUDIT_LOG_EVENT,
+      createAuditLogEvent(userId, AuditAction.PASSWORD_CHANGE, meta),
+    );
+
+    return updatedUser;
   }
 
   async searchUsers(
