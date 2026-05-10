@@ -61,6 +61,7 @@ class MyEventItemModel {
 
   /// Unique identifier of the event host.
   final String hostId;
+
   /// Number of attendees/invites returned by the backend.
   final int membersCount;
 
