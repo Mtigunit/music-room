@@ -69,7 +69,7 @@ jobs:
           key: ${{ secrets.SERVER_KEY }}
           script: |
             # 1. Navigate to the project directory on your server
-            cd /home/${{ secrets.SERVER_USER }}/music-room
+            cd /${{ secrets.SERVER_USER }}/music-room
 
             # 2. Pull the latest code from GitHub
             git fetch origin main
