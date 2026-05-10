@@ -1,6 +1,10 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { ConflictException, BadRequestException } from '@nestjs/common';
+import {
+  ConflictException,
+  BadRequestException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { UsersService } from './users.service';
 import { UserRepository } from './user.repository';
@@ -8,6 +12,7 @@ import { FollowsService } from '../follows/follows.service';
 import { OtpService } from '../otp/otp.service';
 import { MailService } from '../mail/mail.service';
 import { Prisma, type User } from '@prisma/client';
+import { AUDIT_LOG_EVENT } from '../audit-log/audit-log.constants';
 
 jest.mock('bcrypt');
 
@@ -279,6 +284,54 @@ describe('UsersService', () => {
       await expect(
         service.updateUsername(mockUser.id, dto, mockMeta),
       ).rejects.toThrow('Username is already taken');
+    });
+  });
+
+  describe('changePassword', () => {
+    const dto = {
+      currentPassword: 'OldPassword@123',
+      newPassword: 'NewPassword@1234',
+    };
+
+    it('should update password successfully', async () => {
+      repository.findById.mockResolvedValue(mockUser);
+      (bcrypt.compare as jest.Mock)
+        .mockResolvedValueOnce(true) // current valid
+        .mockResolvedValueOnce(false); // not same as old
+      (bcrypt.hash as jest.Mock).mockResolvedValue('hashed_new');
+      repository.updatePassword.mockResolvedValue({
+        ...mockUser,
+        passwordHash: 'hashed_new',
+      });
+
+      await service.changePassword(mockUser.id, dto, mockMeta);
+
+      expect(repository.updatePassword).toHaveBeenCalledWith(
+        mockUser.id,
+        'hashed_new',
+      );
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        AUDIT_LOG_EVENT,
+        expect.any(Object),
+      );
+    });
+
+    it('should throw UnauthorizedException if current password wrong', async () => {
+      repository.findById.mockResolvedValue(mockUser);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(false);
+
+      await expect(
+        service.changePassword(mockUser.id, dto, mockMeta),
+      ).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('should throw BadRequestException if new password same as old', async () => {
+      repository.findById.mockResolvedValue(mockUser);
+      (bcrypt.compare as jest.Mock).mockResolvedValue(true); // both valid and same
+
+      await expect(
+        service.changePassword(mockUser.id, dto, mockMeta),
+      ).rejects.toThrow('New password cannot be the same as the current one');
     });
   });
 });

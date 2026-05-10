@@ -43,6 +43,7 @@ import { ClientMeta } from '../common/decorators/client-meta.decorator';
 import { RequestEmailUpdateDto } from './dto/request-email-update.dto';
 import { VerifyEmailUpdateDto } from './dto/verify-email-update.dto';
 import { UpdateUsernameDto } from './dto/update-username.dto';
+import { UpdatePasswordDto } from './dto/update-password.dto';
 import { ApiClientMeta } from '../common/decorators/api-client-meta.decorator';
 import { ClientMetaDto } from '../common/dto/client-meta.dto';
 import type { User } from '@prisma/client';
@@ -283,6 +284,28 @@ export class UsersController {
     @ClientMeta() meta: ClientMetaDto,
   ) {
     const user = await this.usersService.updateUsername(
+      req.user!.id,
+      dto,
+      meta,
+    );
+    return this.toSafeUser(user);
+  }
+
+  @Patch('me/password')
+  @ApiClientMeta()
+  @ApiOperation({ summary: 'Update the authenticated user password' })
+  @ApiResponse({ status: 200, description: 'Password updated successfully.' })
+  @ApiResponse({ status: 401, description: 'Invalid current password.' })
+  @ApiResponse({
+    status: 400,
+    description: 'New password is same as current or validation error.',
+  })
+  async updatePassword(
+    @Request() req: Express.Request,
+    @Body() dto: UpdatePasswordDto,
+    @ClientMeta() meta: ClientMetaDto,
+  ) {
+    const user = await this.usersService.changePassword(
       req.user!.id,
       dto,
       meta,
