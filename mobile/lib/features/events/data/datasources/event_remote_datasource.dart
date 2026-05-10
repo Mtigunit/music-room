@@ -23,6 +23,7 @@ class MyEventItemModel {
     required this.startDate,
     required this.hostName,
     required this.hostId,
+    required this.membersCount,
     this.coverImage,
   });
 
@@ -42,6 +43,7 @@ class MyEventItemModel {
       hostId: (hostMap is Map<String, dynamic> && hostMap['id'] is String)
           ? hostMap['id'] as String
           : (json['hostId'] as String? ?? ''),
+      membersCount: _parseMembersCount(json['membersCount']),
       coverImage: _buildCoverImageUrl(json['coverImage'] as String?),
     );
   }
@@ -59,6 +61,8 @@ class MyEventItemModel {
 
   /// Unique identifier of the event host.
   final String hostId;
+  /// Number of attendees/invites returned by the backend.
+  final int membersCount;
 
   /// URL string for the cover image, if provided by the backend.
   final String? coverImage;
@@ -77,6 +81,12 @@ class MyEventItemModel {
     // Strip leading slash from the relative path to be safe.
     final path = relativePath.replaceAll(RegExp('^/+'), '');
     return '$base/$path';
+  }
+
+  static int _parseMembersCount(Object? value) {
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    return 0;
   }
 }
 

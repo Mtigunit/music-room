@@ -70,7 +70,11 @@ class AppRouter {
     }
 
     if (routeName == RouteNames.profile) {
-      return const ProfilePage();
+      return ProfilePage(
+        userId: arguments is String && arguments.trim().isNotEmpty
+            ? arguments.trim()
+            : null,
+      );
     }
 
     return _unknownRoutePage(routeName);

@@ -20,6 +20,10 @@ import 'package:music_room/features/music_vote/domain/repositories/music_vote_re
 import 'package:music_room/features/playlist/data/datasources/playlist_cache_datasource.dart';
 import 'package:music_room/features/playlist/data/datasources/playlist_remote_datasource.dart';
 import 'package:music_room/features/playlist/presentation/state/playlist_bloc.dart';
+import 'package:music_room/features/profile/data/datasources/profile_remote_datasource.dart';
+import 'package:music_room/features/profile/data/repositories/profile_repository_impl.dart';
+import 'package:music_room/features/profile/domain/repositories/profile_repository.dart';
+import 'package:music_room/features/profile/presentation/state/profile_bloc.dart';
 import 'package:music_room/features/search/data/datasources/search_remote_datasource.dart';
 import 'package:music_room/features/search/data/services/search_query_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -51,6 +55,8 @@ class InjectionContainer {
   late EventRepository _eventRepository;
   late IMusicVoteRemoteDataSource _musicVoteRemoteDataSource;
   late MusicVoteRepository _musicVoteRepository;
+  late IProfileRemoteDataSource _profileRemoteDataSource;
+  late ProfileRepository _profileRepository;
 
   /// Initialize all dependencies
   Future<void> init() async {
@@ -91,6 +97,12 @@ class InjectionContainer {
     _playlistCacheDataSource = PlaylistCacheDataSource(
       preferences: sharedPreferences,
     );
+    _profileRemoteDataSource = ProfileRemoteDataSource(apiClient: _apiClient);
+    _profileRepository = ProfileRepositoryImpl(
+      remoteDataSource: _profileRemoteDataSource,
+      eventRemoteDataSource: _eventRemoteDataSource,
+      playlistRemoteDataSource: _playlistRemoteDataSource,
+    );
 
     // Repositories
     _authRepository = AuthRepositoryImpl(
@@ -127,6 +139,9 @@ class InjectionContainer {
   IMusicVoteRemoteDataSource get musicVoteRemoteDataSource =>
       _musicVoteRemoteDataSource;
   MusicVoteRepository get musicVoteRepository => _musicVoteRepository;
+  IProfileRemoteDataSource get profileRemoteDataSource =>
+      _profileRemoteDataSource;
+  ProfileRepository get profileRepository => _profileRepository;
 
   AuthBloc createAuthBloc() {
     return AuthBloc(
@@ -142,5 +157,9 @@ class InjectionContainer {
       connectivityService: _connectivityService,
       socketClient: _socketClient,
     );
+  }
+
+  ProfileBloc createProfileBloc() {
+    return ProfileBloc(profileRepository: _profileRepository);
   }
 }
