@@ -33,9 +33,17 @@ import { NotificationsModule } from './notifications/notifications.module';
     }),
     GlobalThrottlerModule,
     EventEmitterModule.forRoot(),
-    ServeStaticModule.forRoot({
-      rootPath: join(process.cwd(), 'uploads'),
-      serveRoot: '/uploads',
+    ServeStaticModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (configService: ConfigService) => {
+        const uploadPath = configService.get<string>('UPLOAD_PATH', 'uploads');
+        return [
+          {
+            rootPath: join(process.cwd(), uploadPath),
+            serveRoot: '/uploads',
+          },
+        ];
+      },
     }),
     AuditLogModule,
     AuthModule,

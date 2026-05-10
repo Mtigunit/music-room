@@ -20,6 +20,7 @@ import {
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import * as fs from 'fs';
 import * as path from 'path';
 import {
@@ -58,6 +59,7 @@ export class UsersController {
     private readonly usersService: UsersService,
     @Inject(forwardRef(() => AuthService))
     private readonly authService: AuthService,
+    private readonly configService: ConfigService,
   ) {}
 
   private toSafeUser(user: User): Omit<User, 'passwordHash' | 'googleId'> {
@@ -144,7 +146,11 @@ export class UsersController {
     // If an old avatar exists and it's a local file, delete it
     if (oldAvatarUrl && oldAvatarUrl.startsWith('/uploads/')) {
       const filename = oldAvatarUrl.replace('/uploads/', '');
-      const filePath = path.join(process.cwd(), 'uploads', filename);
+      const uploadPath = this.configService.get<string>(
+        'UPLOAD_PATH',
+        'uploads',
+      );
+      const filePath = path.join(process.cwd(), uploadPath, filename);
 
       try {
         await fs.promises.unlink(filePath);

@@ -14,11 +14,11 @@ case "$current_branch" in
 		echo "Branch name check failed: '$current_branch' is reserved for protected branches."
 		exit 1
 		;;
-	feat/*|fix/*|docs/*|chore/*|refactor/*|test/*|ci/*|build/*|hotfix/*|release/*|perf/*)
+	feat/*|fix/*|docs/*|chore/*|refactor/*|test/*|ci/*|build/*|hotfix/*|release/*|perf/*|infra/*)
 		echo "Branch name check passed for '$current_branch'."
 		;;
 	*)
-		echo "Branch name check failed: use a prefix like feat/, fix/, docs/, chore/, refactor/, test/, ci/, build/, hotfix/, release/, or perf/."
+		echo "Branch name check failed: use a prefix like feat/, fix/, docs/, chore/, refactor/, test/, ci/, build/, hotfix/, release/, perf/, or infra/."
 		exit 1
 		;;
 esac

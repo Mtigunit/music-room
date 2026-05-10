@@ -1,5 +1,7 @@
 import './config/env-setup';
 import { NestFactory } from '@nestjs/core';
+import * as fs from 'fs';
+import * as path from 'path';
 import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -15,6 +17,16 @@ async function bootstrap() {
   const redisIoAdapter = new RedisIoAdapter(app, configService);
   await redisIoAdapter.connectToRedis();
   app.useWebSocketAdapter(redisIoAdapter);
+
+  // Ensure upload directory exists
+  const uploadPath = path.join(
+    process.cwd(),
+    configService.get<string>('UPLOAD_PATH', 'uploads'),
+  );
+  if (!fs.existsSync(uploadPath)) {
+    fs.mkdirSync(uploadPath, { recursive: true });
+    logger.log(`Created upload directory at: ${uploadPath}`);
+  }
 
   let isShuttingDown = false;
   const shutdown = async (signal: string) => {
