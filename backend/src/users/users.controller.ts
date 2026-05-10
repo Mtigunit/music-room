@@ -300,7 +300,7 @@ export class UsersController {
     status: 400,
     description: 'New password is same as current or validation error.',
   })
-  async updatePassword(
+  async changePassword(
     @Request() req: Express.Request,
     @Body() dto: UpdatePasswordDto,
     @ClientMeta() meta: ClientMetaDto,

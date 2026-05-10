@@ -63,6 +63,7 @@ describe('UsersController', () => {
             findByGoogleId: jest.fn(),
             linkGoogleAccount: jest.fn(),
             unlinkGoogleAccount: jest.fn(),
+            changePassword: jest.fn(),
           },
         },
         {
@@ -335,6 +336,48 @@ describe('UsersController', () => {
       });
       expect(result).not.toHaveProperty('friendInfo');
       expect(result).not.toHaveProperty('privateInfo');
+    });
+  });
+
+  // ─── changePassword ───────────────────────────────────
+
+  describe('changePassword', () => {
+    const mockMeta: ClientMetaDto = {
+      platform: 'jest',
+      deviceModel: 'jest',
+      deviceId: 'jest',
+      appVersion: 'jest',
+    };
+
+    const dto = {
+      currentPassword: 'OldPassword@123',
+      newPassword: 'NewPassword@1234',
+    };
+
+    it('should delegate to usersService.changePassword and return the safe user', async () => {
+      const updatedUser = { ...mockUser, passwordHash: 'hashed_new' };
+      service.changePassword.mockResolvedValue(updatedUser);
+
+      const req = { user: { id: mockUser.id } } as unknown as Request;
+
+      const result = await controller.changePassword(req, dto, mockMeta);
+
+      expect(service.changePassword).toHaveBeenCalledWith(
+        mockUser.id,
+        dto,
+        mockMeta,
+      );
+      expect(result).toEqual(mockSafeUser);
+    });
+
+    it('should strip passwordHash and googleId from the response', async () => {
+      service.changePassword.mockResolvedValue(mockUser);
+      const req = { user: { id: mockUser.id } } as unknown as Request;
+
+      const result = await controller.changePassword(req, dto, mockMeta);
+
+      expect(result).not.toHaveProperty('passwordHash');
+      expect(result).not.toHaveProperty('googleId');
     });
   });
 });
