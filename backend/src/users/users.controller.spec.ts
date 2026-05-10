@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
 import { AuthService } from '../auth/auth.service';
+import { ConfigService } from '@nestjs/config';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { ClientMetaDto } from '../common/dto/client-meta.dto';
 import type { User } from '@prisma/client';
@@ -68,6 +69,12 @@ describe('UsersController', () => {
           provide: AuthService,
           useValue: {
             verifyGoogleIdToken: jest.fn(),
+          },
+        },
+        {
+          provide: ConfigService,
+          useValue: {
+            get: jest.fn((key: string, defaultValue: string) => defaultValue),
           },
         },
       ],

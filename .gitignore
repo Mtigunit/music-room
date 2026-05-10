@@ -89,7 +89,6 @@ yarn.lock
 pnpm-lock.yaml
 
 backend/uploads
-backend/prisma/migrations
 
 docs/
 TODO.md

@@ -12,6 +12,20 @@ services:
       - postgres
       - redis
     restart: unless-stopped
+    volumes:
+      - ./backend/uploads:/app/uploads
+
+  frontend:
+    build:
+      context: ./mobile
+      dockerfile: Dockerfile
+    container_name: music_room_frontend
+    ports:
+      - "${FRONTEND_PORT:-8080}:80"
+    restart: unless-stopped
+    depends_on:
+      - backend
+
 
   postgres:
     image: postgres:15

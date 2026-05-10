@@ -3,6 +3,7 @@ import {
   IsEnum,
   IsNotEmpty,
   IsNumber,
+  IsOptional,
   IsString,
   Max,
   Min,
@@ -101,6 +102,10 @@ export class EnvironmentVariables {
 
   @IsNumber()
   RATE_LIMIT_SEARCH_LIMIT: number = 30;
+
+  @IsString()
+  @IsOptional()
+  UPLOAD_PATH: string = 'uploads';
 }
 
 export function validate(config: Record<string, unknown>) {
