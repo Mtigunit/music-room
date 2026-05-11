@@ -2,6 +2,7 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  ConflictException,
 } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { PrismaService } from '../prisma/prisma.service';
@@ -9,8 +10,8 @@ import { DelegationsRepository } from './delegations.repository';
 import { AUDIT_LOG_EVENT, AuditAction } from '../audit-log/audit-log.constants';
 import { createAuditLogEvent } from '../audit-log/audit-log.event';
 import type { ClientMetaDto } from '../common/dto/client-meta.dto';
-
-const HARDCODED_DEVICE_ID = 'test-device-id';
+import { INTERNAL_EVENTS } from '../events/events.constants';
+import { EventStatus } from '@prisma/client';
 
 @Injectable()
 export class DelegationsService {
@@ -29,7 +30,8 @@ export class DelegationsService {
     const event = await this.prisma.event.findUnique({
       where: { id: eventId },
     });
-    if (!event) throw new NotFoundException('Event not found');
+    if (!event || event.status === EventStatus.ENDED)
+      throw new NotFoundException('Event not found or ended');
     if (event.hostId !== hostId) {
       throw new ForbiddenException('Only the host can grant delegation');
     }
@@ -42,21 +44,53 @@ export class DelegationsService {
     });
     if (!user) throw new NotFoundException('User not found');
 
-    const result = await this.delegationsRepository.createOrUpdate(
+    const activeDelegation = await this.delegationsRepository.findActive(
       eventId,
       delegateeId,
-      HARDCODED_DEVICE_ID,
     );
+    if (activeDelegation) {
+      throw new ConflictException(
+        'Active delegation already exists for this pair',
+      );
+    }
+
+    const pending = await this.delegationsRepository.createPending(
+      eventId,
+      delegateeId,
+    );
+
+    this.eventEmitter.emit(INTERNAL_EVENTS.DELEGATION_INVITE_SENT, {
+      eventId,
+      delegateeId,
+      delegationId: pending.id,
+      hostname: user.username,
+      eventName: event.name,
+    });
 
     this.eventEmitter.emit(
       AUDIT_LOG_EVENT,
       createAuditLogEvent(hostId, AuditAction.DELEGATION_GRANT, meta, {
         eventId,
-        delegateeId,
+        delegationId: pending.id,
       }),
     );
 
-    return result;
+    return {
+      message: 'Delegation invite sent successfully',
+      delegationId: pending.id,
+    };
+  }
+
+  async handleResponse(
+    delegationId: string,
+    accept: boolean,
+    deviceId: string,
+  ) {
+    if (accept) {
+      await this.delegationsRepository.activateById(delegationId, deviceId);
+      return { status: 'accepted' };
+    }
+    return { status: 'denied' };
   }
 
   async revoke(
@@ -68,18 +102,13 @@ export class DelegationsService {
     const event = await this.prisma.event.findUnique({
       where: { id: eventId },
     });
-    if (!event) throw new NotFoundException('Event not found');
+    if (!event || event.status === EventStatus.ENDED)
+      throw new NotFoundException('Event not found or ended');
     if (event.hostId !== hostId) {
       throw new ForbiddenException('Only the host can revoke delegation');
     }
 
-    const result = await this.delegationsRepository.revoke(
-      eventId,
-      delegateeId,
-    );
-    if (result.count === 0) {
-      throw new NotFoundException('Delegation not found');
-    }
+    await this.delegationsRepository.revoke(eventId, delegateeId);
 
     this.eventEmitter.emit(
       AUDIT_LOG_EVENT,
@@ -96,7 +125,8 @@ export class DelegationsService {
     const event = await this.prisma.event.findUnique({
       where: { id: eventId },
     });
-    if (!event) throw new NotFoundException('Event not found');
+    if (!event || event.status === EventStatus.ENDED)
+      throw new NotFoundException('Event not found or ended');
     if (event.hostId !== hostId) {
       throw new ForbiddenException('Only the host can list delegations');
     }

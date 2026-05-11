@@ -14,6 +14,7 @@ import { BULL_QUEUES } from './events.constants';
 import { EventsProcessor } from './events.processor';
 import { RedisModule } from '../redis/redis.module';
 import { ConfigService } from '@nestjs/config';
+import { DelegationsModule } from '../delegations/delegations.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { ConfigService } from '@nestjs/config';
     WebsocketsModule,
     TracksModule,
     RedisModule,
+    DelegationsModule,
     BullModule.registerQueue({
       name: BULL_QUEUES.EVENT_TIMEOUTS,
     }),

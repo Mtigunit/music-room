@@ -7,7 +7,14 @@ import {
   WsException,
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
-import { Logger, UseGuards, forwardRef, Inject } from '@nestjs/common';
+import {
+  Logger,
+  UseGuards,
+  forwardRef,
+  Inject,
+  UsePipes,
+  ValidationPipe,
+} from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { WsAuthGuard } from '../websockets/guards/ws-auth.guard';
 import { WsThrottlerGuard } from '../websockets/guards/ws-throttler.guard';
@@ -24,11 +31,15 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { WS_EVENTS, REDIS_KEYS, BULL_QUEUES } from './events.constants';
 import { RedisService } from '../redis/redis.service';
-import { EventEmitter2 } from '@nestjs/event-emitter';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { AUDIT_LOG_EVENT, AuditAction } from '../audit-log/audit-log.constants';
 import { createAuditLogEvent } from '../audit-log/audit-log.event';
 import { ClientMeta } from '../common/decorators/client-meta.decorator';
 import { ClientMetaDto } from '../common/dto/client-meta.dto';
+
+import { DelegationsService } from '../delegations/delegations.service';
+import { DelegationResponseDto } from '../delegations/dto/delegation-response.dto';
+import { INTERNAL_EVENTS } from './events.constants';
 
 @WebSocketGateway({ path: '/ws', cors: true })
 @UseGuards(WsAuthGuard, WsThrottlerGuard)
@@ -47,6 +58,7 @@ export class EventsGateway implements OnGatewayDisconnect {
     @Inject(forwardRef(() => EventsService))
     private readonly eventsService: EventsService,
     private readonly eventsRepository: EventsRepository,
+    private readonly delegationsService: DelegationsService,
   ) {}
 
   private getRoomCount(roomName: string): number {
@@ -403,13 +415,14 @@ export class EventsGateway implements OnGatewayDisconnect {
   async handlePlaybackPlay(
     @MessageBody() payload: PlaybackPlayDto,
     @WsUser() user: SocketUser,
+    @ClientMeta() meta: ClientMetaDto,
   ) {
     if (!payload?.eventId) throw new WsException('eventId is required');
     try {
       const result = await this.eventsService.play(
         payload.eventId,
         user.id,
-        'test-device-id',
+        meta.deviceId,
       );
       return { event: 'playback_play', ...result };
     } catch (error: unknown) {
@@ -423,13 +436,14 @@ export class EventsGateway implements OnGatewayDisconnect {
   async handlePlaybackPause(
     @MessageBody() payload: PlaybackPauseDto,
     @WsUser() user: SocketUser,
+    @ClientMeta() meta: ClientMetaDto,
   ) {
     if (!payload?.eventId) throw new WsException('eventId is required');
     try {
       const result = await this.eventsService.pause(
         payload.eventId,
         user.id,
-        'test-device-id',
+        meta.deviceId,
       );
       return { event: 'playback_pause', ...result };
     } catch (error: unknown) {
@@ -443,6 +457,7 @@ export class EventsGateway implements OnGatewayDisconnect {
   async handlePlaybackNext(
     @MessageBody() payload: PlaybackNextDto,
     @WsUser() user: SocketUser,
+    @ClientMeta() meta: ClientMetaDto,
   ) {
     if (!payload?.eventId) throw new WsException('eventId is required');
     try {
@@ -450,9 +465,63 @@ export class EventsGateway implements OnGatewayDisconnect {
         payload.eventId,
         user.id,
         payload.trackId ?? null,
-        'test-device-id',
+        meta.deviceId,
       );
       return { event: 'playback_next', ...result };
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      throw new WsException(errorMessage);
+    }
+  }
+
+  @OnEvent(INTERNAL_EVENTS.DELEGATION_INVITE_SENT)
+  async handleDelegationInviteSent(payload: {
+    eventId: string;
+    delegateeId: string;
+    delegationId: string;
+    hostname: string;
+    eventName: string;
+  }) {
+    const roomName = `event_${payload.eventId}`;
+    const sockets = await this.server.in(roomName).fetchSockets();
+
+    for (const socket of sockets) {
+      if (
+        (socket.data as { user?: { id: string } }).user?.id ===
+        payload.delegateeId
+      ) {
+        socket.emit(WS_EVENTS.DELEGATE, {
+          eventId: payload.eventId,
+          delegationId: payload.delegationId,
+          hostname: payload.hostname,
+          eventName: payload.eventName,
+        });
+      }
+    }
+  }
+
+  @SubscribeMessage(WS_EVENTS.DELEGATION_RESPONSE)
+  @UsePipes(
+    new ValidationPipe({
+      whitelist: true,
+      exceptionFactory: (errors) =>
+        new WsException(
+          errors.map((e) => Object.values(e.constraints ?? {})).flat(),
+        ),
+    }),
+  )
+  async handleDelegationResponse(
+    @MessageBody() payload: DelegationResponseDto,
+    @ClientMeta() meta: ClientMetaDto,
+  ) {
+    try {
+      const result = await this.delegationsService.handleResponse(
+        payload.delegationId,
+        payload.accept,
+        meta.deviceId,
+      );
+      return { event: 'delegation_response', ...result };
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';

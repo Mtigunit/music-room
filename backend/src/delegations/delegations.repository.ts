@@ -6,10 +6,12 @@ export class DelegationsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async findActive(eventId: string, delegateeId: string) {
-    return this.prisma.controlDelegation.findFirst({
+    return this.prisma.controlDelegation.findUnique({
       where: {
-        eventId,
-        delegateeId,
+        eventId_delegateeId: {
+          eventId,
+          delegateeId,
+        },
         isActive: true,
       },
     });
@@ -26,32 +28,67 @@ export class DelegationsRepository {
     });
   }
 
-  async createOrUpdate(eventId: string, delegateeId: string, deviceId: string) {
+  async createPending(eventId: string, delegateeId: string) {
     return this.prisma.controlDelegation.upsert({
-      where: {
-        eventId_delegateeId_deviceId: {
-          eventId,
-          delegateeId,
-          deviceId,
-        },
-      },
+      where: { eventId_delegateeId: { eventId, delegateeId } },
       create: {
         eventId,
         delegateeId,
-        deviceId,
-        isActive: true,
+        deviceId: null,
+        isActive: false,
       },
       update: {
-        isActive: true,
+        deviceId: null,
+        isActive: false,
+      },
+    });
+  }
+  async activateById(delegationId: string, deviceId: string) {
+    return this.prisma.$transaction(async (tx) => {
+      await tx.controlDelegation.updateMany({
+        where: { id: delegationId, isActive: false },
+        data: { deviceId, isActive: true },
+      });
+    });
+  }
+
+  async deleteById(delegationId: string) {
+    return this.prisma.controlDelegation.delete({
+      where: { id: delegationId, isActive: false },
+    });
+  }
+
+  async findPendingById(delegateeId: string, eventId: string) {
+    return this.prisma.controlDelegation.findUnique({
+      where: {
+        eventId_delegateeId: {
+          eventId,
+          delegateeId,
+        },
+        isActive: false,
+      },
+    });
+  }
+
+  async deletePending(eventId: string, delegateeId: string) {
+    return this.prisma.controlDelegation.delete({
+      where: {
+        eventId_delegateeId: {
+          eventId,
+          delegateeId,
+        },
+        isActive: false,
       },
     });
   }
 
   async revoke(eventId: string, delegateeId: string) {
-    return this.prisma.controlDelegation.updateMany({
+    return this.prisma.controlDelegation.update({
       where: {
-        eventId,
-        delegateeId,
+        eventId_delegateeId: {
+          eventId,
+          delegateeId,
+        },
       },
       data: { isActive: false },
     });
