@@ -565,7 +565,9 @@ export class EventsService {
         userId,
       );
       if (!delegation) {
-        throw new ForbiddenException('Only host controls playback');
+        throw new ForbiddenException(
+          'You are not perrmitted to control playback',
+        );
       }
       if (deviceId && delegation.deviceId !== deviceId) {
         throw new ForbiddenException(
@@ -627,7 +629,9 @@ export class EventsService {
         userId,
       );
       if (!delegation) {
-        throw new ForbiddenException('Only host controls playback');
+        throw new ForbiddenException(
+          'You are not permitted to control playback',
+        );
       }
       if (deviceId && delegation.deviceId !== deviceId) {
         throw new ForbiddenException(
@@ -697,7 +701,9 @@ export class EventsService {
         userId,
       );
       if (!delegation) {
-        throw new ForbiddenException('Only host controls playback');
+        throw new ForbiddenException(
+          'You are not permitted to control playback',
+        );
       }
       if (deviceId && delegation.deviceId !== deviceId) {
         throw new ForbiddenException(
