@@ -26,6 +26,7 @@ class QueueSection extends StatelessWidget {
     this.isHost = false,
     this.isEnded = false,
     this.canVote = true,
+    this.currentTrackId,
   });
 
   final List<EventTrackModel> tracks;
@@ -34,6 +35,10 @@ class QueueSection extends StatelessWidget {
   final bool isHost;
   final bool isEnded;
   final bool canVote;
+
+  /// The id of the track currently being played (from `state.currentTrack`).
+  /// Used to render the "Now Playing" indicator and lock voting on that row.
+  final String? currentTrackId;
 
   @override
   Widget build(BuildContext context) {
@@ -114,6 +119,8 @@ class QueueSection extends StatelessWidget {
                     isEnded: isEnded,
                     policies: policies,
                     canVote: canVote,
+                    isNowPlaying:
+                        currentTrackId != null && currentTrackId == track.id,
                   ),
                 );
               }),
@@ -329,6 +336,7 @@ class QueueTrackItem extends StatefulWidget {
     this.isEnded = false,
     this.eventId,
     this.canVote = true,
+    this.isNowPlaying = false,
     super.key,
   });
 
@@ -341,6 +349,7 @@ class QueueTrackItem extends StatefulWidget {
   final bool isEnded;
   final String? eventId;
   final bool canVote;
+  final bool isNowPlaying;
 
   @override
   State<QueueTrackItem> createState() => _QueueTrackItemState();
@@ -493,17 +502,23 @@ class _QueueTrackItemState extends State<QueueTrackItem> {
       ),
       child: Row(
         children: [
-          // Rank number
+          // Rank number / Now-Playing indicator
           SizedBox(
             width: 22,
-            child: Text(
-              '${widget.rank}',
-              textAlign: TextAlign.center,
-              style: textTheme.bodyMedium?.copyWith(
-                fontWeight: FontWeight.w800,
-                color: colorScheme.onSurface.withValues(alpha: 0.4),
-              ),
-            ),
+            child: widget.isNowPlaying
+                ? Icon(
+                    Icons.volume_up_rounded,
+                    size: 18,
+                    color: colorScheme.primary,
+                  )
+                : Text(
+                    '${widget.rank}',
+                    textAlign: TextAlign.center,
+                    style: textTheme.bodyMedium?.copyWith(
+                      fontWeight: FontWeight.w800,
+                      color: colorScheme.onSurface.withValues(alpha: 0.4),
+                    ),
+                  ),
           ),
           const SizedBox(width: 12),
 
@@ -569,9 +584,12 @@ class _QueueTrackItemState extends State<QueueTrackItem> {
             const SizedBox(width: 8),
           ],
 
-          // Vote chip / Voting Closed / Not Invited / Fetching Location
+          // Vote chip / Voting Closed / Not Invited / Now Playing /
+          // Fetching Location
           if (_isFetchingLocation)
             const _LocationLoadingChip()
+          else if (widget.isNowPlaying)
+            _NowPlayingChip(colorScheme: colorScheme)
           else if (!widget.canVote)
             _VoteLockedChip(colorScheme: colorScheme)
           else if (!votingOpen)
@@ -696,6 +714,47 @@ class _VoteChip extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+/// Shown in place of the vote chip on the track that is currently playing.
+/// Voting on the active track is disabled — votes only affect the queue.
+class _NowPlayingChip extends StatelessWidget {
+  const _NowPlayingChip({required this.colorScheme});
+
+  final ColorScheme colorScheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: colorScheme.primary.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: colorScheme.primary.withValues(alpha: 0.35),
+        ),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.graphic_eq_rounded,
+            size: 16,
+            color: colorScheme.primary,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'Live',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w700,
+              color: colorScheme.primary,
+            ),
+          ),
+        ],
       ),
     );
   }

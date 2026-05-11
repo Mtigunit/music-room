@@ -113,6 +113,7 @@ class MusicVoteView extends StatelessWidget {
                           !(state.event?.policies.invitingOnly ?? false) ||
                           (state.event?.isInvited ?? false) ||
                           (state.event?.isHost ?? false),
+                      currentTrackId: state.currentTrack?.id,
                     ),
                   ),
                   const SliverToBoxAdapter(child: SizedBox(height: 32)),

@@ -1,7 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/theme/app_theme.dart';
+import 'package:music_room/features/music_vote/data/models/event_track_model.dart';
+import 'package:music_room/features/music_vote/presentation/state/music_vote_cubit.dart';
 
 /// The premium album-art player card.
 ///
@@ -21,11 +24,24 @@ class PlayerCard extends StatefulWidget {
 
 class _PlayerCardState extends State<PlayerCard>
     with SingleTickerProviderStateMixin {
-  bool _isPlaying = true;
   bool _isShuffle = false;
   bool _isRepeat = false;
   bool _isLiked = false;
-  double _progress = 0.22; // 0.0 – 1.0 mock progress
+
+  /// Ticker used to advance the progress bar locally while the room is
+  /// PLAYING. The authoritative position arrives from `playback:status`.
+  Timer? _progressTicker;
+
+  /// Wall-clock time at which the current playback snapshot was applied.
+  /// Combined with [_baselineMs] this gives the simulated playhead.
+  DateTime? _snapshotAt;
+  int _baselineMs = 0;
+  int _progressMs = 0;
+
+  String? _lastTrackId;
+  String? _lastStatus;
+  int? _lastPausedMs;
+  DateTime? _lastStartedAt;
 
   late final AnimationController _pulseController;
   late final Animation<double> _pulseAnim;
@@ -45,17 +61,118 @@ class _PlayerCardState extends State<PlayerCard>
 
   @override
   void dispose() {
+    _progressTicker?.cancel();
     _pulseController.dispose();
     super.dispose();
   }
 
+  /// Re-syncs the ticker against the latest [MusicVoteState] snapshot.
+  ///
+  /// Priority for position source:
+  ///  1. `pausedPlaybackPositionMs` – present on pause AND on resume (wins)
+  ///  2. `currentTrackStartedAt`    – present only on a fresh/initial play
+  ///  3. 0 fallback
+  void _syncWithState(MusicVoteState state) {
+    final track = state.currentTrack;
+    final status = state.playbackStatus;
+
+    final trackChanged = track?.id != _lastTrackId;
+    final statusChanged = status != _lastStatus;
+    final pausedMsChanged = track?.pausedPlaybackPositionMs != _lastPausedMs;
+    final startedAtChanged = track?.currentTrackStartedAt != _lastStartedAt;
+
+    if (!trackChanged &&
+        !statusChanged &&
+        !pausedMsChanged &&
+        !startedAtChanged) {
+      return;
+    }
+
+    _lastTrackId = track?.id;
+    _lastStatus = status;
+    _lastPausedMs = track?.pausedPlaybackPositionMs;
+    _lastStartedAt = track?.currentTrackStartedAt;
+
+    _progressTicker?.cancel();
+
+    if (track == null) {
+      _progressMs = 0;
+      _baselineMs = 0;
+      _snapshotAt = DateTime.now();
+      return;
+    }
+
+    // ── Determine baseline and reference time ────────────────────────────
+    if (track.pausedPlaybackPositionMs != null) {
+      // Paused position OR resumed-from-pause: tick forward from that offset.
+      _baselineMs = track.pausedPlaybackPositionMs!;
+      _snapshotAt = DateTime.now();
+    } else if (track.currentTrackStartedAt != null) {
+      // Fresh start: wall-clock start is the reference, baseline is 0.
+      _baselineMs = 0;
+      _snapshotAt = track.currentTrackStartedAt;
+    } else {
+      _baselineMs = 0;
+      _snapshotAt = DateTime.now();
+    }
+
+    // ── Compute immediate display position (no setState; called in build) ───
+    if (status == 'PLAYING') {
+      final elapsed = DateTime.now().difference(_snapshotAt!).inMilliseconds;
+      _progressMs = (_baselineMs + elapsed).clamp(0, track.durationMs);
+    } else {
+      _progressMs = _baselineMs;
+    }
+
+    // ── Arm local ticker while playing ──────────────────────────────────
+    if (status == 'PLAYING' && track.durationMs > 0) {
+      _progressTicker = Timer.periodic(
+        const Duration(milliseconds: 500),
+        (_) {
+          if (!mounted) return;
+          final elapsed = _snapshotAt == null
+              ? 0
+              : DateTime.now().difference(_snapshotAt!).inMilliseconds;
+          final next = (_baselineMs + elapsed).clamp(0, track.durationMs);
+          if (next != _progressMs) {
+            setState(() => _progressMs = next);
+          }
+        },
+      );
+    }
+    // No setState for paused/stopped: _progressMs already set above, and
+    // _syncWithState is called inside BlocBuilder (build phase).
+  }
+
   @override
   Widget build(BuildContext context) {
+    return BlocBuilder<MusicVoteCubit, MusicVoteState>(
+      buildWhen: (prev, curr) =>
+          prev.currentTrack?.id != curr.currentTrack?.id ||
+          prev.playbackStatus != curr.playbackStatus ||
+          prev.currentTrack?.pausedPlaybackPositionMs !=
+              curr.currentTrack?.pausedPlaybackPositionMs ||
+          prev.currentTrack?.currentTrackStartedAt !=
+              curr.currentTrack?.currentTrackStartedAt,
+      builder: (context, state) {
+        _syncWithState(state);
+        return _buildCard(context, state);
+      },
+    );
+  }
+
+  Widget _buildCard(BuildContext context, MusicVoteState state) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final isDark = Theme.of(context).brightness == Brightness.dark;
 
     final cardBg = isDark ? const Color(0xFF1E1E2E) : colorScheme.surface;
+    final track = state.currentTrack;
+    final isPlaying = state.playbackStatus == 'PLAYING';
+    final durationMs = track?.durationMs ?? 0;
+    final progress = durationMs > 0
+        ? (_progressMs / durationMs).clamp(0.0, 1.0)
+        : 0.0;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -69,17 +186,18 @@ class _PlayerCardState extends State<PlayerCard>
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // ── Album Art with glow ─────────────────────────────────────────
+          // ── Album Art with glow ──────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
             child: _AlbumArtGlow(
               pulseAnim: _pulseAnim,
               colorScheme: colorScheme,
               isDark: isDark,
+              track: track,
             ),
           ),
 
-          // ── Track info + Like ───────────────────────────────────────────
+          // ── Track info + Like ───────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
             child: Row(
@@ -90,7 +208,7 @@ class _PlayerCardState extends State<PlayerCard>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'No Track Playing',
+                        track?.title ?? 'No Track Playing',
                         style: textTheme.titleLarge?.copyWith(
                           fontWeight: FontWeight.w800,
                           fontSize: 20,
@@ -100,7 +218,7 @@ class _PlayerCardState extends State<PlayerCard>
                       ),
                       const SizedBox(height: 2),
                       Text(
-                        'Waiting for music...',
+                        track?.artist ?? 'Waiting for music...',
                         style: textTheme.bodyMedium?.copyWith(
                           color: colorScheme.onSurface.withValues(alpha: 0.6),
                           fontWeight: FontWeight.w500,
@@ -111,7 +229,7 @@ class _PlayerCardState extends State<PlayerCard>
                     ],
                   ),
                 ),
-                // Like button
+                // Like button (local-only for now)
                 Tooltip(
                   message: _isLiked ? 'Unlike track' : 'Like track',
                   child: IconButton(
@@ -135,34 +253,42 @@ class _PlayerCardState extends State<PlayerCard>
             ),
           ),
 
-          // ── Progress bar ────────────────────────────────────────────────
+          // ── Progress bar ──────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 0),
             child: _ProgressBar(
-              progress: _progress,
+              progress: progress,
               primaryColor: colorScheme.primary,
-              onChanged: widget.isHost
-                  ? (v) => setState(() => _progress = v)
-                  : null,
+              positionMs: _progressMs,
+              durationMs: durationMs,
             ),
           ),
 
-          // ── Playback Controls ───────────────────────────────────────────
+          // ── Playback Controls (host only) ──────────────────────────
           if (widget.isHost)
             Padding(
               padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
               child: _PlaybackControls(
-                isPlaying: _isPlaying,
+                isPlaying: isPlaying,
                 isShuffle: _isShuffle,
                 isRepeat: _isRepeat,
                 colorScheme: colorScheme,
-                onPlayPause: () => setState(() => _isPlaying = !_isPlaying),
+                onPlayPause: () {
+                  final cubit = context.read<MusicVoteCubit>();
+                  if (isPlaying) {
+                    cubit.pause();
+                  } else {
+                    cubit.play();
+                  }
+                },
                 onShuffle: () => setState(() => _isShuffle = !_isShuffle),
                 onRepeat: () => setState(() => _isRepeat = !_isRepeat),
-                onPrevious: () {}, // Stub – delegation hook
-                onNext: () {}, // Stub – delegation hook
+                onPrevious: () {}, // Backend does not expose previous yet.
+                onNext: () => context.read<MusicVoteCubit>().next(),
               ),
-            ),
+            )
+          else
+            const SizedBox(height: 16),
         ],
       ),
     );
@@ -178,11 +304,13 @@ class _AlbumArtGlow extends StatelessWidget {
     required this.pulseAnim,
     required this.colorScheme,
     required this.isDark,
+    this.track,
   });
 
   final Animation<double> pulseAnim;
   final ColorScheme colorScheme;
   final bool isDark;
+  final EventTrackModel? track;
 
   @override
   Widget build(BuildContext context) {
@@ -220,7 +348,14 @@ class _AlbumArtGlow extends StatelessWidget {
         aspectRatio: 1,
         child: ClipRRect(
           borderRadius: BorderRadius.circular(20),
-          child: _MockAlbumArt(primaryColor: colorScheme.primary),
+          child: track != null && track!.thumbnailUrl.isNotEmpty
+              ? Image.network(
+                  track!.thumbnailUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) =>
+                      _MockAlbumArt(primaryColor: colorScheme.primary),
+                )
+              : _MockAlbumArt(primaryColor: colorScheme.primary),
         ),
       ),
     );
@@ -345,18 +480,19 @@ class _ProgressBar extends StatelessWidget {
   const _ProgressBar({
     required this.progress,
     required this.primaryColor,
-    required this.onChanged,
+    required this.positionMs,
+    required this.durationMs,
   });
 
   final double progress;
   final Color primaryColor;
-  final ValueChanged<double>? onChanged;
+  final int positionMs;
+  final int durationMs;
 
-  String _formatTime(double ratio) {
-    const totalSeconds = 210; // 3:30 mock duration
-    final elapsed = (ratio * totalSeconds).round();
-    final m = elapsed ~/ 60;
-    final s = elapsed % 60;
+  String _formatMs(int ms) {
+    final totalSeconds = (ms ~/ 1000).clamp(0, 1 << 31);
+    final m = totalSeconds ~/ 60;
+    final s = totalSeconds % 60;
     return '$m:${s.toString().padLeft(2, '0')}';
   }
 
@@ -375,12 +511,12 @@ class _ProgressBar extends StatelessWidget {
             overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
             activeTrackColor: primaryColor,
             inactiveTrackColor: colorScheme.onSurface.withValues(alpha: 0.15),
-            thumbColor: onChanged != null ? primaryColor : Colors.transparent,
+            thumbColor: Colors.transparent,
             overlayColor: primaryColor.withValues(alpha: 0.15),
           ),
           child: Slider(
             value: progress,
-            onChanged: onChanged,
+            onChanged: null,
           ),
         ),
         Padding(
@@ -389,14 +525,14 @@ class _ProgressBar extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                _formatTime(progress),
+                _formatMs(positionMs),
                 style: textTheme.bodySmall?.copyWith(
                   color: colorScheme.onSurface.withValues(alpha: 0.5),
                   fontSize: 11,
                 ),
               ),
               Text(
-                '0:00',
+                _formatMs(durationMs),
                 style: textTheme.bodySmall?.copyWith(
                   color: colorScheme.onSurface.withValues(alpha: 0.5),
                   fontSize: 11,

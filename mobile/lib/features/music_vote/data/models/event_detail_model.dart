@@ -1,3 +1,5 @@
+import 'package:music_room/features/music_vote/data/models/event_track_model.dart';
+
 /// Policies governing voting restrictions for an event.
 class EventPolicies {
   const EventPolicies({
@@ -69,7 +71,7 @@ class EventDetailModel {
     this.locationLat,
     this.locationLng,
     this.playbackStatus,
-    this.currentTrackId,
+    this.currentTrack,
     this.startDate,
     this.isInvited = false,
     this.isHost = false,
@@ -101,7 +103,11 @@ class EventDetailModel {
       locationLat: (json['locationLat'] as num?)?.toDouble(),
       locationLng: (json['locationLng'] as num?)?.toDouble(),
       playbackStatus: json['playbackStatus'] as String?,
-      currentTrackId: json['currentTrackId'] as String?,
+      currentTrack: json['currentTrack'] is Map<String, dynamic>
+          ? EventTrackModel.fromJson(
+              json['currentTrack'] as Map<String, dynamic>,
+            )
+          : null,
       startDate: _parseDate(json['startDate']),
       isInvited: json['isInvited'] as bool? ?? false,
       isHost: json['isHost'] as bool? ?? false,
@@ -120,7 +126,7 @@ class EventDetailModel {
   final double? locationLat;
   final double? locationLng;
   final String? playbackStatus;
-  final String? currentTrackId;
+  final EventTrackModel? currentTrack;
   final DateTime? startDate;
   final bool isInvited;
   final bool isHost;
@@ -138,10 +144,11 @@ class EventDetailModel {
     double? locationLat,
     double? locationLng,
     String? playbackStatus,
-    String? currentTrackId,
+    EventTrackModel? currentTrack,
     DateTime? startDate,
     bool? isInvited,
     bool? isHost,
+    bool clearCurrentTrack = false,
   }) {
     return EventDetailModel(
       id: id ?? this.id,
@@ -156,7 +163,9 @@ class EventDetailModel {
       locationLat: locationLat ?? this.locationLat,
       locationLng: locationLng ?? this.locationLng,
       playbackStatus: playbackStatus ?? this.playbackStatus,
-      currentTrackId: currentTrackId ?? this.currentTrackId,
+      currentTrack: clearCurrentTrack
+          ? null
+          : (currentTrack ?? this.currentTrack),
       startDate: startDate ?? this.startDate,
       isInvited: isInvited ?? this.isInvited,
       isHost: isHost ?? this.isHost,
