@@ -6,12 +6,10 @@ export class DelegationsRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   async findActive(eventId: string, delegateeId: string) {
-    return this.prisma.controlDelegation.findUnique({
+    return this.prisma.controlDelegation.findFirst({
       where: {
-        eventId_delegateeId: {
-          eventId,
-          delegateeId,
-        },
+        eventId,
+        delegateeId,
         isActive: true,
       },
     });
@@ -43,46 +41,40 @@ export class DelegationsRepository {
       },
     });
   }
+
   async activateById(delegationId: string, deviceId: string) {
-    return this.prisma.$transaction(async (tx) => {
-      await tx.controlDelegation.updateMany({
-        where: { id: delegationId, isActive: false },
-        data: { deviceId, isActive: true },
-      });
+    return this.prisma.controlDelegation.updateMany({
+      where: { id: delegationId, isActive: false },
+      data: { deviceId, isActive: true },
     });
   }
 
   async findPendingById(delegateeId: string, eventId: string) {
-    return this.prisma.controlDelegation.findUnique({
+    return this.prisma.controlDelegation.findFirst({
       where: {
-        eventId_delegateeId: {
-          eventId,
-          delegateeId,
-        },
+        eventId,
+        delegateeId,
         isActive: false,
       },
     });
   }
 
   async deletePending(eventId: string, delegateeId: string) {
-    return this.prisma.controlDelegation.delete({
+    return this.prisma.controlDelegation.deleteMany({
       where: {
-        eventId_delegateeId: {
-          eventId,
-          delegateeId,
-        },
+        eventId,
+        delegateeId,
         isActive: false,
       },
     });
   }
 
   async revoke(eventId: string, delegateeId: string) {
-    return this.prisma.controlDelegation.update({
+    return this.prisma.controlDelegation.updateMany({
       where: {
-        eventId_delegateeId: {
-          eventId,
-          delegateeId,
-        },
+        eventId,
+        delegateeId,
+        isActive: true,
       },
       data: { isActive: false },
     });
