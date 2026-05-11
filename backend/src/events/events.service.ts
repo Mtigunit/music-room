@@ -170,12 +170,8 @@ export class EventsService {
     return this.eventsRepository.findInvited(userId, options);
   }
 
-  async findOne(id: string, userId: string, deviceId?: string) {
-    const event = await this.eventsRepository.findByIdWithDetails(
-      id,
-      userId,
-      deviceId,
-    );
+  async findOne(id: string, userId: string) {
+    const event = await this.eventsRepository.findByIdWithDetails(id, userId);
     if (!event) {
       throw new NotFoundException(`Event with ID ${id} not found`);
     }

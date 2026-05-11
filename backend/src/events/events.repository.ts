@@ -52,7 +52,7 @@ export class EventsRepository {
     });
   }
 
-  async findByIdWithDetails(id: string, userId: string, deviceId?: string) {
+  async findByIdWithDetails(id: string, userId: string) {
     const event = await this.prisma.event.findUnique({
       where: { id },
       include: {
@@ -70,7 +70,7 @@ export class EventsRepository {
         },
         policies: { select: { config: true, policyType: true } },
         delegations: {
-          where: { isActive: true, delegateeId: userId, deviceId },
+          where: { isActive: true, delegateeId: userId },
           select: { delegateeId: true },
         },
       },

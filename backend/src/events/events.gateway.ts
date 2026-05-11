@@ -529,11 +529,16 @@ export class EventsGateway implements OnGatewayDisconnect {
   ) {
     try {
       if (payload.accept) {
-        await this.delegationsRepository.activateById(
+        const result = await this.delegationsRepository.activateById(
           payload.delegationId,
           meta.deviceId,
           user.id,
         );
+        if (result.count === 0) {
+          throw new WsException(
+            'Delegation could not be activated. It may be invalid, already active, or not owned by this user.',
+          );
+        }
         this.eventEmitter.emit(
           AUDIT_LOG_EVENT,
           createAuditLogEvent(user.id, AuditAction.DELEGATION_ACCEPTED, meta),
