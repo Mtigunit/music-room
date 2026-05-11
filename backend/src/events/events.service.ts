@@ -182,13 +182,19 @@ export class EventsService {
 
     const currentTrack =
       await this.eventsRepository.getCurrentTrackPayload(currentTrackId);
-
     return {
       ...eventData,
       hostId: event.hostId, // retain hostId in top-level output
       host: host ? { id: host.id, name: host.username } : null,
       tracks,
-      currentTrack,
+      currentTrack:
+        currentTrack === null
+          ? null
+          : {
+              ...currentTrack,
+              currentTrackStartedAt: event.currentTrackStartedAt,
+              pausedPlaybackPositionMs: event.pausedPlaybackPositionMs,
+            },
       isInvited,
       isHost: event.hostId === userId,
       policies: {
@@ -470,8 +476,9 @@ export class EventsService {
             artist: newTrack.track.artist,
             durationMs: newTrack.track.durationMs,
             thumbnailUrl: newTrack.track.thumbnailUrl,
+            pausedPlaybackPositionMs: 0,
+            currentTrackStartedAt: null,
           },
-          pausedPlaybackPositionMs: 0,
         });
     }
 
@@ -565,9 +572,14 @@ export class EventsService {
       .to(`event_${eventId}`)
       .emit(WS_EVENTS.PLAYBACK_STATUS, {
         status: PlaybackStatus.PLAYING,
-        currentTrack,
-        currentTrackStartedAt: updatedEvent.currentTrackStartedAt,
-        pausedPlaybackPositionMs: updatedEvent.pausedPlaybackPositionMs,
+        currentTrack:
+          currentTrack === null
+            ? null
+            : {
+                ...currentTrack,
+                currentTrackStartedAt: updatedEvent.currentTrackStartedAt,
+                pausedPlaybackPositionMs: updatedEvent.pausedPlaybackPositionMs,
+              },
       });
 
     return { status: PlaybackStatus.PLAYING };
@@ -594,8 +606,14 @@ export class EventsService {
       .to(`event_${eventId}`)
       .emit(WS_EVENTS.PLAYBACK_STATUS, {
         status: PlaybackStatus.PAUSED,
-        currentTrack,
-        pausedPlaybackPositionMs: positionMs,
+        currentTrack:
+          currentTrack === null
+            ? null
+            : {
+                ...currentTrack,
+                pausedPlaybackPositionMs: positionMs,
+                currentTrackStartedAt: null,
+              },
       });
 
     return { status: PlaybackStatus.PAUSED };
@@ -624,9 +642,14 @@ export class EventsService {
         .to(`event_${eventId}`)
         .emit(WS_EVENTS.PLAYBACK_STATUS, {
           status: PlaybackStatus.PLAYING,
-          currentTrack,
-          currentTrackStartedAt: updatedEvent.currentTrackStartedAt,
-          pausedPlaybackPositionMs: 0,
+          currentTrack:
+            currentTrack === null
+              ? null
+              : {
+                  ...currentTrack,
+                  currentTrackStartedAt: updatedEvent.currentTrackStartedAt,
+                  pausedPlaybackPositionMs: 0,
+                },
         });
     } else {
       this.eventsGateway.server
@@ -634,7 +657,6 @@ export class EventsService {
         .emit(WS_EVENTS.PLAYBACK_STATUS, {
           status: PlaybackStatus.PAUSED,
           currentTrack: null,
-          pausedPlaybackPositionMs: 0,
         });
     }
 
