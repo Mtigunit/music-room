@@ -843,7 +843,25 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
 
   bool _readBool(Map<String, dynamic>? source, String key) {
     final value = source?[key];
-    return value as bool? ?? false;
+    if (value is bool) {
+      return value;
+    }
+
+    if (value is num) {
+      return value != 0;
+    }
+
+    if (value is String) {
+      final normalized = value.trim().toLowerCase();
+      if (normalized == 'true' || normalized == '1') {
+        return true;
+      }
+      if (normalized == 'false' || normalized == '0') {
+        return false;
+      }
+    }
+
+    return false;
   }
 
   GoogleLinkStatus _googleLinkStatusFromState(ProfileState state) {

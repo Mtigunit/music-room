@@ -77,6 +77,13 @@ class ProfileRepositoryImpl implements ProfileRepository {
   }
 
   @override
+  Future<void> syncMyThemePreference() async {
+    final model = await _remoteDataSource.getMyProfile();
+    final profile = model.toEntity();
+    await _syncThemePreference(profile);
+  }
+
+  @override
   Future<ProfilePageData> loadUserProfilePage(String userId) async {
     final model = await _remoteDataSource.getUserProfile(userId);
     final profile = model.toEntity();

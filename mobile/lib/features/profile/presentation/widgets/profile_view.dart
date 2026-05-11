@@ -170,7 +170,7 @@ class _ProfileViewState extends State<ProfileView> {
         ),
         if (widget.isBusy)
           Positioned.fill(
-            child: IgnorePointer(
+            child: AbsorbPointer(
               child: ColoredBox(
                 color: colorScheme.surface.withValues(alpha: 0.52),
                 child: Center(

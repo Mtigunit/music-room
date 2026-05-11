@@ -3,7 +3,7 @@ import 'package:music_room/features/profile/domain/entities/profile_entity.dart'
 
 part 'profile_model.g.dart';
 
-// NOTE: run `flutter pub run build_runner build` to generate the *.g.dart file
+// NOTE: this model uses a manually maintained companion g.dart file.
 
 /// User profile model returned from both /users/me and /users/:id endpoints
 @JsonSerializable(explicitToJson: true)

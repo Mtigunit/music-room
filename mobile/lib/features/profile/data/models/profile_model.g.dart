@@ -1,4 +1,4 @@
-// GENERATED CODE - manual implementation
+// Manual serialization helpers maintained alongside profile_model.dart.
 
 part of 'profile_model.dart';
 

@@ -280,6 +280,7 @@ class _SearchPageState extends State<SearchPage> {
       case SearchFilterType.tracks:
         return SearchTrackResultCard(item: item as SearchTrackResultModel);
       case SearchFilterType.users:
+        final user = item as SearchUserResultModel;
         return Material(
           color: Colors.transparent,
           child: InkWell(
@@ -288,14 +289,15 @@ class _SearchPageState extends State<SearchPage> {
               unawaited(
                 Navigator.of(context).pushNamed(
                   RouteNames.profile,
-                  arguments: item.id,
+                  arguments: user.id,
                 ),
               );
             },
-            child: SearchUserResultCard(item: item as SearchUserResultModel),
+            child: SearchUserResultCard(item: user),
           ),
         );
       case SearchFilterType.events:
+        final event = item as SearchEventResultModel;
         return Material(
           color: Colors.transparent,
           child: InkWell(
@@ -304,11 +306,11 @@ class _SearchPageState extends State<SearchPage> {
               unawaited(
                 Navigator.of(context).pushNamed(
                   RouteNames.preEvent,
-                  arguments: item.id,
+                  arguments: event.id,
                 ),
               );
             },
-            child: SearchEventResultCard(item: item as SearchEventResultModel),
+            child: SearchEventResultCard(item: event),
           ),
         );
       case SearchFilterType.playlists:

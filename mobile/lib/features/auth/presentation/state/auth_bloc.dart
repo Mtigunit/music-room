@@ -301,7 +301,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
   Future<void> _syncThemePreference() async {
     try {
-      await _profileRepository.loadMyProfilePage();
+      await _profileRepository.syncMyThemePreference();
     } on Object {
       // Theme preference falls back to system until the next successful sync.
     }

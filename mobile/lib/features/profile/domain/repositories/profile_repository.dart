@@ -5,6 +5,9 @@ abstract class ProfileRepository {
   /// Fetch the authenticated user's profile page data.
   Future<ProfilePageData> loadMyProfilePage();
 
+  /// Refresh the stored theme preference for the authenticated user.
+  Future<void> syncMyThemePreference();
+
   /// Fetch another user's public profile page data.
   Future<ProfilePageData> loadUserProfilePage(String userId);
 
