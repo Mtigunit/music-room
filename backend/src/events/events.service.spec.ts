@@ -166,7 +166,7 @@ describe('EventsService', () => {
         tracks: [],
         invites: [{ userId: 'user-2' }], // user is invited
         host: { id: 'user-1', username: 'host' },
-        currentTrackId: null,
+        currentTrack: null,
       };
 
       jest
@@ -175,7 +175,6 @@ describe('EventsService', () => {
       jest.spyOn(repository, 'getCurrentTrackPayload').mockResolvedValue(null);
 
       const result = await service.findOne(eventId, userId);
-
       expect(result.id).toBe(eventId);
       expect(result.isHost).toBe(false);
       expect(result.isInvited).toBe(true);

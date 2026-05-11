@@ -81,8 +81,14 @@ export class EventsGateway implements OnGatewayDisconnect {
         .to(`event_${disconnectResult.eventId}`)
         .emit(WS_EVENTS.PLAYBACK_STATUS, {
           status: PlaybackStatus.PAUSED,
-          currentTrack,
-          pausedPlaybackPositionMs: disconnectResult.pausedPosition,
+          currentTrack:
+            currentTrack === null
+              ? null
+              : {
+                  ...currentTrack,
+                  pausedPlaybackPositionMs: disconnectResult.pausedPosition,
+                  currentTrackStartedAt: null,
+                },
         });
     }
   }
@@ -300,8 +306,14 @@ export class EventsGateway implements OnGatewayDisconnect {
       );
       this.server.to(roomName).emit(WS_EVENTS.PLAYBACK_STATUS, {
         status: PlaybackStatus.PAUSED,
-        currentTrack,
-        pausedPlaybackPositionMs: position,
+        currentTrack:
+          currentTrack === null
+            ? null
+            : {
+                ...currentTrack,
+                pausedPlaybackPositionMs: position,
+                currentTrackStartedAt: null,
+              },
       });
     }
 
@@ -339,13 +351,19 @@ export class EventsGateway implements OnGatewayDisconnect {
       hostId: userId,
     });
     this.broadcastRoomCount(roomName);
-
+    const currentTrack = await this.eventsRepository.getCurrentTrackPayload(
+      updatedEvent.currentTrackId,
+    );
     this.server.to(roomName).emit(WS_EVENTS.PLAYBACK_STATUS, {
       status: PlaybackStatus.PAUSED,
-      currentTrack: await this.eventsRepository.getCurrentTrackPayload(
-        updatedEvent.currentTrackId,
-      ),
-      pausedPlaybackPositionMs: 0,
+      currentTrack:
+        currentTrack === null
+          ? null
+          : {
+              ...currentTrack,
+              pausedPlaybackPositionMs: 0,
+              currentTrackStartedAt: null,
+            },
     });
 
     this.eventEmitter.emit(
