@@ -38,6 +38,9 @@ export class DelegationsService {
     const user = await this.userRepository.findById(delegateeId);
     if (!user) throw new NotFoundException('User not found');
 
+    const host = await this.userRepository.findById(hostId);
+    if (!host) throw new NotFoundException('Host not found');
+
     const activeDelegation = await this.delegationsRepository.findActive(
       eventId,
       delegateeId,
@@ -56,7 +59,7 @@ export class DelegationsService {
       eventId,
       delegateeId,
       delegationId: pending.id,
-      hostname: user.username,
+      hostname: host.username,
       eventName: event.name,
     });
 
