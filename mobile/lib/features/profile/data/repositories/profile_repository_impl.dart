@@ -110,6 +110,18 @@ class ProfileRepositoryImpl implements ProfileRepository {
   }
 
   @override
+  Future<ProfilePageData> changeMyPassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    await _remoteDataSource.changeMyPassword(
+      currentPassword: currentPassword,
+      newPassword: newPassword,
+    );
+    return loadMyProfilePage();
+  }
+
+  @override
   Future<ProfilePageData> uploadMyAvatar(
     String filePath,
     String fileName,

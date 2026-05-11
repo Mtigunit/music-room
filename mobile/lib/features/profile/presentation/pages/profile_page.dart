@@ -60,12 +60,20 @@ class _ProfilePageBody extends StatelessWidget {
     return BlocConsumer<ProfileBloc, ProfileState>(
       listenWhen: (previous, current) =>
           current is ProfileMutationSuccess ||
-          current is ProfileMutationFailure,
+          current is ProfileMutationFailure ||
+          current is ProfilePasswordChangeSuccess ||
+          current is ProfilePasswordChangeFailure,
       listener: (context, state) {
         if (state is ProfileMutationSuccess) {
           AppSnackbar.showSuccess(context, state.message);
         }
         if (state is ProfileMutationFailure) {
+          AppSnackbar.showError(context, state.message);
+        }
+        if (state is ProfilePasswordChangeSuccess) {
+          AppSnackbar.showSuccess(context, state.message);
+        }
+        if (state is ProfilePasswordChangeFailure) {
           AppSnackbar.showError(context, state.message);
         }
       },
@@ -184,6 +192,15 @@ class _ProfilePageBody extends StatelessWidget {
     if (state is ProfileMutationFailure) {
       return state.data;
     }
+    if (state is ProfilePasswordChangeInProgress) {
+      return state.data;
+    }
+    if (state is ProfilePasswordChangeSuccess) {
+      return state.data;
+    }
+    if (state is ProfilePasswordChangeFailure) {
+      return state.data;
+    }
     return null;
   }
 
@@ -191,11 +208,15 @@ class _ProfilePageBody extends StatelessWidget {
     BuildContext context,
     UserProfileEntity profile,
   ) async {
+    final profileBloc = context.read<ProfileBloc>();
     final request = await showModalBottomSheet<ProfileUpdateRequest>(
       context: context,
       isScrollControlled: true,
       showDragHandle: true,
-      builder: (_) => ProfileEditSheet(profile: profile),
+      builder: (_) => BlocProvider.value(
+        value: profileBloc,
+        child: ProfileEditSheet(profile: profile),
+      ),
     );
 
     if (request == null || !context.mounted) {
