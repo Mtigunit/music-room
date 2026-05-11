@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:music_room/core/widgets/app_snackbar.dart';
+import 'package:music_room/core/widgets/confirmation_dialog.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
 import 'package:music_room/features/auth/presentation/state/auth_event.dart';
@@ -62,7 +63,11 @@ class _ProfilePageBody extends StatelessWidget {
           current is ProfileMutationSuccess ||
           current is ProfileMutationFailure ||
           current is ProfilePasswordChangeSuccess ||
-          current is ProfilePasswordChangeFailure,
+          current is ProfilePasswordChangeFailure ||
+          current is ProfileGoogleLinkSuccess ||
+          current is ProfileGoogleLinkFailure ||
+          current is ProfileGoogleUnlinkSuccess ||
+          current is ProfileGoogleUnlinkFailure,
       listener: (context, state) {
         if (state is ProfileMutationSuccess) {
           AppSnackbar.showSuccess(context, state.message);
@@ -74,6 +79,18 @@ class _ProfilePageBody extends StatelessWidget {
           AppSnackbar.showSuccess(context, state.message);
         }
         if (state is ProfilePasswordChangeFailure) {
+          AppSnackbar.showError(context, state.message);
+        }
+        if (state is ProfileGoogleLinkSuccess) {
+          AppSnackbar.showSuccess(context, state.message);
+        }
+        if (state is ProfileGoogleLinkFailure) {
+          AppSnackbar.showError(context, state.message);
+        }
+        if (state is ProfileGoogleUnlinkSuccess) {
+          AppSnackbar.showSuccess(context, state.message);
+        }
+        if (state is ProfileGoogleUnlinkFailure) {
           AppSnackbar.showError(context, state.message);
         }
       },
@@ -108,7 +125,16 @@ class _ProfilePageBody extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    final isBusy = state is ProfileMutationInProgress;
+    final isBusy =
+        state is ProfileMutationInProgress ||
+        state is ProfilePasswordChangeInProgress ||
+        state is ProfileGoogleLinkInProgress ||
+        state is ProfileGoogleUnlinkInProgress;
+    final googleAccountMessage = switch (state) {
+      ProfileGoogleLinkFailure(:final message) => message,
+      ProfileGoogleUnlinkFailure(:final message) => message,
+      _ => null,
+    };
 
     return ProfileView(
       data: profileData,
@@ -123,6 +149,10 @@ class _ProfilePageBody extends StatelessWidget {
       onChangeAvatar: profileData.profile.isSelf
           ? () => _pickAndUploadAvatar(context)
           : null,
+      onGoogleAccountAction: profileData.profile.isSelf
+          ? () => _handleGoogleAccountAction(context, profileData.profile)
+          : null,
+      googleAccountMessage: googleAccountMessage,
       onLogout: profileData.profile.isSelf
           ? () => context.read<AuthBloc>().add(const LogoutRequested())
           : null,
@@ -201,7 +231,54 @@ class _ProfilePageBody extends StatelessWidget {
     if (state is ProfilePasswordChangeFailure) {
       return state.data;
     }
+    if (state is ProfileGoogleLinkInProgress) {
+      return state.data;
+    }
+    if (state is ProfileGoogleLinkSuccess) {
+      return state.data;
+    }
+    if (state is ProfileGoogleLinkFailure) {
+      return state.data;
+    }
+    if (state is ProfileGoogleUnlinkInProgress) {
+      return state.data;
+    }
+    if (state is ProfileGoogleUnlinkSuccess) {
+      return state.data;
+    }
+    if (state is ProfileGoogleUnlinkFailure) {
+      return state.data;
+    }
     return null;
+  }
+
+  Future<void> _handleGoogleAccountAction(
+    BuildContext context,
+    UserProfileEntity profile,
+  ) async {
+    final bloc = context.read<ProfileBloc>();
+
+    if (profile.googleLinkStatus == GoogleLinkStatus.linked) {
+      final confirmed = await showAppConfirmationDialog(
+        context: context,
+        title: 'Unlink Google Account?',
+        message:
+            'This will remove the Google connection from your account.\n\n'
+            'You can link it again later from this screen.',
+        confirmLabel: 'Remove Link',
+        cancelLabel: 'Keep Linked',
+        icon: Icons.link_off_rounded,
+        variant: ConfirmationDialogVariant.destructive,
+      );
+
+      if (confirmed == true && context.mounted) {
+        bloc.add(const ProfileGoogleUnlinkRequested());
+      }
+
+      return;
+    }
+
+    bloc.add(const ProfileGoogleLinkRequested());
   }
 
   Future<void> _showEditSheet(

@@ -6,6 +6,7 @@ import 'package:music_room/core/realtime/socket_client.dart';
 import 'package:music_room/core/services/client_meta_service.dart';
 import 'package:music_room/core/services/connectivity_service.dart';
 import 'package:music_room/core/services/google_auth_service.dart';
+import 'package:music_room/core/services/google_link_status_service.dart';
 import 'package:music_room/core/services/theme_preference_service.dart';
 import 'package:music_room/core/services/token_storage_service.dart';
 import 'package:music_room/features/auth/data/datasources/auth_remote_datasource.dart';
@@ -59,6 +60,7 @@ class InjectionContainer {
   late IProfileRemoteDataSource _profileRemoteDataSource;
   late ProfileRepository _profileRepository;
   late ThemePreferenceService _themePreferenceService;
+  late GoogleLinkStatusService _googleLinkStatusService;
 
   /// Initialize all dependencies
   Future<void> init() async {
@@ -74,6 +76,9 @@ class InjectionContainer {
       sharedPreferences: sharedPreferences,
     );
     _themePreferenceService = ThemePreferenceService(
+      sharedPreferences: sharedPreferences,
+    );
+    _googleLinkStatusService = GoogleLinkStatusService(
       sharedPreferences: sharedPreferences,
     );
 
@@ -108,6 +113,8 @@ class InjectionContainer {
       eventRemoteDataSource: _eventRemoteDataSource,
       playlistRemoteDataSource: _playlistRemoteDataSource,
       themePreferenceService: _themePreferenceService,
+      googleAuthService: _googleAuthService,
+      googleLinkStatusService: _googleLinkStatusService,
     );
 
     // Repositories
@@ -149,6 +156,8 @@ class InjectionContainer {
       _profileRemoteDataSource;
   ProfileRepository get profileRepository => _profileRepository;
   ThemePreferenceService get themePreferenceService => _themePreferenceService;
+  GoogleLinkStatusService get googleLinkStatusService =>
+      _googleLinkStatusService;
 
   AuthBloc createAuthBloc() {
     return AuthBloc(

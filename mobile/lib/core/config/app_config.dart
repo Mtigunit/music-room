@@ -35,6 +35,7 @@ class AppConfig {
   static const String profileEndpoint = 'auth/profile';
   static const String myProfileEndpoint = 'users/me';
   static const String userDetailEndpoint = 'users';
+  static const String linkGoogleAccountEndpoint = 'users/link-google';
 
   static const String searchUsersEndpoint = 'users/search';
   static const String trackSearchEndpoint = 'tracks/search';

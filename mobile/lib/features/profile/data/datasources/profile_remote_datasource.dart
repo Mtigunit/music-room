@@ -22,6 +22,12 @@ abstract class IProfileRemoteDataSource {
     required String newPassword,
   });
 
+  Future<UserProfileModel> linkGoogleAccount({
+    required String idToken,
+  });
+
+  Future<UserProfileModel> unlinkGoogleAccount();
+
   Future<UserProfileModel> uploadMyAvatar({
     required String filePath,
     required String fileName,
@@ -149,6 +155,51 @@ class ProfileRemoteDataSource implements IProfileRemoteDataSource {
       throw DioException(
         requestOptions: RequestOptions(
           path: '${AppConfig.myProfileEndpoint}/password',
+        ),
+        error: error,
+      );
+    }
+  }
+
+  @override
+  Future<UserProfileModel> linkGoogleAccount({
+    required String idToken,
+  }) async {
+    try {
+      const endpoint = AppConfig.linkGoogleAccountEndpoint;
+      final response = await _apiClient.post<Map<String, dynamic>>(
+        endpoint,
+        data: <String, dynamic>{'idToken': idToken},
+      );
+
+      return _parseProfileResponse(response, endpoint);
+    } on DioException {
+      rethrow;
+    } on Object catch (error) {
+      throw DioException(
+        requestOptions: RequestOptions(
+          path: AppConfig.linkGoogleAccountEndpoint,
+        ),
+        error: error,
+      );
+    }
+  }
+
+  @override
+  Future<UserProfileModel> unlinkGoogleAccount() async {
+    try {
+      const endpoint = AppConfig.linkGoogleAccountEndpoint;
+      final response = await _apiClient.delete<Map<String, dynamic>>(
+        endpoint,
+      );
+
+      return _parseProfileResponse(response, endpoint);
+    } on DioException {
+      rethrow;
+    } on Object catch (error) {
+      throw DioException(
+        requestOptions: RequestOptions(
+          path: AppConfig.linkGoogleAccountEndpoint,
         ),
         error: error,
       );

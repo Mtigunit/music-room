@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:music_room/core/config/app_config.dart';
 import 'package:music_room/core/widgets/app_back_button.dart';
+import 'package:music_room/core/widgets/app_button.dart';
 import 'package:music_room/features/playlist/domain/entities/playlist_entity.dart';
 import 'package:music_room/features/profile/domain/entities/profile_entity.dart';
 
@@ -14,6 +15,8 @@ class ProfileView extends StatefulWidget {
     this.onOpenRoom,
     this.onOpenPlaylist,
     this.onLogout,
+    this.onGoogleAccountAction,
+    this.googleAccountMessage,
     this.isBusy = false,
     this.busyLabel,
     super.key,
@@ -27,6 +30,8 @@ class ProfileView extends StatefulWidget {
   final void Function(ProfileRoomEntity room)? onOpenRoom;
   final void Function(PlaylistEntity playlist)? onOpenPlaylist;
   final VoidCallback? onLogout;
+  final VoidCallback? onGoogleAccountAction;
+  final String? googleAccountMessage;
   final bool isBusy;
   final String? busyLabel;
 
@@ -151,6 +156,12 @@ class _ProfileViewState extends State<ProfileView> {
                   if (isOwnProfile) ...[
                     const SizedBox(height: 16),
                     _PrivateInfoCard(profile: profile),
+                    const SizedBox(height: 16),
+                    _GoogleAccountCard(
+                      profile: profile,
+                      onAction: widget.onGoogleAccountAction,
+                      message: widget.googleAccountMessage,
+                    ),
                   ],
                 ],
               ),
@@ -1241,12 +1252,294 @@ class _PrivateInfoCard extends StatelessWidget {
           _InfoLine(label: 'Email', value: profile.email ?? 'Not set'),
           const SizedBox(height: 10),
           _InfoLine(
+            label: 'Google account',
+            value: switch (profile.googleLinkStatus) {
+              GoogleLinkStatus.linked => 'Linked',
+              GoogleLinkStatus.unlinked => 'Not linked',
+              GoogleLinkStatus.unknown => 'Status unavailable',
+            },
+          ),
+          const SizedBox(height: 10),
+          _InfoLine(
             label: 'Preferences',
             value: profile.preferences == null || profile.preferences!.isEmpty
                 ? 'Not set'
                 : 'Stored in account settings',
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _GoogleAccountCard extends StatelessWidget {
+  const _GoogleAccountCard({
+    required this.profile,
+    this.onAction,
+    this.message,
+  });
+
+  final UserProfileEntity profile;
+  final VoidCallback? onAction;
+  final String? message;
+
+  bool get _isLinked => profile.googleLinkStatus == GoogleLinkStatus.linked;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colorScheme.surface,
+        borderRadius: BorderRadius.circular(22),
+        border: Border.all(
+          color: colorScheme.onSurface.withValues(alpha: 0.08),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 42,
+                height: 42,
+                decoration: BoxDecoration(
+                  color: _isLinked
+                      ? colorScheme.primaryContainer
+                      : colorScheme.surfaceContainerHighest,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(
+                  Icons.g_mobiledata_rounded,
+                  color: _isLinked ? colorScheme.primary : colorScheme.outline,
+                  size: 28,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Google account',
+                      style: theme.textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _isLinked
+                          ? 'Linked to this account'
+                          : 'No Google account linked',
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurface.withValues(alpha: 0.66),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              _GoogleStatusChip(isLinked: _isLinked),
+            ],
+          ),
+          if (message != null) ...[
+            const SizedBox(height: 12),
+            _InlineNotice(message: message!),
+          ],
+          if (_isLinked) ...[
+            const SizedBox(height: 16),
+            _GoogleLinkedDetails(profile: profile),
+          ] else ...[
+            const SizedBox(height: 16),
+            Text(
+              'Link Google to keep your account connection in sync across '
+              'supported sign-in flows.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurface.withValues(alpha: 0.72),
+              ),
+            ),
+          ],
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: AppButton(
+              onPressed: onAction,
+              backgroundColor: _isLinked
+                  ? colorScheme.errorContainer
+                  : colorScheme.primaryContainer,
+              foregroundColor: _isLinked
+                  ? colorScheme.onErrorContainer
+                  : colorScheme.onPrimaryContainer,
+              disabledBackgroundColor: colorScheme.surfaceContainerHighest,
+              disabledForegroundColor: colorScheme.onSurfaceVariant,
+              padding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 14,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    _isLinked ? Icons.link_off_rounded : Icons.link_rounded,
+                    size: 18,
+                    color: _isLinked
+                        ? colorScheme.onErrorContainer
+                        : colorScheme.onPrimaryContainer,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    _isLinked ? 'Remove Google Link' : 'Link Google Account',
+                    style: theme.textTheme.labelLarge?.copyWith(
+                      color: _isLinked
+                          ? colorScheme.onErrorContainer
+                          : colorScheme.onPrimaryContainer,
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _GoogleStatusChip extends StatelessWidget {
+  const _GoogleStatusChip({required this.isLinked});
+
+  final bool isLinked;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+      decoration: BoxDecoration(
+        color: isLinked
+            ? colorScheme.primaryContainer
+            : colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        isLinked ? 'Linked' : 'Not linked',
+        style: Theme.of(context).textTheme.labelMedium?.copyWith(
+          color: isLinked ? colorScheme.primary : colorScheme.onSurface,
+          fontWeight: FontWeight.w800,
+        ),
+      ),
+    );
+  }
+}
+
+class _GoogleLinkedDetails extends StatelessWidget {
+  const _GoogleLinkedDetails({required this.profile});
+
+  final UserProfileEntity profile;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final imageUrl = _resolveImageUrl(profile.avatarUrl);
+
+    return Column(
+      children: [
+        Row(
+          children: [
+            ClipOval(
+              child: Container(
+                width: 52,
+                height: 52,
+                color: colorScheme.primaryContainer,
+                child: imageUrl == null
+                    ? Icon(
+                        Icons.person_rounded,
+                        color: colorScheme.primary,
+                      )
+                    : Image.network(
+                        imageUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (context, error, stackTrace) {
+                          return Icon(
+                            Icons.person_rounded,
+                            color: colorScheme.primary,
+                          );
+                        },
+                      ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    profile.username,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    profile.email ?? 'Email not available',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurface.withValues(alpha: 0.68),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 14),
+        const _InfoLine(label: 'Provider', value: 'Google'),
+        const SizedBox(height: 10),
+        const _InfoLine(
+          label: 'Status',
+          value: 'Linked and ready to remove at any time',
+        ),
+      ],
+    );
+  }
+}
+
+class _InlineNotice extends StatelessWidget {
+  const _InlineNotice({required this.message});
+
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colorScheme.errorContainer.withValues(alpha: 0.55),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: colorScheme.error.withValues(alpha: 0.2),
+        ),
+      ),
+      child: Text(
+        message,
+        style: theme.textTheme.bodyMedium?.copyWith(
+          color: colorScheme.onErrorContainer,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }

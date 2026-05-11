@@ -1,3 +1,5 @@
+import 'package:music_room/core/services/google_auth_service.dart';
+import 'package:music_room/core/services/google_link_status_service.dart';
 import 'package:music_room/core/services/theme_preference_service.dart';
 import 'package:music_room/features/events/data/datasources/event_remote_datasource.dart';
 import 'package:music_room/features/playlist/data/datasources/playlist_remote_datasource.dart';
@@ -13,20 +15,28 @@ class ProfileRepositoryImpl implements ProfileRepository {
     required IEventRemoteDataSource eventRemoteDataSource,
     required IPlaylistRemoteDataSource playlistRemoteDataSource,
     required ThemePreferenceService themePreferenceService,
+    required GoogleAuthService googleAuthService,
+    required GoogleLinkStatusService googleLinkStatusService,
   }) : _remoteDataSource = remoteDataSource,
        _eventRemoteDataSource = eventRemoteDataSource,
        _playlistRemoteDataSource = playlistRemoteDataSource,
-       _themePreferenceService = themePreferenceService;
+       _themePreferenceService = themePreferenceService,
+       _googleAuthService = googleAuthService,
+       _googleLinkStatusService = googleLinkStatusService;
 
   final IProfileRemoteDataSource _remoteDataSource;
   final IEventRemoteDataSource _eventRemoteDataSource;
   final IPlaylistRemoteDataSource _playlistRemoteDataSource;
   final ThemePreferenceService _themePreferenceService;
+  final GoogleAuthService _googleAuthService;
+  final GoogleLinkStatusService _googleLinkStatusService;
 
   @override
   Future<ProfilePageData> loadMyProfilePage() async {
     final model = await _remoteDataSource.getMyProfile();
-    final profile = model.toEntity();
+    final profile = model.toEntity().copyWith(
+      googleLinkStatus: _googleLinkStatusService.resolveStatusForUser(model.id),
+    );
 
     final followersCountFuture = _remoteDataSource.getFollowersCount(
       profile.id,
@@ -117,6 +127,27 @@ class ProfileRepositoryImpl implements ProfileRepository {
     await _remoteDataSource.changeMyPassword(
       currentPassword: currentPassword,
       newPassword: newPassword,
+    );
+    return loadMyProfilePage();
+  }
+
+  @override
+  Future<ProfilePageData> linkMyGoogleAccount(String userId) async {
+    final tokens = await _googleAuthService.authenticate();
+    await _remoteDataSource.linkGoogleAccount(idToken: tokens.idToken);
+    await _googleLinkStatusService.saveStatusForUser(
+      userId,
+      GoogleLinkStatus.linked,
+    );
+    return loadMyProfilePage();
+  }
+
+  @override
+  Future<ProfilePageData> unlinkMyGoogleAccount(String userId) async {
+    await _remoteDataSource.unlinkGoogleAccount();
+    await _googleLinkStatusService.saveStatusForUser(
+      userId,
+      GoogleLinkStatus.unlinked,
     );
     return loadMyProfilePage();
   }

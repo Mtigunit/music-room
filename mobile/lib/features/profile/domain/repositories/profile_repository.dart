@@ -21,6 +21,10 @@ abstract class ProfileRepository {
     required String newPassword,
   });
 
+  Future<ProfilePageData> linkMyGoogleAccount(String userId);
+
+  Future<ProfilePageData> unlinkMyGoogleAccount(String userId);
+
   Future<ProfilePageData> uploadMyAvatar(
     String filePath,
     String fileName,
