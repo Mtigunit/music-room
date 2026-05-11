@@ -18,6 +18,8 @@ class ProfileEditSheet extends StatefulWidget {
 }
 
 class _ProfileEditSheetState extends State<ProfileEditSheet> {
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  late final TextEditingController _usernameController;
   late final TextEditingController _bioController;
   late final TextEditingController _locationController;
   late final TextEditingController _dateOfBirthController;
@@ -29,6 +31,7 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
   @override
   void initState() {
     super.initState();
+    _usernameController = TextEditingController(text: widget.profile.username);
     _bioController = TextEditingController(
       text: _readString(widget.profile.publicInfo, 'shortBio'),
     );
@@ -53,6 +56,7 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
 
   @override
   void dispose() {
+    _usernameController.dispose();
     _bioController.dispose();
     _locationController.dispose();
     _dateOfBirthController.dispose();
@@ -111,169 +115,194 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
             ),
           ),
           Expanded(
-            child: SingleChildScrollView(
-              padding: EdgeInsets.fromLTRB(
-                20,
-                0,
-                20,
-                MediaQuery.viewInsetsOf(context).bottom + 20,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const FormSectionLabel(text: 'BIO'),
-                  const SizedBox(height: 8),
-                  TextFormField(
-                    controller: _bioController,
-                    maxLength: 150,
-                    maxLines: 4,
-                    decoration: FormInputDecoration.build(
-                      theme,
-                      labelText: null,
-                      hintText: 'Tell people about your vibe',
+            child: Form(
+              key: _formKey,
+              child: SingleChildScrollView(
+                padding: EdgeInsets.fromLTRB(
+                  20,
+                  0,
+                  20,
+                  MediaQuery.viewInsetsOf(context).bottom + 20,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const FormSectionLabel(text: 'USERNAME'),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _usernameController,
+                      textInputAction: TextInputAction.next,
+                      maxLength: 30,
+                      decoration: FormInputDecoration.build(
+                        theme,
+                        labelText: null,
+                        hintText: 'Choose a username',
+                      ),
+                      validator: _validateUsername,
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  const FormSectionLabel(text: 'LOCATION'),
-                  const SizedBox(height: 8),
-                  TextFormField(
-                    controller: _locationController,
-                    decoration: FormInputDecoration.build(
-                      theme,
-                      labelText: null,
-                      hintText: 'City or region',
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  const FormSectionLabel(text: 'DATE OF BIRTH'),
-                  const SizedBox(height: 8),
-                  TextFormField(
-                    controller: _dateOfBirthController,
-                    decoration: FormInputDecoration.build(
-                      theme,
-                      labelText: null,
-                      hintText: 'YYYY-MM-DD',
-                      suffixIcon: IconButton(
-                        icon: const Icon(Icons.calendar_month_rounded),
-                        onPressed: () => _pickDate(context),
+                    const SizedBox(height: 20),
+                    const FormSectionLabel(text: 'BIO'),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _bioController,
+                      maxLength: 150,
+                      maxLines: 4,
+                      decoration: FormInputDecoration.build(
+                        theme,
+                        labelText: null,
+                        hintText: 'Tell people about your vibe',
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  const FormSectionLabel(text: 'PHYSICAL ADDRESS'),
-                  const SizedBox(height: 8),
-                  TextFormField(
-                    controller: _physicalAddressController,
-                    maxLines: 2,
-                    decoration: FormInputDecoration.build(
-                      theme,
-                      labelText: null,
-                      hintText: 'Optional address or venue area',
+                    const SizedBox(height: 20),
+                    const FormSectionLabel(text: 'LOCATION'),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _locationController,
+                      decoration: FormInputDecoration.build(
+                        theme,
+                        labelText: null,
+                        hintText: 'City or region',
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 20),
-                  FormToggleRow(
-                    title: 'Auto accept invites',
-                    subtitle: _autoAcceptInvites
-                        ? 'Automatically accept room and playlist invitations'
-                        : 'Review invitations before accepting',
-                    value: _autoAcceptInvites,
-                    onChanged: (value) {
-                      setState(() {
-                        _autoAcceptInvites = value;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                  const FormSectionLabel(text: 'FAVORITE GENRES'),
-                  const SizedBox(height: 10),
-                  GenreSelectionGrid(
-                    genres: PlaylistTag.all
-                        .map((tag) => tag.displayLabel)
-                        .toList(growable: false),
-                    selectedGenres: _favoriteGenres
-                        .map(
-                          (value) => PlaylistTag.fromValue(value)?.displayLabel,
-                        )
-                        .whereType<String>()
-                        .toList(growable: false),
-                    onGenreTapped: (displayLabel) {
-                      final tag = PlaylistTag.all.firstWhere(
-                        (item) => item.displayLabel == displayLabel,
-                      );
-
-                      setState(() {
-                        if (_favoriteGenres.contains(tag.value)) {
-                          _favoriteGenres.remove(tag.value);
-                        } else {
-                          _favoriteGenres.add(tag.value);
-                        }
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 20),
-                  const FormSectionLabel(text: 'THEME PREFERENCE'),
-                  const SizedBox(height: 10),
-                  SelectionCard(
-                    title: 'Light',
-                    subtitle: 'Always use light theme',
-                    icon: Icons.light_mode,
-                    isSelected: _themeController.text == 'LIGHT',
-                    onTap: () {
-                      setState(() {
-                        _themeController.text = 'LIGHT';
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 10),
-                  SelectionCard(
-                    title: 'Dark',
-                    subtitle: 'Always use dark theme',
-                    icon: Icons.dark_mode,
-                    isSelected: _themeController.text == 'DARK',
-                    onTap: () {
-                      setState(() {
-                        _themeController.text = 'DARK';
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 10),
-                  SelectionCard(
-                    title: 'System',
-                    subtitle: 'Follow device settings',
-                    icon: Icons.settings_suggest,
-                    isSelected: _themeController.text == 'SYSTEM',
-                    onTap: () {
-                      setState(() {
-                        _themeController.text = 'SYSTEM';
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 28),
-                  SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      onPressed: () {
-                        Navigator.of(context).pop(
-                          ProfileUpdateRequest(
-                            shortBio: _bioController.text,
-                            location: _locationController.text,
-                            dateOfBirth: _dateOfBirthController.text,
-                            physicalAddress: _physicalAddressController.text,
-                            favoriteGenres: _favoriteGenres.toList(
-                              growable: false,
-                            ),
-                            autoAcceptInvites: _autoAcceptInvites,
-                            uiTheme: _themeController.text.isEmpty
-                                ? null
-                                : _themeController.text,
-                          ),
-                        );
+                    const SizedBox(height: 20),
+                    const FormSectionLabel(text: 'DATE OF BIRTH'),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _dateOfBirthController,
+                      decoration: FormInputDecoration.build(
+                        theme,
+                        labelText: null,
+                        hintText: 'YYYY-MM-DD',
+                        suffixIcon: IconButton(
+                          icon: const Icon(Icons.calendar_month_rounded),
+                          onPressed: () => _pickDate(context),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    const FormSectionLabel(text: 'PHYSICAL ADDRESS'),
+                    const SizedBox(height: 8),
+                    TextFormField(
+                      controller: _physicalAddressController,
+                      maxLines: 2,
+                      decoration: FormInputDecoration.build(
+                        theme,
+                        labelText: null,
+                        hintText: 'Optional address or venue area',
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    FormToggleRow(
+                      title: 'Auto accept invites',
+                      subtitle: _autoAcceptInvites
+                          ? 'Automatically accept room and playlist invitations'
+                          : 'Review invitations before accepting',
+                      value: _autoAcceptInvites,
+                      onChanged: (value) {
+                        setState(() {
+                          _autoAcceptInvites = value;
+                        });
                       },
-                      child: const Text('Save changes'),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 20),
+                    const FormSectionLabel(text: 'FAVORITE GENRES'),
+                    const SizedBox(height: 10),
+                    GenreSelectionGrid(
+                      genres: PlaylistTag.all
+                          .map((tag) => tag.displayLabel)
+                          .toList(growable: false),
+                      selectedGenres: _favoriteGenres
+                          .map(
+                            (value) =>
+                                PlaylistTag.fromValue(value)?.displayLabel,
+                          )
+                          .whereType<String>()
+                          .toList(growable: false),
+                      onGenreTapped: (displayLabel) {
+                        final tag = PlaylistTag.all.firstWhere(
+                          (item) => item.displayLabel == displayLabel,
+                        );
+
+                        setState(() {
+                          if (_favoriteGenres.contains(tag.value)) {
+                            _favoriteGenres.remove(tag.value);
+                          } else {
+                            _favoriteGenres.add(tag.value);
+                          }
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 20),
+                    const FormSectionLabel(text: 'THEME PREFERENCE'),
+                    const SizedBox(height: 10),
+                    SelectionCard(
+                      title: 'Light',
+                      subtitle: 'Always use light theme',
+                      icon: Icons.light_mode,
+                      isSelected: _themeController.text == 'LIGHT',
+                      onTap: () {
+                        setState(() {
+                          _themeController.text = 'LIGHT';
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    SelectionCard(
+                      title: 'Dark',
+                      subtitle: 'Always use dark theme',
+                      icon: Icons.dark_mode,
+                      isSelected: _themeController.text == 'DARK',
+                      onTap: () {
+                        setState(() {
+                          _themeController.text = 'DARK';
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 10),
+                    SelectionCard(
+                      title: 'System',
+                      subtitle: 'Follow device settings',
+                      icon: Icons.settings_suggest,
+                      isSelected: _themeController.text == 'SYSTEM',
+                      onTap: () {
+                        setState(() {
+                          _themeController.text = 'SYSTEM';
+                        });
+                      },
+                    ),
+                    const SizedBox(height: 28),
+                    SizedBox(
+                      width: double.infinity,
+                      child: FilledButton(
+                        onPressed: () {
+                          final isValid =
+                              _formKey.currentState?.validate() ?? false;
+                          if (!isValid) {
+                            return;
+                          }
+
+                          Navigator.of(context).pop(
+                            ProfileUpdateRequest(
+                              username: _usernameController.text,
+                              shortBio: _bioController.text,
+                              location: _locationController.text,
+                              dateOfBirth: _dateOfBirthController.text,
+                              physicalAddress: _physicalAddressController.text,
+                              favoriteGenres: _favoriteGenres.toList(
+                                growable: false,
+                              ),
+                              autoAcceptInvites: _autoAcceptInvites,
+                              uiTheme: _themeController.text.isEmpty
+                                  ? null
+                                  : _themeController.text,
+                            ),
+                          );
+                        },
+                        child: const Text('Save changes'),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -320,5 +349,20 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
   bool _readBool(Map<String, dynamic>? source, String key) {
     final value = source?[key];
     return value as bool? ?? false;
+  }
+
+  String? _validateUsername(String? value) {
+    final trimmed = value?.trim() ?? '';
+    if (trimmed.isEmpty) {
+      return 'Username is required';
+    }
+    if (trimmed.length < 3 || trimmed.length > 30) {
+      return 'Username must be 3 to 30 characters';
+    }
+    final usernamePattern = RegExp(r'^[a-zA-Z0-9_]+$');
+    if (!usernamePattern.hasMatch(trimmed)) {
+      return 'Use only letters, numbers, and underscores';
+    }
+    return null;
   }
 }

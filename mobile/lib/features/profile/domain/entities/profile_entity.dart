@@ -120,6 +120,7 @@ class ProfilePageData extends Equatable {
 
 class ProfileUpdateRequest extends Equatable {
   const ProfileUpdateRequest({
+    this.username,
     this.shortBio,
     this.location,
     this.dateOfBirth,
@@ -129,6 +130,7 @@ class ProfileUpdateRequest extends Equatable {
     this.uiTheme,
   });
 
+  final String? username;
   final String? shortBio;
   final String? location;
   final String? dateOfBirth;
@@ -136,6 +138,16 @@ class ProfileUpdateRequest extends Equatable {
   final List<String>? favoriteGenres;
   final bool? autoAcceptInvites;
   final String? uiTheme;
+
+  bool hasChanges({String? currentUsername}) {
+    final normalizedUsername = username?.trim();
+    final hasUsernameChange =
+        normalizedUsername != null &&
+        normalizedUsername.isNotEmpty &&
+        normalizedUsername != currentUsername?.trim();
+
+    return hasUsernameChange || toJson().isNotEmpty;
+  }
 
   Map<String, dynamic> toJson() {
     final publicInfo = <String, dynamic>{};
@@ -195,6 +207,7 @@ class ProfileUpdateRequest extends Equatable {
 
   @override
   List<Object?> get props => [
+    username,
     shortBio,
     location,
     dateOfBirth,

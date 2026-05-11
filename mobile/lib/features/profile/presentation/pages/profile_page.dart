@@ -202,7 +202,7 @@ class _ProfilePageBody extends StatelessWidget {
       return;
     }
 
-    if (request.toJson().isEmpty) {
+    if (!request.hasChanges(currentUsername: profile.username)) {
       AppSnackbar.showInfo(context, 'No profile changes to save.');
       return;
     }

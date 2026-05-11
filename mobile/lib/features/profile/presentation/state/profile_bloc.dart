@@ -150,7 +150,24 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     );
 
     try {
-      final updated = await _profileRepository.updateMyProfile(event.request);
+      final normalizedUsername = event.request.username?.trim();
+      final hasUsernameChange =
+          normalizedUsername != null &&
+          normalizedUsername.isNotEmpty &&
+          normalizedUsername != currentData.profile.username.trim();
+
+      var updated = currentData;
+
+      if (hasUsernameChange) {
+        updated = await _profileRepository.updateMyUsername(
+          normalizedUsername,
+        );
+      }
+
+      if (event.request.toJson().isNotEmpty) {
+        updated = await _profileRepository.updateMyProfile(event.request);
+      }
+
       emit(
         ProfileMutationSuccess(
           data: updated,

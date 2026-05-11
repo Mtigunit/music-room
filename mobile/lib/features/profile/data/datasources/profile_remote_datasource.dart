@@ -15,6 +15,8 @@ abstract class IProfileRemoteDataSource {
 
   Future<UserProfileModel> updateMyProfile(ProfileUpdateRequest request);
 
+  Future<UserProfileModel> updateMyUsername(String username);
+
   Future<UserProfileModel> uploadMyAvatar({
     required String filePath,
     required String fileName,
@@ -92,6 +94,28 @@ class ProfileRemoteDataSource implements IProfileRemoteDataSource {
       throw DioException(
         requestOptions: RequestOptions(
           path: '${AppConfig.myProfileEndpoint}/profile',
+        ),
+        error: error,
+      );
+    }
+  }
+
+  @override
+  Future<UserProfileModel> updateMyUsername(String username) async {
+    try {
+      const endpoint = '${AppConfig.myProfileEndpoint}/username';
+      final response = await _apiClient.patch<Map<String, dynamic>>(
+        endpoint,
+        data: <String, dynamic>{'username': username},
+      );
+
+      return _parseProfileResponse(response, endpoint);
+    } on DioException {
+      rethrow;
+    } on Object catch (error) {
+      throw DioException(
+        requestOptions: RequestOptions(
+          path: '${AppConfig.myProfileEndpoint}/username',
         ),
         error: error,
       );
