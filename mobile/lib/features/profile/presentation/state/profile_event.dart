@@ -27,6 +27,24 @@ class ProfileRefreshRequested extends ProfileEvent {
   List<Object?> get props => [userId];
 }
 
+class ProfileFollowRequested extends ProfileEvent {
+  const ProfileFollowRequested({required this.userId});
+
+  final String userId;
+
+  @override
+  List<Object?> get props => [userId];
+}
+
+class ProfileUnfollowRequested extends ProfileEvent {
+  const ProfileUnfollowRequested({required this.userId});
+
+  final String userId;
+
+  @override
+  List<Object?> get props => [userId];
+}
+
 class ProfileEditSubmitted extends ProfileEvent {
   const ProfileEditSubmitted({required this.request});
 

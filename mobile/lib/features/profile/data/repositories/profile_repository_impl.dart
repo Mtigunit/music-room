@@ -78,6 +78,18 @@ class ProfileRepositoryImpl implements ProfileRepository {
   }
 
   @override
+  Future<ProfilePageData> followUser(String userId) async {
+    await _remoteDataSource.followUser(userId);
+    return loadUserProfilePage(userId);
+  }
+
+  @override
+  Future<ProfilePageData> unfollowUser(String userId) async {
+    await _remoteDataSource.unfollowUser(userId);
+    return loadUserProfilePage(userId);
+  }
+
+  @override
   Future<ProfilePageData> updateMyProfile(ProfileUpdateRequest request) async {
     await _remoteDataSource.updateMyProfile(request);
     return loadMyProfilePage();

@@ -106,6 +106,9 @@ class _ProfilePageBody extends StatelessWidget {
       data: profileData,
       isBusy: isBusy,
       busyLabel: state is ProfileMutationInProgress ? state.message : null,
+      onFollowProfile: profileData.profile.isSelf
+          ? null
+          : () => _handleFollowAction(context, profileData.profile),
       onEditProfile: profileData.profile.isSelf
           ? () => _showEditSheet(context, profileData.profile)
           : null,
@@ -151,6 +154,21 @@ class _ProfilePageBody extends StatelessWidget {
         }
       },
     );
+  }
+
+  void _handleFollowAction(
+    BuildContext context,
+    UserProfileEntity profile,
+  ) {
+    final bloc = context.read<ProfileBloc>();
+    final isFollowing = profile.isFriend || profile.isFollowing;
+
+    if (isFollowing) {
+      bloc.add(ProfileUnfollowRequested(userId: profile.id));
+      return;
+    }
+
+    bloc.add(ProfileFollowRequested(userId: profile.id));
   }
 
   ProfilePageData? _profileDataFromState(ProfileState state) {
