@@ -1,3 +1,4 @@
+import 'package:music_room/core/services/theme_preference_service.dart';
 import 'package:music_room/features/events/data/datasources/event_remote_datasource.dart';
 import 'package:music_room/features/playlist/data/datasources/playlist_remote_datasource.dart';
 import 'package:music_room/features/playlist/domain/entities/playlist_entity.dart';
@@ -11,13 +12,16 @@ class ProfileRepositoryImpl implements ProfileRepository {
     required IProfileRemoteDataSource remoteDataSource,
     required IEventRemoteDataSource eventRemoteDataSource,
     required IPlaylistRemoteDataSource playlistRemoteDataSource,
+    required ThemePreferenceService themePreferenceService,
   }) : _remoteDataSource = remoteDataSource,
        _eventRemoteDataSource = eventRemoteDataSource,
-       _playlistRemoteDataSource = playlistRemoteDataSource;
+       _playlistRemoteDataSource = playlistRemoteDataSource,
+       _themePreferenceService = themePreferenceService;
 
   final IProfileRemoteDataSource _remoteDataSource;
   final IEventRemoteDataSource _eventRemoteDataSource;
   final IPlaylistRemoteDataSource _playlistRemoteDataSource;
+  final ThemePreferenceService _themePreferenceService;
 
   @override
   Future<ProfilePageData> loadMyProfilePage() async {
@@ -38,20 +42,24 @@ class ProfileRepositoryImpl implements ProfileRepository {
     final hostedRooms = await hostedRoomsFuture;
     final playlists = await playlistsFuture;
 
+    await _syncThemePreference(profile);
+
+    final hostedProfileRooms = hostedRooms
+        .map(
+          (event) => ProfileRoomEntity(
+            id: event.id,
+            name: event.name,
+            status: event.status,
+            hostName: event.hostName,
+            membersCount: event.membersCount,
+            thumbnailUrl: event.coverImage,
+          ),
+        )
+        .toList(growable: false);
+
     return ProfilePageData(
       profile: profile,
-      hostedRooms: hostedRooms
-          .map(
-            (event) => ProfileRoomEntity(
-              id: event.id,
-              name: event.name,
-              status: event.status,
-              hostName: event.hostName,
-              membersCount: event.membersCount,
-              thumbnailUrl: event.coverImage,
-            ),
-          )
-          .toList(growable: false),
+      hostedRooms: hostedProfileRooms,
       playlists: playlists,
       followersCount: followersCount,
       followingCount: followingCount,
@@ -105,5 +113,14 @@ class ProfileRepositoryImpl implements ProfileRepository {
       fileName: fileName,
     );
     return loadMyProfilePage();
+  }
+
+  Future<void> _syncThemePreference(UserProfileEntity profile) async {
+    final uiTheme = profile.preferences?['uiTheme'];
+    final themePreference = uiTheme is String ? uiTheme : null;
+    await _themePreferenceService.saveThemePreferenceForUser(
+      profile.id,
+      themePreference,
+    );
   }
 }

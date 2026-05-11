@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/services/onboarding_service.dart';
+import 'package:music_room/core/services/theme_preference_service.dart';
 import 'package:music_room/core/theme/app_theme.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
@@ -20,11 +21,14 @@ class App extends StatefulWidget {
 
 class _AppState extends State<App> {
   late final AuthBloc _authBloc;
+  late final ThemePreferenceService _themePreferenceService;
 
   @override
   void initState() {
     super.initState();
-    _authBloc = InjectionContainer().createAuthBloc();
+    final container = InjectionContainer();
+    _authBloc = container.createAuthBloc();
+    _themePreferenceService = container.themePreferenceService;
     _authBloc.add(const AuthStarted());
   }
 
@@ -38,13 +42,35 @@ class _AppState extends State<App> {
   Widget build(BuildContext context) {
     return BlocProvider<AuthBloc>.value(
       value: _authBloc,
-      child: MaterialApp(
-        onGenerateRoute: AppRouter.onGenerateRoute,
-        theme: AppTheme.lightTheme(),
-        darkTheme: AppTheme.darkTheme(),
-        home: const _StartupRouteGate(),
+      child: AnimatedBuilder(
+        animation: _themePreferenceService,
+        builder: (context, _) {
+          return BlocBuilder<AuthBloc, AuthState>(
+            builder: (context, authState) {
+              return MaterialApp(
+                onGenerateRoute: AppRouter.onGenerateRoute,
+                theme: AppTheme.lightTheme(),
+                darkTheme: AppTheme.darkTheme(),
+                themeMode: _resolveThemeMode(authState),
+                home: const _StartupRouteGate(),
+              );
+            },
+          );
+        },
       ),
     );
+  }
+
+  ThemeMode _resolveThemeMode(AuthState state) {
+    final userId = switch (state) {
+      AuthAuthenticated(:final user) => user.id,
+      LoginSuccess(:final user) => user.id,
+      GoogleLoginSuccess(:final user) => user.id,
+      RegisterSuccess(:final user) => user.id,
+      _ => null,
+    };
+
+    return _themePreferenceService.resolveThemeModeForUser(userId);
   }
 }
 
