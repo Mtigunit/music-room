@@ -524,6 +524,7 @@ export class EventsGateway implements OnGatewayDisconnect {
   )
   async handleDelegationResponse(
     @MessageBody() payload: DelegationResponseDto,
+    @WsUser() user: SocketUser,
     @ClientMeta() meta: ClientMetaDto,
   ) {
     try {
@@ -531,8 +532,12 @@ export class EventsGateway implements OnGatewayDisconnect {
         await this.delegationsRepository.activateById(
           payload.delegationId,
           meta.deviceId,
+          user.id,
         );
-        // return { status: 'accepted' };
+        this.eventEmitter.emit(
+          AUDIT_LOG_EVENT,
+          createAuditLogEvent(user.id, AuditAction.DELEGATION_ACCEPTED, meta),
+        );
       }
     } catch (error: unknown) {
       throw new WsException(

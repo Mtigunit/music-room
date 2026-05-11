@@ -74,18 +74,6 @@ export class DelegationsService {
     };
   }
 
-  async handleResponse(
-    delegationId: string,
-    accept: boolean,
-    deviceId: string,
-  ) {
-    if (accept) {
-      await this.delegationsRepository.activateById(delegationId, deviceId);
-      return { status: 'accepted' };
-    }
-    return { status: 'denied' };
-  }
-
   async revoke(
     eventId: string,
     hostId: string,

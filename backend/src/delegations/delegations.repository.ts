@@ -42,9 +42,9 @@ export class DelegationsRepository {
     });
   }
 
-  async activateById(delegationId: string, deviceId: string) {
+  async activateById(delegationId: string, deviceId: string, userId: string) {
     return this.prisma.controlDelegation.updateMany({
-      where: { id: delegationId, isActive: false },
+      where: { id: delegationId, isActive: false, delegateeId: userId },
       data: { deviceId, isActive: true },
     });
   }

@@ -256,30 +256,4 @@ describe('DelegationsService', () => {
       );
     });
   });
-
-  describe('handleResponse', () => {
-    it('should activate delegation on accept', async () => {
-      const delegationId = 'pending-1';
-      const deviceId = 'device-1';
-      repository.activateById.mockResolvedValue({ count: 1 } as any);
-
-      const result = await service.handleResponse(delegationId, true, deviceId);
-
-      expect(repository.activateById).toHaveBeenCalledWith(
-        delegationId,
-        deviceId,
-      );
-      expect(result).toEqual({ status: 'accepted' });
-    });
-
-    it('should return already_accepted if count is 0 on accept', async () => {
-      const delegationId = 'pending-1';
-      const deviceId = 'device-1';
-      repository.activateById.mockResolvedValue({ count: 0 } as any);
-
-      const result = await service.handleResponse(delegationId, true, deviceId);
-
-      expect(result).toEqual({ status: 'accepted' });
-    });
-  });
 });
