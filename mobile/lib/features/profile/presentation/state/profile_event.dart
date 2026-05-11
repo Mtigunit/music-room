@@ -67,6 +67,14 @@ class ProfilePasswordChangeRequested extends ProfileEvent {
   List<Object?> get props => [currentPassword, newPassword];
 }
 
+class ProfileGoogleLinkRequested extends ProfileEvent {
+  const ProfileGoogleLinkRequested();
+}
+
+class ProfileGoogleUnlinkRequested extends ProfileEvent {
+  const ProfileGoogleUnlinkRequested();
+}
+
 class ProfileAvatarUploadRequested extends ProfileEvent {
   const ProfileAvatarUploadRequested({required this.avatar});
 

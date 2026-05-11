@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:music_room/core/services/google_auth_service.dart';
 import 'package:music_room/features/profile/domain/entities/profile_entity.dart';
 import 'package:music_room/features/profile/domain/repositories/profile_repository.dart';
 import 'package:music_room/features/profile/presentation/state/profile_event.dart';
@@ -15,6 +16,8 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     on<ProfileUnfollowRequested>(_onProfileUnfollowRequested);
     on<ProfileEditSubmitted>(_onProfileEditSubmitted);
     on<ProfilePasswordChangeRequested>(_onProfilePasswordChangeRequested);
+    on<ProfileGoogleLinkRequested>(_onProfileGoogleLinkRequested);
+    on<ProfileGoogleUnlinkRequested>(_onProfileGoogleUnlinkRequested);
     on<ProfileAvatarUploadRequested>(_onProfileAvatarUploadRequested);
   }
 
@@ -284,6 +287,106 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     }
   }
 
+  Future<void> _onProfileGoogleLinkRequested(
+    ProfileGoogleLinkRequested event,
+    Emitter<ProfileState> emit,
+  ) async {
+    final currentData = _currentLoadedData();
+    if (currentData == null || !currentData.profile.isSelf) {
+      return;
+    }
+
+    emit(
+      ProfileGoogleLinkInProgress(
+        data: currentData,
+        message: 'Linking Google account...',
+      ),
+    );
+
+    try {
+      final updated = await _profileRepository.linkMyGoogleAccount(
+        currentData.profile.id,
+      );
+
+      emit(
+        ProfileGoogleLinkSuccess(
+          data: updated,
+          message: 'Google account linked successfully.',
+        ),
+      );
+    } on GoogleAuthException catch (error) {
+      emit(
+        ProfileGoogleLinkFailure(
+          data: currentData,
+          message: error.message,
+        ),
+      );
+    } on DioException catch (error) {
+      emit(
+        ProfileGoogleLinkFailure(
+          data: currentData,
+          message: _buildErrorMessage(
+            error,
+            fallback:
+                'Unable to link Google account right now. Please try again.',
+          ),
+        ),
+      );
+    } on Object {
+      emit(
+        ProfileGoogleLinkFailure(
+          data: currentData,
+          message: 'Unable to link Google account right now. Please try again.',
+        ),
+      );
+    }
+  }
+
+  Future<void> _onProfileGoogleUnlinkRequested(
+    ProfileGoogleUnlinkRequested event,
+    Emitter<ProfileState> emit,
+  ) async {
+    final currentData = _currentLoadedData();
+    if (currentData == null || !currentData.profile.isSelf) {
+      return;
+    }
+
+    emit(
+      ProfileGoogleUnlinkInProgress(
+        data: currentData,
+        message: 'Removing Google account link...',
+      ),
+    );
+
+    try {
+      final updated = await _profileRepository.unlinkMyGoogleAccount(
+        currentData.profile.id,
+      );
+
+      emit(
+        ProfileGoogleUnlinkSuccess(
+          data: updated,
+          message: 'Google account unlinked successfully.',
+        ),
+      );
+    } on DioException catch (error) {
+      emit(
+        ProfileGoogleUnlinkFailure(
+          data: currentData,
+          message: _buildGoogleUnlinkErrorMessage(error),
+        ),
+      );
+    } on Object {
+      emit(
+        ProfileGoogleUnlinkFailure(
+          data: currentData,
+          message:
+              'Unable to unlink Google account right now. Please try again.',
+        ),
+      );
+    }
+  }
+
   ProfilePageData? _currentLoadedData() {
     final currentState = state;
     if (currentState is ProfileLoaded) {
@@ -305,6 +408,24 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
       return currentState.data;
     }
     if (currentState is ProfilePasswordChangeFailure) {
+      return currentState.data;
+    }
+    if (currentState is ProfileGoogleLinkInProgress) {
+      return currentState.data;
+    }
+    if (currentState is ProfileGoogleLinkSuccess) {
+      return currentState.data;
+    }
+    if (currentState is ProfileGoogleLinkFailure) {
+      return currentState.data;
+    }
+    if (currentState is ProfileGoogleUnlinkInProgress) {
+      return currentState.data;
+    }
+    if (currentState is ProfileGoogleUnlinkSuccess) {
+      return currentState.data;
+    }
+    if (currentState is ProfileGoogleUnlinkFailure) {
       return currentState.data;
     }
     return null;
@@ -357,6 +478,30 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
 
   String _unfollowSuccessMessage(UserProfileEntity profile) {
     return 'You unfollowed ${profile.username}.';
+  }
+
+  String _buildGoogleUnlinkErrorMessage(DioException error) {
+    final statusCode = error.response?.statusCode;
+    final responseData = error.response?.data;
+
+    final extractedMessage = _extractErrorMessage(responseData);
+    if (extractedMessage != null) {
+      return extractedMessage;
+    }
+
+    if (statusCode == 400) {
+      return 'Cannot unlink without a password set.';
+    }
+
+    if (statusCode == 404) {
+      return 'User not found.';
+    }
+
+    if (statusCode == 401) {
+      return 'Your session expired. Please sign in again.';
+    }
+
+    return 'Unable to unlink Google account right now. Please try again.';
   }
 
   String? _extractErrorMessage(dynamic responseData) {

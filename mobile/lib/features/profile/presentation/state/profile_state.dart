@@ -94,6 +94,84 @@ class ProfilePasswordChangeFailure extends ProfileState {
   List<Object?> get props => [data, message];
 }
 
+class ProfileGoogleLinkInProgress extends ProfileState {
+  const ProfileGoogleLinkInProgress({
+    required this.data,
+    required this.message,
+  });
+
+  final ProfilePageData data;
+  final String message;
+
+  @override
+  List<Object?> get props => [data, message];
+}
+
+class ProfileGoogleLinkSuccess extends ProfileState {
+  const ProfileGoogleLinkSuccess({
+    required this.data,
+    required this.message,
+  });
+
+  final ProfilePageData data;
+  final String message;
+
+  @override
+  List<Object?> get props => [data, message];
+}
+
+class ProfileGoogleLinkFailure extends ProfileState {
+  const ProfileGoogleLinkFailure({
+    required this.data,
+    required this.message,
+  });
+
+  final ProfilePageData data;
+  final String message;
+
+  @override
+  List<Object?> get props => [data, message];
+}
+
+class ProfileGoogleUnlinkInProgress extends ProfileState {
+  const ProfileGoogleUnlinkInProgress({
+    required this.data,
+    required this.message,
+  });
+
+  final ProfilePageData data;
+  final String message;
+
+  @override
+  List<Object?> get props => [data, message];
+}
+
+class ProfileGoogleUnlinkSuccess extends ProfileState {
+  const ProfileGoogleUnlinkSuccess({
+    required this.data,
+    required this.message,
+  });
+
+  final ProfilePageData data;
+  final String message;
+
+  @override
+  List<Object?> get props => [data, message];
+}
+
+class ProfileGoogleUnlinkFailure extends ProfileState {
+  const ProfileGoogleUnlinkFailure({
+    required this.data,
+    required this.message,
+  });
+
+  final ProfilePageData data;
+  final String message;
+
+  @override
+  List<Object?> get props => [data, message];
+}
+
 class ProfileError extends ProfileState {
   const ProfileError({required this.message});
 

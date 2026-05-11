@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/widgets/app_back_button.dart';
 import 'package:music_room/core/widgets/app_button.dart';
+import 'package:music_room/core/widgets/confirmation_dialog.dart';
 import 'package:music_room/core/widgets/form_input_decoration.dart';
 import 'package:music_room/core/widgets/form_section_label.dart';
 import 'package:music_room/core/widgets/form_toggle_row.dart';
@@ -91,10 +92,17 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
     return SafeArea(
       child: BlocListener<ProfileBloc, ProfileState>(
         listenWhen: (previous, current) =>
-            current is ProfilePasswordChangeSuccess,
+            current is ProfilePasswordChangeSuccess ||
+            current is ProfileGoogleLinkSuccess ||
+            current is ProfileGoogleUnlinkSuccess,
         listener: (context, state) {
           if (state is ProfilePasswordChangeSuccess) {
             _clearSecurityForm();
+          }
+
+          if (state is ProfileGoogleLinkSuccess ||
+              state is ProfileGoogleUnlinkSuccess) {
+            setState(() {});
           }
         },
         child: SingleChildScrollView(
@@ -342,9 +350,20 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
                   buildWhen: (previous, current) =>
                       current is ProfilePasswordChangeInProgress ||
                       current is ProfilePasswordChangeSuccess ||
-                      current is ProfilePasswordChangeFailure,
+                      current is ProfilePasswordChangeFailure ||
+                      current is ProfileGoogleLinkInProgress ||
+                      current is ProfileGoogleLinkSuccess ||
+                      current is ProfileGoogleLinkFailure ||
+                      current is ProfileGoogleUnlinkInProgress ||
+                      current is ProfileGoogleUnlinkSuccess ||
+                      current is ProfileGoogleUnlinkFailure,
                   builder: (context, state) {
-                    final isLoading = state is ProfilePasswordChangeInProgress;
+                    final isPasswordLoading =
+                        state is ProfilePasswordChangeInProgress;
+                    final isGoogleLinkLoading =
+                        state is ProfileGoogleLinkInProgress ||
+                        state is ProfileGoogleUnlinkInProgress;
+                    final googleLinkStatus = _googleLinkStatusFromState(state);
 
                     return _buildSectionCard(
                       context: context,
@@ -358,7 +377,7 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
                             label: 'Current password',
                             hintText: 'Enter current password',
                             obscureText: _obscureCurrentPassword,
-                            enabled: !isLoading,
+                            enabled: !isPasswordLoading,
                             textInputAction: TextInputAction.next,
                             validator: _validateCurrentPassword,
                             onToggleVisibility: () {
@@ -374,7 +393,7 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
                             label: 'New password',
                             hintText: 'Enter a new password',
                             obscureText: _obscureNewPassword,
-                            enabled: !isLoading,
+                            enabled: !isPasswordLoading,
                             textInputAction: TextInputAction.next,
                             validator: _validateNewPassword,
                             onChanged: (_) {
@@ -394,7 +413,7 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
                             label: 'Confirm new password',
                             hintText: 'Repeat the new password',
                             obscureText: _obscureConfirmPassword,
-                            enabled: !isLoading,
+                            enabled: !isPasswordLoading,
                             textInputAction: TextInputAction.done,
                             validator: _validateConfirmPassword,
                             onFieldSubmitted: (_) => _handlePasswordChange(),
@@ -409,11 +428,31 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
                           SizedBox(
                             width: double.infinity,
                             child: AppButton(
-                              onPressed: isLoading
+                              onPressed: isPasswordLoading
                                   ? null
                                   : _handlePasswordChange,
-                              isLoading: isLoading,
+                              isLoading: isPasswordLoading,
                               label: 'Change password',
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 14,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(height: 20),
+                          _GoogleLinkStatusCard(
+                            status: googleLinkStatus,
+                          ),
+                          const SizedBox(height: 14),
+                          SizedBox(
+                            width: double.infinity,
+                            child: AppButton(
+                              onPressed: isGoogleLinkLoading
+                                  ? null
+                                  : _handleGoogleAccountLink,
+                              isLoading: isGoogleLinkLoading,
+                              label: googleLinkStatus == GoogleLinkStatus.linked
+                                  ? 'Remove Google Link'
+                                  : 'Link Google account',
                               padding: const EdgeInsets.symmetric(
                                 vertical: 14,
                               ),
@@ -549,6 +588,37 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
     );
   }
 
+  Future<void> _handleGoogleAccountLink() async {
+    final status = _googleLinkStatusFromState(
+      context.read<ProfileBloc>().state,
+    );
+
+    if (status == GoogleLinkStatus.linked) {
+      await _confirmGoogleUnlink();
+      return;
+    }
+
+    context.read<ProfileBloc>().add(const ProfileGoogleLinkRequested());
+  }
+
+  Future<void> _confirmGoogleUnlink() async {
+    final confirmed = await showAppConfirmationDialog(
+      context: context,
+      title: 'Unlink Google Account?',
+      message:
+          'This will remove the Google connection from your account.\n\n'
+          'You can link it again later from this screen.',
+      confirmLabel: 'Remove Link',
+      cancelLabel: 'Keep Linked',
+      icon: Icons.link_off_rounded,
+      variant: ConfirmationDialogVariant.destructive,
+    );
+
+    if (confirmed == true && mounted) {
+      context.read<ProfileBloc>().add(const ProfileGoogleUnlinkRequested());
+    }
+  }
+
   void _clearSecurityForm() {
     if (!mounted) {
       return;
@@ -648,6 +718,49 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
     return value as bool? ?? false;
   }
 
+  GoogleLinkStatus _googleLinkStatusFromState(ProfileState state) {
+    if (state is ProfileLoaded) {
+      return state.data.profile.googleLinkStatus;
+    }
+    if (state is ProfileMutationInProgress) {
+      return state.data.profile.googleLinkStatus;
+    }
+    if (state is ProfileMutationSuccess) {
+      return state.data.profile.googleLinkStatus;
+    }
+    if (state is ProfileMutationFailure) {
+      return state.data.profile.googleLinkStatus;
+    }
+    if (state is ProfilePasswordChangeInProgress) {
+      return state.data.profile.googleLinkStatus;
+    }
+    if (state is ProfilePasswordChangeSuccess) {
+      return state.data.profile.googleLinkStatus;
+    }
+    if (state is ProfilePasswordChangeFailure) {
+      return state.data.profile.googleLinkStatus;
+    }
+    if (state is ProfileGoogleLinkInProgress) {
+      return state.data.profile.googleLinkStatus;
+    }
+    if (state is ProfileGoogleLinkSuccess) {
+      return state.data.profile.googleLinkStatus;
+    }
+    if (state is ProfileGoogleLinkFailure) {
+      return state.data.profile.googleLinkStatus;
+    }
+    if (state is ProfileGoogleUnlinkInProgress) {
+      return state.data.profile.googleLinkStatus;
+    }
+    if (state is ProfileGoogleUnlinkSuccess) {
+      return state.data.profile.googleLinkStatus;
+    }
+    if (state is ProfileGoogleUnlinkFailure) {
+      return state.data.profile.googleLinkStatus;
+    }
+    return widget.profile.googleLinkStatus;
+  }
+
   String? _validateUsername(String? value) {
     final trimmed = value?.trim() ?? '';
     if (trimmed.isEmpty) {
@@ -661,5 +774,89 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
       return 'Use only letters, numbers, and underscores';
     }
     return null;
+  }
+}
+
+class _GoogleLinkStatusCard extends StatelessWidget {
+  const _GoogleLinkStatusCard({required this.status});
+
+  final GoogleLinkStatus status;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    final icon = switch (status) {
+      GoogleLinkStatus.linked => Icons.link_rounded,
+      GoogleLinkStatus.unlinked => Icons.link_off_rounded,
+      GoogleLinkStatus.unknown => Icons.help_outline_rounded,
+    };
+
+    final label = switch (status) {
+      GoogleLinkStatus.linked => 'Linked',
+      GoogleLinkStatus.unlinked => 'Not linked',
+      GoogleLinkStatus.unknown => 'Status unavailable',
+    };
+
+    final helper = switch (status) {
+      GoogleLinkStatus.linked =>
+        'Your account has an active Google sign-in link.',
+      GoogleLinkStatus.unlinked => 'No Google account is currently linked.',
+      GoogleLinkStatus.unknown =>
+        'This app cannot fetch Google link status from the server.',
+    };
+
+    final accent = switch (status) {
+      GoogleLinkStatus.linked => colorScheme.primary,
+      GoogleLinkStatus.unlinked => colorScheme.error,
+      GoogleLinkStatus.unknown => colorScheme.secondary,
+    };
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: accent.withValues(alpha: 0.35)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 32,
+            height: 32,
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.14),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, size: 18, color: accent),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Google account: $label',
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: colorScheme.onSurface,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  helper,
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }

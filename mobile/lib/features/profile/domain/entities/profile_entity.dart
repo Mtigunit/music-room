@@ -1,6 +1,12 @@
 import 'package:equatable/equatable.dart';
 import 'package:music_room/features/playlist/domain/entities/playlist_entity.dart';
 
+enum GoogleLinkStatus {
+  unknown,
+  linked,
+  unlinked,
+}
+
 class ProfileRoomEntity extends Equatable {
   const ProfileRoomEntity({
     required this.id,
@@ -46,6 +52,7 @@ class UserProfileEntity extends Equatable {
     this.isFollowing = false,
     this.isFollowedBy = false,
     this.isFriend = false,
+    this.googleLinkStatus = GoogleLinkStatus.unknown,
   });
 
   final String id;
@@ -62,6 +69,27 @@ class UserProfileEntity extends Equatable {
   final bool isFollowing;
   final bool isFollowedBy;
   final bool isFriend;
+  final GoogleLinkStatus googleLinkStatus;
+
+  UserProfileEntity copyWith({
+    GoogleLinkStatus? googleLinkStatus,
+  }) {
+    return UserProfileEntity(
+      id: id,
+      username: username,
+      subscriptionTier: subscriptionTier,
+      email: email,
+      avatarUrl: avatarUrl,
+      publicInfo: publicInfo,
+      friendInfo: friendInfo,
+      privateInfo: privateInfo,
+      preferences: preferences,
+      isFollowing: isFollowing,
+      isFollowedBy: isFollowedBy,
+      isFriend: isFriend,
+      googleLinkStatus: googleLinkStatus ?? this.googleLinkStatus,
+    );
+  }
 
   /// Get short bio from publicInfo if available
   String? get shortBio {
@@ -88,6 +116,7 @@ class UserProfileEntity extends Equatable {
     isFollowing,
     isFollowedBy,
     isFriend,
+    googleLinkStatus,
   ];
 }
 
