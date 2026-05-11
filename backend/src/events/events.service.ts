@@ -566,7 +566,7 @@ export class EventsService {
       );
       if (!delegation) {
         throw new ForbiddenException(
-          'You are not perrmitted to control playback',
+          'You are not permitted to control playback',
         );
       }
       if (deviceId && delegation.deviceId !== deviceId) {
