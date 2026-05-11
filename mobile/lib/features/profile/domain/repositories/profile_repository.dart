@@ -14,6 +14,8 @@ abstract class ProfileRepository {
 
   Future<ProfilePageData> updateMyProfile(ProfileUpdateRequest request);
 
+  Future<ProfilePageData> updateMyUsername(String username);
+
   Future<ProfilePageData> uploadMyAvatar(
     String filePath,
     String fileName,

@@ -104,6 +104,12 @@ class ProfileRepositoryImpl implements ProfileRepository {
   }
 
   @override
+  Future<ProfilePageData> updateMyUsername(String username) async {
+    await _remoteDataSource.updateMyUsername(username);
+    return loadMyProfilePage();
+  }
+
+  @override
   Future<ProfilePageData> uploadMyAvatar(
     String filePath,
     String fileName,
