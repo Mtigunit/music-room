@@ -61,5 +61,6 @@ import { DelegationsModule } from '../delegations/delegations.module';
   ],
   controllers: [EventsController],
   providers: [EventsService, EventsRepository, EventsGateway, EventsProcessor],
+  exports: [EventsRepository],
 })
 export class EventsModule {}

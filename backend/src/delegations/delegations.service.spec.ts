@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { DelegationsService } from './delegations.service';
 import { DelegationsRepository } from './delegations.repository';
-import { PrismaService } from '../prisma/prisma.service';
+import { UserRepository } from '../users/user.repository';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
   ForbiddenException,
@@ -14,7 +14,7 @@ import { INTERNAL_EVENTS } from '../events/events.constants';
 describe('DelegationsService', () => {
   let service: DelegationsService;
   let repository: jest.Mocked<DelegationsRepository>;
-  let prisma: jest.Mocked<PrismaService>;
+  let userRepository: jest.Mocked<UserRepository>;
   let eventEmitter: jest.Mocked<EventEmitter2>;
 
   const mockMeta = {
@@ -31,6 +31,7 @@ describe('DelegationsService', () => {
         {
           provide: DelegationsRepository,
           useValue: {
+            findEventById: jest.fn(),
             findActive: jest.fn(),
             createPending: jest.fn(),
             deletePending: jest.fn(),
@@ -41,14 +42,9 @@ describe('DelegationsService', () => {
           },
         },
         {
-          provide: PrismaService,
+          provide: UserRepository,
           useValue: {
-            event: {
-              findUnique: jest.fn(),
-            },
-            user: {
-              findUnique: jest.fn(),
-            },
+            findById: jest.fn(),
           },
         },
         {
@@ -60,7 +56,7 @@ describe('DelegationsService', () => {
 
     service = module.get<DelegationsService>(DelegationsService);
     repository = module.get(DelegationsRepository);
-    prisma = module.get(PrismaService);
+    userRepository = module.get(UserRepository);
     eventEmitter = module.get(EventEmitter2);
   });
 
@@ -74,20 +70,17 @@ describe('DelegationsService', () => {
       const hostId = 'host-1';
       const delegateeId = 'user-2';
 
-      jest.spyOn(prisma.event, 'findUnique').mockResolvedValue({
+      repository.findEventById.mockResolvedValue({
         id: eventId,
         hostId,
+        name: 'Test Event',
       } as any);
-      jest.spyOn(prisma.user, 'findUnique').mockResolvedValue({
+      userRepository.findById.mockResolvedValue({
         id: delegateeId,
+        username: 'testuser',
       } as any);
-      jest.spyOn(repository, 'findActive').mockResolvedValue(null);
-      jest
-        .spyOn(repository, 'deletePending')
-        .mockResolvedValue({ count: 0 } as any);
-      jest
-        .spyOn(repository, 'createPending')
-        .mockResolvedValue({ id: 'pending-1' } as any);
+      repository.findActive.mockResolvedValue(null);
+      repository.createPending.mockResolvedValue({ id: 'pending-1' } as any);
 
       const result = await service.grant(
         eventId,
@@ -102,7 +95,11 @@ describe('DelegationsService', () => {
       );
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         INTERNAL_EVENTS.DELEGATION_INVITE_SENT,
-        { eventId, delegateeId, delegationId: 'pending-1' },
+        expect.objectContaining({
+          eventId,
+          delegateeId,
+          delegationId: 'pending-1',
+        }),
       );
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         AUDIT_LOG_EVENT,
@@ -119,16 +116,12 @@ describe('DelegationsService', () => {
       const hostId = 'host-1';
       const delegateeId = 'user-2';
 
-      jest.spyOn(prisma.event, 'findUnique').mockResolvedValue({
+      repository.findEventById.mockResolvedValue({
         id: eventId,
         hostId,
       } as any);
-      jest
-        .spyOn(prisma.user, 'findUnique')
-        .mockResolvedValue({ id: delegateeId } as any);
-      jest
-        .spyOn(repository, 'findActive')
-        .mockResolvedValue({ id: 'active-1' } as any);
+      userRepository.findById.mockResolvedValue({ id: delegateeId } as any);
+      repository.findActive.mockResolvedValue({ id: 'active-1' } as any);
 
       await expect(
         service.grant(eventId, hostId, delegateeId, mockMeta),
@@ -140,7 +133,7 @@ describe('DelegationsService', () => {
       const hostId = 'user-2';
       const delegateeId = 'user-3';
 
-      jest.spyOn(prisma.event, 'findUnique').mockResolvedValue({
+      repository.findEventById.mockResolvedValue({
         id: eventId,
         hostId: 'host-1',
       } as any);
@@ -154,7 +147,7 @@ describe('DelegationsService', () => {
       const eventId = 'event-1';
       const hostId = 'host-1';
 
-      jest.spyOn(prisma.event, 'findUnique').mockResolvedValue({
+      repository.findEventById.mockResolvedValue({
         id: eventId,
         hostId,
       } as any);
@@ -165,7 +158,7 @@ describe('DelegationsService', () => {
     });
 
     it('should throw NotFoundException when event does not exist', async () => {
-      jest.spyOn(prisma.event, 'findUnique').mockResolvedValue(null);
+      repository.findEventById.mockResolvedValue(null);
 
       await expect(
         service.grant('event-1', 'host-1', 'user-2', mockMeta),
@@ -177,11 +170,11 @@ describe('DelegationsService', () => {
       const hostId = 'host-1';
       const delegateeId = 'user-2';
 
-      jest.spyOn(prisma.event, 'findUnique').mockResolvedValue({
+      repository.findEventById.mockResolvedValue({
         id: eventId,
         hostId,
       } as any);
-      jest.spyOn(prisma.user, 'findUnique').mockResolvedValue(null);
+      userRepository.findById.mockResolvedValue(null);
 
       await expect(
         service.grant(eventId, hostId, delegateeId, mockMeta),
@@ -195,11 +188,11 @@ describe('DelegationsService', () => {
       const hostId = 'host-1';
       const delegateeId = 'user-2';
 
-      jest.spyOn(prisma.event, 'findUnique').mockResolvedValue({
+      repository.findEventById.mockResolvedValue({
         id: eventId,
         hostId,
       } as any);
-      jest.spyOn(repository, 'revoke').mockResolvedValue({ count: 1 } as any);
+      repository.revoke.mockResolvedValue({ count: 1 } as any);
 
       const result = await service.revoke(
         eventId,
@@ -220,7 +213,7 @@ describe('DelegationsService', () => {
       const hostId = 'user-2';
       const delegateeId = 'user-3';
 
-      jest.spyOn(prisma.event, 'findUnique').mockResolvedValue({
+      repository.findEventById.mockResolvedValue({
         id: eventId,
         hostId: 'host-1',
       } as any);
@@ -239,13 +232,11 @@ describe('DelegationsService', () => {
         { id: 'del-1', delegateeId: 'user-2', isActive: true },
       ];
 
-      jest.spyOn(prisma.event, 'findUnique').mockResolvedValue({
+      repository.findEventById.mockResolvedValue({
         id: eventId,
         hostId,
       } as any);
-      jest
-        .spyOn(repository, 'findByEventId')
-        .mockResolvedValue(mockDelegations as any);
+      repository.findByEventId.mockResolvedValue(mockDelegations as any);
 
       const result = await service.list(eventId, hostId);
 
@@ -256,7 +247,7 @@ describe('DelegationsService', () => {
       const eventId = 'event-1';
       const hostId = 'user-2';
 
-      jest.spyOn(prisma.event, 'findUnique').mockResolvedValue({
+      repository.findEventById.mockResolvedValue({
         id: eventId,
         hostId: 'host-1',
       } as any);
@@ -271,9 +262,7 @@ describe('DelegationsService', () => {
     it('should activate delegation on accept', async () => {
       const delegationId = 'pending-1';
       const deviceId = 'device-1';
-      jest
-        .spyOn(repository, 'activateById')
-        .mockResolvedValue({ count: 1 } as any);
+      repository.activateById.mockResolvedValue({ count: 1 } as any);
 
       const result = await service.handleResponse(delegationId, true, deviceId);
 
@@ -287,9 +276,7 @@ describe('DelegationsService', () => {
     it('should return already_accepted if count is 0 on accept', async () => {
       const delegationId = 'pending-1';
       const deviceId = 'device-1';
-      jest
-        .spyOn(repository, 'activateById')
-        .mockResolvedValue({ count: 0 } as any);
+      repository.activateById.mockResolvedValue({ count: 0 } as any);
 
       const result = await service.handleResponse(delegationId, true, deviceId);
 

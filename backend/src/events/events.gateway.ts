@@ -36,8 +36,7 @@ import { AUDIT_LOG_EVENT, AuditAction } from '../audit-log/audit-log.constants';
 import { createAuditLogEvent } from '../audit-log/audit-log.event';
 import { ClientMeta } from '../common/decorators/client-meta.decorator';
 import { ClientMetaDto } from '../common/dto/client-meta.dto';
-
-import { DelegationsService } from '../delegations/delegations.service';
+import { DelegationsRepository } from '../delegations/delegations.repository';
 import { DelegationResponseDto } from '../delegations/dto/delegation-response.dto';
 import { INTERNAL_EVENTS } from './events.constants';
 
@@ -58,7 +57,7 @@ export class EventsGateway implements OnGatewayDisconnect {
     @Inject(forwardRef(() => EventsService))
     private readonly eventsService: EventsService,
     private readonly eventsRepository: EventsRepository,
-    private readonly delegationsService: DelegationsService,
+    private readonly delegationsRepository: DelegationsRepository,
   ) {}
 
   private getRoomCount(roomName: string): number {
@@ -516,16 +515,17 @@ export class EventsGateway implements OnGatewayDisconnect {
     @ClientMeta() meta: ClientMetaDto,
   ) {
     try {
-      const result = await this.delegationsService.handleResponse(
-        payload.delegationId,
-        payload.accept,
-        meta.deviceId,
-      );
-      return { event: 'delegation_response', ...result };
+      if (payload.accept) {
+        await this.delegationsRepository.activateById(
+          payload.delegationId,
+          meta.deviceId,
+        );
+        // return { status: 'accepted' };
+      }
     } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : 'Unknown error';
-      throw new WsException(errorMessage);
+      throw new WsException(
+        error instanceof Error ? error.message : 'Unknown error',
+      );
     }
   }
 }

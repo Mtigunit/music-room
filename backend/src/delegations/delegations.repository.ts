@@ -93,4 +93,8 @@ export class DelegationsRepository {
       data: { isActive: false },
     });
   }
+
+  async findEventById(eventId: string) {
+    return this.prisma.event.findUnique({ where: { id: eventId } });
+  }
 }
