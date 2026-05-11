@@ -55,6 +55,45 @@ class ProfileMutationFailure extends ProfileState {
   List<Object?> get props => [data, message];
 }
 
+class ProfilePasswordChangeInProgress extends ProfileState {
+  const ProfilePasswordChangeInProgress({
+    required this.data,
+    required this.message,
+  });
+
+  final ProfilePageData data;
+  final String message;
+
+  @override
+  List<Object?> get props => [data, message];
+}
+
+class ProfilePasswordChangeSuccess extends ProfileState {
+  const ProfilePasswordChangeSuccess({
+    required this.data,
+    required this.message,
+  });
+
+  final ProfilePageData data;
+  final String message;
+
+  @override
+  List<Object?> get props => [data, message];
+}
+
+class ProfilePasswordChangeFailure extends ProfileState {
+  const ProfilePasswordChangeFailure({
+    required this.data,
+    required this.message,
+  });
+
+  final ProfilePageData data;
+  final String message;
+
+  @override
+  List<Object?> get props => [data, message];
+}
+
 class ProfileError extends ProfileState {
   const ProfileError({required this.message});
 

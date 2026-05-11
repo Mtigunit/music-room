@@ -17,6 +17,11 @@ abstract class IProfileRemoteDataSource {
 
   Future<UserProfileModel> updateMyUsername(String username);
 
+  Future<UserProfileModel> changeMyPassword({
+    required String currentPassword,
+    required String newPassword,
+  });
+
   Future<UserProfileModel> uploadMyAvatar({
     required String filePath,
     required String fileName,
@@ -116,6 +121,34 @@ class ProfileRemoteDataSource implements IProfileRemoteDataSource {
       throw DioException(
         requestOptions: RequestOptions(
           path: '${AppConfig.myProfileEndpoint}/username',
+        ),
+        error: error,
+      );
+    }
+  }
+
+  @override
+  Future<UserProfileModel> changeMyPassword({
+    required String currentPassword,
+    required String newPassword,
+  }) async {
+    try {
+      const endpoint = '${AppConfig.myProfileEndpoint}/password';
+      final response = await _apiClient.patch<Map<String, dynamic>>(
+        endpoint,
+        data: <String, dynamic>{
+          'currentPassword': currentPassword,
+          'newPassword': newPassword,
+        },
+      );
+
+      return _parseProfileResponse(response, endpoint);
+    } on DioException {
+      rethrow;
+    } on Object catch (error) {
+      throw DioException(
+        requestOptions: RequestOptions(
+          path: '${AppConfig.myProfileEndpoint}/password',
         ),
         error: error,
       );

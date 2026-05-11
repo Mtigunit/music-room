@@ -54,6 +54,19 @@ class ProfileEditSubmitted extends ProfileEvent {
   List<Object?> get props => [request];
 }
 
+class ProfilePasswordChangeRequested extends ProfileEvent {
+  const ProfilePasswordChangeRequested({
+    required this.currentPassword,
+    required this.newPassword,
+  });
+
+  final String currentPassword;
+  final String newPassword;
+
+  @override
+  List<Object?> get props => [currentPassword, newPassword];
+}
+
 class ProfileAvatarUploadRequested extends ProfileEvent {
   const ProfileAvatarUploadRequested({required this.avatar});
 

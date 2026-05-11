@@ -16,6 +16,11 @@ abstract class ProfileRepository {
 
   Future<ProfilePageData> updateMyUsername(String username);
 
+  Future<ProfilePageData> changeMyPassword({
+    required String currentPassword,
+    required String newPassword,
+  });
+
   Future<ProfilePageData> uploadMyAvatar(
     String filePath,
     String fileName,

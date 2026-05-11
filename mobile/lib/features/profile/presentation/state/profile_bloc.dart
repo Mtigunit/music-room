@@ -14,6 +14,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     on<ProfileFollowRequested>(_onProfileFollowRequested);
     on<ProfileUnfollowRequested>(_onProfileUnfollowRequested);
     on<ProfileEditSubmitted>(_onProfileEditSubmitted);
+    on<ProfilePasswordChangeRequested>(_onProfilePasswordChangeRequested);
     on<ProfileAvatarUploadRequested>(_onProfileAvatarUploadRequested);
   }
 
@@ -235,6 +236,54 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     }
   }
 
+  Future<void> _onProfilePasswordChangeRequested(
+    ProfilePasswordChangeRequested event,
+    Emitter<ProfileState> emit,
+  ) async {
+    final currentData = _currentLoadedData();
+    if (currentData == null) {
+      return;
+    }
+
+    emit(
+      ProfilePasswordChangeInProgress(
+        data: currentData,
+        message: 'Changing password...',
+      ),
+    );
+
+    try {
+      final updated = await _profileRepository.changeMyPassword(
+        currentPassword: event.currentPassword,
+        newPassword: event.newPassword,
+      );
+
+      emit(
+        ProfilePasswordChangeSuccess(
+          data: updated,
+          message: 'Password updated successfully.',
+        ),
+      );
+    } on DioException catch (error) {
+      emit(
+        ProfilePasswordChangeFailure(
+          data: currentData,
+          message: _buildErrorMessage(
+            error,
+            fallback: 'Unable to update password right now. Please try again.',
+          ),
+        ),
+      );
+    } on Object {
+      emit(
+        ProfilePasswordChangeFailure(
+          data: currentData,
+          message: 'Unable to update password right now. Please try again.',
+        ),
+      );
+    }
+  }
+
   ProfilePageData? _currentLoadedData() {
     final currentState = state;
     if (currentState is ProfileLoaded) {
@@ -249,10 +298,22 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     if (currentState is ProfileMutationFailure) {
       return currentState.data;
     }
+    if (currentState is ProfilePasswordChangeInProgress) {
+      return currentState.data;
+    }
+    if (currentState is ProfilePasswordChangeSuccess) {
+      return currentState.data;
+    }
+    if (currentState is ProfilePasswordChangeFailure) {
+      return currentState.data;
+    }
     return null;
   }
 
-  String _buildErrorMessage(DioException error) {
+  String _buildErrorMessage(
+    DioException error, {
+    String fallback = 'Unable to load profile right now. Please try again.',
+  }) {
     final statusCode = error.response?.statusCode;
     final responseData = error.response?.data;
 
@@ -273,7 +334,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
       return 'You do not have access to this profile.';
     }
 
-    return 'Unable to load profile right now. Please try again.';
+    return fallback;
   }
 
   String _followLoadingMessage(UserProfileEntity profile) {
