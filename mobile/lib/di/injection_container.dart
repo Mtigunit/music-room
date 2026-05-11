@@ -6,6 +6,7 @@ import 'package:music_room/core/realtime/socket_client.dart';
 import 'package:music_room/core/services/client_meta_service.dart';
 import 'package:music_room/core/services/connectivity_service.dart';
 import 'package:music_room/core/services/google_auth_service.dart';
+import 'package:music_room/core/services/theme_preference_service.dart';
 import 'package:music_room/core/services/token_storage_service.dart';
 import 'package:music_room/features/auth/data/datasources/auth_remote_datasource.dart';
 import 'package:music_room/features/auth/data/repositories/auth_repository_impl.dart';
@@ -57,6 +58,7 @@ class InjectionContainer {
   late MusicVoteRepository _musicVoteRepository;
   late IProfileRemoteDataSource _profileRemoteDataSource;
   late ProfileRepository _profileRepository;
+  late ThemePreferenceService _themePreferenceService;
 
   /// Initialize all dependencies
   Future<void> init() async {
@@ -69,6 +71,9 @@ class InjectionContainer {
     final sharedPreferences = await SharedPreferences.getInstance();
     _connectivityService = ConnectivityService();
     _clientMetaService = ClientMetaService(
+      sharedPreferences: sharedPreferences,
+    );
+    _themePreferenceService = ThemePreferenceService(
       sharedPreferences: sharedPreferences,
     );
 
@@ -102,6 +107,7 @@ class InjectionContainer {
       remoteDataSource: _profileRemoteDataSource,
       eventRemoteDataSource: _eventRemoteDataSource,
       playlistRemoteDataSource: _playlistRemoteDataSource,
+      themePreferenceService: _themePreferenceService,
     );
 
     // Repositories
@@ -142,11 +148,13 @@ class InjectionContainer {
   IProfileRemoteDataSource get profileRemoteDataSource =>
       _profileRemoteDataSource;
   ProfileRepository get profileRepository => _profileRepository;
+  ThemePreferenceService get themePreferenceService => _themePreferenceService;
 
   AuthBloc createAuthBloc() {
     return AuthBloc(
       authRepository: _authRepository,
       apiClient: _apiClient,
+      profileRepository: _profileRepository,
     );
   }
 
