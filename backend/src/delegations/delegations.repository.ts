@@ -52,12 +52,6 @@ export class DelegationsRepository {
     });
   }
 
-  async deleteById(delegationId: string) {
-    return this.prisma.controlDelegation.delete({
-      where: { id: delegationId, isActive: false },
-    });
-  }
-
   async findPendingById(delegateeId: string, eventId: string) {
     return this.prisma.controlDelegation.findUnique({
       where: {

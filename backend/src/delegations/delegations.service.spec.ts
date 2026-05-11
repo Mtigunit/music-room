@@ -36,7 +36,6 @@ describe('DelegationsService', () => {
             createPending: jest.fn(),
             deletePending: jest.fn(),
             activateById: jest.fn(),
-            deleteById: jest.fn(),
             revoke: jest.fn(),
             findByEventId: jest.fn(),
           },
