@@ -17,6 +17,7 @@ import { Tags } from '@prisma/client';
 export enum UiTheme {
   LIGHT = 'LIGHT',
   DARK = 'DARK',
+  SYSTEM = 'SYSTEM',
 }
 
 export class PublicInfoDto {
