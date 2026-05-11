@@ -423,6 +423,10 @@ export class EventsGateway implements OnGatewayDisconnect {
         user.id,
         meta.deviceId,
       );
+      this.eventEmitter.emit(
+        AUDIT_LOG_EVENT,
+        createAuditLogEvent(user.id, AuditAction.DELEGATED_PLAY, meta),
+      );
       return { event: 'playback_play', ...result };
     } catch (error: unknown) {
       const errorMessage =
@@ -443,6 +447,10 @@ export class EventsGateway implements OnGatewayDisconnect {
         payload.eventId,
         user.id,
         meta.deviceId,
+      );
+      this.eventEmitter.emit(
+        AUDIT_LOG_EVENT,
+        createAuditLogEvent(user.id, AuditAction.DELEGATED_PAUSE, meta),
       );
       return { event: 'playback_pause', ...result };
     } catch (error: unknown) {
@@ -465,6 +473,10 @@ export class EventsGateway implements OnGatewayDisconnect {
         user.id,
         payload.trackId ?? null,
         meta.deviceId,
+      );
+      this.eventEmitter.emit(
+        AUDIT_LOG_EVENT,
+        createAuditLogEvent(user.id, AuditAction.DELEGATED_NEXT, meta),
       );
       return { event: 'playback_next', ...result };
     } catch (error: unknown) {

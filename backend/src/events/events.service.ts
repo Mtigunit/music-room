@@ -598,25 +598,6 @@ export class EventsService {
               },
       });
 
-    if (event.hostId !== userId) {
-      this.eventEmitter.emit(
-        AUDIT_LOG_EVENT,
-        createAuditLogEvent(
-          userId,
-          AuditAction.DELEGATED_PLAY,
-          {
-            platform: 'unknown',
-            deviceModel: 'unknown',
-            appVersion: 'unknown',
-          } as ClientMetaDto,
-          {
-            eventId,
-            deviceId,
-          },
-        ),
-      );
-    }
-
     return { status: PlaybackStatus.PLAYING };
   }
 
@@ -664,25 +645,6 @@ export class EventsService {
                 currentTrackStartedAt: null,
               },
       });
-
-    if (event.hostId !== userId) {
-      this.eventEmitter.emit(
-        AUDIT_LOG_EVENT,
-        createAuditLogEvent(
-          userId,
-          AuditAction.DELEGATED_PAUSE,
-          {
-            platform: 'unknown',
-            deviceModel: 'unknown',
-            appVersion: 'unknown',
-          } as ClientMetaDto,
-          {
-            eventId,
-            deviceId,
-          },
-        ),
-      );
-    }
 
     return { status: PlaybackStatus.PAUSED };
   }
@@ -745,25 +707,6 @@ export class EventsService {
           status: PlaybackStatus.PAUSED,
           currentTrack: null,
         });
-    }
-
-    if (event.hostId !== userId) {
-      this.eventEmitter.emit(
-        AUDIT_LOG_EVENT,
-        createAuditLogEvent(
-          userId,
-          AuditAction.DELEGATED_NEXT,
-          {
-            platform: 'unknown',
-            deviceModel: 'unknown',
-            appVersion: 'unknown',
-          } as ClientMetaDto,
-          {
-            eventId,
-            deviceId,
-          },
-        ),
-      );
     }
 
     return { currentTrackId: updatedEvent.currentTrackId };
