@@ -51,6 +51,40 @@ export function getPosition(event: {
   );
 }
 
+/**
+ * Asserts that a user is authorised to control playback for the given event.
+ *
+ * Rules (evaluated in order):
+ *  1. The event host always passes — no DB call is made.
+ *  2. Any other user must hold an active delegation for this event.
+ *  3. When a `deviceId` is supplied the delegation must be bound to that same device.
+ *
+ * @throws ForbiddenException – no active delegation found, or delegation device mismatch.
+ */
+async function checkPlaybackDelegation(
+  eventsRepository: EventsRepository,
+  event: { id: string; hostId: string },
+  userId: string,
+  deviceId?: string,
+): Promise<void> {
+  if (event.hostId === userId) {
+    return;
+  }
+
+  const delegation = await eventsRepository.findActiveDelegation(
+    event.id,
+    userId,
+  );
+
+  if (!delegation) {
+    throw new ForbiddenException('You are not permitted to control playback');
+  }
+
+  if (deviceId && delegation.deviceId !== deviceId) {
+    throw new ForbiddenException('Control delegation not valid on this device');
+  }
+}
+
 @Injectable()
 export class EventsService {
   constructor(
@@ -98,6 +132,7 @@ export class EventsService {
         (t): t is TrackSearchResultDto => t !== null,
       );
     }
+
     const event = await this.eventsRepository.createEvent(
       userId,
       createEventDto,
@@ -156,6 +191,7 @@ export class EventsService {
       currentTrackId,
       ...eventData
     } = event;
+
     if (
       event.visibility === Visibility.PRIVATE &&
       event.hostId !== userId &&
@@ -184,6 +220,7 @@ export class EventsService {
 
     const currentTrack =
       await this.eventsRepository.getCurrentTrackPayload(currentTrackId);
+
     return {
       ...eventData,
       host: host ? { id: hostId, name: host.username } : null,
@@ -559,22 +596,14 @@ export class EventsService {
   async play(eventId: string, userId: string, deviceId?: string) {
     const event = await this.eventsRepository.findById(eventId);
     if (!event) throw new NotFoundException('Event not found');
-    if (event.hostId !== userId) {
-      const delegation = await this.eventsRepository.findActiveDelegation(
-        eventId,
-        userId,
-      );
-      if (!delegation) {
-        throw new ForbiddenException(
-          'You are not permitted to control playback',
-        );
-      }
-      if (deviceId && delegation.deviceId !== deviceId) {
-        throw new ForbiddenException(
-          'Control delegation not valid on this device',
-        );
-      }
-    }
+
+    await checkPlaybackDelegation(
+      this.eventsRepository,
+      event,
+      userId,
+      deviceId,
+    );
+
     if (event.status !== EventStatus.LIVE)
       throw new BadRequestException('Event is not LIVE');
 
@@ -604,22 +633,14 @@ export class EventsService {
   async pause(eventId: string, userId: string, deviceId?: string) {
     const event = await this.eventsRepository.findById(eventId);
     if (!event) throw new NotFoundException('Event not found');
-    if (event.hostId !== userId) {
-      const delegation = await this.eventsRepository.findActiveDelegation(
-        eventId,
-        userId,
-      );
-      if (!delegation) {
-        throw new ForbiddenException(
-          'You are not permitted to control playback',
-        );
-      }
-      if (deviceId && delegation.deviceId !== deviceId) {
-        throw new ForbiddenException(
-          'Control delegation not valid on this device',
-        );
-      }
-    }
+
+    await checkPlaybackDelegation(
+      this.eventsRepository,
+      event,
+      userId,
+      deviceId,
+    );
+
     if (event.status !== EventStatus.LIVE)
       throw new BadRequestException('Event is not LIVE');
 
@@ -657,22 +678,13 @@ export class EventsService {
   ) {
     const event = await this.eventsRepository.findById(eventId);
     if (!event) throw new NotFoundException('Event not found');
-    if (event.hostId !== userId) {
-      const delegation = await this.eventsRepository.findActiveDelegation(
-        eventId,
-        userId,
-      );
-      if (!delegation) {
-        throw new ForbiddenException(
-          'You are not permitted to control playback',
-        );
-      }
-      if (deviceId && delegation.deviceId !== deviceId) {
-        throw new ForbiddenException(
-          'Control delegation not valid on this device',
-        );
-      }
-    }
+
+    await checkPlaybackDelegation(
+      this.eventsRepository,
+      event,
+      userId,
+      deviceId,
+    );
 
     if (trackId && event.currentTrackId !== trackId) {
       throw new ConflictException('Track mismatch—client state is stale');
@@ -713,7 +725,6 @@ export class EventsService {
   }
 
   async startEvent(eventId: string, userId: string, socketId: string) {
-    // Check if host already has another live event
     const existingLiveEvent =
       await this.eventsRepository.findByIdWithInvites(eventId);
     if (!existingLiveEvent) {
@@ -734,10 +745,8 @@ export class EventsService {
       throw new ForbiddenException('Host already has another live event');
     }
 
-    // Start the event with first track
     const updatedEvent = await this.eventsRepository.startEvent(eventId);
 
-    // Store host information in Redis
     const redisClient = this.redisService.getClient();
     await redisClient.set(REDIS_KEYS.EVENT_HOST(eventId), userId);
     await redisClient.set(REDIS_KEYS.HOST_SOCKET(eventId), socketId);
@@ -778,7 +787,6 @@ export class EventsService {
 
     await this.eventsRepository.endEvent(eventId);
 
-    // Clean up Redis keys
     const redisClient = this.redisService.getClient();
     await redisClient.del(
       ...[
@@ -802,7 +810,6 @@ export class EventsService {
     const currentHostSocketId = await redisClient.get(hostSocketKey);
 
     if (currentHostSocketId === socketId) {
-      // Start grace period and pause playback
       await this.startHostGracePeriod(liveEvent.id, userId);
 
       const position = getPosition(liveEvent);
