@@ -20,6 +20,10 @@ abstract class IProfileRemoteDataSource {
     required String fileName,
   });
 
+  Future<void> followUser(String userId);
+
+  Future<void> unfollowUser(String userId);
+
   Future<int> getFollowersCount(String userId);
 
   Future<int> getFollowingCount(String userId);
@@ -132,6 +136,58 @@ class ProfileRemoteDataSource implements IProfileRemoteDataSource {
     } on Object catch (error) {
       throw DioException(
         requestOptions: RequestOptions(path: AppConfig.myProfileEndpoint),
+        error: error,
+      );
+    }
+  }
+
+  @override
+  Future<void> followUser(String userId) async {
+    final endpoint = '${AppConfig.userDetailEndpoint}/$userId/follow';
+
+    try {
+      final response = await _apiClient.post<Map<String, dynamic>>(endpoint);
+      final statusCode = response.statusCode;
+      final body = response.data;
+      final isSuccess = statusCode == 200 || statusCode == 201;
+      if (!isSuccess || body == null) {
+        throw DioException(
+          requestOptions: RequestOptions(path: endpoint),
+          response: response,
+          type: DioExceptionType.badResponse,
+        );
+      }
+    } on DioException {
+      rethrow;
+    } on Object catch (error) {
+      throw DioException(
+        requestOptions: RequestOptions(path: endpoint),
+        error: error,
+      );
+    }
+  }
+
+  @override
+  Future<void> unfollowUser(String userId) async {
+    final endpoint = '${AppConfig.userDetailEndpoint}/$userId/follow';
+
+    try {
+      final response = await _apiClient.delete<Map<String, dynamic>>(endpoint);
+      final statusCode = response.statusCode;
+      final body = response.data;
+      final isSuccess = statusCode == 200 || statusCode == 201;
+      if (!isSuccess || body == null) {
+        throw DioException(
+          requestOptions: RequestOptions(path: endpoint),
+          response: response,
+          type: DioExceptionType.badResponse,
+        );
+      }
+    } on DioException {
+      rethrow;
+    } on Object catch (error) {
+      throw DioException(
+        requestOptions: RequestOptions(path: endpoint),
         error: error,
       );
     }

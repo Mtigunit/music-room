@@ -8,6 +8,10 @@ abstract class ProfileRepository {
   /// Fetch another user's public profile page data.
   Future<ProfilePageData> loadUserProfilePage(String userId);
 
+  Future<ProfilePageData> followUser(String userId);
+
+  Future<ProfilePageData> unfollowUser(String userId);
+
   Future<ProfilePageData> updateMyProfile(ProfileUpdateRequest request);
 
   Future<ProfilePageData> uploadMyAvatar(

@@ -8,6 +8,7 @@ class ProfileView extends StatefulWidget {
   const ProfileView({
     required this.data,
     required this.onRefresh,
+    this.onFollowProfile,
     this.onEditProfile,
     this.onChangeAvatar,
     this.onOpenRoom,
@@ -20,6 +21,7 @@ class ProfileView extends StatefulWidget {
 
   final ProfilePageData data;
   final Future<void> Function() onRefresh;
+  final VoidCallback? onFollowProfile;
   final VoidCallback? onEditProfile;
   final VoidCallback? onChangeAvatar;
   final void Function(ProfileRoomEntity room)? onOpenRoom;
@@ -92,6 +94,7 @@ class _ProfileViewState extends State<ProfileView> {
                   _ProfileHeroCard(
                     profile: profile,
                     isOwnProfile: isOwnProfile,
+                    onFollowProfile: widget.onFollowProfile,
                     onEditProfile: widget.onEditProfile,
                     onChangeAvatar: widget.onChangeAvatar,
                   ),
@@ -113,7 +116,7 @@ class _ProfileViewState extends State<ProfileView> {
                     _PremiumCard(subscriptionTier: profile.subscriptionTier),
                   ] else ...[
                     const SizedBox(height: 12),
-                    _RelationshipRow(profile: profile),
+                    // _RelationshipRow(profile: profile),
                   ],
                   const SizedBox(height: 16),
                   _SegmentedControl(
@@ -200,12 +203,14 @@ class _ProfileHeroCard extends StatelessWidget {
   const _ProfileHeroCard({
     required this.profile,
     required this.isOwnProfile,
+    this.onFollowProfile,
     this.onEditProfile,
     this.onChangeAvatar,
   });
 
   final UserProfileEntity profile;
   final bool isOwnProfile;
+  final VoidCallback? onFollowProfile;
   final VoidCallback? onEditProfile;
   final VoidCallback? onChangeAvatar;
 
@@ -268,18 +273,11 @@ class _ProfileHeroCard extends StatelessWidget {
                       Expanded(
                         child: Align(
                           alignment: Alignment.centerRight,
-                          child: isOwnProfile && onEditProfile != null
-                              ? FilledButton.tonal(
-                                  style: FilledButton.styleFrom(
-                                    backgroundColor: bannerTextColor.withValues(
-                                      alpha: isLight ? 0.12 : 0.16,
-                                    ),
-                                    foregroundColor: bannerTextColor,
-                                  ),
-                                  onPressed: onEditProfile,
-                                  child: const Text('Edit Profile'),
-                                )
-                              : const SizedBox.shrink(),
+                          child: _buildHeaderAction(
+                            context: context,
+                            bannerTextColor: bannerTextColor,
+                            isLight: isLight,
+                          ),
                         ),
                       ),
                     ],
@@ -330,11 +328,15 @@ class _ProfileHeroCard extends StatelessWidget {
                                   const _BannerChip(
                                     icon: Icons.people_alt_rounded,
                                     label: 'Friend',
+                                    useLightStyle: true,
                                   ),
-                                if (!isOwnProfile && profile.isFollowing)
+                                if (!isOwnProfile &&
+                                    profile.isFollowing &&
+                                    !profile.isFriend)
                                   const _BannerChip(
                                     icon: Icons.favorite_rounded,
                                     label: 'Following',
+                                    useLightStyle: true,
                                   ),
                               ],
                             ),
@@ -350,6 +352,75 @@ class _ProfileHeroCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  Widget _buildHeaderAction({
+    required BuildContext context,
+    required Color bannerTextColor,
+    required bool isLight,
+  }) {
+    if (isOwnProfile && onEditProfile != null) {
+      return FilledButton.tonal(
+        style: FilledButton.styleFrom(
+          backgroundColor: bannerTextColor.withValues(
+            alpha: isLight ? 0.12 : 0.16,
+          ),
+          foregroundColor: bannerTextColor,
+        ),
+        onPressed: onEditProfile,
+        child: const Text('Edit Profile'),
+      );
+    }
+
+    if (isOwnProfile) {
+      return const SizedBox.shrink();
+    }
+
+    final label = _followButtonLabel(profile);
+    if (label == null) {
+      return const SizedBox.shrink();
+    }
+
+    final isActionable = onFollowProfile != null;
+    final isDanger = label == 'Unfollow';
+
+    return FilledButton.tonalIcon(
+      style: FilledButton.styleFrom(
+        backgroundColor: isDanger
+            ? Theme.of(context).colorScheme.primary
+            : bannerTextColor.withValues(alpha: isLight ? 0.12 : 0.16),
+        foregroundColor: isDanger
+            ? Theme.of(context).colorScheme.onErrorContainer
+            : bannerTextColor,
+      ),
+      onPressed: isActionable ? onFollowProfile : null,
+      icon: Icon(_followButtonIcon(profile)),
+      label: Text(label),
+    );
+  }
+
+  static String? _followButtonLabel(UserProfileEntity profile) {
+    if (profile.isFriend || profile.isFollowing) {
+      return 'Unfollow';
+    }
+
+    if (profile.isFollowedBy) {
+      return 'Follow Back';
+    }
+
+    return 'Follow';
+  }
+
+  static IconData _followButtonIcon(UserProfileEntity profile) {
+    if (profile.isFriend || profile.isFollowing) {
+      return Icons.remove_circle_outline_rounded;
+    }
+
+    if (profile.isFollowedBy) {
+      return Icons.person_add_alt_1_rounded;
+    }
+
+    return Icons.person_add_rounded;
   }
 }
 
@@ -636,83 +707,83 @@ class _PremiumCard extends StatelessWidget {
   }
 }
 
-class _RelationshipRow extends StatelessWidget {
-  const _RelationshipRow({required this.profile});
+// class _RelationshipRow extends StatelessWidget {
+//   const _RelationshipRow({required this.profile});
 
-  final UserProfileEntity profile;
+//   final UserProfileEntity profile;
 
-  @override
-  Widget build(BuildContext context) {
-    final badges = <Widget>[];
-    if (profile.isFollowing) {
-      badges.add(
-        const _RelationshipChip(
-          label: 'Following',
-          icon: Icons.favorite_rounded,
-        ),
-      );
-    }
-    if (profile.isFollowedBy) {
-      badges.add(
-        const _RelationshipChip(
-          label: 'Follows you',
-          icon: Icons.person_rounded,
-        ),
-      );
-    }
-    if (profile.isFriend) {
-      badges.add(
-        const _RelationshipChip(label: 'Friend', icon: Icons.groups_rounded),
-      );
-    }
+//   @override
+//   Widget build(BuildContext context) {
+//     // final badges = <Widget>[];
+//     // if (profile.isFollowing) {
+//     //   badges.add(
+//     //     const _RelationshipChip(
+//     //       label: 'Following',
+//     //       icon: Icons.favorite_rounded,
+//     //     ),
+//     //   );
+//     // }
+//     // if (profile.isFollowedBy) {
+//     //   badges.add(
+//     //     const _RelationshipChip(
+//     //       label: 'Follows you',
+//     //       icon: Icons.person_rounded,
+//     //     ),
+//     //   );
+//     // }
+//     // if (profile.isFriend) {
+//     //   badges.add(
+//     //     const _RelationshipChip(label: 'Friend', icon: Icons.groups_rounded),
+//     //   );
+//     // }
 
-    if (badges.isEmpty) {
-      return const SizedBox.shrink();
-    }
+//     // if (badges.isEmpty) {
+//     //   return const SizedBox.shrink();
+//     // }
 
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: badges,
-    );
-  }
-}
+//     return Wrap(
+//       spacing: 8,
+//       runSpacing: 8,
+//       children: badges,
+//     );
+//   }
+// }
 
-class _RelationshipChip extends StatelessWidget {
-  const _RelationshipChip({required this.label, required this.icon});
+// class _RelationshipChip extends StatelessWidget {
+//   const _RelationshipChip({required this.label, required this.icon});
 
-  final String label;
-  final IconData icon;
+//   final String label;
+//   final IconData icon;
 
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+//   @override
+//   Widget build(BuildContext context) {
+//     final colorScheme = Theme.of(context).colorScheme;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(999),
-        border: Border.all(
-          color: colorScheme.onSurface.withValues(alpha: 0.08),
-        ),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 16, color: colorScheme.primary),
-          const SizedBox(width: 6),
-          Text(
-            label,
-            style: Theme.of(context).textTheme.labelLarge?.copyWith(
-              color: colorScheme.onSurface,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
+//     return Container(
+//       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+//       decoration: BoxDecoration(
+//         color: colorScheme.surface,
+//         borderRadius: BorderRadius.circular(999),
+//         border: Border.all(
+//           color: colorScheme.onSurface.withValues(alpha: 0.08),
+//         ),
+//       ),
+//       child: Row(
+//         mainAxisSize: MainAxisSize.min,
+//         children: [
+//           Icon(icon, size: 16, color: colorScheme.primary),
+//           const SizedBox(width: 6),
+//           Text(
+//             label,
+//             style: Theme.of(context).textTheme.labelLarge?.copyWith(
+//               color: colorScheme.onSurface,
+//             ),
+//           ),
+//         ],
+//       ),
+//     );
+//   }
+// }
 
 class _SegmentedControl extends StatelessWidget {
   const _SegmentedControl({
