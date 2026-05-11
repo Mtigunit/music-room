@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:music_room/core/widgets/app_back_button.dart';
+import 'package:music_room/core/widgets/app_button.dart';
 import 'package:music_room/core/widgets/form_input_decoration.dart';
 import 'package:music_room/core/widgets/form_section_label.dart';
 import 'package:music_room/core/widgets/form_toggle_row.dart';
@@ -132,7 +133,6 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
                     TextFormField(
                       controller: _usernameController,
                       textInputAction: TextInputAction.next,
-                      maxLength: 30,
                       decoration: FormInputDecoration.build(
                         theme,
                         labelText: null,
@@ -273,7 +273,7 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
                     const SizedBox(height: 28),
                     SizedBox(
                       width: double.infinity,
-                      child: FilledButton(
+                      child: AppButton(
                         onPressed: () {
                           final isValid =
                               _formKey.currentState?.validate() ?? false;
@@ -298,7 +298,8 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
                             ),
                           );
                         },
-                        child: const Text('Save changes'),
+                        label: 'Save changes',
+                        padding: const EdgeInsets.symmetric(vertical: 14),
                       ),
                     ),
                   ],
