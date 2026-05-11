@@ -165,7 +165,9 @@ class _SignUpPageState extends State<SignUpPage> {
         builder: (modalContext) {
           _otpModalContext = modalContext;
           return OtpVerificationModal(
-            email: _trimmedEmail,
+            title: 'Verify your email',
+            message: 'We sent a 6-digit code to',
+            destination: _trimmedEmail,
             onConfirm: (otpCode) {
               context.read<AuthBloc>().add(
                 VerifyOtpRequested(

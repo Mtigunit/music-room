@@ -7,15 +7,21 @@ import 'package:music_room/core/widgets/app_button.dart';
 
 class OtpVerificationModal extends StatefulWidget {
   const OtpVerificationModal({
-    required this.email,
+    required this.title,
+    required this.message,
     required this.onConfirm,
     required this.onResend,
     super.key,
+    this.destination,
+    this.confirmLabel = 'Confirm',
   });
 
-  final String email;
+  final String title;
+  final String message;
+  final String? destination;
   final void Function(String otpCode) onConfirm;
   final VoidCallback onResend;
+  final String confirmLabel;
 
   @override
   State<OtpVerificationModal> createState() => _OtpVerificationModalState();
@@ -25,8 +31,8 @@ class _OtpVerificationModalState extends State<OtpVerificationModal> {
   static const int _otpLength = AppConfig.otpLength;
   static const int _initialResendSeconds = AppConfig.otpResendTimeoutSeconds;
 
-  late List<TextEditingController> _controllers;
-  late List<FocusNode> _focusNodes;
+  late final List<TextEditingController> _controllers;
+  late final List<FocusNode> _focusNodes;
   late Timer _timer;
   int _remainingSeconds = _initialResendSeconds;
   bool _canResend = false;
@@ -59,24 +65,27 @@ class _OtpVerificationModalState extends State<OtpVerificationModal> {
         setState(() {
           _remainingSeconds--;
         });
-      } else {
-        setState(() {
-          _canResend = true;
-        });
-        timer.cancel();
+        return;
       }
+
+      setState(() {
+        _canResend = true;
+      });
+      timer.cancel();
     });
   }
 
   void _handleResend() {
-    if (_canResend) {
-      widget.onResend();
-      setState(() {
-        _remainingSeconds = _initialResendSeconds;
-        _canResend = false;
-      });
-      _startTimer();
+    if (!_canResend) {
+      return;
     }
+
+    widget.onResend();
+    setState(() {
+      _remainingSeconds = _initialResendSeconds;
+      _canResend = false;
+    });
+    _startTimer();
   }
 
   void _onOtpDigitChanged(String value, int index) {
@@ -153,8 +162,6 @@ class _OtpVerificationModalState extends State<OtpVerificationModal> {
     final disabledButton = isDarkMode
         ? const Color(0xFF2C3040)
         : const Color(0xFFE4E7F1);
-
-    // Get keyboard height to ensure content is visible above it
     final keyboardHeight = MediaQuery.of(context).viewInsets.bottom;
 
     return SafeArea(
@@ -188,7 +195,7 @@ class _OtpVerificationModalState extends State<OtpVerificationModal> {
                 children: [
                   Expanded(
                     child: Text(
-                      'Verify your email',
+                      widget.title,
                       style: Theme.of(context).textTheme.displaySmall?.copyWith(
                         fontSize: 44 / 2,
                         fontWeight: FontWeight.w800,
@@ -206,11 +213,7 @@ class _OtpVerificationModalState extends State<OtpVerificationModal> {
                             ? const Color(0xFF282C3C)
                             : const Color(0xFFE8EBF3),
                       ),
-                      child: Icon(
-                        Icons.close,
-                        color: mutedText,
-                        size: 20,
-                      ),
+                      child: Icon(Icons.close, color: mutedText, size: 20),
                     ),
                   ),
                 ],
@@ -221,20 +224,21 @@ class _OtpVerificationModalState extends State<OtpVerificationModal> {
                   style: Theme.of(context).textTheme.bodyLarge,
                   children: [
                     TextSpan(
-                      text: 'We sent a $_otpLength-digit code to\n',
+                      text: '${widget.message}\n',
                       style: TextStyle(
                         color: secondaryText,
                         height: 1.45,
                         fontWeight: FontWeight.w600,
                       ),
                     ),
-                    TextSpan(
-                      text: widget.email,
-                      style: TextStyle(
-                        color: colorScheme.primary,
-                        fontWeight: FontWeight.w700,
+                    if (widget.destination != null)
+                      TextSpan(
+                        text: widget.destination,
+                        style: TextStyle(
+                          color: colorScheme.primary,
+                          fontWeight: FontWeight.w700,
+                        ),
                       ),
-                    ),
                   ],
                 ),
               ),
@@ -321,7 +325,7 @@ class _OtpVerificationModalState extends State<OtpVerificationModal> {
                   disabledBackgroundColor: disabledButton,
                   disabledForegroundColor: mutedText,
                   borderRadius: 20,
-                  label: 'Confirm',
+                  label: widget.confirmLabel,
                   textStyle: const TextStyle(
                     fontSize: 34 / 2,
                     fontWeight: FontWeight.w700,

@@ -10,6 +10,7 @@ import 'package:music_room/core/widgets/genre_selection_grid.dart';
 import 'package:music_room/features/events/presentation/widgets/selection_card.dart';
 import 'package:music_room/features/playlist/domain/types/playlist_tags.dart';
 import 'package:music_room/features/profile/domain/entities/profile_entity.dart';
+import 'package:music_room/features/profile/presentation/pages/email_update_page.dart';
 import 'package:music_room/features/profile/presentation/state/profile_bloc.dart';
 import 'package:music_room/features/profile/presentation/state/profile_event.dart';
 import 'package:music_room/features/profile/presentation/state/profile_state.dart';
@@ -88,6 +89,8 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final profileState = context.watch<ProfileBloc>().state;
+    final currentProfile = _profileFromState(profileState);
 
     return SafeArea(
       child: BlocListener<ProfileBloc, ProfileState>(
@@ -173,15 +176,96 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
                       context: context,
                       title: 'Account',
                       subtitle: 'Keep your identity current.',
-                      child: TextFormField(
-                        controller: _usernameController,
-                        textInputAction: TextInputAction.next,
-                        decoration: FormInputDecoration.build(
-                          theme,
-                          labelText: null,
-                          hintText: 'Choose a username',
-                        ),
-                        validator: _validateUsername,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          TextFormField(
+                            controller: _usernameController,
+                            textInputAction: TextInputAction.next,
+                            decoration: FormInputDecoration.build(
+                              theme,
+                              labelText: null,
+                              hintText: 'Choose a username',
+                            ),
+                            validator: _validateUsername,
+                          ),
+                          const SizedBox(height: 16),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(14),
+                            decoration: BoxDecoration(
+                              color: theme.colorScheme.surface,
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(
+                                color: theme.colorScheme.onSurface.withValues(
+                                  alpha: 0.1,
+                                ),
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        'Email',
+                                        style: theme.textTheme.labelMedium
+                                            ?.copyWith(
+                                              color: theme
+                                                  .colorScheme
+                                                  .onSurfaceVariant,
+                                              fontWeight: FontWeight.w700,
+                                            ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        currentProfile.email ?? 'Not set',
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: theme.textTheme.bodyMedium
+                                            ?.copyWith(
+                                              color:
+                                                  theme.colorScheme.onSurface,
+                                              fontWeight: FontWeight.w600,
+                                            ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                AppButton(
+                                  onPressed: () async {
+                                    final profileBloc = context
+                                        .read<ProfileBloc>();
+                                    final result =
+                                        await Navigator.of(
+                                          context,
+                                        ).push<bool>(
+                                          MaterialPageRoute<bool>(
+                                            builder: (_) =>
+                                                const EmailUpdatePage(),
+                                          ),
+                                        );
+
+                                    if (result == true && mounted) {
+                                      profileBloc.add(
+                                        const ProfileRefreshRequested(),
+                                      );
+                                    }
+                                  },
+                                  variant: AppButtonVariant.text,
+                                  label: 'Change email',
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 10,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -699,6 +783,50 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
   String _readString(Map<String, dynamic>? source, String key) {
     final value = source?[key];
     return value is String ? value : '';
+  }
+
+  UserProfileEntity _profileFromState(ProfileState state) {
+    if (state is ProfileLoaded) {
+      return state.data.profile;
+    }
+    if (state is ProfileMutationInProgress) {
+      return state.data.profile;
+    }
+    if (state is ProfileMutationSuccess) {
+      return state.data.profile;
+    }
+    if (state is ProfileMutationFailure) {
+      return state.data.profile;
+    }
+    if (state is ProfilePasswordChangeInProgress) {
+      return state.data.profile;
+    }
+    if (state is ProfilePasswordChangeSuccess) {
+      return state.data.profile;
+    }
+    if (state is ProfilePasswordChangeFailure) {
+      return state.data.profile;
+    }
+    if (state is ProfileGoogleLinkInProgress) {
+      return state.data.profile;
+    }
+    if (state is ProfileGoogleLinkSuccess) {
+      return state.data.profile;
+    }
+    if (state is ProfileGoogleLinkFailure) {
+      return state.data.profile;
+    }
+    if (state is ProfileGoogleUnlinkInProgress) {
+      return state.data.profile;
+    }
+    if (state is ProfileGoogleUnlinkSuccess) {
+      return state.data.profile;
+    }
+    if (state is ProfileGoogleUnlinkFailure) {
+      return state.data.profile;
+    }
+
+    return widget.profile;
   }
 
   List<String> _readGenres(Map<String, dynamic>? source) {

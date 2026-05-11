@@ -131,6 +131,27 @@ class ProfileRepositoryImpl implements ProfileRepository {
     return loadMyProfilePage();
   }
 
+  /// Initiate email update by requesting an OTP to the new email address.
+  @override
+  Future<void> requestEmailUpdate({
+    required String newEmail,
+    required String password,
+  }) async {
+    await _remoteDataSource.requestEmailUpdate(
+      newEmail: newEmail,
+      password: password,
+    );
+  }
+
+  /// Verify OTP for email update and refresh the local profile state.
+  @override
+  Future<ProfilePageData> verifyEmailUpdate({
+    required String code,
+  }) async {
+    await _remoteDataSource.verifyEmailUpdate(code: code);
+    return loadMyProfilePage();
+  }
+
   @override
   Future<ProfilePageData> linkMyGoogleAccount(String userId) async {
     final tokens = await _googleAuthService.authenticate();

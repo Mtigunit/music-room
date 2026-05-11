@@ -29,4 +29,15 @@ abstract class ProfileRepository {
     String filePath,
     String fileName,
   );
+
+  /// Initiate email update by requesting an OTP to the new email.
+  Future<void> requestEmailUpdate({
+    required String newEmail,
+    required String password,
+  });
+
+  /// Verify OTP for email update and refresh the profile data.
+  Future<ProfilePageData> verifyEmailUpdate({
+    required String code,
+  });
 }

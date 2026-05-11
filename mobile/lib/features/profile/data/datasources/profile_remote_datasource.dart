@@ -33,6 +33,17 @@ abstract class IProfileRemoteDataSource {
     required String fileName,
   });
 
+  /// Initiates the email update flow by sending OTP to the new email.
+  Future<void> requestEmailUpdate({
+    required String newEmail,
+    required String password,
+  });
+
+  /// Verifies the OTP and returns the updated profile on success.
+  Future<UserProfileModel> verifyEmailUpdate({
+    required String code,
+  });
+
   Future<void> followUser(String userId);
 
   Future<void> unfollowUser(String userId);
@@ -296,6 +307,67 @@ class ProfileRemoteDataSource implements IProfileRemoteDataSource {
     } on Object catch (error) {
       throw DioException(
         requestOptions: RequestOptions(path: endpoint),
+        error: error,
+      );
+    }
+  }
+
+  @override
+  Future<void> requestEmailUpdate({
+    required String newEmail,
+    required String password,
+  }) async {
+    try {
+      const endpoint = AppConfig.requestEmailUpdateEndpoint;
+      final response = await _apiClient.post<Map<String, dynamic>>(
+        endpoint,
+        data: <String, dynamic>{
+          'newEmail': newEmail,
+          'password': password,
+        },
+      );
+
+      final statusCode = response.statusCode;
+      final body = response.data;
+      final isSuccess = statusCode == 200 || statusCode == 201;
+      if (!isSuccess || body == null) {
+        throw DioException(
+          requestOptions: RequestOptions(path: endpoint),
+          response: response,
+          type: DioExceptionType.badResponse,
+        );
+      }
+    } on DioException {
+      rethrow;
+    } on Object catch (error) {
+      throw DioException(
+        requestOptions: RequestOptions(
+          path: AppConfig.requestEmailUpdateEndpoint,
+        ),
+        error: error,
+      );
+    }
+  }
+
+  @override
+  Future<UserProfileModel> verifyEmailUpdate({
+    required String code,
+  }) async {
+    try {
+      const endpoint = AppConfig.verifyEmailUpdateEndpoint;
+      final response = await _apiClient.post<Map<String, dynamic>>(
+        endpoint,
+        data: <String, dynamic>{'code': code},
+      );
+
+      return _parseProfileResponse(response, endpoint);
+    } on DioException {
+      rethrow;
+    } on Object catch (error) {
+      throw DioException(
+        requestOptions: RequestOptions(
+          path: AppConfig.verifyEmailUpdateEndpoint,
+        ),
         error: error,
       );
     }
