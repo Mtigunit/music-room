@@ -10,6 +10,7 @@ class InviteFriendData {
     required this.name,
     required this.username,
     required this.colorHex,
+    this.avatarUrl,
     this.isInvited = false,
   });
 
@@ -17,6 +18,7 @@ class InviteFriendData {
   final String name;
   final String username;
   final int colorHex;
+  final String? avatarUrl;
   final bool isInvited;
 }
 
@@ -44,6 +46,17 @@ class InviteFriendInviteChange {
   final bool isInvited;
 }
 
+typedef InviteUserSearchCallback =
+    Future<List<InviteFriendData>> Function(
+      String query,
+    );
+
+typedef InviteActionCallback =
+    Future<bool> Function(
+      InviteFriendData friend, {
+      required bool isCurrentlyInvited,
+    });
+
 /// Reusable invite sheet with share link, social actions, and friends list.
 ///
 /// This widget is feature-agnostic and receives all runtime data via
@@ -59,6 +72,8 @@ class InviteBottomSheet extends StatefulWidget {
     this.onCopyLink,
     this.onShareTapped,
     this.onFriendInviteChanged,
+    this.onInviteAction,
+    this.onSearchUsers,
     this.onClosePressed,
     super.key,
   });
@@ -74,6 +89,8 @@ class InviteBottomSheet extends StatefulWidget {
   final VoidCallback? onCopyLink;
   final ValueChanged<InviteShareAction>? onShareTapped;
   final ValueChanged<InviteFriendInviteChange>? onFriendInviteChanged;
+  final InviteActionCallback? onInviteAction;
+  final InviteUserSearchCallback? onSearchUsers;
   final VoidCallback? onClosePressed;
 
   static const List<InviteShareAction> _defaultSocialActions = [
@@ -108,9 +125,24 @@ class InviteBottomSheet extends StatefulWidget {
 }
 
 class _InviteBottomSheetState extends State<InviteBottomSheet> {
+  static const Duration _searchDebounceDuration = Duration(milliseconds: 350);
+
   String _searchQuery = '';
+  Timer? _searchDebounce;
+  List<InviteFriendData> _searchResults = const <InviteFriendData>[];
+  bool _isSearching = false;
+  String? _searchError;
+
+  bool get _isRemoteSearchEnabled => widget.onSearchUsers != null;
 
   List<InviteFriendData> get _displayUsers {
+    if (_isRemoteSearchEnabled) {
+      if (_searchQuery.trim().isEmpty) {
+        return widget.friends;
+      }
+      return _searchResults;
+    }
+
     if (_searchQuery.trim().isEmpty) {
       return widget.friends;
     }
@@ -141,171 +173,281 @@ class _InviteBottomSheetState extends State<InviteBottomSheet> {
   }
 
   @override
+  void dispose() {
+    _searchDebounce?.cancel();
+    super.dispose();
+  }
+
+  void _onSearchChanged(String value) {
+    final query = value.trim();
+    _searchDebounce?.cancel();
+
+    setState(() {
+      _searchQuery = value;
+      if (query.isEmpty) {
+        _searchResults = const <InviteFriendData>[];
+        _searchError = null;
+        _isSearching = false;
+      }
+    });
+
+    if (!_isRemoteSearchEnabled || query.isEmpty) {
+      return;
+    }
+
+    _searchDebounce = Timer(_searchDebounceDuration, () {
+      if (!mounted) {
+        return;
+      }
+      unawaited(_searchUsers(query));
+    });
+  }
+
+  Future<void> _searchUsers(String query) async {
+    final searchUsers = widget.onSearchUsers;
+    if (searchUsers == null) {
+      return;
+    }
+
+    setState(() {
+      _isSearching = true;
+      _searchError = null;
+    });
+
+    try {
+      final users = await searchUsers(query);
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _searchResults = users;
+        _isSearching = false;
+      });
+    } on Object catch (error) {
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _searchResults = const <InviteFriendData>[];
+        _isSearching = false;
+        _searchError = _toUserMessage(error);
+      });
+    }
+  }
+
+  String _toUserMessage(Object error) {
+    final raw = error.toString().trim();
+    if (raw.isEmpty) {
+      return 'Search failed. Please try again.';
+    }
+
+    const prefix = 'Exception:';
+    if (raw.startsWith(prefix)) {
+      return raw.substring(prefix.length).trim();
+    }
+
+    return raw;
+  }
+
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final textTheme = theme.textTheme;
     final isDark = theme.brightness == Brightness.dark;
-    final screenSize = MediaQuery.of(context).size;
+    final mediaQuery = MediaQuery.of(context);
+    final screenSize = mediaQuery.size;
+    final keyboardInset = mediaQuery.viewInsets.bottom;
 
     final sheetBg = isDark ? const Color(0xFF1A1A27) : colorScheme.surface;
     final resolvedActions =
         widget.socialActions ?? InviteBottomSheet._defaultSocialActions;
     final displayList = _displayUsers;
 
-    return Container(
-      height: screenSize.height * 0.9,
-      decoration: BoxDecoration(
-        color: sheetBg,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Center(
-              child: Container(
-                margin: const EdgeInsets.only(top: 12),
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: colorScheme.onSurface.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Header
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      widget.title,
-                      style: textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        fontSize: 22,
-                      ),
-                    ),
-                  ),
-                  IconButton(
-                    onPressed:
-                        widget.onClosePressed ??
-                        () => Navigator.of(context).pop(),
-                    icon: const Icon(Icons.close),
-                    style: IconButton.styleFrom(
-                      backgroundColor: colorScheme.onSurface.withValues(
-                        alpha: 0.06,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-
-            // Compact Social Row
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: _SocialShareRow(
-                link: widget.shareLink,
-                actions: resolvedActions,
-                colorScheme: colorScheme,
-                isDark: isDark,
-                onCopy: widget.onCopyLink,
-                onShareTapped: widget.onShareTapped,
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Search Bar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: TextField(
-                onChanged: (val) => setState(() => _searchQuery = val),
-                decoration: InputDecoration(
-                  hintText: 'Search friends or username...',
-                  hintStyle: TextStyle(
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.35),
-                  ),
-                  prefixIcon: Icon(
-                    Icons.search,
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
-                  ),
-                  filled: true,
-                  fillColor: theme.colorScheme.surfaceContainerHighest
-                      .withValues(alpha: 0.3),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
-                    ),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(16),
-                    borderSide: BorderSide(color: theme.colorScheme.primary),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: 16,
-                    vertical: 16,
+    return AnimatedPadding(
+      duration: const Duration(milliseconds: 180),
+      curve: Curves.easeOut,
+      padding: EdgeInsets.only(bottom: keyboardInset),
+      child: Container(
+        height: screenSize.height * 0.5,
+        decoration: BoxDecoration(
+          color: sheetBg,
+          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Center(
+                child: Container(
+                  margin: const EdgeInsets.only(top: 12),
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: colorScheme.onSurface.withValues(alpha: 0.2),
+                    borderRadius: BorderRadius.circular(2),
                   ),
                 ),
               ),
-            ),
-            const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
-            // List Title
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: Text(
-                _searchQuery.isEmpty ? 'Your Friends' : 'Search Results',
-                style: textTheme.titleSmall?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: colorScheme.onSurface.withValues(alpha: 0.6),
-                  letterSpacing: 0.5,
-                ),
-              ),
-            ),
-            const SizedBox(height: 12),
-
-            // User List
-            Expanded(
-              child: displayList.isEmpty
-                  ? Center(
+              // Header
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(
+                  children: [
+                    Expanded(
                       child: Text(
-                        'No results found.',
-                        style: textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onSurface.withValues(alpha: 0.5),
+                        widget.title,
+                        style: textTheme.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          fontSize: 22,
                         ),
                       ),
-                    )
-                  : ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-                      itemCount: displayList.length,
-                      separatorBuilder: (context, index) =>
-                          const SizedBox(height: 8),
-                      itemBuilder: (context, index) {
-                        final friend = displayList[index];
-                        return _FriendInviteItem(
-                          friend: friend,
-                          colorScheme: colorScheme,
-                          isDark: isDark,
-                          onInviteChanged: (isInvited) {
-                            widget.onFriendInviteChanged?.call(
-                              InviteFriendInviteChange(
-                                friend: friend,
-                                isInvited: isInvited,
-                              ),
-                            );
-                          },
-                        );
-                      },
                     ),
-            ),
-          ],
+                    IconButton(
+                      onPressed:
+                          widget.onClosePressed ??
+                          () => Navigator.of(context).pop(),
+                      icon: const Icon(Icons.close),
+                      style: IconButton.styleFrom(
+                        backgroundColor: colorScheme.onSurface.withValues(
+                          alpha: 0.06,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Compact Social Row
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: _SocialShareRow(
+                  link: widget.shareLink,
+                  actions: resolvedActions,
+                  colorScheme: colorScheme,
+                  isDark: isDark,
+                  onCopy: widget.onCopyLink,
+                  onShareTapped: widget.onShareTapped,
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Search Bar
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: TextField(
+                  onChanged: _onSearchChanged,
+                  decoration: InputDecoration(
+                    hintText: 'Search friends or username...',
+                    hintStyle: TextStyle(
+                      color: theme.colorScheme.onSurface.withValues(
+                        alpha: 0.35,
+                      ),
+                    ),
+                    prefixIcon: Icon(
+                      Icons.search,
+                      color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                    ),
+                    filled: true,
+                    fillColor: theme.colorScheme.surfaceContainerHighest
+                        .withValues(alpha: 0.3),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide(
+                        color: theme.colorScheme.onSurface.withValues(
+                          alpha: 0.1,
+                        ),
+                      ),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      borderSide: BorderSide(color: theme.colorScheme.primary),
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 16,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // List Title
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Text(
+                  _searchQuery.isEmpty ? 'Your Friends' : 'Search Results',
+                  style: textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: colorScheme.onSurface.withValues(alpha: 0.6),
+                    letterSpacing: 0.5,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+
+              // User List
+              Expanded(
+                child: _isSearching
+                    ? const Center(child: CircularProgressIndicator())
+                    : _searchError != null
+                    ? Center(
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 24),
+                          child: Text(
+                            _searchError!,
+                            textAlign: TextAlign.center,
+                            style: textTheme.bodyMedium?.copyWith(
+                              color: colorScheme.onSurface.withValues(
+                                alpha: 0.6,
+                              ),
+                            ),
+                          ),
+                        ),
+                      )
+                    : displayList.isEmpty
+                    ? Center(
+                        child: Text(
+                          _searchQuery.trim().isEmpty
+                              ? 'Search users to invite.'
+                              : 'No results found.',
+                          style: textTheme.bodyMedium?.copyWith(
+                            color: colorScheme.onSurface.withValues(alpha: 0.5),
+                          ),
+                        ),
+                      )
+                    : ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                        itemCount: displayList.length,
+                        separatorBuilder: (context, index) =>
+                            const SizedBox(height: 8),
+                        itemBuilder: (context, index) {
+                          final friend = displayList[index];
+                          return _FriendInviteItem(
+                            friend: friend,
+                            colorScheme: colorScheme,
+                            isDark: isDark,
+                            onInviteAction: widget.onInviteAction,
+                            onInviteChanged: (isInvited) {
+                              widget.onFriendInviteChanged?.call(
+                                InviteFriendInviteChange(
+                                  friend: friend,
+                                  isInvited: isInvited,
+                                ),
+                              );
+                            },
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -416,12 +558,14 @@ class _FriendInviteItem extends StatefulWidget {
     required this.friend,
     required this.colorScheme,
     required this.isDark,
+    required this.onInviteAction,
     required this.onInviteChanged,
   });
 
   final InviteFriendData friend;
   final ColorScheme colorScheme;
   final bool isDark;
+  final InviteActionCallback? onInviteAction;
   final ValueChanged<bool> onInviteChanged;
 
   @override
@@ -440,6 +584,31 @@ class _FriendInviteItemState extends State<_FriendInviteItem> {
 
   Future<void> _toggleInvite() async {
     if (_isLoading) return;
+
+    final inviteAction = widget.onInviteAction;
+    if (inviteAction != null) {
+      setState(() => _isLoading = true);
+      try {
+        final nextValue = await inviteAction(
+          widget.friend,
+          isCurrentlyInvited: _invited,
+        );
+        if (!mounted) {
+          return;
+        }
+        setState(() {
+          _invited = nextValue;
+          _isLoading = false;
+        });
+        widget.onInviteChanged(_invited);
+      } on Object {
+        if (!mounted) {
+          return;
+        }
+        setState(() => _isLoading = false);
+      }
+      return;
+    }
 
     if (!_invited) {
       if (mounted) setState(() => _isLoading = true);
@@ -481,15 +650,22 @@ class _FriendInviteItemState extends State<_FriendInviteItem> {
               shape: BoxShape.circle,
               color: Color(widget.friend.colorHex),
             ),
-            child: Center(
-              child: Text(
-                widget.friend.name[0],
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                  fontSize: 18,
-                ),
-              ),
+            child: ClipOval(
+              child:
+                  widget.friend.avatarUrl != null &&
+                      widget.friend.avatarUrl!.trim().isNotEmpty
+                  ? Image.network(
+                      widget.friend.avatarUrl!,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, _, _) => _AvatarInitial(
+                        colorHex: widget.friend.colorHex,
+                        label: widget.friend.name,
+                      ),
+                    )
+                  : _AvatarInitial(
+                      colorHex: widget.friend.colorHex,
+                      label: widget.friend.name,
+                    ),
             ),
           ),
           const SizedBox(width: 12),
@@ -567,6 +743,30 @@ class _FriendInviteItemState extends State<_FriendInviteItem> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _AvatarInitial extends StatelessWidget {
+  const _AvatarInitial({required this.colorHex, required this.label});
+
+  final int colorHex;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    final initial = label.trim().isEmpty ? '?' : label.trim()[0];
+    return Container(
+      color: Color(colorHex),
+      alignment: Alignment.center,
+      child: Text(
+        initial.toUpperCase(),
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w700,
+          fontSize: 18,
+        ),
       ),
     );
   }
