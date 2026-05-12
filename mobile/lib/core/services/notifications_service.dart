@@ -55,8 +55,33 @@ class NotificationsService {
       _cachedNotifications = notifications;
       _lastFetchTime = DateTime.now();
 
-      // update unread count from items
-      _updateUnreadFromList(list);
+      // Update unread count. Prefer a server-provided total unread count
+      // if present in the response (avoids pagination undercount issues).
+      int? serverUnread;
+      if (data.containsKey('unreadCount')) {
+        serverUnread = data['unreadCount'] as int?;
+      } else if (data['meta'] is Map<String, dynamic>) {
+        final meta = data['meta'] as Map<String, dynamic>;
+        serverUnread =
+            (meta['unreadCount'] ?? meta['totalUnread'] ?? meta['unread'])
+                as int?;
+      }
+
+      if (serverUnread != null) {
+        _unreadCount = serverUnread;
+        _unreadCountController.add(_unreadCount);
+      } else {
+        // Fallback: compute from returned page, but avoid undercounting global
+        // unread when fetching subsequent pages. Only use page results to set
+        // the unread count on the first page or to grow the existing value.
+        final pageUnread = list
+            .where((e) => !(e['isRead'] as bool? ?? false))
+            .length;
+        if (page == 1) {
+          _unreadCount = _unreadCount > pageUnread ? _unreadCount : pageUnread;
+          _unreadCountController.add(_unreadCount);
+        }
+      }
 
       if (kDebugMode) {
         debugPrint(
@@ -86,7 +111,9 @@ class NotificationsService {
       final notification = NotificationModel.fromJson(
         data['data'] as Map<String, dynamic>,
       );
-      _replaceCachedNotification(notification.copyWithRead(isRead: true));
+      // Cache the notification exactly as returned by the server so
+      // local state stays consistent with backend truth.
+      _replaceCachedNotification(notification);
       if (wasUnread && notification.isRead) {
         _decrementUnread();
       }
@@ -141,11 +168,8 @@ class NotificationsService {
     }
   }
 
-  void _updateUnreadFromList(List<Map<String, dynamic>> list) {
-    final count = list.where((e) => !(e['isRead'] as bool? ?? false)).length;
-    _unreadCount = count;
-    _unreadCountController.add(_unreadCount);
-  }
+  // Previously we computed unread purely from page results. That logic is
+  // intentionally removed in favor of server-provided counts when available.
 
   void _incrementUnread() {
     _unreadCount += 1;

@@ -310,29 +310,39 @@ class _NotificationListViewState extends State<_NotificationListView> {
         ];
 
         if (allNotifications.isEmpty) {
+          // RefreshIndicator requires a scrollable child. Provide an
+          // always-scrollable ListView so pull-to-refresh works on empty state.
           return RefreshIndicator(
             onRefresh: _refreshNotifications,
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.notifications_none,
-                      size: 48,
-                      color: colorScheme.onSurface.withValues(alpha: 0.3),
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              children: [
+                Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.notifications_none,
+                          size: 48,
+                          color: colorScheme.onSurface.withValues(alpha: 0.3),
+                        ),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No notifications yet',
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                color: colorScheme.onSurface.withValues(
+                                  alpha: 0.5,
+                                ),
+                              ),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 16),
-                    Text(
-                      'No notifications yet',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: colorScheme.onSurface.withValues(alpha: 0.5),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
-              ),
+              ],
             ),
           );
         }
@@ -341,6 +351,7 @@ class _NotificationListViewState extends State<_NotificationListView> {
           onRefresh: _refreshNotifications,
           child: ListView.builder(
             itemCount: allNotifications.length,
+            physics: const AlwaysScrollableScrollPhysics(),
             itemBuilder: (context, index) {
               final notification = allNotifications[index];
               final meta =
