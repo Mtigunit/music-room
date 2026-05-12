@@ -78,6 +78,7 @@ class AppScaffoldState extends State<AppScaffold> {
   /// Phone: existing BottomNavigationBar — zero visual change.
   Widget _buildWithBottomBar(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final notificationsService = InjectionContainer().notificationsService;
 
     return Scaffold(
       body: IndexedStack(
@@ -103,20 +104,61 @@ class AppScaffoldState extends State<AppScaffold> {
           showUnselectedLabels: false,
           selectedItemColor: colorScheme.primary,
           unselectedItemColor: colorScheme.onSurface.withValues(alpha: 0.4),
-          items: const [
+          items: [
             BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined, size: 28),
+              icon: StreamBuilder<int>(
+                stream: notificationsService.unreadCountStream,
+                initialData: notificationsService.unreadCount,
+                builder: (context, snapshot) {
+                  final count = snapshot.data ?? 0;
+                  if (count > 0) {
+                    return Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        const Icon(Icons.home_outlined, size: 28),
+                        Positioned(
+                          right: -6,
+                          top: -6,
+                          child: Container(
+                            padding: const EdgeInsets.all(4),
+                            decoration: BoxDecoration(
+                              color: colorScheme.error,
+                              shape: BoxShape.circle,
+                            ),
+                            constraints: const BoxConstraints(
+                              minWidth: 20,
+                              minHeight: 20,
+                            ),
+                            child: Center(
+                              child: Text(
+                                count > 99 ? '99+' : count.toString(),
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    );
+                  }
+
+                  return const Icon(Icons.home_outlined, size: 28);
+                },
+              ),
               label: 'Home',
             ),
-            BottomNavigationBarItem(
+            const BottomNavigationBarItem(
               icon: Icon(Icons.sensors, size: 28),
               label: 'Events',
             ),
-            BottomNavigationBarItem(
+            const BottomNavigationBarItem(
               icon: Icon(Icons.queue_music, size: 28),
               label: 'Playlist',
             ),
-            BottomNavigationBarItem(
+            const BottomNavigationBarItem(
               icon: Icon(Icons.person_outline, size: 28),
               label: 'Profile',
             ),

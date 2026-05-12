@@ -7,6 +7,7 @@ import 'package:music_room/core/services/client_meta_service.dart';
 import 'package:music_room/core/services/connectivity_service.dart';
 import 'package:music_room/core/services/google_auth_service.dart';
 import 'package:music_room/core/services/google_link_status_service.dart';
+import 'package:music_room/core/services/notifications_service.dart';
 import 'package:music_room/core/services/theme_preference_service.dart';
 import 'package:music_room/core/services/token_storage_service.dart';
 import 'package:music_room/features/auth/data/datasources/auth_remote_datasource.dart';
@@ -61,6 +62,7 @@ class InjectionContainer {
   late ProfileRepository _profileRepository;
   late ThemePreferenceService _themePreferenceService;
   late GoogleLinkStatusService _googleLinkStatusService;
+  late NotificationsService _notificationsService;
 
   /// Initialize all dependencies
   Future<void> init() async {
@@ -96,6 +98,11 @@ class InjectionContainer {
       baseUrl: AppConfig.apiBaseUrl,
       tokenProvider: _tokenStorageService.getToken,
       clientMetaService: _clientMetaService,
+    );
+
+    _notificationsService = NotificationsService(
+      apiClient: _apiClient,
+      socketClient: _socketClient,
     );
 
     // Data Sources
@@ -161,6 +168,7 @@ class InjectionContainer {
   ThemePreferenceService get themePreferenceService => _themePreferenceService;
   GoogleLinkStatusService get googleLinkStatusService =>
       _googleLinkStatusService;
+  NotificationsService get notificationsService => _notificationsService;
 
   AuthBloc createAuthBloc() {
     return AuthBloc(

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:music_room/core/widgets/app_scaffold.dart';
+import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/home/presentation/widgets/show_notification_panel.dart';
 import 'package:music_room/routes/route_names.dart';
 
@@ -75,13 +76,24 @@ class HomeHeader extends StatelessWidget {
                 Positioned(
                   top: 8,
                   right: 10,
-                  child: Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                      color: Colors.red,
-                      shape: BoxShape.circle,
-                    ),
+                  child: StreamBuilder<int>(
+                    stream: InjectionContainer()
+                        .notificationsService
+                        .unreadCountStream,
+                    initialData:
+                        InjectionContainer().notificationsService.unreadCount,
+                    builder: (context, snapshot) {
+                      final count = snapshot.data ?? 0;
+                      if (count == 0) return const SizedBox.shrink();
+                      return Container(
+                        width: 8,
+                        height: 8,
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                      );
+                    },
                   ),
                 ),
               ],
