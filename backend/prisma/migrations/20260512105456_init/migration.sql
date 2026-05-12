@@ -197,8 +197,8 @@ CREATE TABLE "ControlDelegation" (
     "id" TEXT NOT NULL,
     "eventId" TEXT NOT NULL,
     "delegateeId" TEXT NOT NULL,
-    "deviceId" TEXT NOT NULL,
-    "isActive" BOOLEAN NOT NULL DEFAULT true,
+    "deviceId" TEXT,
+    "isActive" BOOLEAN NOT NULL DEFAULT false,
     "grantedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "ControlDelegation_pkey" PRIMARY KEY ("id")
@@ -260,7 +260,7 @@ CREATE UNIQUE INDEX "Vote_eventTrackId_userId_key" ON "Vote"("eventTrackId", "us
 CREATE UNIQUE INDEX "EventInvite_eventId_userId_key" ON "EventInvite"("eventId", "userId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "ControlDelegation_eventId_delegateeId_deviceId_key" ON "ControlDelegation"("eventId", "delegateeId", "deviceId");
+CREATE UNIQUE INDEX "ControlDelegation_eventId_delegateeId_key" ON "ControlDelegation"("eventId", "delegateeId");
 
 -- CreateIndex
 CREATE INDEX "AuditLog_userId_idx" ON "AuditLog"("userId");
