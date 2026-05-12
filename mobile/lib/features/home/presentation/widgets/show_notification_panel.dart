@@ -8,11 +8,12 @@ import 'package:music_room/features/home/presentation/widgets/notification_modal
 /// presented as a [showModalBottomSheet] — the existing mobile pattern.
 ///
 /// On **desktop** (width ≥ 1024px) it is presented as a right-aligned
-/// side panel overlay (~400px wide, full height) using [showDialog],
-/// mimicking the drawer pattern common in desktop web apps.
+/// side panel overlay (~400px wide, full height) using
+/// [showGeneralDialog], mimicking the drawer pattern common in desktop
+/// web apps.
 ///
 /// **Parameters:**
-/// - [context] — the [BuildContext] used to measure screen width and
+/// - [context] — the [BuildContext] used to measure screen wiPdth and
 ///   display the modal.
 ///
 /// **Returns** a [Future<void>] that completes when the panel is dismissed.
@@ -80,11 +81,10 @@ class _DesktopNotificationPanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final screenHeight = MediaQuery.of(context).size.height;
 
     return Container(
       width: 400,
-      height: screenHeight,
+      height: double.infinity,
       decoration: BoxDecoration(
         color: colorScheme.surface,
         border: Border(

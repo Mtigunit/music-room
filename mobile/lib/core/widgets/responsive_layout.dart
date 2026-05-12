@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 /// Breakpoint thresholds for responsive layout decisions.
 ///
 /// - [compact]: Phone portrait (< 600px)
-/// - [medium]:  Tablet / small laptop (600–1024px)
-/// - [expanded]: Desktop browser (> 1024px)
+/// - [medium]:  Tablet / small laptop (600–<1024px)
+/// - [expanded]: Desktop browser (≥ 1024px)
 enum ScreenSize { compact, medium, expanded }
 
 /// A [LayoutBuilder]-based widget that resolves the current [ScreenSize]

@@ -9,7 +9,7 @@ import 'package:music_room/features/auth/presentation/widgets/auth_brand_panel.d
 /// - **compact** (< 600px): Full-width with 24px horizontal padding
 ///   — identical to the current mobile layout.
 /// - **medium** (600–1024px): Content centred with a max-width of 480px.
-/// - **expanded** (> 1024px): Split-panel — gradient brand panel on the
+/// - **expanded** (≥ 1024px): Split-panel — gradient brand panel on the
 ///   left (~45%), auth form on the right (~55%), form capped at 480px.
 ///
 /// Set [showBrandPanel] to `false` for sub-pages (forgot-password,

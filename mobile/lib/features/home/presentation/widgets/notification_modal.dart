@@ -52,7 +52,7 @@ class NotificationModal extends StatelessWidget {
             : const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: SafeArea(
-        top: false,
+        top: isPanel,
         child: Column(
           mainAxisSize: isPanel ? MainAxisSize.max : MainAxisSize.min,
           children: [
