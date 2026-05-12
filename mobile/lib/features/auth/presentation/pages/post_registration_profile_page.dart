@@ -40,6 +40,7 @@ class _PostRegistrationProfilePageState
   String? _avatarUrl;
   bool _isUploadingAvatar = false;
   bool _isSaving = false;
+  bool _hasPrefilledUsername = false;
 
   @override
   void dispose() {
@@ -53,6 +54,14 @@ class _PostRegistrationProfilePageState
   void initState() {
     super.initState();
     _usernameController = TextEditingController();
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+
+      _prefillUsernameFromAuthState(context.read<AuthBloc>().state);
+    });
   }
 
   @override
@@ -66,166 +75,161 @@ class _PostRegistrationProfilePageState
           showBrandPanel: false,
           child: Form(
             key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                BlocBuilder<AuthBloc, AuthState>(
-                  builder: (context, state) {
-                    final username = _usernameFromAuthState(state);
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const AuthScreenHeader(
-                          title: 'Complete your profile',
-                          subtitle:
-                              'Add a few details to personalize '
-                              'your experience.',
-                        ),
-                        if (username != null) ...[
-                          const SizedBox(height: 8),
-                          Text(
-                            'Welcome, @$username',
-                            style: theme.textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.w700,
-                              color: colorScheme.primary,
+            child: BlocListener<AuthBloc, AuthState>(
+              listener: (context, state) {
+                _prefillUsernameFromAuthState(state);
+              },
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  BlocBuilder<AuthBloc, AuthState>(
+                    builder: (context, state) {
+                      final username = _usernameFromAuthState(state);
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const AuthScreenHeader(
+                            title: 'Complete your profile',
+                            subtitle:
+                                'Add a few details to personalize '
+                                'your experience.',
+                          ),
+                          if (username != null) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              'Welcome, @$username',
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
+                                color: colorScheme.primary,
+                              ),
+                            ),
+                          ],
+                        ],
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 24),
+                  _buildProfileCard(context),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _usernameController,
+                    textInputAction: TextInputAction.next,
+                    decoration: FormInputDecoration.build(
+                      theme,
+                      labelText: null,
+                      hintText: 'Username',
+                    ),
+                    validator: _validateUsername,
+                  ),
+                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
+                  TextFormField(
+                    controller: _bioController,
+                    maxLines: 4,
+                    maxLength: 160,
+                    decoration: FormInputDecoration.build(
+                      theme,
+                      labelText: null,
+                      hintText: 'Tell people what you are into',
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: _locationController,
+                    decoration: FormInputDecoration.build(
+                      theme,
+                      labelText: null,
+                      hintText: 'City or region',
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  const FormSectionLabel(text: 'Favorite genres'),
+                  const SizedBox(height: 10),
+                  GenreSelectionGrid(
+                    genres: PlaylistTag.all
+                        .map((tag) => tag.displayLabel)
+                        .toList(growable: false),
+                    selectedGenres: _selectedGenres.toList(growable: false),
+                    maxSelection: 4,
+                    onGenreTapped: _toggleGenre,
+                  ),
+                  const SizedBox(height: 20),
+                  const FormSectionLabel(text: 'Theme preference'),
+                  const SizedBox(height: 10),
+                  _ThemeOptionCard(
+                    title: 'System',
+                    subtitle: 'Match the device appearance.',
+                    icon: Icons.brightness_auto_rounded,
+                    isSelected: _selectedTheme == 'SYSTEM',
+                    onTap: () => setState(() => _selectedTheme = 'SYSTEM'),
+                  ),
+                  const SizedBox(height: 10),
+                  _ThemeOptionCard(
+                    title: 'Light',
+                    subtitle: 'Use the lighter visual mode.',
+                    icon: Icons.light_mode_rounded,
+                    isSelected: _selectedTheme == 'LIGHT',
+                    onTap: () => setState(() => _selectedTheme = 'LIGHT'),
+                  ),
+                  const SizedBox(height: 10),
+                  _ThemeOptionCard(
+                    title: 'Dark',
+                    subtitle: 'Use the darker visual mode.',
+                    icon: Icons.dark_mode_rounded,
+                    isSelected: _selectedTheme == 'DARK',
+                    onTap: () => setState(() => _selectedTheme = 'DARK'),
+                  ),
+                  const SizedBox(height: 24),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final isCompact = constraints.maxWidth < 520;
+
+                      if (isCompact) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            AppButton(
+                              onPressed: _isSaving ? null : _saveProfile,
+                              isLoading: _isSaving,
+                              label: 'Save and continue',
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                            const SizedBox(height: 12),
+                            AppButton(
+                              onPressed: _isSaving ? null : _skip,
+                              variant: AppButtonVariant.text,
+                              label: 'Skip for now',
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                          ],
+                        );
+                      }
+
+                      return Row(
+                        children: [
+                          Expanded(
+                            child: AppButton(
+                              onPressed: _isSaving ? null : _saveProfile,
+                              isLoading: _isSaving,
+                              label: 'Save and continue',
+                              padding: const EdgeInsets.symmetric(vertical: 14),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: AppButton(
+                              onPressed: _isSaving ? null : _skip,
+                              variant: AppButtonVariant.outlined,
+                              label: 'Skip for now',
+                              padding: const EdgeInsets.symmetric(vertical: 14),
                             ),
                           ),
                         ],
-                      ],
-                    );
-                  },
-                ),
-                const SizedBox(height: 24),
-                _buildProfileCard(context),
-                const SizedBox(height: 16),
-                BlocBuilder<AuthBloc, AuthState>(
-                  builder: (context, state) {
-                    final username = _usernameFromAuthState(state);
-                    if (username != null && _usernameController.text.isEmpty) {
-                      // Prefill once from the Auth state
-                      _usernameController.text = username;
-                    }
-
-                    return TextFormField(
-                      controller: _usernameController,
-                      textInputAction: TextInputAction.next,
-                      decoration: FormInputDecoration.build(
-                        theme,
-                        labelText: null,
-                        hintText: 'Username',
-                      ),
-                      validator: _validateUsername,
-                    );
-                  },
-                ),
-                const SizedBox(height: 12),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _bioController,
-                  maxLines: 4,
-                  maxLength: 160,
-                  decoration: FormInputDecoration.build(
-                    theme,
-                    labelText: null,
-                    hintText: 'Tell people what you are into',
-                  ),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: _locationController,
-                  decoration: FormInputDecoration.build(
-                    theme,
-                    labelText: null,
-                    hintText: 'City or region',
-                  ),
-                ),
-                const SizedBox(height: 20),
-                const FormSectionLabel(text: 'Favorite genres'),
-                const SizedBox(height: 10),
-                GenreSelectionGrid(
-                  genres: PlaylistTag.all
-                      .map((tag) => tag.displayLabel)
-                      .toList(growable: false),
-                  selectedGenres: _selectedGenres.toList(growable: false),
-                  maxSelection: 4,
-                  onGenreTapped: _toggleGenre,
-                ),
-                const SizedBox(height: 20),
-                const FormSectionLabel(text: 'Theme preference'),
-                const SizedBox(height: 10),
-                _ThemeOptionCard(
-                  title: 'System',
-                  subtitle: 'Match the device appearance.',
-                  icon: Icons.brightness_auto_rounded,
-                  isSelected: _selectedTheme == 'SYSTEM',
-                  onTap: () => setState(() => _selectedTheme = 'SYSTEM'),
-                ),
-                const SizedBox(height: 10),
-                _ThemeOptionCard(
-                  title: 'Light',
-                  subtitle: 'Use the lighter visual mode.',
-                  icon: Icons.light_mode_rounded,
-                  isSelected: _selectedTheme == 'LIGHT',
-                  onTap: () => setState(() => _selectedTheme = 'LIGHT'),
-                ),
-                const SizedBox(height: 10),
-                _ThemeOptionCard(
-                  title: 'Dark',
-                  subtitle: 'Use the darker visual mode.',
-                  icon: Icons.dark_mode_rounded,
-                  isSelected: _selectedTheme == 'DARK',
-                  onTap: () => setState(() => _selectedTheme = 'DARK'),
-                ),
-                const SizedBox(height: 24),
-                LayoutBuilder(
-                  builder: (context, constraints) {
-                    final isCompact = constraints.maxWidth < 520;
-
-                    if (isCompact) {
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          AppButton(
-                            onPressed: _isSaving ? null : _saveProfile,
-                            isLoading: _isSaving,
-                            label: 'Save and continue',
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                          const SizedBox(height: 12),
-                          AppButton(
-                            onPressed: _isSaving ? null : _skip,
-                            variant: AppButtonVariant.text,
-                            label: 'Skip for now',
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                        ],
                       );
-                    }
-
-                    return Row(
-                      children: [
-                        Expanded(
-                          child: AppButton(
-                            onPressed: _isSaving ? null : _saveProfile,
-                            isLoading: _isSaving,
-                            label: 'Save and continue',
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                        ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: AppButton(
-                            onPressed: _isSaving ? null : _skip,
-                            variant: AppButtonVariant.outlined,
-                            label: 'Skip for now',
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                          ),
-                        ),
-                      ],
-                    );
-                  },
-                ),
-              ],
+                    },
+                  ),
+                ],
+              ),
             ),
           ),
         ),
@@ -478,6 +482,20 @@ class _PostRegistrationProfilePageState
       RegisterSuccess(:final user) => user.username,
       _ => null,
     };
+  }
+
+  void _prefillUsernameFromAuthState(AuthState state) {
+    if (_hasPrefilledUsername || _usernameController.text.isNotEmpty) {
+      return;
+    }
+
+    final username = _usernameFromAuthState(state)?.trim();
+    if (username == null || username.isEmpty) {
+      return;
+    }
+
+    _usernameController.text = username;
+    _hasPrefilledUsername = true;
   }
 
   String? _trimmedValue(String value) {
