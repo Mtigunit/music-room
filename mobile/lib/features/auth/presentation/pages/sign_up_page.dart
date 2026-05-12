@@ -8,9 +8,10 @@ import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
 import 'package:music_room/features/auth/presentation/state/auth_event.dart';
 import 'package:music_room/features/auth/presentation/state/auth_state.dart';
 import 'package:music_room/features/auth/presentation/widgets/auth_divider_with_text.dart';
+import 'package:music_room/features/auth/presentation/widgets/auth_page_layout.dart';
 import 'package:music_room/features/auth/presentation/widgets/auth_screen_header.dart';
 import 'package:music_room/features/auth/presentation/widgets/auth_text_input_field.dart';
-import 'package:music_room/features/auth/presentation/widgets/otp_verification_modal.dart';
+import 'package:music_room/features/auth/presentation/widgets/show_otp_modal.dart';
 import 'package:music_room/features/auth/presentation/widgets/social_login_button.dart';
 import 'package:music_room/routes/route_names.dart';
 
@@ -35,7 +36,6 @@ class _SignUpPageState extends State<SignUpPage> {
   String? _emailVerificationToken;
   String? _verifiedEmail;
   bool _isOtpModalOpen = false;
-  BuildContext? _otpModalContext;
 
   String get _trimmedEmail => _emailController.text.trim();
 
@@ -156,38 +156,28 @@ class _SignUpPageState extends State<SignUpPage> {
     _isOtpModalOpen = true;
 
     unawaited(
-      showModalBottomSheet<void>(
+      showOtpModal(
         context: context,
-        isScrollControlled: true,
-        enableDrag: false,
-        isDismissible: false,
-        backgroundColor: Colors.transparent,
-        builder: (modalContext) {
-          _otpModalContext = modalContext;
-          return OtpVerificationModal(
-            title: 'Verify your email',
-            message: 'We sent a 6-digit code to',
-            destination: _trimmedEmail,
-            onConfirm: (otpCode) {
-              context.read<AuthBloc>().add(
-                VerifyOtpRequested(
-                  email: _trimmedEmail,
-                  code: otpCode,
-                ),
-              );
-            },
-            onResend: () {
-              context.read<AuthBloc>().add(
-                SendOtpRequested(
-                  email: _trimmedEmail,
-                ),
-              );
-            },
+        title: 'Verify your email',
+        message: 'We sent a 6-digit code to',
+        destination: _trimmedEmail,
+        onConfirm: (otpCode) {
+          context.read<AuthBloc>().add(
+            VerifyOtpRequested(
+              email: _trimmedEmail,
+              code: otpCode,
+            ),
+          );
+        },
+        onResend: () {
+          context.read<AuthBloc>().add(
+            SendOtpRequested(
+              email: _trimmedEmail,
+            ),
           );
         },
       ).whenComplete(() {
         _isOtpModalOpen = false;
-        _otpModalContext = null;
       }),
     );
   }
@@ -223,14 +213,12 @@ class _SignUpPageState extends State<SignUpPage> {
           AppSnackbar.showSuccess(context, 'Email verified successfully!');
           _emailVerificationToken = state.emailVerificationToken;
           _verifiedEmail = _sanitizeEmail(state.email);
-          if (_isOtpModalOpen && _otpModalContext != null) {
-            final modalNavigator = Navigator.of(_otpModalContext!);
-            if (modalNavigator.canPop()) {
-              modalNavigator.pop();
-            }
+          if (_isOtpModalOpen && mounted) {
+            unawaited(
+              Navigator.of(context, rootNavigator: true).maybePop(),
+            );
           }
           _isOtpModalOpen = false;
-          _otpModalContext = null;
         } else if (state is OtpVerificationFailure) {
           AppSnackbar.showError(context, state.failure.message);
         } else if (state is RegisterLoading) {
@@ -269,8 +257,7 @@ class _SignUpPageState extends State<SignUpPage> {
       },
       child: Scaffold(
         body: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: AuthPageLayout(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
