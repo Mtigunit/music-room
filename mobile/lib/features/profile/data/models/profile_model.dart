@@ -1,12 +1,8 @@
-import 'package:json_annotation/json_annotation.dart';
 import 'package:music_room/features/profile/domain/entities/profile_entity.dart';
 
 part 'profile_model.g.dart';
 
-// NOTE: this model uses a manually maintained companion g.dart file.
-
-/// User profile model returned from both /users/me and /users/:id endpoints
-@JsonSerializable(explicitToJson: true)
+/// User profile model returned from both /users/me and /users/:id endpoints.
 class UserProfileModel {
   const UserProfileModel({
     required this.id,

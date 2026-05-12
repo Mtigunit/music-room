@@ -184,25 +184,17 @@ class ProfileUpdateRequest extends Equatable {
     final privateInfo = <String, dynamic>{};
     final preferences = <String, dynamic>{};
 
-    final trimmedBio = shortBio?.trim();
-    if (trimmedBio != null && trimmedBio.isNotEmpty) {
-      publicInfo['shortBio'] = trimmedBio;
-    }
+    final trimmedBio = shortBio?.trim() ?? '';
+    publicInfo['shortBio'] = trimmedBio;
 
-    final trimmedLocation = location?.trim();
-    if (trimmedLocation != null && trimmedLocation.isNotEmpty) {
-      friendInfo['location'] = trimmedLocation;
-    }
+    final trimmedLocation = location?.trim() ?? '';
+    friendInfo['location'] = trimmedLocation;
 
-    final trimmedDateOfBirth = dateOfBirth?.trim();
-    if (trimmedDateOfBirth != null && trimmedDateOfBirth.isNotEmpty) {
-      privateInfo['dateOfBirth'] = trimmedDateOfBirth;
-    }
+    final trimmedDateOfBirth = dateOfBirth?.trim() ?? '';
+    privateInfo['dateOfBirth'] = trimmedDateOfBirth;
 
-    final trimmedPhysicalAddress = physicalAddress?.trim();
-    if (trimmedPhysicalAddress != null && trimmedPhysicalAddress.isNotEmpty) {
-      privateInfo['physicalAddress'] = trimmedPhysicalAddress;
-    }
+    final trimmedPhysicalAddress = physicalAddress?.trim() ?? '';
+    privateInfo['physicalAddress'] = trimmedPhysicalAddress;
 
     if (favoriteGenres != null && favoriteGenres!.isNotEmpty) {
       preferences['favoriteGenres'] = favoriteGenres;
