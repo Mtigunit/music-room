@@ -38,7 +38,24 @@ class TokenStorageService {
   /// Retrieve JWT token
   Future<String?> getToken() async {
     try {
-      return await _secureStorage.read(key: _tokenKey);
+      final secureToken = await _secureStorage.read(key: _tokenKey);
+      if (secureToken != null) return secureToken;
+
+      // If not in secure storage, check fallback on Web
+      if (kIsWeb) {
+        final prefsToken = _prefs.getString(_tokenKey);
+        if (prefsToken != null) {
+          // Attempt migration to secure storage for future requests
+          try {
+            await _secureStorage.write(key: _tokenKey, value: prefsToken);
+            debugPrint('[TokenStorage] Migrated token from SharedPreferences to SecureStorage.');
+          } catch (_) {
+            // Ignore migration errors (likely still on HTTP)
+          }
+          return prefsToken;
+        }
+      }
+      return null;
     } catch (e) {
       if (kIsWeb) {
         return _prefs.getString(_tokenKey);
@@ -81,7 +98,24 @@ class TokenStorageService {
   /// Retrieve user profile data
   Future<String?> getUserProfile() async {
     try {
-      return await _secureStorage.read(key: _userKey);
+      final secureUser = await _secureStorage.read(key: _userKey);
+      if (secureUser != null) return secureUser;
+
+      // If not in secure storage, check fallback on Web
+      if (kIsWeb) {
+        final prefsUser = _prefs.getString(_userKey);
+        if (prefsUser != null) {
+          // Attempt migration to secure storage for future requests
+          try {
+            await _secureStorage.write(key: _userKey, value: prefsUser);
+            debugPrint('[TokenStorage] Migrated user profile from SharedPreferences to SecureStorage.');
+          } catch (_) {
+            // Ignore migration errors (likely still on HTTP)
+          }
+          return prefsUser;
+        }
+      }
+      return null;
     } catch (e) {
       if (kIsWeb) {
         return _prefs.getString(_userKey);
