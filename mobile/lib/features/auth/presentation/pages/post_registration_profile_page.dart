@@ -126,7 +126,7 @@ class _PostRegistrationProfilePageState
                   TextFormField(
                     controller: _bioController,
                     maxLines: 4,
-                    maxLength: 160,
+                    maxLength: 150,
                     decoration: FormInputDecoration.build(
                       theme,
                       labelText: null,
@@ -149,7 +149,12 @@ class _PostRegistrationProfilePageState
                     genres: PlaylistTag.all
                         .map((tag) => tag.displayLabel)
                         .toList(growable: false),
-                    selectedGenres: _selectedGenres.toList(growable: false),
+                    selectedGenres: _selectedGenres
+                        .map(
+                          (value) => PlaylistTag.fromValue(value)?.displayLabel,
+                        )
+                        .whereType<String>()
+                        .toList(growable: false),
                     maxSelection: 4,
                     onGenreTapped: _toggleGenre,
                   ),
@@ -189,14 +194,14 @@ class _PostRegistrationProfilePageState
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                             AppButton(
-                              onPressed: _isSaving ? null : _saveProfile,
+                              onPressed: _isBusy ? null : _saveProfile,
                               isLoading: _isSaving,
                               label: 'Save and continue',
                               padding: const EdgeInsets.symmetric(vertical: 14),
                             ),
                             const SizedBox(height: 12),
                             AppButton(
-                              onPressed: _isSaving ? null : _skip,
+                              onPressed: _isBusy ? null : _skip,
                               variant: AppButtonVariant.text,
                               label: 'Skip for now',
                               padding: const EdgeInsets.symmetric(vertical: 14),
@@ -209,7 +214,7 @@ class _PostRegistrationProfilePageState
                         children: [
                           Expanded(
                             child: AppButton(
-                              onPressed: _isSaving ? null : _saveProfile,
+                              onPressed: _isBusy ? null : _saveProfile,
                               isLoading: _isSaving,
                               label: 'Save and continue',
                               padding: const EdgeInsets.symmetric(vertical: 14),
@@ -218,7 +223,7 @@ class _PostRegistrationProfilePageState
                           const SizedBox(width: 12),
                           Expanded(
                             child: AppButton(
-                              onPressed: _isSaving ? null : _skip,
+                              onPressed: _isBusy ? null : _skip,
                               variant: AppButtonVariant.outlined,
                               label: 'Skip for now',
                               padding: const EdgeInsets.symmetric(vertical: 14),
@@ -242,7 +247,7 @@ class _PostRegistrationProfilePageState
     final colorScheme = theme.colorScheme;
 
     return InkWell(
-      onTap: _pickAvatar,
+      onTap: _isBusy ? null : _pickAvatar,
       borderRadius: BorderRadius.circular(20),
       child: Container(
         padding: const EdgeInsets.all(16),
@@ -325,7 +330,7 @@ class _PostRegistrationProfilePageState
   }
 
   Future<void> _pickAvatar() async {
-    if (_isSaving) {
+    if (_isBusy) {
       return;
     }
 
@@ -347,10 +352,12 @@ class _PostRegistrationProfilePageState
     });
 
     try {
+      final avatarPath = avatar.path;
+      final avatarName = avatar.name;
       final profileRepository = InjectionContainer().profileRepository;
       final updated = await profileRepository.uploadMyAvatar(
-        _pickedAvatar!.path,
-        _pickedAvatar!.name,
+        avatarPath,
+        avatarName,
       );
 
       if (!mounted) return;
@@ -377,10 +384,12 @@ class _PostRegistrationProfilePageState
 
   void _toggleGenre(String genre) {
     setState(() {
-      if (_selectedGenres.contains(genre)) {
-        _selectedGenres.remove(genre);
+      final tag = _playlistTagFromDisplayLabel(genre);
+
+      if (_selectedGenres.contains(tag.value)) {
+        _selectedGenres.remove(tag.value);
       } else if (_selectedGenres.length < 4) {
-        _selectedGenres.add(genre);
+        _selectedGenres.add(tag.value);
       }
     });
   }
@@ -484,6 +493,8 @@ class _PostRegistrationProfilePageState
     };
   }
 
+  bool get _isBusy => _isSaving || _isUploadingAvatar;
+
   void _prefillUsernameFromAuthState(AuthState state) {
     if (_hasPrefilledUsername || _usernameController.text.isNotEmpty) {
       return;
@@ -496,6 +507,12 @@ class _PostRegistrationProfilePageState
 
     _usernameController.text = username;
     _hasPrefilledUsername = true;
+  }
+
+  PlaylistTag _playlistTagFromDisplayLabel(String displayLabel) {
+    return PlaylistTag.all.firstWhere(
+      (tag) => tag.displayLabel == displayLabel,
+    );
   }
 
   String? _trimmedValue(String value) {
