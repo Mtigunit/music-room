@@ -175,7 +175,16 @@ class ProfileUpdateRequest extends Equatable {
         normalizedUsername.isNotEmpty &&
         normalizedUsername != currentUsername?.trim();
 
-    return hasUsernameChange || toJson().isNotEmpty;
+    final hasProfileFieldChanges =
+        (shortBio?.trim().isNotEmpty ?? false) ||
+        (location?.trim().isNotEmpty ?? false) ||
+        (dateOfBirth?.trim().isNotEmpty ?? false) ||
+        (physicalAddress?.trim().isNotEmpty ?? false) ||
+        (favoriteGenres?.isNotEmpty ?? false) ||
+        autoAcceptInvites != null ||
+        (uiTheme?.trim().isNotEmpty ?? false);
+
+    return hasUsernameChange || hasProfileFieldChanges;
   }
 
   Map<String, dynamic> toJson() {
@@ -184,17 +193,25 @@ class ProfileUpdateRequest extends Equatable {
     final privateInfo = <String, dynamic>{};
     final preferences = <String, dynamic>{};
 
-    final trimmedBio = shortBio?.trim() ?? '';
-    publicInfo['shortBio'] = trimmedBio;
+    final trimmedBio = shortBio?.trim();
+    if (trimmedBio != null && trimmedBio.isNotEmpty) {
+      publicInfo['shortBio'] = trimmedBio;
+    }
 
-    final trimmedLocation = location?.trim() ?? '';
-    friendInfo['location'] = trimmedLocation;
+    final trimmedLocation = location?.trim();
+    if (trimmedLocation != null && trimmedLocation.isNotEmpty) {
+      friendInfo['location'] = trimmedLocation;
+    }
 
-    final trimmedDateOfBirth = dateOfBirth?.trim() ?? '';
-    privateInfo['dateOfBirth'] = trimmedDateOfBirth;
+    final trimmedDateOfBirth = dateOfBirth?.trim();
+    if (trimmedDateOfBirth != null && trimmedDateOfBirth.isNotEmpty) {
+      privateInfo['dateOfBirth'] = trimmedDateOfBirth;
+    }
 
-    final trimmedPhysicalAddress = physicalAddress?.trim() ?? '';
-    privateInfo['physicalAddress'] = trimmedPhysicalAddress;
+    final trimmedPhysicalAddress = physicalAddress?.trim();
+    if (trimmedPhysicalAddress != null && trimmedPhysicalAddress.isNotEmpty) {
+      privateInfo['physicalAddress'] = trimmedPhysicalAddress;
+    }
 
     if (favoriteGenres != null && favoriteGenres!.isNotEmpty) {
       preferences['favoriteGenres'] = favoriteGenres;
