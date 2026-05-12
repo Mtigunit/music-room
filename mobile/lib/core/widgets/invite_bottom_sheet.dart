@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -128,6 +129,7 @@ class _InviteBottomSheetState extends State<InviteBottomSheet> {
   static const Duration _searchDebounceDuration = Duration(milliseconds: 350);
 
   String _searchQuery = '';
+  String _lastSearchQuery = '';
   Timer? _searchDebounce;
   List<InviteFriendData> _searchResults = const <InviteFriendData>[];
   bool _isSearching = false;
@@ -196,9 +198,9 @@ class _InviteBottomSheetState extends State<InviteBottomSheet> {
     }
 
     _searchDebounce = Timer(_searchDebounceDuration, () {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
+      // remember the request's query so late responses can be ignored
+      _lastSearchQuery = query;
       unawaited(_searchUsers(query));
     });
   }
@@ -216,18 +218,20 @@ class _InviteBottomSheetState extends State<InviteBottomSheet> {
 
     try {
       final users = await searchUsers(query);
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
+
+      // ignore stale responses
+      if (query.trim() != _lastSearchQuery.trim()) return;
 
       setState(() {
         _searchResults = users;
         _isSearching = false;
       });
     } on Object catch (error) {
-      if (!mounted) {
-        return;
-      }
+      if (!mounted) return;
+
+      // ignore errors for stale queries
+      if (query.trim() != _lastSearchQuery.trim()) return;
 
       setState(() {
         _searchResults = const <InviteFriendData>[];
@@ -239,16 +243,46 @@ class _InviteBottomSheetState extends State<InviteBottomSheet> {
 
   String _toUserMessage(Object error) {
     final raw = error.toString().trim();
-    if (raw.isEmpty) {
-      return 'Search failed. Please try again.';
+    debugPrint('InviteBottomSheet search error: $raw');
+
+    if (error is DioException) {
+      if (error.type == DioExceptionType.connectionError ||
+          error.type == DioExceptionType.connectionTimeout ||
+          error.type == DioExceptionType.receiveTimeout ||
+          error.type == DioExceptionType.sendTimeout) {
+        return 'Network error while searching. Please check your connection.';
+      }
+
+      final apiMsg = _extractApiMessage(error.response?.data);
+      if (apiMsg != null && apiMsg.isNotEmpty) return apiMsg;
+
+      final status = error.response?.statusCode;
+      switch (status) {
+        case 401:
+          return 'Session expired. Please sign in again.';
+        default:
+          return 'Search failed. Please try again.';
+      }
     }
 
-    const prefix = 'Exception:';
-    if (raw.startsWith(prefix)) {
-      return raw.substring(prefix.length).trim();
-    }
+    if (raw.isEmpty) return 'Search failed. Please try again.';
+    return 'Search failed. Please try again.';
+  }
 
-    return raw;
+  String? _extractApiMessage(Object? data) {
+    if (data is Map<String, dynamic>) {
+      final message = data['message'];
+      if (message is String && message.trim().isNotEmpty) return message.trim();
+      if (message is List<dynamic>) {
+        final joined = message
+            .whereType<String>()
+            .map((s) => s.trim())
+            .where((s) => s.isNotEmpty)
+            .join('\n');
+        if (joined.isNotEmpty) return joined;
+      }
+    }
+    return null;
   }
 
   @override
@@ -382,7 +416,9 @@ class _InviteBottomSheetState extends State<InviteBottomSheet> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 20),
                 child: Text(
-                  _searchQuery.isEmpty ? 'Your Friends' : 'Search Results',
+                  _searchQuery.trim().isEmpty
+                      ? 'Your Friends'
+                      : 'Search Results',
                   style: textTheme.titleSmall?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: colorScheme.onSurface.withValues(alpha: 0.6),

@@ -48,9 +48,6 @@ class _PlaylistUserInviteBottomSheetState
       title: 'Invite Users',
       subtitle: 'Share "${widget.playlistName}" with your friends',
       friends: const <InviteFriendData>[],
-      onCopyLink: () {
-        AppSnackbar.showSuccess(context, 'Playlist link copied.');
-      },
       onSearchUsers: _searchUsers,
       onInviteAction: _inviteUser,
     );
@@ -165,10 +162,21 @@ class _PlaylistUserInviteBottomSheetState
   }
 
   int _colorFromSeed(String seed) {
-    final hash = seed.hashCode;
+    // Use a stable, platform-independent FNV-1a hash over the UTF-8 code units
+    final hash = _stableHash(seed);
     final red = 100 + (hash & 0x3F);
     final green = 100 + ((hash >> 8) & 0x3F);
     final blue = 100 + ((hash >> 16) & 0x3F);
     return 0xFF000000 | (red << 16) | (green << 8) | blue;
+  }
+
+  int _stableHash(String input) {
+    const fnvPrime = 0x01000193;
+    var hash = 0x811C9DC5;
+    for (final codeUnit in input.codeUnits) {
+      hash ^= codeUnit;
+      hash = (hash * fnvPrime) & 0xFFFFFFFF;
+    }
+    return hash;
   }
 }
