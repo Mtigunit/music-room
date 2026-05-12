@@ -32,22 +32,31 @@ class AuthRepositoryImpl implements AuthRepository {
         identifier: identifier,
         password: password,
       );
-      
-      debugPrint('[AuthRepository] Login successful, saving token...');
+      if (kDebugMode) {
+        debugPrint('[AuthRepository] Login successful, saving token...');
+      }
       await _tokenStorage.saveToken(response.accessToken);
       
-      debugPrint('[AuthRepository] Saving user profile...');
+      if (kDebugMode) {
+        debugPrint('[AuthRepository] Saving user profile...');
+      }
       await _tokenStorage.saveUserProfile(jsonEncode(response.user.toJson()));
       
-      debugPrint('[AuthRepository] Login process complete.');
+      if (kDebugMode) {
+        debugPrint('[AuthRepository] Login process complete.');
+      }
       return (response, null);
     } on DioException catch (e) {
-      debugPrint('[AuthRepository] Login Error: $e');
+      if (kDebugMode) {
+        debugPrint('[AuthRepository] Login DioError: ${e.type}');
+      }
       return (null, _handleDioException(e));
     } on Object catch (e, stack) {
-      debugPrint('[AuthRepository] Login Error: $e');
-      debugPrint('[AuthRepository] Stack trace: $stack');
-      return (null, Failure(message: 'An unexpected error occurred: $e'));
+      if (kDebugMode) {
+        debugPrint('[AuthRepository] Unexpected Login Error: $e');
+        debugPrint('[AuthRepository] Stack trace: $stack');
+      }
+      return (null, const Failure(message: 'An unexpected error occurred.'));
     }
   }
 

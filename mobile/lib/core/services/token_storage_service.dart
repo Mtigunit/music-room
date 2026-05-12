@@ -21,15 +21,23 @@ class TokenStorageService {
   /// Save JWT token
   Future<void> saveToken(String token) async {
     try {
-      debugPrint('[TokenStorage] Attempting to save token securely...');
+      if (kDebugMode) {
+        debugPrint('[TokenStorage] Attempting to save token securely...');
+      }
       await _secureStorage.write(key: _tokenKey, value: token);
-      debugPrint('[TokenStorage] Token saved successfully.');
+      if (kDebugMode) {
+        debugPrint('[TokenStorage] Token saved successfully.');
+      }
     } catch (e) {
       if (kIsWeb) {
-        debugPrint('[TokenStorage] Secure storage failed on Web, falling back to SharedPreferences: $e');
+        if (kDebugMode) {
+          debugPrint('[TokenStorage] Secure storage failed on Web, falling back to SharedPreferences: $e');
+        }
         await _prefs.setString(_tokenKey, token);
       } else {
-        debugPrint('[TokenStorage] Error saving token: $e');
+        if (kDebugMode) {
+          debugPrint('[TokenStorage] Error saving token: $e');
+        }
         rethrow;
       }
     }
@@ -48,7 +56,9 @@ class TokenStorageService {
           // Attempt migration to secure storage for future requests
           try {
             await _secureStorage.write(key: _tokenKey, value: prefsToken);
-            debugPrint('[TokenStorage] Migrated token from SharedPreferences to SecureStorage.');
+            if (kDebugMode) {
+              debugPrint('[TokenStorage] Migrated token from SharedPreferences to SecureStorage.');
+            }
           } catch (_) {
             // Ignore migration errors (likely still on HTTP)
           }
@@ -60,7 +70,9 @@ class TokenStorageService {
       if (kIsWeb) {
         return _prefs.getString(_tokenKey);
       }
-      debugPrint('[TokenStorage] Error reading token: $e');
+      if (kDebugMode) {
+        debugPrint('[TokenStorage] Error reading token: $e');
+      }
       return null;
     }
   }
@@ -73,7 +85,9 @@ class TokenStorageService {
       if (kIsWeb) {
         await _prefs.remove(_tokenKey);
       } else {
-        debugPrint('[TokenStorage] Error clearing token: $e');
+        if (kDebugMode) {
+          debugPrint('[TokenStorage] Error clearing token: $e');
+        }
       }
     }
   }
@@ -81,15 +95,23 @@ class TokenStorageService {
   /// Save user profile data
   Future<void> saveUserProfile(String userJson) async {
     try {
-      debugPrint('[TokenStorage] Attempting to save user profile securely...');
+      if (kDebugMode) {
+        debugPrint('[TokenStorage] Attempting to save user profile securely...');
+      }
       await _secureStorage.write(key: _userKey, value: userJson);
-      debugPrint('[TokenStorage] User profile saved successfully.');
+      if (kDebugMode) {
+        debugPrint('[TokenStorage] User profile saved successfully.');
+      }
     } catch (e) {
       if (kIsWeb) {
-        debugPrint('[TokenStorage] Secure storage failed on Web, falling back to SharedPreferences: $e');
+        if (kDebugMode) {
+          debugPrint('[TokenStorage] Secure storage failed on Web, falling back to SharedPreferences: $e');
+        }
         await _prefs.setString(_userKey, userJson);
       } else {
-        debugPrint('[TokenStorage] Error saving user profile: $e');
+        if (kDebugMode) {
+          debugPrint('[TokenStorage] Error saving user profile: $e');
+        }
         rethrow;
       }
     }
@@ -108,7 +130,9 @@ class TokenStorageService {
           // Attempt migration to secure storage for future requests
           try {
             await _secureStorage.write(key: _userKey, value: prefsUser);
-            debugPrint('[TokenStorage] Migrated user profile from SharedPreferences to SecureStorage.');
+            if (kDebugMode) {
+              debugPrint('[TokenStorage] Migrated user profile from SharedPreferences to SecureStorage.');
+            }
           } catch (_) {
             // Ignore migration errors (likely still on HTTP)
           }
@@ -120,7 +144,9 @@ class TokenStorageService {
       if (kIsWeb) {
         return _prefs.getString(_userKey);
       }
-      debugPrint('[TokenStorage] Error reading user profile: $e');
+      if (kDebugMode) {
+        debugPrint('[TokenStorage] Error reading user profile: $e');
+      }
       return null;
     }
   }
@@ -135,7 +161,9 @@ class TokenStorageService {
         await _prefs.remove(_tokenKey);
         await _prefs.remove(_userKey);
       } else {
-        debugPrint('[TokenStorage] Error clearing all storage: $e');
+        if (kDebugMode) {
+          debugPrint('[TokenStorage] Error clearing all storage: $e');
+        }
       }
     }
   }
