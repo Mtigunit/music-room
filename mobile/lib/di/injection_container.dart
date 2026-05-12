@@ -65,12 +65,15 @@ class InjectionContainer {
   /// Initialize all dependencies
   Future<void> init() async {
     // Core Services
+    final sharedPreferences = await SharedPreferences.getInstance();
+
+    const secureStorage = FlutterSecureStorage();
     _tokenStorageService = TokenStorageService(
-      secureStorage: const FlutterSecureStorage(),
+      secureStorage: secureStorage,
+      prefs: sharedPreferences,
     );
     _searchQueryService = SearchQueryService();
     _googleAuthService = GoogleAuthService();
-    final sharedPreferences = await SharedPreferences.getInstance();
     _connectivityService = ConnectivityService();
     _clientMetaService = ClientMetaService(
       sharedPreferences: sharedPreferences,

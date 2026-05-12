@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:music_room/core/error/failure.dart';
 import 'package:music_room/core/services/google_auth_service.dart';
 import 'package:music_room/core/services/token_storage_service.dart';
@@ -31,13 +32,31 @@ class AuthRepositoryImpl implements AuthRepository {
         identifier: identifier,
         password: password,
       );
+      if (kDebugMode) {
+        debugPrint('[AuthRepository] Login successful, saving token...');
+      }
       await _tokenStorage.saveToken(response.accessToken);
+
+      if (kDebugMode) {
+        debugPrint('[AuthRepository] Saving user profile...');
+      }
       await _tokenStorage.saveUserProfile(jsonEncode(response.user.toJson()));
+
+      if (kDebugMode) {
+        debugPrint('[AuthRepository] Login process complete.');
+      }
       return (response, null);
     } on DioException catch (e) {
+      if (kDebugMode) {
+        debugPrint('[AuthRepository] Login DioError: ${e.type}');
+      }
       return (null, _handleDioException(e));
-    } on Object catch (e) {
-      return (null, Failure(message: 'An unexpected error occurred: $e'));
+    } on Object catch (e, stack) {
+      if (kDebugMode) {
+        debugPrint('[AuthRepository] Unexpected Login Error: $e');
+        debugPrint('[AuthRepository] Stack trace: $stack');
+      }
+      return (null, const Failure(message: 'An unexpected error occurred.'));
     }
   }
 

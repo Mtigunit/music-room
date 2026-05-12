@@ -1,46 +1,188 @@
 import 'dart:convert';
-
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:music_room/core/config/app_config.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Service for securely storing and retrieving authentication tokens.
 class TokenStorageService {
-  TokenStorageService({FlutterSecureStorage? secureStorage})
-    : _secureStorage = secureStorage ?? const FlutterSecureStorage();
+  TokenStorageService({
+    required FlutterSecureStorage secureStorage,
+    required SharedPreferences prefs,
+  }) : _secureStorage = secureStorage,
+       _prefs = prefs;
+
+  final FlutterSecureStorage _secureStorage;
+  final SharedPreferences _prefs;
+
   static const String _tokenKey = AppConfig.tokenStorageKey;
   static const String _userKey = AppConfig.userStorageKey;
 
-  final FlutterSecureStorage _secureStorage;
-
-  /// Save JWT token securely
+  /// Save JWT token
   Future<void> saveToken(String token) async {
-    await _secureStorage.write(key: _tokenKey, value: token);
+    try {
+      if (kDebugMode) {
+        debugPrint('[TokenStorage] Attempting to save token securely...');
+      }
+      await _secureStorage.write(key: _tokenKey, value: token);
+      if (kDebugMode) {
+        debugPrint('[TokenStorage] Token saved successfully.');
+      }
+    } catch (e) {
+      if (kIsWeb && AppConfig.allowInsecureStorage) {
+        // SECURITY WARNING: Storing JWT in SharedPreferences on Web uses
+        // plaintext LocalStorage.
+        // This is vulnerable to XSS but required for non-HTTPS environments.
+        if (kDebugMode) {
+          debugPrint(
+            '⚠️ [TokenStorage] SECURITY WARNING: Falling back to '
+            'unencrypted storage (XSS risk): $e',
+          );
+        }
+        await _prefs.setString(_tokenKey, token);
+      } else {
+        if (kDebugMode) {
+          debugPrint('[TokenStorage] Error saving token: $e');
+        }
+        rethrow;
+      }
+    }
   }
 
   /// Retrieve JWT token
   Future<String?> getToken() async {
-    return _secureStorage.read(key: _tokenKey);
+    try {
+      final secureToken = await _secureStorage.read(key: _tokenKey);
+      if (secureToken != null) return secureToken;
+
+      // If not in secure storage, check fallback on Web
+      if (kIsWeb) {
+        final prefsToken = _prefs.getString(_tokenKey);
+        if (prefsToken != null) {
+          // Attempt migration to secure storage for future requests
+          try {
+            await _secureStorage.write(key: _tokenKey, value: prefsToken);
+            if (kDebugMode) {
+              debugPrint(
+                '[TokenStorage] Migrated token from SharedPreferences '
+                'to SecureStorage.',
+              );
+            }
+          } on Object catch (_) {
+            // Ignore migration errors (likely still on HTTP)
+          }
+          return prefsToken;
+        }
+      }
+      return null;
+    } on Object catch (e) {
+      if (kIsWeb) {
+        return _prefs.getString(_tokenKey);
+      }
+      if (kDebugMode) {
+        debugPrint('[TokenStorage] Error reading token: $e');
+      }
+      return null;
+    }
   }
 
   /// Clear JWT token
   Future<void> clearToken() async {
-    await _secureStorage.delete(key: _tokenKey);
+    try {
+      await _secureStorage.delete(key: _tokenKey);
+    } on Object catch (e) {
+      if (kDebugMode) {
+        debugPrint('[TokenStorage] Error clearing secure token: $e');
+      }
+    } finally {
+      if (kIsWeb) {
+        await _prefs.remove(_tokenKey);
+      }
+    }
   }
 
   /// Save user profile data
   Future<void> saveUserProfile(String userJson) async {
-    await _secureStorage.write(key: _userKey, value: userJson);
+    try {
+      if (kDebugMode) {
+        debugPrint(
+          '[TokenStorage] Attempting to save user profile securely...',
+        );
+      }
+      await _secureStorage.write(key: _userKey, value: userJson);
+      if (kDebugMode) {
+        debugPrint('[TokenStorage] User profile saved successfully.');
+      }
+    } catch (e) {
+      if (kIsWeb && AppConfig.allowInsecureStorage) {
+        if (kDebugMode) {
+          debugPrint(
+            '⚠️ [TokenStorage] SECURITY WARNING: Falling back to '
+            'unencrypted storage for profile: $e',
+          );
+        }
+        await _prefs.setString(_userKey, userJson);
+      } else {
+        if (kDebugMode) {
+          debugPrint('[TokenStorage] Error saving user profile: $e');
+        }
+        rethrow;
+      }
+    }
   }
 
   /// Retrieve user profile data
   Future<String?> getUserProfile() async {
-    return _secureStorage.read(key: _userKey);
+    try {
+      final secureUser = await _secureStorage.read(key: _userKey);
+      if (secureUser != null) return secureUser;
+
+      // If not in secure storage, check fallback on Web
+      if (kIsWeb) {
+        final prefsUser = _prefs.getString(_userKey);
+        if (prefsUser != null) {
+          // Attempt migration to secure storage for future requests
+          try {
+            await _secureStorage.write(key: _userKey, value: prefsUser);
+            if (kDebugMode) {
+              debugPrint(
+                '[TokenStorage] Migrated user profile from '
+                'SharedPreferences to SecureStorage.',
+              );
+            }
+          } on Object catch (_) {
+            // Ignore migration errors (likely still on HTTP)
+          }
+          return prefsUser;
+        }
+      }
+      return null;
+    } on Object catch (e) {
+      if (kIsWeb) {
+        return _prefs.getString(_userKey);
+      }
+      if (kDebugMode) {
+        debugPrint('[TokenStorage] Error reading user profile: $e');
+      }
+      return null;
+    }
   }
 
   /// Clear all auth data (logout)
   Future<void> clearAll() async {
-    await _secureStorage.delete(key: _tokenKey);
-    await _secureStorage.delete(key: _userKey);
+    try {
+      await _secureStorage.delete(key: _tokenKey);
+      await _secureStorage.delete(key: _userKey);
+    } on Object catch (e) {
+      if (kDebugMode) {
+        debugPrint('[TokenStorage] Error clearing all secure storage: $e');
+      }
+    } finally {
+      if (kIsWeb) {
+        await _prefs.remove(_tokenKey);
+        await _prefs.remove(_userKey);
+      }
+    }
   }
 
   /// Check if user is authenticated
@@ -59,7 +201,6 @@ class TokenStorageService {
   }
 
   /// Check if a JWT token is expired
-  /// Public method for checking token expiration from other services
   bool isJwtExpired(String token) {
     try {
       final parts = token.split('.');
@@ -83,7 +224,7 @@ class TokenStorageService {
       );
 
       return DateTime.now().toUtc().isAfter(expiryTime);
-    } on Object {
+    } on Object catch (_) {
       return true;
     }
   }
