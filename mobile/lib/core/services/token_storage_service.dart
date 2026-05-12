@@ -1,19 +1,19 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:music_room/core/config/app_config.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Service for securely storing and retrieving authentication tokens.
 class TokenStorageService {
-  final FlutterSecureStorage _secureStorage;
-  final SharedPreferences _prefs;
-
   TokenStorageService({
     required FlutterSecureStorage secureStorage,
     required SharedPreferences prefs,
-  })  : _secureStorage = secureStorage,
-        _prefs = prefs;
+  }) : _secureStorage = secureStorage,
+       _prefs = prefs;
+
+  final FlutterSecureStorage _secureStorage;
+  final SharedPreferences _prefs;
 
   static const String _tokenKey = AppConfig.tokenStorageKey;
   static const String _userKey = AppConfig.userStorageKey;
@@ -30,10 +30,14 @@ class TokenStorageService {
       }
     } catch (e) {
       if (kIsWeb && AppConfig.allowInsecureStorage) {
-        // SECURITY WARNING: Storing JWT in SharedPreferences on Web uses plaintext LocalStorage.
+        // SECURITY WARNING: Storing JWT in SharedPreferences on Web uses
+        // plaintext LocalStorage.
         // This is vulnerable to XSS but required for non-HTTPS environments.
         if (kDebugMode) {
-          debugPrint('⚠️ [TokenStorage] SECURITY WARNING: Falling back to unencrypted storage (XSS risk): $e');
+          debugPrint(
+            '⚠️ [TokenStorage] SECURITY WARNING: Falling back to '
+            'unencrypted storage (XSS risk): $e',
+          );
         }
         await _prefs.setString(_tokenKey, token);
       } else {
@@ -59,16 +63,19 @@ class TokenStorageService {
           try {
             await _secureStorage.write(key: _tokenKey, value: prefsToken);
             if (kDebugMode) {
-              debugPrint('[TokenStorage] Migrated token from SharedPreferences to SecureStorage.');
+              debugPrint(
+                '[TokenStorage] Migrated token from SharedPreferences '
+                'to SecureStorage.',
+              );
             }
-          } catch (_) {
+          } on Object catch (_) {
             // Ignore migration errors (likely still on HTTP)
           }
           return prefsToken;
         }
       }
       return null;
-    } catch (e) {
+    } on Object catch (e) {
       if (kIsWeb) {
         return _prefs.getString(_tokenKey);
       }
@@ -83,7 +90,7 @@ class TokenStorageService {
   Future<void> clearToken() async {
     try {
       await _secureStorage.delete(key: _tokenKey);
-    } catch (e) {
+    } on Object catch (e) {
       if (kDebugMode) {
         debugPrint('[TokenStorage] Error clearing secure token: $e');
       }
@@ -98,7 +105,9 @@ class TokenStorageService {
   Future<void> saveUserProfile(String userJson) async {
     try {
       if (kDebugMode) {
-        debugPrint('[TokenStorage] Attempting to save user profile securely...');
+        debugPrint(
+          '[TokenStorage] Attempting to save user profile securely...',
+        );
       }
       await _secureStorage.write(key: _userKey, value: userJson);
       if (kDebugMode) {
@@ -107,7 +116,10 @@ class TokenStorageService {
     } catch (e) {
       if (kIsWeb && AppConfig.allowInsecureStorage) {
         if (kDebugMode) {
-          debugPrint('⚠️ [TokenStorage] SECURITY WARNING: Falling back to unencrypted storage for profile: $e');
+          debugPrint(
+            '⚠️ [TokenStorage] SECURITY WARNING: Falling back to '
+            'unencrypted storage for profile: $e',
+          );
         }
         await _prefs.setString(_userKey, userJson);
       } else {
@@ -133,16 +145,19 @@ class TokenStorageService {
           try {
             await _secureStorage.write(key: _userKey, value: prefsUser);
             if (kDebugMode) {
-              debugPrint('[TokenStorage] Migrated user profile from SharedPreferences to SecureStorage.');
+              debugPrint(
+                '[TokenStorage] Migrated user profile from '
+                'SharedPreferences to SecureStorage.',
+              );
             }
-          } catch (_) {
+          } on Object catch (_) {
             // Ignore migration errors (likely still on HTTP)
           }
           return prefsUser;
         }
       }
       return null;
-    } catch (e) {
+    } on Object catch (e) {
       if (kIsWeb) {
         return _prefs.getString(_userKey);
       }
@@ -158,7 +173,7 @@ class TokenStorageService {
     try {
       await _secureStorage.delete(key: _tokenKey);
       await _secureStorage.delete(key: _userKey);
-    } catch (e) {
+    } on Object catch (e) {
       if (kDebugMode) {
         debugPrint('[TokenStorage] Error clearing all secure storage: $e');
       }
@@ -209,7 +224,7 @@ class TokenStorageService {
       );
 
       return DateTime.now().toUtc().isAfter(expiryTime);
-    } catch (e) {
+    } on Object catch (_) {
       return true;
     }
   }

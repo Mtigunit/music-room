@@ -67,11 +67,7 @@ class InjectionContainer {
     // Core Services
     final sharedPreferences = await SharedPreferences.getInstance();
 
-    const secureStorage = FlutterSecureStorage(
-      webOptions: WebOptions(
-        // Use default values instead of explicit nulls to avoid type errors
-      ),
-    );
+    const secureStorage = FlutterSecureStorage();
     _tokenStorageService = TokenStorageService(
       secureStorage: secureStorage,
       prefs: sharedPreferences,

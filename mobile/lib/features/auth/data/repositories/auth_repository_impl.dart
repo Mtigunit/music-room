@@ -1,7 +1,7 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:music_room/core/error/failure.dart';
 import 'package:music_room/core/services/google_auth_service.dart';
 import 'package:music_room/core/services/token_storage_service.dart';
@@ -36,12 +36,12 @@ class AuthRepositoryImpl implements AuthRepository {
         debugPrint('[AuthRepository] Login successful, saving token...');
       }
       await _tokenStorage.saveToken(response.accessToken);
-      
+
       if (kDebugMode) {
         debugPrint('[AuthRepository] Saving user profile...');
       }
       await _tokenStorage.saveUserProfile(jsonEncode(response.user.toJson()));
-      
+
       if (kDebugMode) {
         debugPrint('[AuthRepository] Login process complete.');
       }
