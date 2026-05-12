@@ -528,6 +528,8 @@ export class EventsGateway implements OnGatewayDisconnect {
     @ClientMeta() meta: ClientMetaDto,
   ) {
     try {
+      if (meta.deviceId === 'unknown')
+        throw new WsException('Invalid device ID');
       if (payload.accept) {
         const result = await this.delegationsRepository.activateById(
           payload.delegationId,

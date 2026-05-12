@@ -65,11 +65,9 @@ async function checkPlaybackDelegation(
   eventsRepository: EventsRepository,
   event: { id: string; hostId: string },
   userId: string,
-  deviceId?: string,
+  deviceId: string,
 ): Promise<void> {
-  if (event.hostId === userId) {
-    return;
-  }
+  if (event.hostId === userId) return;
 
   const delegation = await eventsRepository.findActiveDelegation(
     event.id,
@@ -80,9 +78,11 @@ async function checkPlaybackDelegation(
     throw new ForbiddenException('You are not permitted to control playback');
   }
 
-  if (deviceId && delegation.deviceId !== deviceId) {
+  if (deviceId === 'unknown')
+    throw new ForbiddenException('A valid device ID is required');
+
+  if (deviceId && delegation.deviceId !== deviceId)
     throw new ForbiddenException('Control delegation not valid on this device');
-  }
 }
 
 @Injectable()
@@ -589,7 +589,7 @@ export class EventsService {
     return result;
   }
 
-  async play(eventId: string, userId: string, deviceId?: string) {
+  async play(eventId: string, userId: string, deviceId: string) {
     const event = await this.eventsRepository.findById(eventId);
     if (!event) throw new NotFoundException('Event not found');
 
@@ -626,7 +626,7 @@ export class EventsService {
     return { status: PlaybackStatus.PLAYING };
   }
 
-  async pause(eventId: string, userId: string, deviceId?: string) {
+  async pause(eventId: string, userId: string, deviceId: string) {
     const event = await this.eventsRepository.findById(eventId);
     if (!event) throw new NotFoundException('Event not found');
 
@@ -670,7 +670,7 @@ export class EventsService {
     eventId: string,
     userId: string,
     trackId: string | null,
-    deviceId?: string,
+    deviceId: string,
   ) {
     const event = await this.eventsRepository.findById(eventId);
     if (!event) throw new NotFoundException('Event not found');
