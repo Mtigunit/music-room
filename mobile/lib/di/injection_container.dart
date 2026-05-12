@@ -6,6 +6,8 @@ import 'package:music_room/core/realtime/socket_client.dart';
 import 'package:music_room/core/services/client_meta_service.dart';
 import 'package:music_room/core/services/connectivity_service.dart';
 import 'package:music_room/core/services/google_auth_service.dart';
+import 'package:music_room/core/services/google_link_status_service.dart';
+import 'package:music_room/core/services/theme_preference_service.dart';
 import 'package:music_room/core/services/token_storage_service.dart';
 import 'package:music_room/features/auth/data/datasources/auth_remote_datasource.dart';
 import 'package:music_room/features/auth/data/repositories/auth_repository_impl.dart';
@@ -20,6 +22,10 @@ import 'package:music_room/features/music_vote/domain/repositories/music_vote_re
 import 'package:music_room/features/playlist/data/datasources/playlist_cache_datasource.dart';
 import 'package:music_room/features/playlist/data/datasources/playlist_remote_datasource.dart';
 import 'package:music_room/features/playlist/presentation/state/playlist_bloc.dart';
+import 'package:music_room/features/profile/data/datasources/profile_remote_datasource.dart';
+import 'package:music_room/features/profile/data/repositories/profile_repository_impl.dart';
+import 'package:music_room/features/profile/domain/repositories/profile_repository.dart';
+import 'package:music_room/features/profile/presentation/state/profile_bloc.dart';
 import 'package:music_room/features/search/data/datasources/search_remote_datasource.dart';
 import 'package:music_room/features/search/data/services/search_query_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -51,6 +57,10 @@ class InjectionContainer {
   late EventRepository _eventRepository;
   late IMusicVoteRemoteDataSource _musicVoteRemoteDataSource;
   late MusicVoteRepository _musicVoteRepository;
+  late IProfileRemoteDataSource _profileRemoteDataSource;
+  late ProfileRepository _profileRepository;
+  late ThemePreferenceService _themePreferenceService;
+  late GoogleLinkStatusService _googleLinkStatusService;
 
   /// Initialize all dependencies
   Future<void> init() async {
@@ -63,6 +73,12 @@ class InjectionContainer {
     final sharedPreferences = await SharedPreferences.getInstance();
     _connectivityService = ConnectivityService();
     _clientMetaService = ClientMetaService(
+      sharedPreferences: sharedPreferences,
+    );
+    _themePreferenceService = ThemePreferenceService(
+      sharedPreferences: sharedPreferences,
+    );
+    _googleLinkStatusService = GoogleLinkStatusService(
       sharedPreferences: sharedPreferences,
     );
 
@@ -90,6 +106,15 @@ class InjectionContainer {
     _playlistRemoteDataSource = PlaylistRemoteDataSource(apiClient: _apiClient);
     _playlistCacheDataSource = PlaylistCacheDataSource(
       preferences: sharedPreferences,
+    );
+    _profileRemoteDataSource = ProfileRemoteDataSource(apiClient: _apiClient);
+    _profileRepository = ProfileRepositoryImpl(
+      remoteDataSource: _profileRemoteDataSource,
+      eventRemoteDataSource: _eventRemoteDataSource,
+      playlistRemoteDataSource: _playlistRemoteDataSource,
+      themePreferenceService: _themePreferenceService,
+      googleAuthService: _googleAuthService,
+      googleLinkStatusService: _googleLinkStatusService,
     );
 
     // Repositories
@@ -127,11 +152,18 @@ class InjectionContainer {
   IMusicVoteRemoteDataSource get musicVoteRemoteDataSource =>
       _musicVoteRemoteDataSource;
   MusicVoteRepository get musicVoteRepository => _musicVoteRepository;
+  IProfileRemoteDataSource get profileRemoteDataSource =>
+      _profileRemoteDataSource;
+  ProfileRepository get profileRepository => _profileRepository;
+  ThemePreferenceService get themePreferenceService => _themePreferenceService;
+  GoogleLinkStatusService get googleLinkStatusService =>
+      _googleLinkStatusService;
 
   AuthBloc createAuthBloc() {
     return AuthBloc(
       authRepository: _authRepository,
       apiClient: _apiClient,
+      profileRepository: _profileRepository,
     );
   }
 
@@ -142,5 +174,9 @@ class InjectionContainer {
       connectivityService: _connectivityService,
       socketClient: _socketClient,
     );
+  }
+
+  ProfileBloc createProfileBloc() {
+    return ProfileBloc(profileRepository: _profileRepository);
   }
 }

@@ -5,13 +5,16 @@ import 'package:music_room/core/network/api_client.dart';
 import 'package:music_room/features/auth/domain/repositories/auth_repository.dart';
 import 'package:music_room/features/auth/presentation/state/auth_event.dart';
 import 'package:music_room/features/auth/presentation/state/auth_state.dart';
+import 'package:music_room/features/profile/domain/repositories/profile_repository.dart';
 
 /// BLoC for managing authentication state and events
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   AuthBloc({
     required AuthRepository authRepository,
     required ApiClient apiClient,
+    required ProfileRepository profileRepository,
   }) : _authRepository = authRepository,
+       _profileRepository = profileRepository,
        super(const AuthInitial()) {
     on<AuthStarted>(_onAuthStarted);
     on<LoginRequested>(_onLoginRequested);
@@ -31,6 +34,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   final AuthRepository _authRepository;
+  final ProfileRepository _profileRepository;
   late final StreamSubscription<void> _sessionExpiredSubscription;
 
   @override
@@ -61,6 +65,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           user: response.user,
         ),
       );
+      unawaited(_syncThemePreference());
     } else {
       emit(GoogleLoginFailure(failure: failure!));
     }
@@ -89,6 +94,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
               user: storedUser,
             ),
           );
+          unawaited(_syncThemePreference());
           return;
         }
 
@@ -100,6 +106,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
               user: profile,
             ),
           );
+          unawaited(_syncThemePreference());
           return;
         }
 
@@ -137,6 +144,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           user: response.user,
         ),
       );
+      unawaited(_syncThemePreference());
     } else {
       emit(LoginFailure(failure: failure!));
     }
@@ -265,6 +273,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           user: response.user,
         ),
       );
+      unawaited(_syncThemePreference());
     } else {
       emit(RegisterFailure(failure: failure!));
     }
@@ -288,5 +297,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     await _authRepository.logout();
     emit(const LogoutSuccess());
     emit(const AuthUnauthenticated());
+  }
+
+  Future<void> _syncThemePreference() async {
+    try {
+      await _profileRepository.syncMyThemePreference();
+    } on Object {
+      // Theme preference falls back to system until the next successful sync.
+    }
   }
 }

@@ -4,6 +4,9 @@ import 'package:music_room/core/widgets/app_back_button.dart';
 import 'package:music_room/core/widgets/app_button.dart';
 import 'package:music_room/core/widgets/app_snackbar.dart';
 import 'package:music_room/core/widgets/confirmation_dialog.dart';
+import 'package:music_room/core/widgets/form_input_decoration.dart';
+import 'package:music_room/core/widgets/form_section_label.dart';
+import 'package:music_room/core/widgets/form_toggle_row.dart';
 import 'package:music_room/core/widgets/genre_selection_grid.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/events/presentation/widgets/selection_card.dart';
@@ -256,29 +259,32 @@ class _CreatePlaylistPageState extends State<CreatePlaylistPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const _SectionLabel(text: 'PLAYLIST NAME'),
+                const FormSectionLabel(text: 'PLAYLIST NAME'),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _titleController,
                   onChanged: _validateTitle,
-                  decoration: _inputDecoration(
+                  decoration: FormInputDecoration.build(
                     theme,
+                    labelText: null,
                     hintText: 'e.g. Late Night Vibes',
-                  ).copyWith(errorText: _titleError),
+                    errorText: _titleError,
+                  ),
                 ),
                 const SizedBox(height: 16),
-                const _SectionLabel(text: 'DESCRIPTION (OPTIONAL)'),
+                const FormSectionLabel(text: 'DESCRIPTION (OPTIONAL)'),
                 const SizedBox(height: 8),
                 TextFormField(
                   controller: _descriptionController,
                   maxLines: 4,
-                  decoration: _inputDecoration(
+                  decoration: FormInputDecoration.build(
                     theme,
+                    labelText: null,
                     hintText: "What's the vibe?",
                   ),
                 ),
                 const SizedBox(height: 20),
-                const _SectionLabel(text: 'PRIVACY'),
+                const FormSectionLabel(text: 'PRIVACY'),
                 const SizedBox(height: 10),
                 SelectionCard(
                   title: 'Public',
@@ -318,34 +324,21 @@ class _CreatePlaylistPageState extends State<CreatePlaylistPage> {
                 ],
                 if (_isPublicSelected) ...[
                   const SizedBox(height: 20),
-                  Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surface,
-                      borderRadius: BorderRadius.circular(16),
-                      border: Border.all(
-                        color: theme.colorScheme.onSurface.withValues(
-                          alpha: 0.1,
-                        ),
-                      ),
-                    ),
-                    child: _buildToggleRow(
-                      title: 'Edit Access',
-                      subtitle: _isEditAccessEnabled
-                          ? 'Users with the link can edit this playlist'
-                          : 'Only owner/collaborators can edit this playlist',
-                      value: _isEditAccessEnabled,
-                      onChanged: (value) {
-                        setState(() {
-                          _isEditAccessEnabled = value;
-                        });
-                      },
-                      theme: theme,
-                    ),
+                  FormToggleRow(
+                    title: 'Edit Access',
+                    subtitle: _isEditAccessEnabled
+                        ? 'Users with the link can edit this playlist'
+                        : 'Only owner/collaborators can edit this playlist',
+                    value: _isEditAccessEnabled,
+                    onChanged: (value) {
+                      setState(() {
+                        _isEditAccessEnabled = value;
+                      });
+                    },
                   ),
                 ],
                 const SizedBox(height: 20),
-                const _SectionLabel(text: 'GENRE'),
+                const FormSectionLabel(text: 'GENRE'),
                 const SizedBox(height: 10),
                 GenreSelectionGrid(
                   genres: PlaylistTag.all
@@ -429,97 +422,6 @@ class _CreatePlaylistPageState extends State<CreatePlaylistPage> {
             ),
           ),
         ),
-      ),
-    );
-  }
-
-  InputDecoration _inputDecoration(
-    ThemeData theme, {
-    required String hintText,
-  }) {
-    return InputDecoration(
-      hintText: hintText,
-      hintStyle: TextStyle(
-        color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
-      ),
-      filled: true,
-      fillColor: theme.colorScheme.surface,
-      enabledBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(
-          color: theme.colorScheme.onSurface.withValues(alpha: 0.1),
-        ),
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(16),
-        borderSide: BorderSide(color: theme.colorScheme.primary),
-      ),
-      contentPadding: const EdgeInsets.symmetric(
-        horizontal: 16,
-        vertical: 16,
-      ),
-    );
-  }
-
-  Widget _buildToggleRow({
-    required String title,
-    required String subtitle,
-    required bool value,
-    required ValueChanged<bool> onChanged,
-    required ThemeData theme,
-  }) {
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: theme.colorScheme.onSurface,
-                ),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                subtitle,
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurface.withValues(alpha: 0.65),
-                ),
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(width: 12),
-        Switch(
-          value: value,
-          onChanged: onChanged,
-          activeThumbColor: theme.colorScheme.onPrimary,
-          activeTrackColor: theme.colorScheme.primary,
-          inactiveThumbColor: theme.colorScheme.onSurface.withValues(
-            alpha: 0.5,
-          ),
-          inactiveTrackColor: theme.colorScheme.surfaceContainerHighest,
-        ),
-      ],
-    );
-  }
-}
-
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel({required this.text});
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-        letterSpacing: 1.2,
-        fontWeight: FontWeight.bold,
-        color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5),
       ),
     );
   }

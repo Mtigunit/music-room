@@ -81,7 +81,10 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         builder: (modalContext) {
           final requestedEmail = _requestedEmail ?? _trimmedEmail;
           return OtpVerificationModal(
-            email: requestedEmail,
+            title: 'Verify reset code',
+            message: 'We sent a 6-digit code to',
+            destination: requestedEmail,
+            confirmLabel: 'Verify',
             onConfirm: (otpCode) {
               context.read<AuthBloc>().add(
                 VerifyPasswordResetOtpRequested(

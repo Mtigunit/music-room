@@ -79,7 +79,8 @@ class ApiClient {
         },
         onError: (error, handler) async {
           // Handle 401 Unauthorized (token expired)
-          if (error.response?.statusCode == 401) {
+          if (error.response?.statusCode == 401 &&
+              !_shouldSkipSessionExpiry(error.requestOptions.path)) {
             await _tokenStorage.clearToken();
             // Emit session expired event to trigger logout
             _emitSessionExpiredSafely();
@@ -186,5 +187,9 @@ class ApiClient {
     }
 
     _sessionExpiredController.add(null);
+  }
+
+  bool _shouldSkipSessionExpiry(String requestPath) {
+    return requestPath.contains(AppConfig.requestEmailUpdateEndpoint);
   }
 }
