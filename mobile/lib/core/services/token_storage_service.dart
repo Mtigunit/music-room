@@ -29,9 +29,11 @@ class TokenStorageService {
         debugPrint('[TokenStorage] Token saved successfully.');
       }
     } catch (e) {
-      if (kIsWeb) {
+      if (kIsWeb && AppConfig.allowInsecureStorage) {
+        // SECURITY WARNING: Storing JWT in SharedPreferences on Web uses plaintext LocalStorage.
+        // This is vulnerable to XSS but required for non-HTTPS environments.
         if (kDebugMode) {
-          debugPrint('[TokenStorage] Secure storage failed on Web, falling back to SharedPreferences: $e');
+          debugPrint('⚠️ [TokenStorage] SECURITY WARNING: Falling back to unencrypted storage (XSS risk): $e');
         }
         await _prefs.setString(_tokenKey, token);
       } else {
@@ -103,9 +105,9 @@ class TokenStorageService {
         debugPrint('[TokenStorage] User profile saved successfully.');
       }
     } catch (e) {
-      if (kIsWeb) {
+      if (kIsWeb && AppConfig.allowInsecureStorage) {
         if (kDebugMode) {
-          debugPrint('[TokenStorage] Secure storage failed on Web, falling back to SharedPreferences: $e');
+          debugPrint('⚠️ [TokenStorage] SECURITY WARNING: Falling back to unencrypted storage for profile: $e');
         }
         await _prefs.setString(_userKey, userJson);
       } else {

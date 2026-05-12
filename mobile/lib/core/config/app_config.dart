@@ -55,6 +55,9 @@ class AppConfig {
 
   // Security
   static const String tokenStorageKey = 'auth_token';
+  /// Security: Allow unencrypted storage fallback on Web (LocalStorage/SharedPreferences).
+  /// This is required for HTTP environments but should be false for HTTPS production.
+  static const bool allowInsecureStorage = true;
   static const String userStorageKey = 'user_profile';
   static const int stalePlaylistThresholdHours = 24;
 
