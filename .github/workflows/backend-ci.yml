@@ -75,7 +75,7 @@ jobs:
             git reset --hard origin/main
 
             # 3. Rebuild and restart the Docker containers in the background
-            docker compose -f docker-compose.yml down --rmi frontend
+            docker compose -f docker-compose.yml down --rmi all
             docker compose -f docker-compose.yml up -d --build
 
             # 4. Cleanup: Remove old, unused Docker images to save disk space
