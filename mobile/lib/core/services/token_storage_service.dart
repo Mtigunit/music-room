@@ -21,24 +21,15 @@ class TokenStorageService {
   /// Save JWT token
   Future<void> saveToken(String token) async {
     try {
-      if (kIsWeb) {
-        // On Web, especially over HTTP, flutter_secure_storage fails.
-        // Fallback to SharedPreferences for non-encrypted storage.
-        debugPrint('[TokenStorage] Web detected, using SharedPreferences fallback.');
-        await _prefs.setString(_tokenKey, token);
-        return;
-      }
-      
       debugPrint('[TokenStorage] Attempting to save token securely...');
       await _secureStorage.write(key: _tokenKey, value: token);
       debugPrint('[TokenStorage] Token saved successfully.');
-    } catch (e, stack) {
-      debugPrint('[TokenStorage] Error saving token: $e');
+    } catch (e) {
       if (kIsWeb) {
-        debugPrint('[TokenStorage] Falling back to SharedPreferences...');
+        debugPrint('[TokenStorage] Secure storage failed on Web, falling back to SharedPreferences: $e');
         await _prefs.setString(_tokenKey, token);
       } else {
-        debugPrint('[TokenStorage] Stack trace: $stack');
+        debugPrint('[TokenStorage] Error saving token: $e');
         rethrow;
       }
     }
@@ -47,13 +38,12 @@ class TokenStorageService {
   /// Retrieve JWT token
   Future<String?> getToken() async {
     try {
+      return await _secureStorage.read(key: _tokenKey);
+    } catch (e) {
       if (kIsWeb) {
         return _prefs.getString(_tokenKey);
       }
-      return await _secureStorage.read(key: _tokenKey);
-    } catch (e) {
       debugPrint('[TokenStorage] Error reading token: $e');
-      if (kIsWeb) return _prefs.getString(_tokenKey);
       return null;
     }
   }
@@ -61,33 +51,28 @@ class TokenStorageService {
   /// Clear JWT token
   Future<void> clearToken() async {
     try {
-      if (kIsWeb) {
-        await _prefs.remove(_tokenKey);
-        return;
-      }
       await _secureStorage.delete(key: _tokenKey);
     } catch (e) {
-      debugPrint('[TokenStorage] Error clearing token: $e');
-      if (kIsWeb) await _prefs.remove(_tokenKey);
+      if (kIsWeb) {
+        await _prefs.remove(_tokenKey);
+      } else {
+        debugPrint('[TokenStorage] Error clearing token: $e');
+      }
     }
   }
 
   /// Save user profile data
   Future<void> saveUserProfile(String userJson) async {
     try {
-      if (kIsWeb) {
-        await _prefs.setString(_userKey, userJson);
-        return;
-      }
       debugPrint('[TokenStorage] Attempting to save user profile securely...');
       await _secureStorage.write(key: _userKey, value: userJson);
       debugPrint('[TokenStorage] User profile saved successfully.');
-    } catch (e, stack) {
-      debugPrint('[TokenStorage] Error saving user profile: $e');
+    } catch (e) {
       if (kIsWeb) {
+        debugPrint('[TokenStorage] Secure storage failed on Web, falling back to SharedPreferences: $e');
         await _prefs.setString(_userKey, userJson);
       } else {
-        debugPrint('[TokenStorage] Stack trace: $stack');
+        debugPrint('[TokenStorage] Error saving user profile: $e');
         rethrow;
       }
     }
@@ -96,13 +81,12 @@ class TokenStorageService {
   /// Retrieve user profile data
   Future<String?> getUserProfile() async {
     try {
+      return await _secureStorage.read(key: _userKey);
+    } catch (e) {
       if (kIsWeb) {
         return _prefs.getString(_userKey);
       }
-      return await _secureStorage.read(key: _userKey);
-    } catch (e) {
       debugPrint('[TokenStorage] Error reading user profile: $e');
-      if (kIsWeb) return _prefs.getString(_userKey);
       return null;
     }
   }
@@ -110,18 +94,14 @@ class TokenStorageService {
   /// Clear all auth data (logout)
   Future<void> clearAll() async {
     try {
-      if (kIsWeb) {
-        await _prefs.remove(_tokenKey);
-        await _prefs.remove(_userKey);
-        return;
-      }
       await _secureStorage.delete(key: _tokenKey);
       await _secureStorage.delete(key: _userKey);
     } catch (e) {
-      debugPrint('[TokenStorage] Error clearing all storage: $e');
       if (kIsWeb) {
         await _prefs.remove(_tokenKey);
         await _prefs.remove(_userKey);
+      } else {
+        debugPrint('[TokenStorage] Error clearing all storage: $e');
       }
     }
   }
