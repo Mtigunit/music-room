@@ -80,7 +80,8 @@ class HomeHeader extends StatelessWidget {
                     stream: InjectionContainer()
                         .notificationsService
                         .unreadCountStream,
-                    initialData: 0,
+                    initialData:
+                        InjectionContainer().notificationsService.unreadCount,
                     builder: (context, snapshot) {
                       final count = snapshot.data ?? 0;
                       if (count == 0) return const SizedBox.shrink();

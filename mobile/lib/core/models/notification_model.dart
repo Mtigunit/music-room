@@ -25,6 +25,19 @@ class NotificationModel {
     );
   }
 
+  NotificationModel copyWithRead({required bool isRead}) {
+    return NotificationModel(
+      id: id,
+      type: type,
+      title: title,
+      message: message,
+      payload: payload,
+      isRead: isRead,
+      createdAt: createdAt,
+      readAt: readAt ?? DateTime.now(),
+    );
+  }
+
   final String id;
   final String type;
   final String title;

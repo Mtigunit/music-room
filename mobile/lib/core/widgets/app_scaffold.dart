@@ -78,6 +78,7 @@ class AppScaffoldState extends State<AppScaffold> {
   /// Phone: existing BottomNavigationBar — zero visual change.
   Widget _buildWithBottomBar(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    final notificationsService = InjectionContainer().notificationsService;
 
     return Scaffold(
       body: IndexedStack(
@@ -106,9 +107,8 @@ class AppScaffoldState extends State<AppScaffold> {
           items: [
             BottomNavigationBarItem(
               icon: StreamBuilder<int>(
-                stream:
-                    InjectionContainer().notificationsService.unreadCountStream,
-                initialData: 0,
+                stream: notificationsService.unreadCountStream,
+                initialData: notificationsService.unreadCount,
                 builder: (context, snapshot) {
                   final count = snapshot.data ?? 0;
                   if (count > 0) {

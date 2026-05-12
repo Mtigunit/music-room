@@ -55,26 +55,26 @@ class NotificationModal extends StatelessWidget {
       // Close the modal/panel
       Navigator.of(context, rootNavigator: true).pop();
 
-      // Navigate to the target based on notification type
-      switch (notification.type) {
-        case 'FOLLOW':
-          // Navigate to user profile
-          unawaited(
-            Navigator.of(context, rootNavigator: true).pushNamed(
-              RouteNames.profile,
-              arguments: id,
-            ),
-          );
-        case 'EVENT_INVITE':
-        case 'EVENT_START':
-          // Navigate to event page
-          unawaited(
-            Navigator.of(context, rootNavigator: true).pushNamed(
-              RouteNames.preEvent,
-              arguments: id,
-            ),
-          );
-        default:
+      if (notification.type == 'FOLLOW') {
+        // Navigate to user profile
+        unawaited(
+          Navigator.of(context, rootNavigator: true).pushNamed(
+            RouteNames.profile,
+            arguments: id,
+          ),
+        );
+        return;
+      }
+
+      if (notification.type == 'EVENT_INVITE' ||
+          notification.type == 'EVENT_START') {
+        // Navigate to event page
+        unawaited(
+          Navigator.of(context, rootNavigator: true).pushNamed(
+            RouteNames.preEvent,
+            arguments: id,
+          ),
+        );
       }
     } on Exception catch (_) {
       // ignore errors
@@ -143,7 +143,6 @@ class NotificationModal extends StatelessWidget {
             // Notification List
             Flexible(
               child: _NotificationListView(
-                isPanel: isPanel,
                 onNotificationTap: (notif) =>
                     _handleNotificationTap(context, notif),
               ),
@@ -159,11 +158,9 @@ class NotificationModal extends StatelessWidget {
 /// Stateful widget to manage real-time notification stream
 class _NotificationListView extends StatefulWidget {
   const _NotificationListView({
-    required this.isPanel,
     required this.onNotificationTap,
   });
 
-  final bool isPanel;
   final void Function(NotificationModel) onNotificationTap;
 
   @override
@@ -229,7 +226,7 @@ class _NotificationListViewState extends State<_NotificationListView> {
     super.dispose();
   }
 
-  Future<String> _formatTimeAgo(DateTime createdAt) async {
+  String _formatTimeAgo(DateTime createdAt) {
     final diff = DateTime.now().difference(createdAt);
     if (diff.inSeconds < 60) return '${diff.inSeconds}s ago';
     if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
@@ -244,20 +241,20 @@ class _NotificationListViewState extends State<_NotificationListView> {
   ) {
     if (meta == null) return null;
 
-    switch (notificationType) {
-      case 'EVENT_INVITE':
-      case 'EVENT_START':
-        final eventName = meta['eventName'] as String?;
-        if (eventName != null && eventName.isNotEmpty) {
-          return '📍 $eventName';
-        }
-      case 'FOLLOW':
-        // Could show username from meta if available
-        final userName = meta['userName'] as String?;
-        if (userName != null && userName.isNotEmpty) {
-          return '👤 $userName';
-        }
-      default:
+    if (notificationType == 'EVENT_INVITE' ||
+        notificationType == 'EVENT_START') {
+      final eventName = meta['eventName'] as String?;
+      if (eventName != null && eventName.isNotEmpty) {
+        return '📍 $eventName';
+      }
+    }
+
+    if (notificationType == 'FOLLOW') {
+      // Could show username from meta if available
+      final userName = meta['userName'] as String?;
+      if (userName != null && userName.isNotEmpty) {
+        return '👤 $userName';
+      }
     }
     return null;
   }
@@ -469,22 +466,14 @@ class _NotificationListViewState extends State<_NotificationListView> {
                                     ),
                                   ),
                                 // Timestamp
-                                FutureBuilder<String>(
-                                  future: _formatTimeAgo(
-                                    notification.createdAt,
+                                Text(
+                                  _formatTimeAgo(notification.createdAt),
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: colorScheme.onSurface.withValues(
+                                      alpha: 0.5,
+                                    ),
                                   ),
-                                  builder: (context, snapshot) {
-                                    final timeAgo = snapshot.data ?? 'Just now';
-                                    return Text(
-                                      timeAgo,
-                                      style: TextStyle(
-                                        fontSize: 12,
-                                        color: colorScheme.onSurface.withValues(
-                                          alpha: 0.5,
-                                        ),
-                                      ),
-                                    );
-                                  },
                                 ),
                               ],
                             ),

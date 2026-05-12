@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:music_room/core/models/notification_model.dart';
+import 'package:music_room/core/network/api_client.dart';
+import 'package:music_room/core/realtime/socket_client.dart';
 import 'package:music_room/core/realtime/socket_events.dart';
 
 /// Lightweight notifications service: fetch history, mark read, and
@@ -9,8 +11,8 @@ import 'package:music_room/core/realtime/socket_events.dart';
 class NotificationsService {
   NotificationsService({required this.apiClient, required this.socketClient});
 
-  final dynamic apiClient;
-  final dynamic socketClient;
+  final ApiClient apiClient;
+  final SocketClient socketClient;
 
   final StreamController<NotificationModel> _incomingController =
       StreamController<NotificationModel>.broadcast();
@@ -21,6 +23,8 @@ class NotificationsService {
       _incomingController.stream;
 
   Stream<int> get unreadCountStream => _unreadCountController.stream;
+
+  int get unreadCount => _unreadCount;
 
   int _unreadCount = 0;
   List<NotificationModel>? _cachedNotifications;
@@ -35,14 +39,14 @@ class NotificationsService {
     int limit = 20,
   }) async {
     try {
-      final response = await (apiClient as dynamic).get(
+      final response = await apiClient.get<Map<String, dynamic>>(
         '/notifications',
         queryParameters: {
           'page': page,
           'limit': limit,
         },
       );
-      final data = (response as dynamic).data as Map<String, dynamic>;
+      final data = response.data ?? <String, dynamic>{};
       final list = (data['data'] as List<dynamic>? ?? [])
           .cast<Map<String, dynamic>>();
       final notifications = list.map(NotificationModel.fromJson).toList();
@@ -73,16 +77,17 @@ class NotificationsService {
   }
 
   Future<NotificationModel> markAsRead(String id) async {
+    final wasUnread = _isCachedNotificationUnread(id);
     try {
-      final response = await (apiClient as dynamic).patch(
+      final response = await apiClient.patch<Map<String, dynamic>>(
         '/notifications/$id/read',
       );
-      final data = (response as dynamic).data as Map<String, dynamic>;
+      final data = response.data ?? <String, dynamic>{};
       final notification = NotificationModel.fromJson(
         data['data'] as Map<String, dynamic>,
       );
-      // Always decrement unread if the response says it's now read
-      if (notification.isRead) {
+      _replaceCachedNotification(notification.copyWithRead(isRead: true));
+      if (wasUnread && notification.isRead) {
         _decrementUnread();
       }
       if (kDebugMode) {
@@ -102,20 +107,21 @@ class NotificationsService {
   }
 
   void attachSocketListeners() {
-    (socketClient as dynamic).on(
+    socketClient.on(
       SocketEvent.notificationNew.value,
       _handleSocketNotification,
     );
   }
 
   void detachSocketListeners() {
-    (socketClient as dynamic).off(SocketEvent.notificationNew.value);
+    socketClient.off(SocketEvent.notificationNew.value);
   }
 
   void _handleSocketNotification(dynamic payload) {
     try {
       if (payload is Map<String, dynamic>) {
         final notif = NotificationModel.fromJson(payload);
+        _replaceCachedNotification(notif);
         _incomingController.add(notif);
         _incrementUnread();
         if (kDebugMode) {
@@ -151,6 +157,45 @@ class NotificationsService {
       _unreadCount -= 1;
       _unreadCountController.add(_unreadCount);
     }
+  }
+
+  bool _isCachedNotificationUnread(String id) {
+    final cachedNotifications = _cachedNotifications;
+    if (cachedNotifications == null) return false;
+
+    for (final notification in cachedNotifications) {
+      if (notification.id == id) {
+        return !notification.isRead;
+      }
+    }
+
+    return false;
+  }
+
+  void _replaceCachedNotification(NotificationModel notification) {
+    final cachedNotifications = _cachedNotifications;
+    if (cachedNotifications == null) {
+      _cachedNotifications = [notification];
+      return;
+    }
+
+    final updatedNotifications = <NotificationModel>[];
+    var replaced = false;
+
+    for (final cachedNotification in cachedNotifications) {
+      if (cachedNotification.id == notification.id) {
+        updatedNotifications.add(notification);
+        replaced = true;
+      } else {
+        updatedNotifications.add(cachedNotification);
+      }
+    }
+
+    if (!replaced) {
+      updatedNotifications.insert(0, notification);
+    }
+
+    _cachedNotifications = updatedNotifications;
   }
 
   void dispose() {

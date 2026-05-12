@@ -25,7 +25,6 @@ class SocketClient {
 
   // Queue of listeners waiting to be attached
   final List<_PendingListener> _pendingListeners = [];
-  bool _listenerAttachmentQueued = false;
 
   Stream<Object> get connectErrors => _connectErrorController.stream;
 
@@ -102,25 +101,7 @@ class SocketClient {
     } else {
       // Queue the listener to be attached once socket is connected
       _pendingListeners.add(_PendingListener(eventName, handler));
-      _scheduleListenerAttachment();
     }
-  }
-
-  void _scheduleListenerAttachment() {
-    if (_listenerAttachmentQueued) return;
-    _listenerAttachmentQueued = true;
-
-    // Retry attaching listeners every 100ms until socket is connected
-    Timer.periodic(const Duration(milliseconds: 100), (timer) {
-      if (_socket != null && _socket!.connected) {
-        timer.cancel();
-        _listenerAttachmentQueued = false;
-        _attachPendingListeners();
-      } else if (_pendingListeners.isEmpty) {
-        timer.cancel();
-        _listenerAttachmentQueued = false;
-      }
-    });
   }
 
   void _attachPendingListeners() {
