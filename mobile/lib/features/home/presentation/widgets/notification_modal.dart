@@ -1,20 +1,23 @@
-import 'package:flutter/material.dart';
-import 'package:music_room/features/home/data/mock_data/mock_notifications.dart';
-import 'package:music_room/features/home/domain/models/notification_item.dart';
+import 'dart:async';
 
-extension NotificationItemIcon on NotificationItem {
+import 'package:flutter/material.dart';
+import 'package:music_room/core/models/notification_model.dart';
+import 'package:music_room/core/services/notifications_service.dart';
+import 'package:music_room/di/injection_container.dart';
+import 'package:music_room/routes/route_names.dart';
+
+/// Maps backend notification types to Flutter icons
+extension NotificationTypeIcon on String {
   IconData get icon {
-    switch (type) {
-      case NotificationType.invite:
-        return Icons.music_note;
-      case NotificationType.like:
-        return Icons.favorite;
-      case NotificationType.trending:
-        return Icons.trending_up;
-      case NotificationType.system:
-        return Icons.info_outline;
-      case NotificationType.follow:
+    switch (this) {
+      case 'EVENT_INVITE':
+        return Icons.event;
+      case 'EVENT_START':
+        return Icons.event_available;
+      case 'FOLLOW':
         return Icons.person_add;
+      default:
+        return Icons.notifications_none;
     }
   }
 }
@@ -33,6 +36,50 @@ class NotificationModal extends StatelessWidget {
 
   /// Optional callback to close the panel, used on desktop.
   final VoidCallback? onClose;
+
+  void _handleNotificationTap(
+    BuildContext context,
+    NotificationModel notification,
+  ) {
+    try {
+      final payload = notification.payload;
+      final id = payload['id'] as String?;
+
+      if (id == null) return;
+
+      // Mark as read immediately
+      unawaited(
+        InjectionContainer().notificationsService.markAsRead(notification.id),
+      );
+
+      // Close the modal/panel
+      Navigator.of(context, rootNavigator: true).pop();
+
+      // Navigate to the target based on notification type
+      switch (notification.type) {
+        case 'FOLLOW':
+          // Navigate to user profile
+          unawaited(
+            Navigator.of(context, rootNavigator: true).pushNamed(
+              RouteNames.profile,
+              arguments: id,
+            ),
+          );
+        case 'EVENT_INVITE':
+        case 'EVENT_START':
+          // Navigate to event page
+          unawaited(
+            Navigator.of(context, rootNavigator: true).pushNamed(
+              RouteNames.preEvent,
+              arguments: id,
+            ),
+          );
+        default:
+      }
+    } on Exception catch (_) {
+      // ignore errors
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -95,63 +142,363 @@ class NotificationModal extends StatelessWidget {
             const Divider(),
             // Notification List
             Flexible(
-              child: ListView.builder(
-                itemCount: mockNotifications.length,
-                itemBuilder: (context, index) {
-                  final notification = mockNotifications[index];
-                  final isUnread = notification.isUnread;
-
-                  return ColoredBox(
-                    color: isUnread
-                        ? colorScheme.primary.withValues(alpha: 0.05)
-                        : Colors.transparent,
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 24,
-                        vertical: 8,
-                      ),
-                      leading: CircleAvatar(
-                        backgroundColor: colorScheme.primaryContainer,
-                        child: Icon(
-                          notification.icon,
-                          color: colorScheme.onPrimaryContainer,
-                        ),
-                      ),
-                      title: Text(
-                        notification.title,
-                        style: TextStyle(
-                          fontWeight: isUnread
-                              ? FontWeight.bold
-                              : FontWeight.normal,
-                          fontSize: 14,
-                        ),
-                      ),
-                      subtitle: Text(
-                        notification.timeAgo,
-                        style: TextStyle(
-                          color: colorScheme.onSurface.withValues(alpha: 0.5),
-                          fontSize: 12,
-                        ),
-                      ),
-                      trailing: isUnread
-                          ? Container(
-                              width: 8,
-                              height: 8,
-                              decoration: BoxDecoration(
-                                color: colorScheme.primary,
-                                shape: BoxShape.circle,
-                              ),
-                            )
-                          : null,
-                    ),
-                  );
-                },
+              child: _NotificationListView(
+                isPanel: isPanel,
+                onNotificationTap: (notif) =>
+                    _handleNotificationTap(context, notif),
               ),
             ),
             if (!isPanel) const SizedBox(height: 24),
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Stateful widget to manage real-time notification stream
+class _NotificationListView extends StatefulWidget {
+  const _NotificationListView({
+    required this.isPanel,
+    required this.onNotificationTap,
+  });
+
+  final bool isPanel;
+  final void Function(NotificationModel) onNotificationTap;
+
+  @override
+  State<_NotificationListView> createState() => _NotificationListViewState();
+}
+
+class _NotificationListViewState extends State<_NotificationListView> {
+  late NotificationsService _notificationsService;
+  late Future<List<NotificationModel>> _initialFetch;
+  final List<NotificationModel> _notifications = [];
+  late StreamSubscription<NotificationModel> _incomingSubscription;
+  bool _isRefreshing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _notificationsService = InjectionContainer().notificationsService;
+    // Always fetch fresh notifications when modal opens
+    _initialFetch = _notificationsService.fetchNotifications();
+
+    // Listen for real-time notifications
+    _incomingSubscription = _notificationsService.incomingNotifications.listen(
+      (notif) {
+        if (mounted) {
+          setState(() {
+            // Check if notification already exists (avoid duplicates)
+            if (!_notifications.any((n) => n.id == notif.id)) {
+              _notifications.insert(0, notif);
+            }
+          });
+        }
+      },
+    );
+  }
+
+  Future<void> _refreshNotifications() async {
+    if (_isRefreshing) return;
+
+    setState(() => _isRefreshing = true);
+    try {
+      final fresh = await _notificationsService.fetchNotifications();
+      if (mounted) {
+        setState(() {
+          // Update the initial fetch future
+          _initialFetch = Future.value(fresh);
+          // Clear and rebuild the list with fresh data and real-time
+          // notifications
+          _notifications.clear();
+        });
+      }
+    } on Exception catch (_) {
+      // Error handled by FutureBuilder
+    } finally {
+      if (mounted) {
+        setState(() => _isRefreshing = false);
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    unawaited(_incomingSubscription.cancel());
+    super.dispose();
+  }
+
+  Future<String> _formatTimeAgo(DateTime createdAt) async {
+    final diff = DateTime.now().difference(createdAt);
+    if (diff.inSeconds < 60) return '${diff.inSeconds}s ago';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    return '${(diff.inDays / 7).floor()}w ago';
+  }
+
+  String? _getMetaLabel(
+    String notificationType,
+    Map<String, dynamic>? meta,
+  ) {
+    if (meta == null) return null;
+
+    switch (notificationType) {
+      case 'EVENT_INVITE':
+      case 'EVENT_START':
+        final eventName = meta['eventName'] as String?;
+        if (eventName != null && eventName.isNotEmpty) {
+          return '📍 $eventName';
+        }
+      case 'FOLLOW':
+        // Could show username from meta if available
+        final userName = meta['userName'] as String?;
+        if (userName != null && userName.isNotEmpty) {
+          return '👤 $userName';
+        }
+      default:
+    }
+    return null;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return FutureBuilder<List<NotificationModel>>(
+      future: _initialFetch,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (snapshot.hasError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(24),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.error_outline,
+                    size: 48,
+                    color: colorScheme.error,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    'Failed to load notifications',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton(
+                    onPressed: () {
+                      setState(() {
+                        _initialFetch = _notificationsService
+                            .fetchNotifications();
+                      });
+                    },
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        final allNotifications = [
+          ..._notifications,
+          ...?snapshot.data?.where(
+            (n) => !_notifications.any((existing) => existing.id == n.id),
+          ),
+        ];
+
+        if (allNotifications.isEmpty) {
+          return RefreshIndicator(
+            onRefresh: _refreshNotifications,
+            child: Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.notifications_none,
+                      size: 48,
+                      color: colorScheme.onSurface.withValues(alpha: 0.3),
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      'No notifications yet',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: colorScheme.onSurface.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          );
+        }
+
+        return RefreshIndicator(
+          onRefresh: _refreshNotifications,
+          child: ListView.builder(
+            itemCount: allNotifications.length,
+            itemBuilder: (context, index) {
+              final notification = allNotifications[index];
+              final meta =
+                  notification.payload['meta'] as Map<String, dynamic>?;
+              final metaLabel = _getMetaLabel(notification.type, meta);
+
+              return ColoredBox(
+                color: !notification.isRead
+                    ? colorScheme.primary.withValues(alpha: 0.05)
+                    : Colors.transparent,
+                child: Material(
+                  type: MaterialType.transparency,
+                  child: InkWell(
+                    onTap: () => widget.onNotificationTap(notification),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 24,
+                        vertical: 12,
+                      ),
+                      decoration: BoxDecoration(
+                        border: Border(
+                          bottom: BorderSide(
+                            color: colorScheme.onSurface.withValues(
+                              alpha: 0.08,
+                            ),
+                          ),
+                        ),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Avatar
+                          Padding(
+                            padding: const EdgeInsets.only(right: 12, top: 4),
+                            child: CircleAvatar(
+                              backgroundColor: colorScheme.primaryContainer,
+                              radius: 24,
+                              child: Icon(
+                                notification.type.icon,
+                                color: colorScheme.onPrimaryContainer,
+                                size: 22,
+                              ),
+                            ),
+                          ),
+                          // Content
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Title with unread indicator
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: Text(
+                                        notification.title,
+                                        style: TextStyle(
+                                          fontWeight: !notification.isRead
+                                              ? FontWeight.w700
+                                              : FontWeight.w600,
+                                          fontSize: 14,
+                                          color: colorScheme.onSurface,
+                                        ),
+                                      ),
+                                    ),
+                                    if (!notification.isRead)
+                                      Padding(
+                                        padding: const EdgeInsets.only(left: 8),
+                                        child: Container(
+                                          width: 8,
+                                          height: 8,
+                                          decoration: BoxDecoration(
+                                            color: colorScheme.primary,
+                                            shape: BoxShape.circle,
+                                          ),
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                const SizedBox(height: 6),
+                                // Message (if available)
+                                if (notification.message != null &&
+                                    notification.message!.isNotEmpty)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 8),
+                                    child: Text(
+                                      notification.message!,
+                                      style: TextStyle(
+                                        fontSize: 13,
+                                        color: colorScheme.onSurface.withValues(
+                                          alpha: 0.7,
+                                        ),
+                                      ),
+                                      maxLines: 2,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                // Meta info (event name, etc.)
+                                if (metaLabel != null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(bottom: 6),
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 8,
+                                        vertical: 4,
+                                      ),
+                                      decoration: BoxDecoration(
+                                        color: colorScheme.secondary.withValues(
+                                          alpha: 0.1,
+                                        ),
+                                        borderRadius: BorderRadius.circular(6),
+                                      ),
+                                      child: Text(
+                                        metaLabel,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: colorScheme.secondary,
+                                          fontWeight: FontWeight.w500,
+                                        ),
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ),
+                                // Timestamp
+                                FutureBuilder<String>(
+                                  future: _formatTimeAgo(
+                                    notification.createdAt,
+                                  ),
+                                  builder: (context, snapshot) {
+                                    final timeAgo = snapshot.data ?? 'Just now';
+                                    return Text(
+                                      timeAgo,
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color: colorScheme.onSurface.withValues(
+                                          alpha: 0.5,
+                                        ),
+                                      ),
+                                    );
+                                  },
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        );
+      },
     );
   }
 }

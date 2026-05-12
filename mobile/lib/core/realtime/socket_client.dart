@@ -23,6 +23,10 @@ class SocketClient {
   final StreamController<Object> _connectErrorController =
       StreamController<Object>.broadcast();
 
+  // Queue of listeners waiting to be attached
+  final List<_PendingListener> _pendingListeners = [];
+  bool _listenerAttachmentQueued = false;
+
   Stream<Object> get connectErrors => _connectErrorController.stream;
 
   bool get isConnected => _socket?.connected == true;
@@ -64,6 +68,9 @@ class SocketClient {
               'extraHeaders': extraHeaders,
             },
           )
+          ..on('connect', (_) {
+            _attachPendingListeners();
+          })
           ..on('connect_error', (dynamic error) {
             final connectError = error is Object ? error : 'connect_error';
             _connectErrorController.add(connectError);
@@ -90,7 +97,37 @@ class SocketClient {
   }
 
   void on(String eventName, void Function(dynamic payload) handler) {
-    _socket?.on(eventName, handler);
+    if (_socket != null && _socket!.connected) {
+      _socket?.on(eventName, handler);
+    } else {
+      // Queue the listener to be attached once socket is connected
+      _pendingListeners.add(_PendingListener(eventName, handler));
+      _scheduleListenerAttachment();
+    }
+  }
+
+  void _scheduleListenerAttachment() {
+    if (_listenerAttachmentQueued) return;
+    _listenerAttachmentQueued = true;
+
+    // Retry attaching listeners every 100ms until socket is connected
+    Timer.periodic(const Duration(milliseconds: 100), (timer) {
+      if (_socket != null && _socket!.connected) {
+        timer.cancel();
+        _listenerAttachmentQueued = false;
+        _attachPendingListeners();
+      } else if (_pendingListeners.isEmpty) {
+        timer.cancel();
+        _listenerAttachmentQueued = false;
+      }
+    });
+  }
+
+  void _attachPendingListeners() {
+    for (final listener in _pendingListeners) {
+      _socket?.on(listener.eventName, listener.handler);
+    }
+    _pendingListeners.clear();
   }
 
   void off(String eventName, [void Function(dynamic payload)? handler]) {
@@ -108,6 +145,13 @@ class SocketClient {
   Future<void> dispose() async {
     _socket?.dispose();
     _socket = null;
+    _pendingListeners.clear();
     await _connectErrorController.close();
   }
+}
+
+class _PendingListener {
+  _PendingListener(this.eventName, this.handler);
+  final String eventName;
+  final void Function(dynamic payload) handler;
 }

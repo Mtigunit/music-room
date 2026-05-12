@@ -130,10 +130,24 @@ class _StartupRouteGateState extends State<_StartupRouteGate> {
                 state is LoginSuccess ||
                 state is RegisterSuccess) {
               unawaited(InjectionContainer().socketClient.reconnectWithAuth());
+              // Attach notifications listeners after socket reconnect attempt
+              try {
+                InjectionContainer().notificationsService
+                    .attachSocketListeners();
+                // Fetch notifications immediately after login
+                unawaited(
+                  InjectionContainer().notificationsService
+                      .fetchNotifications(),
+                );
+              } on Exception catch (_) {}
             }
 
             if (state is LogoutSuccess || state is AuthUnauthenticated) {
               InjectionContainer().socketClient.disconnect();
+              try {
+                InjectionContainer().notificationsService
+                    .detachSocketListeners();
+              } on Exception catch (_) {}
               // After logout, navigate back to auth screen
               unawaited(
                 Navigator.of(context).pushNamedAndRemoveUntil(

@@ -22,6 +22,7 @@ enum SocketEvent {
   trackVote,
   trackVoteUpdated,
   exception,
+  notificationNew,
 }
 
 extension SocketEventName on SocketEvent {
@@ -71,6 +72,8 @@ extension SocketEventName on SocketEvent {
         return 'track:vote_updated';
       case SocketEvent.exception:
         return 'exception';
+      case SocketEvent.notificationNew:
+        return 'notification:new';
     }
   }
 }
