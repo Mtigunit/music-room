@@ -20,7 +20,19 @@ extension NotificationItemIcon on NotificationItem {
 }
 
 class NotificationModal extends StatelessWidget {
-  const NotificationModal({super.key});
+  const NotificationModal({
+    super.key,
+    this.isPanel = false,
+    this.onClose,
+  });
+
+  /// When `true`, renders as a desktop side panel (no drag handle, no top
+  /// border radius, full height). When `false`, renders as a mobile bottom
+  /// sheet with the existing styling.
+  final bool isPanel;
+
+  /// Optional callback to close the panel, used on desktop.
+  final VoidCallback? onClose;
 
   @override
   Widget build(BuildContext context) {
@@ -28,34 +40,40 @@ class NotificationModal extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
 
     return Container(
-      constraints: BoxConstraints(
-        maxHeight: MediaQuery.of(context).size.height * 0.85,
-      ),
+      constraints: isPanel
+          ? null
+          : BoxConstraints(
+              maxHeight: MediaQuery.of(context).size.height * 0.85,
+            ),
       decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        color: isPanel ? Colors.transparent : colorScheme.surface,
+        borderRadius: isPanel
+            ? null
+            : const BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: SafeArea(
-        top: false,
+        top: isPanel,
         child: Column(
-          mainAxisSize: MainAxisSize.min,
+          mainAxisSize: isPanel ? MainAxisSize.max : MainAxisSize.min,
           children: [
-            const SizedBox(height: 12),
-            // Drag Handle
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: colorScheme.onSurface.withValues(alpha: 0.2),
-                borderRadius: BorderRadius.circular(2),
+            // Drag Handle — bottom sheet only
+            if (!isPanel) ...[
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: colorScheme.onSurface.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(2),
+                ),
               ),
-            ),
-            const SizedBox(height: 16),
+              const SizedBox(height: 16),
+            ],
+            if (isPanel) const SizedBox(height: 20),
             // Title Row
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
                     'Notifications',
@@ -63,10 +81,14 @@ class NotificationModal extends StatelessWidget {
                       fontWeight: FontWeight.bold,
                     ),
                   ),
-                  const TextButton(
-                    onPressed: null,
-                    child: Text('Mark all read'),
-                  ),
+                  const Spacer(),
+                  if (isPanel && onClose != null) ...[
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: onClose,
+                      tooltip: 'Close',
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -126,7 +148,7 @@ class NotificationModal extends StatelessWidget {
                 },
               ),
             ),
-            const SizedBox(height: 24),
+            if (!isPanel) const SizedBox(height: 24),
           ],
         ),
       ),

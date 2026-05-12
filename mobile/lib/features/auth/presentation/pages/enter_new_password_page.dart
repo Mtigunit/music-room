@@ -8,6 +8,7 @@ import 'package:music_room/core/widgets/app_snackbar.dart';
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
 import 'package:music_room/features/auth/presentation/state/auth_event.dart';
 import 'package:music_room/features/auth/presentation/state/auth_state.dart';
+import 'package:music_room/features/auth/presentation/widgets/auth_page_layout.dart';
 import 'package:music_room/features/auth/presentation/widgets/auth_screen_header.dart';
 import 'package:music_room/features/auth/presentation/widgets/auth_text_input_field.dart';
 import 'package:music_room/routes/route_names.dart';
@@ -124,8 +125,8 @@ class _EnterNewPasswordPageState extends State<EnterNewPasswordPage> {
           leading: AppBackButton(onPressed: () => Navigator.of(context).pop()),
         ),
         body: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: AuthPageLayout(
+            showBrandPanel: false,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

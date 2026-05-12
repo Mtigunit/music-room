@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/services/onboarding_service.dart';
@@ -91,23 +92,24 @@ class _StartupRouteGateState extends State<_StartupRouteGate> {
   }
 
   Future<String> _resolveInitialRoute() async {
-    final hasSeenOnboarding = await OnboardingService().hasSeenOnboarding();
-
-    // If user hasn't seen onboarding, show onboarding first
-    if (!hasSeenOnboarding) {
-      return AppRouter.initialRoute;
+    // On web, skip onboarding entirely — users arrive via URL.
+    if (!kIsWeb) {
+      final hasSeenOnboarding = await OnboardingService().hasSeenOnboarding();
+      if (!hasSeenOnboarding) {
+        return AppRouter.initialRoute;
+      }
     }
 
     // Check if user is already authenticated
     final tokenStorage = InjectionContainer().tokenStorageService;
     final isAuthenticated = await tokenStorage.isAuthenticated();
 
-    // If authenticated and onboarded, go directly to home
+    // If authenticated (and onboarded, or web), go directly to home
     if (isAuthenticated) {
       return RouteNames.home;
     }
 
-    // If onboarded but not authenticated, show auth page
+    // Otherwise show auth page
     return RouteNames.auth;
   }
 

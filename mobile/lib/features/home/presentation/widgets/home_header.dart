@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:music_room/core/widgets/app_scaffold.dart';
-import 'package:music_room/features/home/presentation/widgets/notification_modal.dart';
+import 'package:music_room/features/home/presentation/widgets/show_notification_panel.dart';
 import 'package:music_room/routes/route_names.dart';
 
 class HomeHeader extends StatelessWidget {
@@ -55,14 +55,7 @@ class HomeHeader extends StatelessWidget {
                     tooltip: 'Notifications',
                     onPressed: () {
                       unawaited(
-                        showModalBottomSheet<void>(
-                          context: context,
-                          isScrollControlled: true,
-                          useSafeArea: true,
-                          barrierColor: Colors.black.withValues(alpha: 0.8),
-                          backgroundColor: Colors.transparent,
-                          builder: (context) => const NotificationModal(),
-                        ),
+                        showNotificationPanel(context: context),
                       );
                     },
                     style: IconButton.styleFrom(
