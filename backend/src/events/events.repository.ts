@@ -61,6 +61,7 @@ export class EventsRepository {
         },
         invites: {
           where: { userId },
+          select: { id: true },
         },
         tracks: {
           include: { track: true },
@@ -68,6 +69,10 @@ export class EventsRepository {
           orderBy: [{ voteScore: 'desc' }, { id: 'asc' }],
         },
         policies: { select: { config: true, policyType: true } },
+        delegations: {
+          where: { isActive: true, delegateeId: userId },
+          select: { delegateeId: true },
+        },
       },
     });
 
@@ -665,6 +670,16 @@ export class EventsRepository {
         playbackStatus: PlaybackStatus.PAUSED,
         currentTrackStartedAt: null,
         pausedPlaybackPositionMs: 0,
+      },
+    });
+  }
+
+  async findActiveDelegation(eventId: string, delegateeId: string) {
+    return this.prisma.controlDelegation.findFirst({
+      where: {
+        eventId,
+        delegateeId,
+        isActive: true,
       },
     });
   }

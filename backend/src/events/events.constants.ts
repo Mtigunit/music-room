@@ -1,3 +1,7 @@
+export const INTERNAL_EVENTS = {
+  DELEGATION_INVITE_SENT: 'delegation.invite_sent',
+};
+
 export const WS_EVENTS = {
   // LISTENER EVENTS
   JOIN: 'event:join',
@@ -10,6 +14,7 @@ export const WS_EVENTS = {
   HOST_JOIN: 'event:host_join',
   HOST_LEAVE: 'event:host_leave',
   TRACK_VOTE: 'track:vote',
+  DELEGATION_RESPONSE: 'event:delegation-response',
 
   // EMITTED EVENTS
   STATUS: 'event:status',
@@ -19,6 +24,7 @@ export const WS_EVENTS = {
   HOST_RECONNECTED: 'event:host_reconnected',
   USER_JOINED: 'event:user_joined',
   EVENT_COUNT: 'event:count',
+  DELEGATE: 'event:delegate',
 
   PLAYBACK_STATUS: 'playback:status',
 

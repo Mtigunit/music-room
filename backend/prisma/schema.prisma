@@ -315,14 +315,14 @@ model ControlDelegation {
   id          String   @id @default(uuid())
   eventId     String
   delegateeId String
-  deviceId    String
-  isActive    Boolean  @default(true)
+  deviceId    String?
+  isActive    Boolean  @default(false)
   grantedAt   DateTime @default(now())
 
   event     Event @relation(fields: [eventId], references: [id], onDelete: Cascade)
   delegatee User  @relation("Delegatee", fields: [delegateeId], references: [id], onDelete: Cascade)
 
-  @@unique([eventId, delegateeId, deviceId])
+  @@unique([eventId, delegateeId])
 }
 
 // ======================================================
