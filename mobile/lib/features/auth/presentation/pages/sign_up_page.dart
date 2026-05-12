@@ -231,7 +231,7 @@ class _SignUpPageState extends State<SignUpPage> {
           AppSnackbar.showSuccess(context, 'Account created successfully!');
           unawaited(
             Navigator.of(context).pushNamedAndRemoveUntil(
-              RouteNames.home,
+              RouteNames.completeProfile,
               (_) => false,
             ),
           );
