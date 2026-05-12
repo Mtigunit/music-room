@@ -82,12 +82,12 @@ class TokenStorageService {
     try {
       await _secureStorage.delete(key: _tokenKey);
     } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[TokenStorage] Error clearing secure token: $e');
+      }
+    } finally {
       if (kIsWeb) {
         await _prefs.remove(_tokenKey);
-      } else {
-        if (kDebugMode) {
-          debugPrint('[TokenStorage] Error clearing token: $e');
-        }
       }
     }
   }
@@ -157,13 +157,13 @@ class TokenStorageService {
       await _secureStorage.delete(key: _tokenKey);
       await _secureStorage.delete(key: _userKey);
     } catch (e) {
+      if (kDebugMode) {
+        debugPrint('[TokenStorage] Error clearing all secure storage: $e');
+      }
+    } finally {
       if (kIsWeb) {
         await _prefs.remove(_tokenKey);
         await _prefs.remove(_userKey);
-      } else {
-        if (kDebugMode) {
-          debugPrint('[TokenStorage] Error clearing all storage: $e');
-        }
       }
     }
   }
