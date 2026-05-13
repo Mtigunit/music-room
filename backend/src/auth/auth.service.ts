@@ -67,6 +67,7 @@ export class AuthService {
   ): Promise<{
     access_token: string;
     user: { id: string; email: string; username: string };
+    isNewUser: boolean;
   }> {
     // Verify the email verification token
     const verifiedEmail = this.verifyEmailToken(dto.emailVerificationToken);
@@ -117,6 +118,7 @@ export class AuthService {
   ): Promise<{
     access_token: string;
     user: { id: string; email: string; username: string };
+    isNewUser: boolean;
   }> {
     let user: User | null;
 
