@@ -73,6 +73,7 @@ class LoginResponse {
   LoginResponse({
     required this.accessToken,
     required this.user,
+    this.isNewUser,
   });
 
   factory LoginResponse.fromJson(Map<String, dynamic> json) =>
@@ -80,6 +81,7 @@ class LoginResponse {
   @JsonKey(name: 'access_token')
   final String accessToken;
   final UserProfile user;
+  final bool? isNewUser;
 
   Map<String, dynamic> toJson() => _$LoginResponseToJson(this);
 }

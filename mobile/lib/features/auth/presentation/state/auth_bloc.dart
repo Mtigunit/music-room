@@ -57,6 +57,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         GoogleLoginSuccess(
           accessToken: response.accessToken,
           user: response.user,
+          isNewUser: response.isNewUser ?? false,
         ),
       );
       emit(

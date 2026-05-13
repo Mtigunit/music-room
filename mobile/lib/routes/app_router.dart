@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:music_room/core/widgets/app_scaffold.dart';
 import 'package:music_room/features/auth/presentation/pages/onboarding_page.dart';
+import 'package:music_room/features/auth/presentation/pages/post_registration_profile_page.dart';
 import 'package:music_room/features/auth/presentation/pages/sign_in_page.dart';
 import 'package:music_room/features/auth/presentation/pages/sign_up_page.dart';
 import 'package:music_room/features/music_control/presentation/pages/music_control_page.dart';
@@ -50,6 +51,10 @@ class AppRouter {
 
     if (routeName == RouteNames.signUp) {
       return const SignUpPage();
+    }
+
+    if (routeName == RouteNames.completeProfile) {
+      return const PostRegistrationProfilePage();
     }
 
     if (routeName == RouteNames.preEvent) {

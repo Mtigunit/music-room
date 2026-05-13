@@ -76,12 +76,14 @@ class GoogleLoginSuccess extends AuthState {
   const GoogleLoginSuccess({
     required this.accessToken,
     required this.user,
+    this.isNewUser = false,
   });
   final String accessToken;
   final UserProfile user;
+  final bool isNewUser;
 
   @override
-  List<Object?> get props => [accessToken, user];
+  List<Object?> get props => [accessToken, user, isNewUser];
 }
 
 /// Google login failed
