@@ -785,11 +785,7 @@ export class EventsService {
 
     const redisClient = this.redisService.getClient();
     await redisClient.del(
-      ...[
-        REDIS_KEYS.EVENT_HOST(eventId),
-        REDIS_KEYS.HOST_SOCKET(eventId),
-        REDIS_KEYS.HOST_DISCONNECT(eventId),
-      ],
+      ...[REDIS_KEYS.EVENT_HOST(eventId), REDIS_KEYS.HOST_SOCKET(eventId)],
     );
 
     return event;
@@ -822,15 +818,14 @@ export class EventsService {
   }
 
   async startHostGracePeriod(eventId: string, userId: string) {
-    const redisClient = this.redisService.getClient();
-    await redisClient.set(REDIS_KEYS.HOST_DISCONNECT(eventId), userId);
-
     await this.eventTimeoutsQueue.add(
       BULL_JOBS.HOST_SOFT_TIMEOUT,
       { eventId, userId },
       {
         jobId: `soft-${eventId}`,
         delay: BULL_JOBS.SOFT_TIMEOUT,
+        removeOnComplete: true,
+        removeOnFail: true,
       },
     );
 
@@ -840,6 +835,8 @@ export class EventsService {
       {
         jobId: `hard-${eventId}`,
         delay: BULL_JOBS.HARD_TIMEOUT,
+        removeOnComplete: true,
+        removeOnFail: true,
       },
     );
   }

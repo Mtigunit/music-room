@@ -36,7 +36,6 @@ export const WS_EVENTS = {
 export const REDIS_KEYS = {
   EVENT_HOST: (eventId: string) => `event-host:${eventId}`,
   HOST_SOCKET: (eventId: string) => `host-socket:${eventId}`,
-  HOST_DISCONNECT: (eventId: string) => `host-disconnect:${eventId}`,
 };
 
 export const BULL_QUEUES = {
