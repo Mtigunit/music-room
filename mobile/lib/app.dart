@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/services/onboarding_service.dart';
 import 'package:music_room/core/services/theme_preference_service.dart';
 import 'package:music_room/core/theme/app_theme.dart';
+import 'package:music_room/core/widgets/animated_splash_screen.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
 import 'package:music_room/features/auth/presentation/state/auth_event.dart';
@@ -84,6 +85,8 @@ class _StartupRouteGate extends StatefulWidget {
 
 class _StartupRouteGateState extends State<_StartupRouteGate> {
   late final Future<String> _initialRouteFuture;
+  bool _splashCompleted = false;
+  String? _resolvedRoute;
 
   @override
   void initState() {
@@ -113,51 +116,73 @@ class _StartupRouteGateState extends State<_StartupRouteGate> {
     return RouteNames.auth;
   }
 
+  void _navigateToInitialRoute(String route) {
+    if (!mounted) return;
+    unawaited(Navigator.of(context).pushReplacementNamed(route));
+  }
+
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<String>(
       future: _initialRouteFuture,
       builder: (context, snapshot) {
-        if (!snapshot.hasData) {
+        // Store resolved route when available
+        if (snapshot.hasData && _resolvedRoute == null) {
+          _resolvedRoute = snapshot.data;
+        }
+
+        // On web, skip splash screen and go directly to route
+        if (kIsWeb) {
+          if (!snapshot.hasData) {
+            return const Scaffold(
+              body: Center(child: CircularProgressIndicator()),
+            );
+          }
+          // Navigate immediately on web
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!_splashCompleted) {
+              _splashCompleted = true;
+              _navigateToInitialRoute(snapshot.data!);
+            }
+          });
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
         }
 
-        return BlocListener<AuthBloc, AuthState>(
-          listener: (context, state) {
-            if (state is AuthAuthenticated ||
-                state is LoginSuccess ||
-                state is RegisterSuccess) {
-              unawaited(InjectionContainer().socketClient.reconnectWithAuth());
-              // Attach notifications listeners after socket reconnect attempt
-              try {
-                InjectionContainer().notificationsService
-                    .attachSocketListeners();
-                // Fetch notifications immediately after login
-                unawaited(
-                  InjectionContainer().notificationsService
-                      .fetchNotifications(),
-                );
-              } on Exception catch (_) {}
-            }
+        // Mobile: Show animated splash screen
+        if (!snapshot.hasData) {
+          return AnimatedSplashScreen(
+            onComplete: () {
+              if (!_splashCompleted) {
+                _splashCompleted = true;
+                // Wait for route to be resolved if not yet available
+                if (_resolvedRoute != null) {
+                  _navigateToInitialRoute(_resolvedRoute!);
+                } else {
+                  // Route will be available soon, handle completion
+                  unawaited(
+                    _initialRouteFuture.then((route) {
+                      if (mounted && !_splashCompleted) {
+                        _navigateToInitialRoute(route);
+                      }
+                    }),
+                  );
+                }
+              }
+            },
+          );
+        }
 
-            if (state is LogoutSuccess || state is AuthUnauthenticated) {
-              InjectionContainer().socketClient.disconnect();
-              try {
-                InjectionContainer().notificationsService
-                    .detachSocketListeners();
-              } on Exception catch (_) {}
-              // After logout, navigate back to auth screen
-              unawaited(
-                Navigator.of(context).pushNamedAndRemoveUntil(
-                  RouteNames.auth,
-                  (_) => false,
-                ),
-              );
+        // Once we have the route, show splash with navigation queued
+        // (mobile only)
+        return AnimatedSplashScreen(
+          onComplete: () {
+            if (!_splashCompleted) {
+              _splashCompleted = true;
+              _navigateToInitialRoute(snapshot.data!);
             }
           },
-          child: AppRouter.pageForRoute(snapshot.data!),
         );
       },
     );
