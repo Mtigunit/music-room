@@ -108,7 +108,7 @@ export class AuthService {
       }),
     );
 
-    return this.generateToken(user);
+    return this.generateToken(user, true);
   }
 
   async login(
@@ -146,7 +146,7 @@ export class AuthService {
       }),
     );
 
-    return this.generateToken(user);
+    return this.generateToken(user, false);
   }
 
   async googleAuth(
@@ -155,6 +155,7 @@ export class AuthService {
   ): Promise<{
     access_token: string;
     user: { id: string; email: string; username: string };
+    isNewUser: boolean;
   }> {
     try {
       const {
@@ -165,6 +166,7 @@ export class AuthService {
 
       // 1. Check if user exists by googleId
       let user = await this.usersService.findByGoogleId(googleId);
+      let isNewUser = false;
 
       // 2. If not, check if user exists by email (Account Linking)
       if (!user) {
@@ -183,6 +185,7 @@ export class AuthService {
             googleId,
             true, // Google verifies the email
           );
+          isNewUser = true;
         }
       }
 
@@ -195,7 +198,7 @@ export class AuthService {
       );
 
       // Return the new session
-      return this.generateToken(user);
+      return this.generateToken(user, isNewUser);
     } catch (error) {
       if (error instanceof UnauthorizedException) {
         throw error;
@@ -322,14 +325,18 @@ export class AuthService {
     }
   }
 
-  private generateToken(user: {
-    id: string;
-    email: string;
-    username: string;
-    tokenVersion: number;
-  }): {
+  private generateToken(
+    user: {
+      id: string;
+      email: string;
+      username: string;
+      tokenVersion: number;
+    },
+    isNewUser: boolean,
+  ): {
     access_token: string;
     user: { id: string; email: string; username: string };
+    isNewUser: boolean;
   } {
     const payload: JwtPayload = {
       sub: user.id,
@@ -343,6 +350,7 @@ export class AuthService {
         email: user.email,
         username: user.username,
       },
+      isNewUser,
     };
   }
 }
