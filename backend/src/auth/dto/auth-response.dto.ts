@@ -20,4 +20,10 @@ export class AuthResponseDto {
     type: AuthUserDto,
   })
   user: AuthUserDto;
+
+  @ApiProperty({
+    description: 'Whether this is a newly created user account',
+    example: true,
+  })
+  isNewUser: boolean;
 }
