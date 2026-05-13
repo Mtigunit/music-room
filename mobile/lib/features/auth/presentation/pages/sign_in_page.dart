@@ -118,7 +118,7 @@ class _SignInPageState extends State<SignInPage> {
           AppSnackbar.showSuccess(context, 'Signed in with Google!');
           unawaited(
             Navigator.of(context).pushNamedAndRemoveUntil(
-              RouteNames.home,
+              state.isNewUser ? RouteNames.completeProfile : RouteNames.home,
               (_) => false,
             ),
           );

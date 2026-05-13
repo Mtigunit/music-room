@@ -247,7 +247,7 @@ class _SignUpPageState extends State<SignUpPage> {
           AppSnackbar.showSuccess(context, 'Account created with Google!');
           unawaited(
             Navigator.of(context).pushNamedAndRemoveUntil(
-              RouteNames.completeProfile,
+              state.isNewUser ? RouteNames.completeProfile : RouteNames.home,
               (_) => false,
             ),
           );
