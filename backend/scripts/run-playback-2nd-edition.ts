@@ -193,6 +193,7 @@ function startREPL() {
       }
 
       if (line === 'pos' || line === 'position') {
+        console.log(`lastStatus: ${JSON.stringify(lastStatus)}`);
         const { status, currentStartedAt, pausedPlaybackPositionMs } = lastStatus;
         const paused  = pausedPlaybackPositionMs ?? 0;
         const startedAt = currentStartedAt ? new Date(currentStartedAt).getTime() : Date.now();
@@ -237,12 +238,10 @@ function startREPL() {
 function attachListeners(socket: Socket, label: string, isHost: boolean) {
   socket.on('playback:status', (data: any) => {
     const ct = data?.currentTrack ?? null;
-    
     // only the host socket updates lastStatus (single source of truth)
     lastStatus.status = data?.status;
     lastStatus.currentStartedAt = data?.currentTrack?.currentTrackStartedAt;
-    lastStatus.pausedPlaybackPositionMs = ct?.currentTrack?.pausedPlaybackPositionMs;
-
+    lastStatus.pausedPlaybackPositionMs = data?.currentTrack?.pausedPlaybackPositionMs;
     const track = ct ? findAlias(ct.id) + `  (${ct.id})` : 'null';
 
     print(
