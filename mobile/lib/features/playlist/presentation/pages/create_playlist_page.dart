@@ -8,6 +8,7 @@ import 'package:music_room/core/widgets/form_input_decoration.dart';
 import 'package:music_room/core/widgets/form_section_label.dart';
 import 'package:music_room/core/widgets/form_toggle_row.dart';
 import 'package:music_room/core/widgets/genre_selection_grid.dart';
+import 'package:music_room/core/widgets/responsive_layout.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/events/presentation/widgets/selection_card.dart';
 import 'package:music_room/features/playlist/data/datasources/playlist_remote_datasource.dart';
@@ -246,183 +247,284 @@ class _CreatePlaylistPageState extends State<CreatePlaylistPage> {
     final colorScheme = Theme.of(context).colorScheme;
     final theme = Theme.of(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        leading: const AppBackButton(),
-        title: Text(widget.isEditing ? 'Playlist Settings' : 'Create Playlist'),
-      ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 700),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const FormSectionLabel(text: 'PLAYLIST NAME'),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _titleController,
-                  onChanged: _validateTitle,
-                  decoration: FormInputDecoration.build(
-                    theme,
-                    labelText: null,
-                    hintText: 'e.g. Late Night Vibes',
-                    errorText: _titleError,
-                  ),
-                ),
-                const SizedBox(height: 16),
-                const FormSectionLabel(text: 'DESCRIPTION (OPTIONAL)'),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _descriptionController,
-                  maxLines: 4,
-                  decoration: FormInputDecoration.build(
-                    theme,
-                    labelText: null,
-                    hintText: "What's the vibe?",
-                  ),
-                ),
-                const SizedBox(height: 20),
-                const FormSectionLabel(text: 'PRIVACY'),
-                const SizedBox(height: 10),
-                SelectionCard(
-                  title: 'Public',
-                  subtitle: 'Anyone can discover and join your playlist',
-                  icon: Icons.public,
-                  isSelected: _selectedVisibility == 'PUBLIC',
-                  onTap: () {
-                    setState(() {
-                      _selectedVisibility = 'PUBLIC';
-                      _privacyError = null;
-                    });
-                  },
-                ),
-                const SizedBox(height: 12),
-                SelectionCard(
-                  title: 'Private',
-                  subtitle: 'Only people with access can view it',
-                  icon: Icons.lock_outline,
-                  isSelected: _selectedVisibility == 'PRIVATE',
-                  onTap: () {
-                    setState(() {
-                      _selectedVisibility = 'PRIVATE';
-                      _isEditAccessEnabled = false;
-                      _privacyError = null;
-                    });
-                  },
-                ),
-                if (_privacyError != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    _privacyError!,
-                    style: TextStyle(
-                      color: colorScheme.error,
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
-                if (_isPublicSelected) ...[
-                  const SizedBox(height: 20),
-                  FormToggleRow(
-                    title: 'Edit Access',
-                    subtitle: _isEditAccessEnabled
-                        ? 'Users with the link can edit this playlist'
-                        : 'Only owner/collaborators can edit this playlist',
-                    value: _isEditAccessEnabled,
-                    onChanged: (value) {
-                      setState(() {
-                        _isEditAccessEnabled = value;
-                      });
-                    },
-                  ),
-                ],
-                const SizedBox(height: 20),
-                const FormSectionLabel(text: 'GENRE'),
-                const SizedBox(height: 10),
-                GenreSelectionGrid(
-                  genres: PlaylistTag.all
-                      .map((tag) => tag.displayLabel)
-                      .toList(growable: false),
-                  selectedGenres: _selectedGenres
-                      .map(
-                        (value) => PlaylistTag.fromValue(value)?.displayLabel,
-                      )
-                      .whereType<String>()
-                      .toList(growable: false),
-                  onGenreTapped: (displayLabel) {
-                    final tag = PlaylistTag.all.firstWhere(
-                      (item) => item.displayLabel == displayLabel,
-                    );
+    return ResponsiveLayout(
+      builder: (context, screenSize) {
+        final isCompact = screenSize == ScreenSize.compact;
 
-                    setState(() {
-                      if (_selectedGenres.contains(tag.value)) {
-                        _selectedGenres.remove(tag.value);
-                      } else {
-                        _selectedGenres.add(tag.value);
-                      }
-                      _genreError = null;
-                    });
-                  },
-                ),
-                if (widget.isEditing)
-                  Padding(
-                    padding: const EdgeInsets.only(top: 8),
-                    child: Text(
-                      'Tap genres to update the playlist tags.',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurface.withValues(alpha: 0.6),
-                      ),
-                    ),
-                  ),
-                if (_genreError != null) ...[
-                  const SizedBox(height: 8),
-                  Text(
-                    _genreError!,
-                    style: TextStyle(
-                      color: colorScheme.error,
-                      fontSize: 13,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 32),
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: AppButton(
-                    onPressed: _isSaving ? null : _savePlaylist,
-                    label: widget.isEditing ? 'Save changes' : 'Save playlist',
-                    isLoading: _isSaving,
-                    borderRadius: 16,
-                    textStyle: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ),
-                if (widget.isEditing) ...[
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 52,
-                    child: AppButton(
-                      onPressed: _isDeleting ? null : _deletePlaylist,
-                      label: 'Delete playlist',
-                      isLoading: _isDeleting,
-                      backgroundColor: colorScheme.error,
-                      borderRadius: 16,
-                      textStyle: const TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
+        final horizontalPadding = isCompact
+            ? 20.0
+            : screenSize == ScreenSize.medium
+            ? 32.0
+            : 48.0;
+
+        return Scaffold(
+          appBar: AppBar(
+            leading: const AppBackButton(),
+            title: Text(
+              widget.isEditing ? 'Playlist Settings' : 'Create Playlist',
             ),
           ),
-        ),
-      ),
+
+          body: SafeArea(
+            child: Scrollbar(
+              child: SingleChildScrollView(
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(
+                      maxWidth: 700,
+                    ),
+                    child: Padding(
+                      padding: EdgeInsets.fromLTRB(
+                        horizontalPadding,
+                        12,
+                        horizontalPadding,
+                        32,
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const FormSectionLabel(
+                            text: 'PLAYLIST NAME',
+                          ),
+
+                          const SizedBox(height: 8),
+
+                          TextFormField(
+                            controller: _titleController,
+                            onChanged: _validateTitle,
+                            decoration: FormInputDecoration.build(
+                              theme,
+                              labelText: null,
+                              hintText: 'e.g. Late Night Vibes',
+                              errorText: _titleError,
+                            ),
+                          ),
+
+                          const SizedBox(height: 16),
+
+                          const FormSectionLabel(
+                            text: 'DESCRIPTION (OPTIONAL)',
+                          ),
+
+                          const SizedBox(height: 8),
+
+                          TextFormField(
+                            controller: _descriptionController,
+                            maxLines: 4,
+                            decoration: FormInputDecoration.build(
+                              theme,
+                              labelText: null,
+                              hintText: "What's the vibe?",
+                            ),
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          const FormSectionLabel(
+                            text: 'PRIVACY',
+                          ),
+
+                          const SizedBox(height: 10),
+
+                          SelectionCard(
+                            title: 'Public',
+                            subtitle:
+                                'Anyone can discover and join your playlist',
+                            icon: Icons.public,
+                            isSelected: _selectedVisibility == 'PUBLIC',
+                            onTap: () {
+                              setState(() {
+                                _selectedVisibility = 'PUBLIC';
+                                _privacyError = null;
+                              });
+                            },
+                          ),
+
+                          const SizedBox(height: 12),
+
+                          SelectionCard(
+                            title: 'Private',
+                            subtitle: 'Only people with access can view it',
+                            icon: Icons.lock_outline,
+                            isSelected: _selectedVisibility == 'PRIVATE',
+                            onTap: () {
+                              setState(() {
+                                _selectedVisibility = 'PRIVATE';
+                                _isEditAccessEnabled = false;
+                                _privacyError = null;
+                              });
+                            },
+                          ),
+
+                          if (_privacyError != null) ...[
+                            const SizedBox(
+                              height: 8,
+                            ),
+
+                            Text(
+                              _privacyError!,
+                              style: TextStyle(
+                                color: colorScheme.error,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+
+                          if (_isPublicSelected) ...[
+                            const SizedBox(
+                              height: 20,
+                            ),
+
+                            FormToggleRow(
+                              title: 'Edit Access',
+                              subtitle: _isEditAccessEnabled
+                                  ? 'Users with the link can edit this playlist'
+                                  : 'Only owner/collaborators can edit this playlist',
+                              value: _isEditAccessEnabled,
+                              onChanged:
+                                  (
+                                    value,
+                                  ) {
+                                    setState(() {
+                                      _isEditAccessEnabled = value;
+                                    });
+                                  },
+                            ),
+                          ],
+
+                          const SizedBox(height: 20),
+
+                          const FormSectionLabel(
+                            text: 'GENRE',
+                          ),
+
+                          const SizedBox(height: 10),
+
+                          GenreSelectionGrid(
+                            genres: PlaylistTag.all
+                                .map(
+                                  (
+                                    tag,
+                                  ) => tag.displayLabel,
+                                )
+                                .toList(
+                                  growable: false,
+                                ),
+                            selectedGenres: _selectedGenres
+                                .map(
+                                  (
+                                    value,
+                                  ) => PlaylistTag.fromValue(
+                                    value,
+                                  )?.displayLabel,
+                                )
+                                .whereType<String>()
+                                .toList(
+                                  growable: false,
+                                ),
+                            onGenreTapped:
+                                (
+                                  displayLabel,
+                                ) {
+                                  final tag = PlaylistTag.all.firstWhere(
+                                    (
+                                      item,
+                                    ) => item.displayLabel == displayLabel,
+                                  );
+
+                                  setState(() {
+                                    if (_selectedGenres.contains(
+                                      tag.value,
+                                    )) {
+                                      _selectedGenres.remove(
+                                        tag.value,
+                                      );
+                                    } else {
+                                      _selectedGenres.add(
+                                        tag.value,
+                                      );
+                                    }
+
+                                    _genreError = null;
+                                  });
+                                },
+                          ),
+
+                          if (widget.isEditing)
+                            Padding(
+                              padding: const EdgeInsets.only(
+                                top: 8,
+                              ),
+                              child: Text(
+                                'Tap genres to update the playlist tags.',
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: colorScheme.onSurface.withValues(
+                                    alpha: 0.6,
+                                  ),
+                                ),
+                              ),
+                            ),
+
+                          if (_genreError != null) ...[
+                            const SizedBox(
+                              height: 8,
+                            ),
+
+                            Text(
+                              _genreError!,
+                              style: TextStyle(
+                                color: colorScheme.error,
+                                fontSize: 13,
+                              ),
+                            ),
+                          ],
+
+                          const SizedBox(height: 32),
+
+                          AppButton(
+                            onPressed: _isSaving ? null : _savePlaylist,
+                            label: widget.isEditing
+                                ? 'Save changes'
+                                : 'Save playlist',
+                            isLoading: _isSaving,
+                            borderRadius: 16,
+                            expand: true,
+                            height: 56,
+                            textStyle: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+
+                          if (widget.isEditing) ...[
+                            const SizedBox(
+                              height: 12,
+                            ),
+
+                            AppButton(
+                              onPressed: _isDeleting ? null : _deletePlaylist,
+                              label: 'Delete playlist',
+                              isLoading: _isDeleting,
+                              backgroundColor: colorScheme.error,
+                              borderRadius: 16,
+                              expand: true,
+                              height: 52,
+                              textStyle: const TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
