@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
+import 'package:flutter/foundation.dart';
 import 'package:music_room/core/realtime/socket_client.dart';
 
 /// Central service that monitors device connectivity and owns the global
@@ -51,7 +52,13 @@ class ConnectivityService {
         // Internet is back — reconnect the global socket. Feature modules
         // will be notified via SocketClient.onConnected and can re-join their
         // rooms without performing any socket management themselves.
-        unawaited(_socketClient.reconnectWithAuth());
+        unawaited(
+          _socketClient.reconnectWithAuth().catchError((Object error) {
+            debugPrint(
+              '[ConnectivityService] Error reconnecting global socket: $error',
+            );
+          }),
+        );
       }
     });
   }

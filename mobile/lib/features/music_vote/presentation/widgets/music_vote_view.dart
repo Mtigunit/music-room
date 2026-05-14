@@ -91,6 +91,7 @@ class _MusicVoteViewState extends State<MusicVoteView> {
       );
     } else if (!isOffline && _sheetIsOpen) {
       _sheetIsOpen = false;
+      if (!mounted) return;
       // Close the sheet that is on top of the navigator stack.
       Navigator.of(context, rootNavigator: true).pop();
       // Reload the room — loadRoom internally resets _hasJoinedLiveRoom and

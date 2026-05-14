@@ -581,20 +581,20 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
           .toList();
     }
 
+    // Re-sort so the new current track is pinned to the top immediately.
+    final sortedTracks = List<EventTrackModel>.from(updatedTracks);
+    _sortTracks(sortedTracks);
+
+    if (isClosed) return;
+
     emit(
       state.copyWith(
         playbackStatus: status is String && status.isNotEmpty ? status : null,
         currentTrack: newTrack,
         clearCurrentTrack: clearTrack,
-        tracks: updatedTracks,
+        tracks: sortedTracks,
       ),
     );
-
-    // Re-sort so the new current track is pinned to the top immediately.
-    final sortedTracks = List<EventTrackModel>.from(state.tracks);
-    _sortTracks(sortedTracks);
-    if (isClosed) return;
-    emit(state.copyWith(tracks: sortedTracks));
 
     _schedulePlaybackAutoAdvance();
   }
