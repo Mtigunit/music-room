@@ -2,9 +2,12 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:music_room/core/widgets/app_button.dart';
 import 'package:music_room/core/widgets/empty_state_widget.dart';
 import 'package:music_room/core/widgets/premium_segmented_tab_bar.dart';
+import 'package:music_room/core/widgets/responsive_layout.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
 import 'package:music_room/features/auth/presentation/state/auth_state.dart';
@@ -158,129 +161,304 @@ class _PlaylistPageState extends State<PlaylistPage> {
               .where((playlist) => playlist.ownerUserId != currentUserId)
               .toList(growable: false);
 
-    return Scaffold(
-      body: SafeArea(
-        child: DefaultTabController(
-          length: 2,
-          child: Builder(
-            builder: (context) {
-              final tabController = DefaultTabController.of(context);
+    return ResponsiveLayout(
+      builder: (context, screenSize) {
+        return Scaffold(
+          body: screenSize == ScreenSize.compact
+              ? _buildMobileLayout(
+                  colorScheme,
+                  textTheme,
+                  createdPlaylists,
+                  invitedPlaylists,
+                )
+              : _buildDesktopLayout(
+                  colorScheme,
+                  textTheme,
+                  createdPlaylists,
+                  invitedPlaylists,
+                  screenSize,
+                ),
+          floatingActionButton: screenSize == ScreenSize.compact
+              ? FloatingActionButton(
+                  heroTag: null,
+                  onPressed: _showPlaylistSearchModal,
+                  backgroundColor: colorScheme.primary,
+                  foregroundColor: colorScheme.onPrimary,
+                  child: const Icon(Icons.search),
+                )
+              : null,
+        );
+      },
+    );
+  }
 
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(24, 20, 24, 4),
-                    child: Text(
-                      'My Playlists',
-                      style: textTheme.displaySmall?.copyWith(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w800,
-                      ),
+  Widget _buildMobileLayout(
+    ColorScheme colorScheme,
+    TextTheme textTheme,
+    List<PlaylistEntity> createdPlaylists,
+    List<PlaylistEntity> invitedPlaylists,
+  ) {
+    return SafeArea(
+      child: DefaultTabController(
+        length: 2,
+        child: Builder(
+          builder: (context) {
+            final tabController = DefaultTabController.of(context);
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(24, 20, 24, 4),
+                  child: Text(
+                    'My Playlists',
+                    style: textTheme.displaySmall?.copyWith(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w800,
                     ),
                   ),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24),
-                    child: PremiumSegmentedTabBar(
-                      onTap: (_) => unawaited(_loadPlaylists()),
-                      tabs: const [
-                        Tab(text: 'Created'),
-                        Tab(text: 'Invited'),
-                      ],
-                    ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: PremiumSegmentedTabBar(
+                    onTap: (_) => unawaited(_loadPlaylists()),
+                    tabs: const [
+                      Tab(text: 'Created'),
+                      Tab(text: 'Invited'),
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                  Expanded(
-                    child: AnimatedBuilder(
-                      animation: tabController,
-                      builder: (context, _) {
-                        final isCreatedTabSelected = tabController.index == 0;
+                ),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: AnimatedBuilder(
+                    animation: tabController,
+                    builder: (context, _) {
+                      final isCreatedTabSelected = tabController.index == 0;
 
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (isCreatedTabSelected) ...[
-                              const SizedBox(height: 4),
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 26,
-                                ),
-                                child: SizedBox(
-                                  width: double.infinity,
-                                  child: FilledButton.icon(
-                                    onPressed: _openCreatePlaylistPage,
-                                    style: FilledButton.styleFrom(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 16,
-                                      ),
-                                      shape: RoundedRectangleBorder(
-                                        borderRadius: BorderRadius.circular(
-                                          12,
-                                        ),
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (isCreatedTabSelected) ...[
+                            const SizedBox(height: 4),
+                            Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 26,
+                              ),
+                              child: SizedBox(
+                                width: double.infinity,
+                                child: FilledButton.icon(
+                                  onPressed: _openCreatePlaylistPage,
+                                  style: FilledButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 16,
+                                    ),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(
+                                        12,
                                       ),
                                     ),
-                                    icon: const Icon(Icons.add),
-                                    label: const Text('Create Playlist'),
                                   ),
+                                  icon: const Icon(Icons.add),
+                                  label: const Text('Create Playlist'),
                                 ),
                               ),
-                            ],
-                            const SizedBox(height: 10),
-
-                            Expanded(
-                              child: _isLoading
-                                  ? const PlaylistPageSkeleton()
-                                  : _errorMessage != null
-                                  ? EmptyStateWidget(
-                                      icon: Icons.error_outline,
-                                      message: _errorMessage!,
-                                      actionLabel: 'Try again',
-                                      onActionPressed: () {
-                                        unawaited(_loadPlaylists());
-                                      },
-                                    )
-                                  : TabBarView(
-                                      children: [
-                                        _PlaylistTab(
-                                          playlists: createdPlaylists,
-                                          emptyIcon: Icons.queue_music_rounded,
-                                          emptyMessage:
-                                              'No playlists created yet.\n'
-                                              'Start building your first '
-                                              'vibe.',
-                                          onRefresh: _loadPlaylists,
-                                          onPlaylistTap: _openPlaylistDetails,
-                                        ),
-                                        _PlaylistTab(
-                                          playlists: invitedPlaylists,
-                                          emptyIcon: Icons.group_outlined,
-                                          emptyMessage:
-                                              'No playlist invites yet.\n'
-                                              'Collaborative playlists will '
-                                              'appear here.',
-                                          onRefresh: _loadPlaylists,
-                                          onPlaylistTap: _openPlaylistDetails,
-                                        ),
-                                      ],
-                                    ),
                             ),
                           ],
-                        );
-                      },
-                    ),
+                          const SizedBox(height: 10),
+                          Expanded(
+                            child: _isLoading
+                                ? const PlaylistPageSkeleton()
+                                : _errorMessage != null
+                                ? EmptyStateWidget(
+                                    icon: Icons.error_outline,
+                                    message: _errorMessage!,
+                                    actionLabel: 'Try again',
+                                    onActionPressed: () {
+                                      unawaited(_loadPlaylists());
+                                    },
+                                  )
+                                : TabBarView(
+                                    children: [
+                                      _PlaylistTab(
+                                        playlists: createdPlaylists,
+                                        emptyIcon: Icons.queue_music_rounded,
+                                        emptyMessage:
+                                            'No playlists created yet.\n'
+                                            'Start building your first '
+                                            'vibe.',
+                                        onRefresh: _loadPlaylists,
+                                        onPlaylistTap: _openPlaylistDetails,
+                                        screenSize: ScreenSize.compact,
+                                      ),
+                                      _PlaylistTab(
+                                        playlists: invitedPlaylists,
+                                        emptyIcon: Icons.group_outlined,
+                                        emptyMessage:
+                                            'No playlist invites yet.\n'
+                                            'Collaborative playlists will '
+                                            'appear here.',
+                                        onRefresh: _loadPlaylists,
+                                        onPlaylistTap: _openPlaylistDetails,
+                                        screenSize: ScreenSize.compact,
+                                      ),
+                                    ],
+                                  ),
+                          ),
+                        ],
+                      );
+                    },
                   ),
-                ],
-              );
-            },
-          ),
+                ),
+              ],
+            );
+          },
         ),
       ),
-      floatingActionButton: FloatingActionButton(
-        heroTag: null,
-        onPressed: _showPlaylistSearchModal,
-        backgroundColor: colorScheme.primary,
-        foregroundColor: colorScheme.onPrimary,
-        child: const Icon(Icons.search),
+    );
+  }
+
+  Widget _buildDesktopLayout(
+    ColorScheme colorScheme,
+    TextTheme textTheme,
+    List<PlaylistEntity> createdPlaylists,
+    List<PlaylistEntity> invitedPlaylists,
+    ScreenSize screenSize,
+  ) {
+    return SafeArea(
+      child: DefaultTabController(
+        length: 2,
+        child: Builder(
+          builder: (context) {
+            final tabController = DefaultTabController.of(context);
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'My Playlists',
+                        style: textTheme.displaySmall?.copyWith(
+                          fontSize: 28,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -1,
+                          height: 1,
+                        ),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      AnimatedBuilder(
+                        animation: tabController,
+                        builder: (context, _) {
+                          final isCreatedTabSelected = tabController.index == 0;
+
+                          return Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              PremiumSegmentedTabBar(
+                                width: 340,
+                                margin: EdgeInsets.zero,
+                                onTap: (_) => unawaited(_loadPlaylists()),
+                                tabs: const [
+                                  Tab(text: 'Created'),
+                                  Tab(text: 'Invited'),
+                                ],
+                              ),
+
+                              if (isCreatedTabSelected)
+                                AppButton(
+                                  onPressed: _openCreatePlaylistPage,
+                                  height: 40,
+                                  borderRadius: 999,
+                                  gradient: const LinearGradient(
+                                    colors: [
+                                      Color(0xFF8B3DFF),
+                                      Color(0xFF6F2CFF),
+                                    ],
+                                  ),
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 24,
+                                  ),
+                                  leading: const Icon(
+                                    Icons.add_rounded,
+                                    size: 20,
+                                    color: Colors.white,
+                                  ),
+                                  label: 'Create Playlist',
+                                  textStyle: textTheme.titleSmall?.copyWith(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                )
+                              else
+                                const SizedBox.shrink(),
+                            ],
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: 28),
+
+                Expanded(
+                  child: AnimatedBuilder(
+                    animation: tabController,
+                    builder: (context, _) {
+                      return _isLoading
+                          ? const PlaylistPageSkeleton(
+                              screenSize: ScreenSize.medium,
+                            )
+                          : _errorMessage != null
+                          ? Center(
+                              child: EmptyStateWidget(
+                                icon: Icons.error_outline,
+                                message: _errorMessage!,
+                                actionLabel: 'Try again',
+                                onActionPressed: () {
+                                  unawaited(
+                                    _loadPlaylists(),
+                                  );
+                                },
+                              ),
+                            )
+                          : TabBarView(
+                              children: [
+                                _PlaylistTab(
+                                  playlists: createdPlaylists,
+                                  emptyIcon: Icons.queue_music_rounded,
+                                  emptyMessage:
+                                      'No playlists created yet.\n'
+                                      'Start building your first vibe.',
+                                  onRefresh: _loadPlaylists,
+                                  onPlaylistTap: _openPlaylistDetails,
+                                  screenSize: screenSize,
+                                ),
+                                _PlaylistTab(
+                                  playlists: invitedPlaylists,
+                                  emptyIcon: Icons.group_outlined,
+                                  emptyMessage:
+                                      'No playlist invites yet.\n'
+                                      'Collaborative playlists '
+                                      'will appear here.',
+                                  onRefresh: _loadPlaylists,
+                                  onPlaylistTap: _openPlaylistDetails,
+                                  screenSize: screenSize,
+                                ),
+                              ],
+                            );
+                    },
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -293,6 +471,7 @@ class _PlaylistTab extends StatelessWidget {
     required this.emptyMessage,
     required this.onRefresh,
     required this.onPlaylistTap,
+    required this.screenSize,
   });
 
   final List<PlaylistEntity> playlists;
@@ -300,6 +479,7 @@ class _PlaylistTab extends StatelessWidget {
   final String emptyMessage;
   final Future<void> Function() onRefresh;
   final Future<void> Function(PlaylistEntity playlist) onPlaylistTap;
+  final ScreenSize screenSize;
 
   @override
   Widget build(BuildContext context) {
@@ -319,22 +499,242 @@ class _PlaylistTab extends StatelessWidget {
       );
     }
 
+    if (screenSize == ScreenSize.compact) {
+      return RefreshIndicator(
+        onRefresh: onRefresh,
+        child: ListView.separated(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
+          itemBuilder: (context, index) {
+            final playlist = playlists[index];
+            return _PlaylistListTile(
+              playlist: playlist,
+              onTap: () {
+                unawaited(onPlaylistTap(playlist));
+              },
+            );
+          },
+          separatorBuilder: (_, _) => const SizedBox(height: 12),
+          itemCount: playlists.length,
+        ),
+      );
+    }
+
+    // Desktop/Tablet grid layout
     return RefreshIndicator(
       onRefresh: onRefresh,
-      child: ListView.separated(
-        physics: const AlwaysScrollableScrollPhysics(),
-        padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
+      child: GridView.builder(
+        padding: const EdgeInsets.fromLTRB(40, 12, 40, 40),
+        gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+          maxCrossAxisExtent: screenSize == ScreenSize.medium ? 300 : 340,
+          mainAxisExtent: screenSize == ScreenSize.medium ? 340 : 380,
+          crossAxisSpacing: 24,
+          mainAxisSpacing: 24,
+        ),
         itemBuilder: (context, index) {
           final playlist = playlists[index];
-          return _PlaylistListTile(
+          return _PlaylistGridCard(
             playlist: playlist,
             onTap: () {
               unawaited(onPlaylistTap(playlist));
             },
           );
         },
-        separatorBuilder: (_, _) => const SizedBox(height: 12),
         itemCount: playlists.length,
+      ),
+    );
+  }
+}
+
+class _PlaylistGridCard extends StatefulWidget {
+  const _PlaylistGridCard({
+    required this.playlist,
+    required this.onTap,
+  });
+
+  final PlaylistEntity playlist;
+  final VoidCallback onTap;
+
+  @override
+  State<_PlaylistGridCard> createState() => _PlaylistGridCardState();
+}
+
+class _PlaylistGridCardState extends State<_PlaylistGridCard> {
+  bool _isHovered = false;
+  bool _isFocused = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+    final hasThumbnail =
+        widget.playlist.thumbnailUrl != null &&
+        widget.playlist.thumbnailUrl!.isNotEmpty;
+
+    return MouseRegion(
+      onEnter: (_) {
+        setState(() => _isHovered = true);
+      },
+      onExit: (_) {
+        setState(() => _isHovered = false);
+      },
+      child: FocusableActionDetector(
+        shortcuts: <LogicalKeySet, Intent>{
+          LogicalKeySet(LogicalKeyboardKey.enter): const ActivateIntent(),
+          LogicalKeySet(LogicalKeyboardKey.space): const ActivateIntent(),
+        },
+        actions: <Type, Action<Intent>>{
+          ActivateIntent: CallbackAction<ActivateIntent>(
+            onInvoke: (intent) {
+              widget.onTap();
+              return null;
+            },
+          ),
+        },
+        onShowFocusHighlight: (focused) => setState(() => _isFocused = focused),
+        onShowHoverHighlight: (hovering) =>
+            setState(() => _isHovered = hovering),
+        child: Semantics(
+          button: true,
+          focusable: true,
+          onTap: widget.onTap,
+          child: GestureDetector(
+            onTap: widget.onTap,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: (_isHovered || _isFocused)
+                      ? colorScheme.primary.withValues(alpha: 0.3)
+                      : colorScheme.onSurface.withValues(alpha: 0.08),
+                ),
+                color: Theme.of(context).cardColor,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Stack(
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(16),
+                              topRight: Radius.circular(16),
+                            ),
+                            color: colorScheme.secondary.withValues(
+                              alpha: 0.75,
+                            ),
+                          ),
+                          child: hasThumbnail
+                              ? ClipRRect(
+                                  borderRadius: const BorderRadius.only(
+                                    topLeft: Radius.circular(16),
+                                    topRight: Radius.circular(16),
+                                  ),
+                                  child: Image.network(
+                                    widget.playlist.thumbnailUrl!,
+                                    fit: BoxFit.cover,
+                                    loadingBuilder:
+                                        (context, child, loadingProgress) {
+                                          if (loadingProgress == null) {
+                                            return child;
+                                          }
+                                          return SizedBox.expand(
+                                            child: ColoredBox(
+                                              color: colorScheme.onSurface
+                                                  .withValues(alpha: 0.04),
+                                              child: const Center(
+                                                child: SizedBox(
+                                                  width: 24,
+                                                  height: 24,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                      ),
+                                                ),
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                    errorBuilder: (_, _, _) => Center(
+                                      child: Icon(
+                                        Icons.queue_music,
+                                        size: 48,
+                                        color: colorScheme.primary,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              : Center(
+                                  child: Icon(
+                                    Icons.queue_music,
+                                    size: 48,
+                                    color: colorScheme.primary,
+                                  ),
+                                ),
+                        ),
+                        if (_isHovered)
+                          Container(
+                            decoration: BoxDecoration(
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(16),
+                                topRight: Radius.circular(16),
+                              ),
+                              color: Colors.black.withValues(alpha: 0.3),
+                            ),
+                            child: Center(
+                              child: Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: colorScheme.primary,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.play_arrow,
+                                  color: colorScheme.onPrimary,
+                                  size: 24,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.playlist.name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            height: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '${widget.playlist.trackCount} tracks • '
+                          '${widget.playlist.visibility.toLowerCase()}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurface.withValues(
+                              alpha: 0.65,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
       ),
     );
   }

@@ -49,6 +49,7 @@ class _AppState extends State<App> {
           return BlocBuilder<AuthBloc, AuthState>(
             builder: (context, authState) {
               return MaterialApp(
+                debugShowCheckedModeBanner: false,
                 onGenerateRoute: AppRouter.onGenerateRoute,
                 theme: AppTheme.lightTheme(),
                 darkTheme: AppTheme.darkTheme(),
