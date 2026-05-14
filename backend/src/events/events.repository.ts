@@ -504,6 +504,7 @@ export class EventsRepository {
 
     const friendsCondition: Prisma.EventWhereInput = {
       OR: [
+        // Public events from mutual friends
         {
           AND: [
             {
@@ -515,7 +516,18 @@ export class EventsRepository {
             { visibility: Visibility.PUBLIC },
           ],
         },
-        { invites: { some: { userId } } },
+        // Private events from mutual friends where I'm invited
+        {
+          AND: [
+            { invites: { some: { userId } } },
+            {
+              host: {
+                followers: { some: { followerId: userId } },
+                following: { some: { followingId: userId } },
+              },
+            },
+          ],
+        },
       ],
     };
 
