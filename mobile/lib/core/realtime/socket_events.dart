@@ -21,6 +21,10 @@ enum SocketEvent {
   trackRemoved,
   trackVote,
   trackVoteUpdated,
+  playbackStatus,
+  playbackPlay,
+  playbackPause,
+  playbackNext,
   exception,
   notificationNew,
 }
@@ -70,6 +74,14 @@ extension SocketEventName on SocketEvent {
         return 'track:vote';
       case SocketEvent.trackVoteUpdated:
         return 'track:vote_updated';
+      case SocketEvent.playbackStatus:
+        return 'playback:status';
+      case SocketEvent.playbackPlay:
+        return 'playback:play';
+      case SocketEvent.playbackPause:
+        return 'playback:pause';
+      case SocketEvent.playbackNext:
+        return 'playback:next';
       case SocketEvent.exception:
         return 'exception';
       case SocketEvent.notificationNew:

@@ -1,18 +1,23 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/widgets/top_toast.dart';
 import 'package:music_room/features/music_vote/data/models/event_detail_model.dart';
+import 'package:music_room/features/music_vote/data/models/event_track_model.dart';
 import 'package:music_room/features/music_vote/presentation/state/music_vote_cubit.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/live_header.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/player_card.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/queue_section.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/skeletons/music_vote_skeleton.dart';
+import 'package:visibility_detector/visibility_detector.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 
 /// The primary scrollable view for the Live Music Vote room.
 ///
 /// Composes: [LiveHeader] → [PlayerCard] → [QueueSection].
 /// Uses [BlocBuilder] to show loading / error / loaded states.
-class MusicVoteView extends StatelessWidget {
+class MusicVoteView extends StatefulWidget {
   const MusicVoteView({
     super.key,
     this.eventId,
@@ -23,104 +28,243 @@ class MusicVoteView extends StatelessWidget {
   final bool isHost;
 
   @override
+  State<MusicVoteView> createState() => _MusicVoteViewState();
+}
+
+class _MusicVoteViewState extends State<MusicVoteView> {
+  bool _showMiniPlayer = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final state = context.read<MusicVoteCubit>().state;
+      final shouldKeepAwake =
+          state.playbackStatus == 'PLAYING' && state.currentTrack != null;
+      if (shouldKeepAwake) {
+        unawaited(_setWakeLock(true));
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    unawaited(_setWakeLock(false));
+    super.dispose();
+  }
+
+  void _handleHeroVisibility(VisibilityInfo info) {
+    final shouldShow = info.visibleFraction < 0.1;
+    if (shouldShow != _showMiniPlayer) {
+      setState(() => _showMiniPlayer = shouldShow);
+    }
+  }
+
+  Future<void> _setWakeLock(bool enabled) async {
+    try {
+      if (enabled) {
+        await WakelockPlus.enable();
+      } else {
+        await WakelockPlus.disable();
+      }
+    } on Object {
+      // Best-effort: if the platform channel is not available, skip.
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
     return BlocListener<MusicVoteCubit, MusicVoteState>(
-      listenWhen: (prev, curr) => prev.error != curr.error,
+      listenWhen: (prev, curr) =>
+          prev.error != curr.error ||
+          prev.playbackStatus != curr.playbackStatus ||
+          prev.currentTrack?.id != curr.currentTrack?.id,
       listener: (context, state) {
         if (state.error != null && state.event != null) {
           TopToast.show(context, state.error!);
           context.read<MusicVoteCubit>().clearError();
         }
+
+        final shouldKeepAwake =
+            state.playbackStatus == 'PLAYING' && state.currentTrack != null;
+        unawaited(_setWakeLock(shouldKeepAwake));
       },
       child: BlocBuilder<MusicVoteCubit, MusicVoteState>(
         builder: (context, state) {
-          // Loading state
           if (state.isLoading) {
             return const MusicVoteSkeleton();
           }
 
-          // Error state (with retry)
           if (state.error != null && state.event == null) {
-            return Scaffold(
-              body: SafeArea(
-                child: CustomScrollView(
-                  physics: const BouncingScrollPhysics(),
-                  slivers: [
-                    SliverPersistentHeader(
-                      pinned: true,
-                      delegate: _StickyHeaderDelegate(
-                        child: _HeaderBackground(
-                          child: LiveHeader(
-                            eventId: eventId,
-                            isHost: isHost,
-                          ),
-                        ),
-                      ),
-                    ),
-                    SliverFillRemaining(
-                      hasScrollBody: false,
-                      child: _ErrorBody(
-                        message: state.error!,
-                        onRetry: eventId != null && eventId!.isNotEmpty
-                            ? () => context.read<MusicVoteCubit>().loadRoom(
-                                eventId!,
-                              )
-                            : null,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
+            return _ErrorScaffold(
+              eventId: widget.eventId,
+              isHost: widget.isHost,
+              message: state.error!,
+              onRetry: widget.eventId != null && widget.eventId!.isNotEmpty
+                  ? () => context.read<MusicVoteCubit>().loadRoom(
+                      widget.eventId!,
+                    )
+                  : null,
             );
           }
 
-          // Loaded state (LIVE)
-          final eventName = state.event?.name;
+          return _LoadedScaffold(
+            eventId: widget.eventId,
+            isHost: widget.isHost,
+            showMiniPlayer: _showMiniPlayer,
+            onHeroVisibility: _handleHeroVisibility,
+            state: state,
+          );
+        },
+      ),
+    );
+  }
+}
 
-          return Scaffold(
-            body: SafeArea(
-              child: CustomScrollView(
-                physics: const BouncingScrollPhysics(),
-                slivers: [
-                  // ── Sticky header ─────────────────────────────────────
-                  SliverPersistentHeader(
-                    pinned: true,
-                    delegate: _StickyHeaderDelegate(
-                      child: _HeaderBackground(
-                        child: LiveHeader(
-                          eventId: eventId,
-                          eventName: eventName,
-                          isHost: isHost,
+class _LoadedScaffold extends StatelessWidget {
+  const _LoadedScaffold({
+    required this.eventId,
+    required this.isHost,
+    required this.showMiniPlayer,
+    required this.onHeroVisibility,
+    required this.state,
+  });
+
+  final String? eventId;
+  final bool isHost;
+  final bool showMiniPlayer;
+  final ValueChanged<VisibilityInfo> onHeroVisibility;
+  final MusicVoteState state;
+
+  @override
+  Widget build(BuildContext context) {
+    final eventName = state.event?.name;
+    final canVote =
+        !(state.event?.policies.invitingOnly ?? false) ||
+        (state.event?.isInvited ?? false) ||
+        (state.event?.isHost ?? false);
+    final isEnded = state.event?.status == 'ENDED';
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF6F5FA),
+      body: Stack(
+        children: [
+          SafeArea(
+            top: false,
+            child: CustomScrollView(
+              physics: const BouncingScrollPhysics(),
+              slivers: [
+                SliverToBoxAdapter(
+                  child: VisibilityDetector(
+                    key: ValueKey(
+                      'music-vote-hero-${eventId ?? 'default'}',
+                    ),
+                    onVisibilityChanged: onHeroVisibility,
+                    child: Stack(
+                      children: [
+                        PlayerCard(isHost: isHost),
+                        Positioned(
+                          left: 0,
+                          right: 0,
+                          top: 0,
+                          child: LiveHeader(
+                            eventId: eventId,
+                            eventName: eventName,
+                            isHost: isHost,
+                          ),
                         ),
-                      ),
+                      ],
                     ),
                   ),
-
-                  // ── Player card (still mocked) ────────────────────────
-                  const SliverToBoxAdapter(child: SizedBox(height: 8)),
-                  SliverToBoxAdapter(child: PlayerCard(isHost: isHost)),
-                  const SliverToBoxAdapter(child: SizedBox(height: 24)),
-
-                  // ── Queue / Up Next ───────────────────────────────────
-                  SliverToBoxAdapter(
+                ),
+                SliverToBoxAdapter(
+                  child: Container(
+                    width: double.infinity,
+                    decoration: const BoxDecoration(
+                      color: Color(0xFFF6F5FA),
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(28),
+                      ),
+                    ),
+                    padding: const EdgeInsets.fromLTRB(0, 20, 0, 24),
                     child: QueueSection(
                       tracks: state.tracks,
                       policies: state.event?.policies ?? const EventPolicies(),
                       eventId: eventId,
                       isHost: isHost,
-                      isEnded: state.event?.status == 'ENDED',
-                      canVote:
-                          !(state.event?.policies.invitingOnly ?? false) ||
-                          (state.event?.isInvited ?? false) ||
-                          (state.event?.isHost ?? false),
+                      isEnded: isEnded,
+                      canVote: canVote,
+                      currentTrackId: state.currentTrack?.id,
                     ),
                   ),
-                  const SliverToBoxAdapter(child: SizedBox(height: 32)),
-                ],
+                ),
+                SliverToBoxAdapter(
+                  child: SizedBox(
+                    height: showMiniPlayer && state.currentTrack != null
+                        ? 104
+                        : 24,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (showMiniPlayer && state.currentTrack != null)
+            Positioned(
+              left: 0,
+              right: 0,
+              bottom: 0,
+              child: _MiniPlayerBar(
+                track: state.currentTrack!,
+                isPlaying: state.playbackStatus == 'PLAYING',
+                isHost: isHost,
               ),
             ),
-          );
-        },
+        ],
+      ),
+    );
+  }
+}
+
+class _ErrorScaffold extends StatelessWidget {
+  const _ErrorScaffold({
+    required this.eventId,
+    required this.isHost,
+    required this.message,
+    this.onRetry,
+  });
+
+  final String? eventId;
+  final bool isHost;
+  final String message;
+  final VoidCallback? onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF0E0F14),
+      body: SafeArea(
+        bottom: false,
+        child: Column(
+          children: [
+            LiveHeader(eventId: eventId, isHost: isHost),
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                decoration: const BoxDecoration(
+                  color: Color(0xFFF6F5FA),
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(28),
+                  ),
+                ),
+                child: _ErrorBody(
+                  message: message,
+                  onRetry: onRetry,
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -175,52 +319,177 @@ class _ErrorBody extends StatelessWidget {
   }
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// Sticky header delegate
-// ────────────────────────────────────────────────────────────────────────────
+class _MiniPlayerBar extends StatelessWidget {
+  const _MiniPlayerBar({
+    required this.track,
+    required this.isPlaying,
+    required this.isHost,
+  });
 
-class _StickyHeaderDelegate extends SliverPersistentHeaderDelegate {
-  const _StickyHeaderDelegate({required this.child});
-
-  final Widget child;
-
-  @override
-  double get minExtent => 70;
-
-  @override
-  double get maxExtent => 84;
-
-  @override
-  Widget build(
-    BuildContext context,
-    double shrinkOffset,
-    bool overlapsContent,
-  ) {
-    return child;
-  }
-
-  @override
-  bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) {
-    return oldDelegate is! _StickyHeaderDelegate ||
-        oldDelegate.child != child ||
-        oldDelegate.minExtent != minExtent ||
-        oldDelegate.maxExtent != maxExtent;
-  }
-}
-
-/// Adds the scaffold background color behind the sticky header so it
-/// doesn't look transparent when content scrolls underneath.
-class _HeaderBackground extends StatelessWidget {
-  const _HeaderBackground({required this.child});
-
-  final Widget child;
+  final EventTrackModel track;
+  final bool isPlaying;
+  final bool isHost;
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final accent = colorScheme.primary;
+    final controlsEnabled = isHost;
+
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+          decoration: BoxDecoration(
+            color: const Color(0xFF101018),
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(18),
+            ),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.25),
+                blurRadius: 16,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Row(
+            children: [
+              _MiniArtwork(thumbnailUrl: track.thumbnailUrl, accent: accent),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      track.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      track.artist,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: Colors.white.withValues(alpha: 0.6),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              _MiniControlButton(
+                icon: isPlaying
+                    ? Icons.pause_rounded
+                    : Icons.play_arrow_rounded,
+                accent: accent,
+                enabled: controlsEnabled,
+                onPressed: controlsEnabled
+                    ? () {
+                        final cubit = context.read<MusicVoteCubit>();
+                        if (isPlaying) {
+                          cubit.pause();
+                        } else {
+                          cubit.play();
+                        }
+                      }
+                    : null,
+              ),
+              const SizedBox(width: 6),
+              const _MiniControlButton(
+                icon: Icons.queue_music_rounded,
+                accent: Colors.white,
+                enabled: false,
+                onPressed: null,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MiniArtwork extends StatelessWidget {
+  const _MiniArtwork({required this.thumbnailUrl, required this.accent});
+
+  final String thumbnailUrl;
+  final Color accent;
+
+  @override
+  Widget build(BuildContext context) {
+    return ClipOval(
+      child: thumbnailUrl.isNotEmpty
+          ? Image.network(
+              thumbnailUrl,
+              width: 40,
+              height: 40,
+              fit: BoxFit.cover,
+              errorBuilder: (_, _, _) => _fallback(),
+            )
+          : _fallback(),
+    );
+  }
+
+  Widget _fallback() {
     return Container(
-      color: Theme.of(context).scaffoldBackgroundColor,
-      alignment: Alignment.center,
-      child: child,
+      width: 40,
+      height: 40,
+      color: accent.withValues(alpha: 0.2),
+      child: Icon(
+        Icons.music_note_rounded,
+        color: accent,
+        size: 20,
+      ),
+    );
+  }
+}
+
+class _MiniControlButton extends StatelessWidget {
+  const _MiniControlButton({
+    required this.icon,
+    required this.accent,
+    required this.enabled,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final Color accent;
+  final bool enabled;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final resolvedOpacity = enabled ? 1.0 : 0.4;
+
+    return Opacity(
+      opacity: resolvedOpacity,
+      child: InkWell(
+        onTap: enabled ? onPressed : null,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: enabled ? accent.withValues(alpha: 0.2) : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.2),
+            ),
+          ),
+          child: Icon(icon, color: accent, size: 18),
+        ),
+      ),
     );
   }
 }

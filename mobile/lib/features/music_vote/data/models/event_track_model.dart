@@ -13,6 +13,8 @@ class EventTrackModel {
     required this.durationMs,
     required this.thumbnailUrl,
     this.isVoted = false,
+    this.currentTrackStartedAt,
+    this.pausedPlaybackPositionMs,
   });
 
   factory EventTrackModel.fromJson(Map<String, dynamic> json) {
@@ -40,7 +42,18 @@ class EventTrackModel {
           json['thumbnailUrl'] as String? ??
           (trackData?['thumbnailUrl'] as String? ?? ''),
       isVoted: json['isVoted'] as bool? ?? false,
+      currentTrackStartedAt: _parseDate(json['currentTrackStartedAt']),
+      pausedPlaybackPositionMs: json['pausedPlaybackPositionMs'] is num
+          ? (json['pausedPlaybackPositionMs'] as num).toInt()
+          : null,
     );
+  }
+
+  static DateTime? _parseDate(Object? raw) {
+    if (raw is String && raw.isNotEmpty) {
+      return DateTime.tryParse(raw);
+    }
+    return null;
   }
 
   final String id;
@@ -54,6 +67,8 @@ class EventTrackModel {
   final int durationMs;
   final String thumbnailUrl;
   final bool isVoted;
+  final DateTime? currentTrackStartedAt;
+  final int? pausedPlaybackPositionMs;
 
   EventTrackModel copyWith({
     String? id,
@@ -67,6 +82,10 @@ class EventTrackModel {
     int? durationMs,
     String? thumbnailUrl,
     bool? isVoted,
+    DateTime? currentTrackStartedAt,
+    int? pausedPlaybackPositionMs,
+    bool clearCurrentTrackStartedAt = false,
+    bool clearPausedPlaybackPositionMs = false,
   }) {
     return EventTrackModel(
       id: id ?? this.id,
@@ -80,6 +99,12 @@ class EventTrackModel {
       durationMs: durationMs ?? this.durationMs,
       thumbnailUrl: thumbnailUrl ?? this.thumbnailUrl,
       isVoted: isVoted ?? this.isVoted,
+      currentTrackStartedAt: clearCurrentTrackStartedAt
+          ? null
+          : (currentTrackStartedAt ?? this.currentTrackStartedAt),
+      pausedPlaybackPositionMs: clearPausedPlaybackPositionMs
+          ? null
+          : (pausedPlaybackPositionMs ?? this.pausedPlaybackPositionMs),
     );
   }
 

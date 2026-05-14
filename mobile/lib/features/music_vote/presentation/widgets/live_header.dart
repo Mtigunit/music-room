@@ -5,13 +5,11 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/widgets/app_back_button.dart';
 import 'package:music_room/core/widgets/invite_bottom_sheet.dart';
 import 'package:music_room/features/music_vote/presentation/state/music_vote_cubit.dart';
-
 import 'package:music_room/features/music_vote/presentation/widgets/modals/delegation_bottom_sheet.dart';
 
 /// The top header for the Live Room page.
 ///
-/// Displays: back button · room title · LIVE badge · guest avatar stack ·
-/// listener count · invite button · overflow menu.
+/// Displays: back button · centered room title · menu button.
 class LiveHeader extends StatelessWidget {
   const LiveHeader({
     super.key,
@@ -30,92 +28,62 @@ class LiveHeader extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     final roomTitle = _resolveRoomTitle(eventId, eventName);
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Row(
-        children: [
-          // ── Back button ──────────────────────────────────────────────────
-          const AppBackButton(
-            padding: EdgeInsets.zero,
-          ),
-          const SizedBox(width: 12),
-
-          // ── Title + subtitle + LIVE badge ────────────────────────────────
-          Expanded(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        roomTitle,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 16,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    _LiveBadge(colorScheme: colorScheme),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const _GuestAvatarStack(
-                      colors: [0xFFEAB308, 0xFF3B82F6, 0xFFEC4899],
-                      size: 20,
-                    ),
-                    const SizedBox(width: 6),
-                    BlocBuilder<MusicVoteCubit, MusicVoteState>(
-                      buildWhen: (previous, current) =>
-                          previous.listenerCount != current.listenerCount,
-                      builder: (context, state) {
-                        final count = state.listenerCount ?? 0;
-                        return Text(
-                          '+$count listening',
-                          style: textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurface.withValues(
-                              alpha: 0.55,
-                            ),
-                            fontSize: 12,
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ],
+    return SafeArea(
+      bottom: false,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+          decoration: BoxDecoration(
+            color: Colors.black.withValues(alpha: 0.45),
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(
+              color: Colors.white.withValues(alpha: 0.12),
             ),
-          ),
-
-          // ── Action icons ─────────────────────────────────────────────────
-          if (isHost) ...[
-            IconButton(
-              padding: EdgeInsets.zero,
-              icon: const Icon(Icons.person_add_alt_1_outlined),
-              onPressed: () => _showInviteSheet(context),
-            ),
-            IconButton(
-              padding: EdgeInsets.zero,
-              icon: const Icon(Icons.settings_outlined),
-              onPressed: () => _showManageRoomSheet(context),
-            ),
-          ] else ...[
-            IconButton(
-              padding: EdgeInsets.zero,
-              icon: Icon(
-                Icons.exit_to_app_rounded,
-                color: colorScheme.error.withValues(alpha: 0.8),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.25),
+                blurRadius: 12,
+                offset: const Offset(0, 6),
               ),
-              onPressed: () => _showLeaveConfirmation(context),
-            ),
-          ],
-        ],
+            ],
+          ),
+          child: Row(
+            children: [
+              const SizedBox(
+                width: 40,
+                child: AppBackButton(
+                  padding: EdgeInsets.zero,
+                  iconSize: 18,
+                  color: Colors.white,
+                ),
+              ),
+              Expanded(
+                child: Text(
+                  roomTitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+              SizedBox(
+                width: 40,
+                child: _HeaderMenuButton(
+                  isHost: isHost,
+                  colorScheme: colorScheme,
+                  onInvite: () => _showInviteSheet(context),
+                  onManage: () => _showManageRoomSheet(context),
+                  onLeave: () => _showLeaveConfirmation(context),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -218,90 +186,84 @@ class LiveHeader extends StatelessWidget {
   }
 }
 
-// ────────────────────────────────────────────────────────────────────────────
-// Private sub-widgets
-// ────────────────────────────────────────────────────────────────────────────
+enum _HeaderMenuAction { invite, manage, leave }
 
-class _LiveBadge extends StatelessWidget {
-  const _LiveBadge({required this.colorScheme});
+class _HeaderMenuButton extends StatelessWidget {
+  const _HeaderMenuButton({
+    required this.isHost,
+    required this.colorScheme,
+    required this.onInvite,
+    required this.onManage,
+    required this.onLeave,
+  });
 
+  final bool isHost;
   final ColorScheme colorScheme;
+  final VoidCallback onInvite;
+  final VoidCallback onManage;
+  final VoidCallback onLeave;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: colorScheme.primary,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: const BoxDecoration(
-              color: Colors.white,
-              shape: BoxShape.circle,
-            ),
+    final entries = <PopupMenuEntry<_HeaderMenuAction>>[];
+    if (isHost) {
+      entries
+        ..add(
+          const PopupMenuItem(
+            value: _HeaderMenuAction.invite,
+            child: Text('Invite guests'),
           ),
-          const SizedBox(width: 4),
-          const Text(
-            'LIVE',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 10,
-              fontWeight: FontWeight.w800,
-              letterSpacing: 0.5,
-            ),
+        )
+        ..add(
+          const PopupMenuItem(
+            value: _HeaderMenuAction.manage,
+            child: Text('Manage room'),
           ),
-        ],
-      ),
-    );
-  }
-}
+        );
+    } else {
+      entries.add(
+        PopupMenuItem(
+          value: _HeaderMenuAction.leave,
+          textStyle: TextStyle(color: colorScheme.error),
+          child: const Text('Leave room'),
+        ),
+      );
+    }
 
-/// Overlapping avatar circles showing guest profile pictures.
-class _GuestAvatarStack extends StatelessWidget {
-  const _GuestAvatarStack({required this.colors, required this.size});
-
-  final List<int> colors;
-  final double size;
-
-  @override
-  Widget build(BuildContext context) {
-    const overlap = 10.0;
-    final totalWidth = size + (colors.length - 1) * (size - overlap);
-
-    return SizedBox(
-      width: totalWidth,
-      height: size,
-      child: Stack(
-        children: List.generate(colors.length, (index) {
-          return Positioned(
-            left: index * (size - overlap),
-            child: Container(
-              width: size,
-              height: size,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Color(colors[index]),
-                border: Border.all(
-                  color: Theme.of(context).scaffoldBackgroundColor,
-                  width: 1.5,
-                ),
-              ),
-              child: Center(
-                child: Icon(
-                  Icons.person,
-                  size: size * 0.55,
-                  color: Colors.white.withValues(alpha: 0.9),
-                ),
-              ),
-            ),
-          );
-        }),
+    return PopupMenuButton<_HeaderMenuAction>(
+      tooltip: 'Room options',
+      color: colorScheme.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      onSelected: (action) {
+        switch (action) {
+          case _HeaderMenuAction.invite:
+            onInvite();
+            return;
+          case _HeaderMenuAction.manage:
+            onManage();
+            return;
+          case _HeaderMenuAction.leave:
+            onLeave();
+            return;
+        }
+      },
+      itemBuilder: (context) => entries,
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: Colors.black.withValues(alpha: 0.15),
+          border: Border.all(
+            color: Colors.white.withValues(alpha: 0.8),
+            width: 1.2,
+          ),
+        ),
+        child: const Icon(
+          Icons.more_horiz,
+          size: 18,
+          color: Colors.white,
+        ),
       ),
     );
   }

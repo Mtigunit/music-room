@@ -26,6 +26,8 @@ class MusicVoteState {
     this.tracks = const [],
     this.listenerCount,
     this.hostConnectionStatus,
+    this.currentTrack,
+    this.playbackStatus,
   });
 
   final bool isLoading;
@@ -38,6 +40,13 @@ class MusicVoteState {
   final int? listenerCount;
   final HostConnectionStatus? hostConnectionStatus;
 
+  /// The track currently playing in the room. `null` when the queue is
+  /// empty or playback has not started. Pushed from `playback:status`.
+  final EventTrackModel? currentTrack;
+
+  /// 'PLAYING' or 'PAUSED'. `null` until the first `playback:status`.
+  final String? playbackStatus;
+
   MusicVoteState copyWith({
     bool? isLoading,
     bool? isAddingTrack,
@@ -48,7 +57,10 @@ class MusicVoteState {
     List<EventTrackModel>? tracks,
     int? listenerCount,
     HostConnectionStatus? hostConnectionStatus,
+    EventTrackModel? currentTrack,
+    String? playbackStatus,
     bool clearError = false,
+    bool clearCurrentTrack = false,
   }) {
     return MusicVoteState(
       isLoading: isLoading ?? this.isLoading,
@@ -60,6 +72,10 @@ class MusicVoteState {
       tracks: tracks ?? this.tracks,
       listenerCount: listenerCount ?? this.listenerCount,
       hostConnectionStatus: hostConnectionStatus ?? this.hostConnectionStatus,
+      currentTrack: clearCurrentTrack
+          ? null
+          : (currentTrack ?? this.currentTrack),
+      playbackStatus: playbackStatus ?? this.playbackStatus,
     );
   }
 }
@@ -91,6 +107,19 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
 
   final String? _currentUserId;
 
+  /// Host-side auto-advance timer: fires `playback:next` when the current
+  /// track reaches the end of its duration. Cancelled on pause / next /
+  /// new status / close.
+  Timer? _autoAdvanceTimer;
+
+  /// Whether the current user is the host of the active event.
+  bool get _isHost {
+    final event = state.event;
+    final hostId = event?.hostId;
+    return (event?.isHost ?? false) ||
+        (hostId != null && hostId.isNotEmpty && hostId == _currentUserId);
+  }
+
   /// Loads the event details and queued tracks concurrently.
   Future<void> loadRoom(String eventId) async {
     _activeEventId = eventId;
@@ -118,6 +147,12 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
           isLoading: false,
           event: event,
           tracks: tracks,
+          // Seed playback state from the REST response so the PlayerCard
+          // shows the correct track immediately on join / re-join, before
+          // the first playback:status socket event arrives.
+          currentTrack: event.currentTrack,
+          playbackStatus: event.playbackStatus,
+          clearCurrentTrack: event.currentTrack == null,
         ),
       );
 
@@ -282,11 +317,7 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
   void leaveEvent(String eventId) {
     if (eventId.isEmpty || !_socketClient.isConnected) return;
 
-    final hostId = state.event?.hostId;
-    final isHost =
-        hostId != null && hostId.isNotEmpty && hostId == _currentUserId;
-
-    final eventName = isHost
+    final eventName = _isHost
         ? SocketEvent.eventHostLeave.value
         : SocketEvent.eventLeave.value;
 
@@ -347,6 +378,7 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
       ..on(SocketEvent.trackAdded.value, _handleTrackAdded)
       ..on(SocketEvent.trackRemoved.value, _handleTrackRemoved)
       ..on(SocketEvent.trackVoteUpdated.value, _handleTrackVoteUpdated)
+      ..on(SocketEvent.playbackStatus.value, _handlePlaybackStatus)
       ..on(SocketEvent.exception.value, _handleSocketException);
     _socketListenersAttached = true;
   }
@@ -364,6 +396,7 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
       ..off(SocketEvent.trackAdded.value)
       ..off(SocketEvent.trackRemoved.value)
       ..off(SocketEvent.trackVoteUpdated.value)
+      ..off(SocketEvent.playbackStatus.value)
       ..off(SocketEvent.exception.value);
     _socketListenersAttached = false;
   }
@@ -487,6 +520,40 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
     }
   }
 
+  void _handlePlaybackStatus(dynamic payload) {
+    debugPrint(
+      '📡 [MusicVoteCubit] Received: playbackStatus with payload: $payload',
+    );
+    if (!_isRelevantEventPayload(payload)) return;
+    if (payload is! Map<String, dynamic>) return;
+
+    final status = payload['status'];
+    final rawTrack = payload['currentTrack'];
+
+    EventTrackModel? newTrack;
+    var clearTrack = false;
+    if (rawTrack is Map<String, dynamic>) {
+      try {
+        newTrack = EventTrackModel.fromJson(rawTrack);
+      } on Object {
+        newTrack = null;
+      }
+    } else if (rawTrack == null && payload.containsKey('currentTrack')) {
+      // Explicit null from backend → queue empty.
+      clearTrack = true;
+    }
+
+    emit(
+      state.copyWith(
+        playbackStatus: status is String && status.isNotEmpty ? status : null,
+        currentTrack: newTrack,
+        clearCurrentTrack: clearTrack,
+      ),
+    );
+
+    _schedulePlaybackAutoAdvance();
+  }
+
   void _handleTrackVoteUpdated(dynamic payload) {
     debugPrint(
       '📡 [MusicVoteCubit] Received: trackVoteUpdated with payload: $payload',
@@ -595,9 +662,7 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
     if (eventId.isEmpty) return;
     if (!_socketClient.isConnected) return;
 
-    final hostId = event.hostId;
-    final isHost = hostId.isNotEmpty && hostId == _currentUserId;
-    final eventName = isHost
+    final eventName = _isHost
         ? SocketEvent.eventHostJoin.value
         : SocketEvent.eventJoin.value;
 
@@ -671,10 +736,99 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
     emit(state.copyWith(error: errorMessage));
   }
 
+  // ---------------------------------------------------------------------------
+  // Playback controls (host-only)
+  // ---------------------------------------------------------------------------
+
+  /// Emits `playback:play` for the current event. Host-only.
+  void play() {
+    if (!_isHost) return;
+    final eventId = _activeEventId ?? state.event?.id;
+    if (eventId == null || eventId.isEmpty) return;
+    if (!_socketClient.isConnected) return;
+    debugPrint('🚀 [MusicVoteCubit] Emitting: playbackPlay for $eventId');
+    _socketClient.emit(SocketEvent.playbackPlay.value, <String, dynamic>{
+      'eventId': eventId,
+    });
+  }
+
+  /// Emits `playback:pause` for the current event. Host-only.
+  void pause() {
+    if (!_isHost) return;
+    final eventId = _activeEventId ?? state.event?.id;
+    if (eventId == null || eventId.isEmpty) return;
+    if (!_socketClient.isConnected) return;
+    debugPrint('🚀 [MusicVoteCubit] Emitting: playbackPause for $eventId');
+    _socketClient.emit(SocketEvent.playbackPause.value, <String, dynamic>{
+      'eventId': eventId,
+    });
+  }
+
+  /// Emits `playback:next` for the current event. Host-only.
+  ///
+  /// The current `trackId` is forwarded as a staleness guard so the backend
+  /// can ignore concurrent skips from a stale client view.
+  void next() {
+    if (!_isHost) return;
+    final eventId = _activeEventId ?? state.event?.id;
+    if (eventId == null || eventId.isEmpty) return;
+    if (!_socketClient.isConnected) return;
+    final currentTrackId = state.currentTrack?.id;
+    debugPrint('🚀 [MusicVoteCubit] Emitting: playbackNext for $eventId');
+    _socketClient.emit(SocketEvent.playbackNext.value, <String, dynamic>{
+      'eventId': eventId,
+      if (currentTrackId != null && currentTrackId.isNotEmpty)
+        'trackId': currentTrackId,
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Auto-advance (host-only)
+  // ---------------------------------------------------------------------------
+
+  /// (Re)schedules an auto-advance based on the current playback snapshot.
+  /// Only the host arms the timer to avoid every client emitting `next`.
+  void _schedulePlaybackAutoAdvance() {
+    _autoAdvanceTimer?.cancel();
+    _autoAdvanceTimer = null;
+
+    if (!_isHost) return;
+    if (state.playbackStatus != 'PLAYING') return;
+
+    final track = state.currentTrack;
+    if (track == null || track.durationMs <= 0) return;
+
+    final int position;
+    if (track.pausedPlaybackPositionMs != null) {
+      position = track.pausedPlaybackPositionMs!;
+    } else if (track.currentTrackStartedAt != null) {
+      position = DateTime.now()
+          .difference(track.currentTrackStartedAt!)
+          .inMilliseconds;
+    } else {
+      position = 0;
+    }
+    final remainingMs = track.durationMs - position;
+    if (remainingMs <= 0) {
+      next();
+      return;
+    }
+
+    final scheduledTrackId = track.id;
+    _autoAdvanceTimer = Timer(Duration(milliseconds: remainingMs), () {
+      // Re-check that the snapshot is still the same before skipping.
+      if (isClosed) return;
+      if (state.currentTrack?.id != scheduledTrackId) return;
+      if (state.playbackStatus != 'PLAYING') return;
+      next();
+    });
+  }
+
   @override
   Future<void> close() {
     final eventId = _activeEventId ?? state.event?.id;
     debugPrint('👋 [MusicVoteCubit] Closing with eventId: $eventId');
+    _autoAdvanceTimer?.cancel();
     if (eventId != null && eventId.isNotEmpty) {
       leaveEvent(eventId);
     }

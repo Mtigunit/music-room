@@ -6,6 +6,8 @@ import 'package:music_room/features/auth/data/models/auth_model.dart';
 abstract class AuthState extends Equatable {
   const AuthState();
 
+  UserProfile? get currentUser => null;
+
   @override
   List<Object?> get props => [];
 }
@@ -31,6 +33,9 @@ class AuthAuthenticated extends AuthState {
   final UserProfile user;
 
   @override
+  UserProfile? get currentUser => user;
+
+  @override
   List<Object?> get props => [accessToken, user];
 }
 
@@ -52,6 +57,9 @@ class LoginSuccess extends AuthState {
   });
   final String accessToken;
   final UserProfile user;
+
+  @override
+  UserProfile? get currentUser => user;
 
   @override
   List<Object?> get props => [accessToken, user];
@@ -231,6 +239,9 @@ class RegisterSuccess extends AuthState {
   });
   final String accessToken;
   final UserProfile user;
+
+  @override
+  UserProfile? get currentUser => user;
 
   @override
   List<Object?> get props => [accessToken, user];
