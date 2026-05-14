@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/home/presentation/widgets/genre_filter_list.dart';
+import 'package:music_room/features/playlist/presentation/pages/playlist_details_page.dart';
 import 'package:music_room/features/search/data/models/search_filter_type.dart';
 import 'package:music_room/features/search/data/models/search_result_models.dart';
 import 'package:music_room/features/search/data/services/search_query_service.dart';
@@ -279,12 +280,59 @@ class _SearchPageState extends State<SearchPage> {
       case SearchFilterType.tracks:
         return SearchTrackResultCard(item: item as SearchTrackResultModel);
       case SearchFilterType.users:
-        return SearchUserResultCard(item: item as SearchUserResultModel);
+        final user = item as SearchUserResultModel;
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(18),
+            onTap: () {
+              unawaited(
+                Navigator.of(context).pushNamed(
+                  RouteNames.profile,
+                  arguments: user.id,
+                ),
+              );
+            },
+            child: SearchUserResultCard(item: user),
+          ),
+        );
       case SearchFilterType.events:
-        return SearchEventResultCard(item: item as SearchEventResultModel);
+        final event = item as SearchEventResultModel;
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(18),
+            onTap: () {
+              unawaited(
+                Navigator.of(context).pushNamed(
+                  RouteNames.preEvent,
+                  arguments: event.id,
+                ),
+              );
+            },
+            child: SearchEventResultCard(item: event),
+          ),
+        );
       case SearchFilterType.playlists:
-        return SearchPlaylistResultCard(
-          item: item as SearchPlaylistResultModel,
+        final playlist = item as SearchPlaylistResultModel;
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(18),
+            onTap: () {
+              unawaited(
+                Navigator.of(context).push(
+                  MaterialPageRoute<void>(
+                    builder: (_) => PlaylistDetailsPage(
+                      playlistId: playlist.id,
+                      playlistName: playlist.name,
+                    ),
+                  ),
+                ),
+              );
+            },
+            child: SearchPlaylistResultCard(item: playlist),
+          ),
         );
     }
   }

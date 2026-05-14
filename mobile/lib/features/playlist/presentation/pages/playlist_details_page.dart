@@ -263,6 +263,8 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage>
       builder: (_) => PlaylistUserInviteBottomSheet(
         playlistId: widget.playlistId,
         playlistName: widget.playlistName,
+        currentUserId: _currentUserId,
+        initialCollaboratorIds: details.collaboratorIds,
       ),
     );
   }

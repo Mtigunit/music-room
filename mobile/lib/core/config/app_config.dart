@@ -22,7 +22,6 @@ class AppConfig {
     }
     return dotenv.env['API_BASE_URL'] ?? 'http://localhost:3000/';
   }
-  // static const String apiPrefix = '/api';
 
   // API Endpoints
   static const String sendOtpEndpoint = 'auth/send-otp';
@@ -34,7 +33,15 @@ class AppConfig {
   static const String loginEndpoint = 'auth/login';
   static const String googleAuthEndpoint = 'auth/google';
   static const String profileEndpoint = 'auth/profile';
+  static const String myProfileEndpoint = 'users/me';
+  static const String userDetailEndpoint = 'users';
+  static const String linkGoogleAccountEndpoint = 'users/link-google';
+
   static const String searchUsersEndpoint = 'users/search';
+
+  // Email update endpoints (two-phase flow)
+  static const String requestEmailUpdateEndpoint = 'users/me/email/request';
+  static const String verifyEmailUpdateEndpoint = 'users/me/email/verify';
   static const String trackSearchEndpoint = 'tracks/search';
   static const String eventsEndpoint = 'events';
   static const String eventsInvitedEndpoint = 'events/invited';
@@ -48,6 +55,11 @@ class AppConfig {
 
   // Security
   static const String tokenStorageKey = 'auth_token';
+
+  /// Security: Allow unencrypted storage fallback on Web (LocalStorage/SharedPreferences).
+  /// This is required for HTTP environments but should be false for HTTPS
+  /// production.
+  static const bool allowInsecureStorage = true;
   static const String userStorageKey = 'user_profile';
   static const int stalePlaylistThresholdHours = 24;
 

@@ -187,6 +187,7 @@ describe('AuthService', () => {
           email: registerDto.email,
           username: registerDto.username,
         },
+        isNewUser: true,
       });
       expect(usersService.create).toHaveBeenCalledWith(
         registerDto.email,
@@ -272,6 +273,7 @@ describe('AuthService', () => {
           email: mockUser.email,
           username: mockUser.username,
         },
+        isNewUser: false,
       });
     });
 
@@ -292,6 +294,7 @@ describe('AuthService', () => {
           email: mockUser.email,
           username: mockUser.username,
         },
+        isNewUser: false,
       });
       expect(usersService.findByUsername).toHaveBeenCalledWith('testuser');
       expect(usersService.findByEmail).not.toHaveBeenCalled();
@@ -361,6 +364,7 @@ describe('AuthService', () => {
           email: mockUser.email,
           username: mockUser.username,
         },
+        isNewUser: false,
       });
       expect(usersService.findByGoogleId).toHaveBeenCalledWith(
         'google-sub-123',
@@ -385,6 +389,7 @@ describe('AuthService', () => {
           email: mockUser.email,
           username: mockUser.username,
         },
+        isNewUser: false,
       });
       expect(usersService.findByEmail).toHaveBeenCalledWith(
         'google@example.com',
@@ -416,6 +421,7 @@ describe('AuthService', () => {
           email: 'google@example.com',
           username: 'googleuser',
         },
+        isNewUser: true,
       });
       expect(usersService.createOAuthUser).toHaveBeenCalledWith(
         'google@example.com',

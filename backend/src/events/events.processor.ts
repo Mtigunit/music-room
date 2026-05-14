@@ -42,7 +42,7 @@ export class EventsProcessor extends WorkerHost {
 
     switch (job.name) {
       case BULL_JOBS.HOST_SOFT_TIMEOUT:
-        return this.handleSoftTimeout(eventId, userId);
+        return this.handleSoftTimeout(eventId);
       case BULL_JOBS.HOST_HARD_TIMEOUT:
         return this.handleHardTimeout(eventId, userId);
       default:
@@ -50,18 +50,7 @@ export class EventsProcessor extends WorkerHost {
     }
   }
 
-  private async handleSoftTimeout(eventId: string, userId: string) {
-    const flagKey = REDIS_KEYS.HOST_DISCONNECT(eventId);
-    const client = this.redisService.getClient();
-    const currentFlag = await client.get(flagKey);
-
-    if (currentFlag !== userId) {
-      this.logger.debug(
-        `Soft timeout for ${eventId} ignored, host back or wrong flag`,
-      );
-      return;
-    }
-
+  private handleSoftTimeout(eventId: string) {
     // Host still gone after 5s
     const roomName = `event_${eventId}`;
     this.eventsGateway.server
@@ -74,17 +63,6 @@ export class EventsProcessor extends WorkerHost {
   }
 
   private async handleHardTimeout(eventId: string, userId: string) {
-    const flagKey = REDIS_KEYS.HOST_DISCONNECT(eventId);
-    const client = this.redisService.getClient();
-    const currentFlag = await client.get(flagKey);
-
-    if (currentFlag !== userId) {
-      this.logger.debug(
-        `Hard timeout for ${eventId} ignored, host back or wrong flag`,
-      );
-      return;
-    }
-
     // Host never came back
     await this.prisma.event.update({
       where: { id: eventId },
@@ -97,8 +75,8 @@ export class EventsProcessor extends WorkerHost {
     });
     this.eventsGateway.server.in(roomName).socketsLeave(roomName);
 
+    const client = this.redisService.getClient();
     await client.del(
-      REDIS_KEYS.HOST_DISCONNECT(eventId),
       REDIS_KEYS.EVENT_HOST(eventId),
       REDIS_KEYS.HOST_SOCKET(eventId),
     );

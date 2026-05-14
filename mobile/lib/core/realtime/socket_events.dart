@@ -26,6 +26,7 @@ enum SocketEvent {
   playbackPause,
   playbackNext,
   exception,
+  notificationNew,
 }
 
 extension SocketEventName on SocketEvent {
@@ -83,6 +84,8 @@ extension SocketEventName on SocketEvent {
         return 'playback:next';
       case SocketEvent.exception:
         return 'exception';
+      case SocketEvent.notificationNew:
+        return 'notification:new';
     }
   }
 }

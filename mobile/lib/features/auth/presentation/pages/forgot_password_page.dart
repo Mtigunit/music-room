@@ -9,9 +9,10 @@ import 'package:music_room/features/auth/presentation/pages/enter_new_password_p
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
 import 'package:music_room/features/auth/presentation/state/auth_event.dart';
 import 'package:music_room/features/auth/presentation/state/auth_state.dart';
+import 'package:music_room/features/auth/presentation/widgets/auth_page_layout.dart';
 import 'package:music_room/features/auth/presentation/widgets/auth_screen_header.dart';
 import 'package:music_room/features/auth/presentation/widgets/auth_text_input_field.dart';
-import 'package:music_room/features/auth/presentation/widgets/otp_verification_modal.dart';
+import 'package:music_room/features/auth/presentation/widgets/show_otp_modal.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
   const ForgotPasswordPage({super.key});
@@ -70,33 +71,28 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     }
 
     _isOtpModalOpen = true;
+    final requestedEmail = _requestedEmail ?? _trimmedEmail;
 
     unawaited(
-      showModalBottomSheet<void>(
+      showOtpModal(
         context: context,
-        isScrollControlled: true,
-        enableDrag: false,
-        isDismissible: false,
-        backgroundColor: Colors.transparent,
-        builder: (modalContext) {
-          final requestedEmail = _requestedEmail ?? _trimmedEmail;
-          return OtpVerificationModal(
-            email: requestedEmail,
-            onConfirm: (otpCode) {
-              context.read<AuthBloc>().add(
-                VerifyPasswordResetOtpRequested(
-                  email: requestedEmail,
-                  code: otpCode,
-                ),
-              );
-            },
-            onResend: () {
-              context.read<AuthBloc>().add(
-                SendPasswordResetOtpRequested(
-                  email: requestedEmail,
-                ),
-              );
-            },
+        title: 'Verify reset code',
+        message: 'We sent a 6-digit code to',
+        destination: requestedEmail,
+        confirmLabel: 'Verify',
+        onConfirm: (otpCode) {
+          context.read<AuthBloc>().add(
+            VerifyPasswordResetOtpRequested(
+              email: requestedEmail,
+              code: otpCode,
+            ),
+          );
+        },
+        onResend: () {
+          context.read<AuthBloc>().add(
+            SendPasswordResetOtpRequested(
+              email: requestedEmail,
+            ),
           );
         },
       ).whenComplete(() {
@@ -201,8 +197,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           leading: AppBackButton(onPressed: () => Navigator.of(context).pop()),
         ),
         body: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: AuthPageLayout(
+            showBrandPanel: false,
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

@@ -54,12 +54,14 @@ LoginResponse _$LoginResponseFromJson(Map<String, dynamic> json) =>
     LoginResponse(
       accessToken: json['access_token'] as String,
       user: UserProfile.fromJson(json['user'] as Map<String, dynamic>),
+      isNewUser: json['isNewUser'] as bool?,
     );
 
 Map<String, dynamic> _$LoginResponseToJson(LoginResponse instance) =>
     <String, dynamic>{
       'access_token': instance.accessToken,
       'user': instance.user,
+      'isNewUser': instance.isNewUser,
     };
 
 UserProfile _$UserProfileFromJson(Map<String, dynamic> json) => UserProfile(

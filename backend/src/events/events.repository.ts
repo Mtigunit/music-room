@@ -11,6 +11,7 @@ import {
   PlaybackStatus,
 } from '@prisma/client';
 import { TrackSearchResultDto } from '../tracks/dto/track-search-result.dto';
+import { EventQueryDto } from './dto/event-query.dto';
 
 const firstTrackSelect = {
   select: { track: { select: { thumbnailUrl: true } } },
@@ -18,9 +19,32 @@ const firstTrackSelect = {
   orderBy: [{ voteScore: 'desc' as const }, { id: 'asc' as const }],
 };
 
+type EventListItem = Prisma.EventGetPayload<{
+  include: {
+    host: { select: { id: true; username: true } };
+    tracks: {
+      select: { track: { select: { thumbnailUrl: true } } };
+    };
+    _count: { select: { invites: true } };
+  };
+}>;
+
 @Injectable()
 export class EventsRepository {
   constructor(private readonly prisma: PrismaService) {}
+
+  private formatEventList(data: EventListItem[]) {
+    return data.map((event) => {
+      const { host, tracks, _count, ...rest } = event;
+      const firstTrack = tracks[0];
+      return {
+        ...rest,
+        host: host ? { id: host.id, name: host.username } : null,
+        firstTrack: firstTrack ? firstTrack.track.thumbnailUrl : null,
+        membersCount: (_count?.invites ?? 0) + 1,
+      };
+    });
+  }
 
   async findPlaylistsByIds(playlistIds: string[], userId: string) {
     return this.prisma.playlist.findMany({
@@ -61,6 +85,7 @@ export class EventsRepository {
         },
         invites: {
           where: { userId },
+          select: { id: true },
         },
         tracks: {
           include: { track: true },
@@ -68,6 +93,10 @@ export class EventsRepository {
           orderBy: [{ voteScore: 'desc' }, { id: 'asc' }],
         },
         policies: { select: { config: true, policyType: true } },
+        delegations: {
+          where: { isActive: true, delegateeId: userId },
+          select: { delegateeId: true },
+        },
       },
     });
 
@@ -326,19 +355,8 @@ export class EventsRepository {
       this.prisma.event.count({ where }),
     ]);
 
-    const formattedData = data.map((event) => {
-      const { host, tracks, _count, ...rest } = event;
-      const firstTrack = tracks[0];
-      return {
-        ...rest,
-        host: host ? { id: host.id, name: host.username } : null,
-        firstTrack: firstTrack ? firstTrack.track.thumbnailUrl : null,
-        membersCount: (_count?.invites ?? 0) + 1,
-      };
-    });
-
     return {
-      data: formattedData,
+      data: this.formatEventList(data),
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
   }
@@ -380,19 +398,8 @@ export class EventsRepository {
       this.prisma.event.count({ where }),
     ]);
 
-    const formattedData = data.map((event) => {
-      const { host, tracks, _count, ...rest } = event;
-      const firstTrack = tracks[0];
-      return {
-        ...rest,
-        host: host ? { id: host.id, name: host.username } : null,
-        firstTrack: firstTrack ? firstTrack.track.thumbnailUrl : null,
-        membersCount: (_count?.invites ?? 0) + 1,
-      };
-    });
-
     return {
-      data: formattedData,
+      data: this.formatEventList(data),
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
   }
@@ -436,19 +443,127 @@ export class EventsRepository {
       this.prisma.event.count({ where }),
     ]);
 
-    const formattedData = data.map((event) => {
-      const { host, tracks, _count, ...rest } = event;
-      const firstTrack = tracks[0];
-      return {
-        ...rest,
-        host: host ? { id: host.id, name: host.username } : null,
-        firstTrack: firstTrack ? firstTrack.track.thumbnailUrl : null,
-        membersCount: (_count?.invites ?? 0) + 1,
-      };
-    });
+    return {
+      data: this.formatEventList(data),
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
+  }
+
+  async findExplore(userId: string, query: EventQueryDto) {
+    const { page = 1, limit = 10, search, status, tags } = query;
+    const skip = (page - 1) * limit;
+
+    const baseCondition: Prisma.EventWhereInput = {
+      OR: [
+        { visibility: Visibility.PUBLIC },
+        { hostId: userId },
+        { invites: { some: { userId } } },
+      ],
+    };
+
+    const filters: Prisma.EventWhereInput[] = [];
+    if (status) filters.push({ status });
+    if (tags && tags.length > 0) filters.push({ tags: { hasSome: tags } });
+    if (search) {
+      filters.push({
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } },
+          { description: { contains: search, mode: 'insensitive' } },
+        ],
+      });
+    }
+
+    const where: Prisma.EventWhereInput = {
+      AND: [baseCondition, ...filters],
+    };
+
+    const [data, total] = await Promise.all([
+      this.prisma.event.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          host: { select: { id: true, username: true } },
+          tracks: firstTrackSelect,
+          _count: { select: { invites: true } },
+        },
+      }),
+      this.prisma.event.count({ where }),
+    ]);
 
     return {
-      data: formattedData,
+      data: this.formatEventList(data),
+      meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
+    };
+  }
+
+  async findFriendsEvents(userId: string, query: EventQueryDto) {
+    const { page = 1, limit = 10, search, status, tags } = query;
+    const skip = (page - 1) * limit;
+
+    const friendsCondition: Prisma.EventWhereInput = {
+      OR: [
+        // Public events from mutual friends
+        {
+          AND: [
+            {
+              host: {
+                followers: { some: { followerId: userId } },
+                following: { some: { followingId: userId } },
+              },
+            },
+            { visibility: Visibility.PUBLIC },
+          ],
+        },
+        // Private events from mutual friends where I'm invited
+        {
+          AND: [
+            { invites: { some: { userId } } },
+            {
+              host: {
+                followers: { some: { followerId: userId } },
+                following: { some: { followingId: userId } },
+              },
+            },
+          ],
+        },
+      ],
+    };
+
+    const filters: Prisma.EventWhereInput[] = [];
+    if (status) filters.push({ status });
+    if (tags && tags.length > 0) filters.push({ tags: { hasSome: tags } });
+    if (search) {
+      filters.push({
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } },
+          { description: { contains: search, mode: 'insensitive' } },
+        ],
+      });
+    }
+
+    const where: Prisma.EventWhereInput = {
+      AND: [friendsCondition, ...filters],
+    };
+
+    const [data, total] = await Promise.all([
+      this.prisma.event.findMany({
+        where,
+        skip,
+        take: limit,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          host: { select: { id: true, username: true } },
+          tracks: firstTrackSelect,
+          _count: { select: { invites: true } },
+        },
+      }),
+      this.prisma.event.count({ where }),
+    ]);
+
+    return {
+      data: this.formatEventList(data),
       meta: { total, page, limit, totalPages: Math.ceil(total / limit) },
     };
   }
@@ -665,6 +780,19 @@ export class EventsRepository {
         playbackStatus: PlaybackStatus.PAUSED,
         currentTrackStartedAt: null,
         pausedPlaybackPositionMs: 0,
+      },
+    });
+  }
+
+  async findActiveDelegation(eventId: string, delegateeId: string) {
+    return this.prisma.controlDelegation.findFirst({
+      where: {
+        eventId,
+        delegateeId,
+        isActive: true,
+      },
+      select: {
+        deviceId: true,
       },
     });
   }

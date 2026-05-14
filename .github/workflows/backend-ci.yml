@@ -4,13 +4,12 @@ on:
   push:
     branches:
       - main
-    paths:
-      - backend/**
-      - .github/workflows/backend-ci.yml
   pull_request:
     paths:
-      - backend/**
-      - .github/workflows/backend-ci.yml
+      - 'backend/**'
+      - 'docker-compose.yml'
+      - 'Makefile'
+      - '.github/workflows/backend-ci.yml'
   workflow_dispatch:
 
 concurrency:
@@ -76,6 +75,7 @@ jobs:
             git reset --hard origin/main
 
             # 3. Rebuild and restart the Docker containers in the background
+            docker compose -f docker-compose.yml down --rmi all
             docker compose -f docker-compose.yml up -d --build
 
             # 4. Cleanup: Remove old, unused Docker images to save disk space

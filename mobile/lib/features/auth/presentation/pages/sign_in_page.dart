@@ -9,6 +9,7 @@ import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
 import 'package:music_room/features/auth/presentation/state/auth_event.dart';
 import 'package:music_room/features/auth/presentation/state/auth_state.dart';
 import 'package:music_room/features/auth/presentation/widgets/auth_divider_with_text.dart';
+import 'package:music_room/features/auth/presentation/widgets/auth_page_layout.dart';
 import 'package:music_room/features/auth/presentation/widgets/auth_screen_header.dart';
 import 'package:music_room/features/auth/presentation/widgets/auth_text_input_field.dart';
 import 'package:music_room/features/auth/presentation/widgets/social_login_button.dart';
@@ -117,7 +118,7 @@ class _SignInPageState extends State<SignInPage> {
           AppSnackbar.showSuccess(context, 'Signed in with Google!');
           unawaited(
             Navigator.of(context).pushNamedAndRemoveUntil(
-              RouteNames.home,
+              state.isNewUser ? RouteNames.completeProfile : RouteNames.home,
               (_) => false,
             ),
           );
@@ -129,8 +130,7 @@ class _SignInPageState extends State<SignInPage> {
       },
       child: Scaffold(
         body: SafeArea(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          child: AuthPageLayout(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

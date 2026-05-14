@@ -53,6 +53,10 @@ describe('EventsService', () => {
             findHosting: jest.fn(),
             findInvited: jest.fn(),
             getCurrentTrackPayload: jest.fn(),
+            findActiveDelegation: jest.fn(),
+            updatePlaybackPlay: jest.fn(),
+            updatePlaybackPause: jest.fn(),
+            advanceQueue: jest.fn(),
           },
         },
         {
@@ -325,6 +329,246 @@ describe('EventsService', () => {
 
       expect(result.providerTrackId).toBe(providerTrackId);
       expect(repository.deleteEventTrack).toHaveBeenCalledWith('et-1');
+    });
+  });
+
+  describe('play', () => {
+    it('should allow host to play', async () => {
+      const eventId = 'event-1';
+      const hostId = 'host-1';
+      jest.spyOn(repository, 'findById').mockResolvedValue({
+        id: eventId,
+        hostId,
+        status: 'LIVE',
+      } as any);
+      jest.spyOn(repository, 'updatePlaybackPlay').mockResolvedValue({
+        currentTrackId: 't-1',
+      } as any);
+
+      const result = await service.play(eventId, hostId, 'deviceId');
+
+      expect(result.status).toBe('PLAYING');
+    });
+
+    it('should allow delegated user with matching deviceId to play', async () => {
+      const eventId = 'event-1';
+      const delegateeId = 'user-2';
+      jest.spyOn(repository, 'findById').mockResolvedValue({
+        id: eventId,
+        hostId: 'host-1',
+        status: 'LIVE',
+      } as any);
+      jest.spyOn(repository, 'findActiveDelegation').mockResolvedValue({
+        deviceId: 'test-device-id',
+      } as any);
+      jest.spyOn(repository, 'updatePlaybackPlay').mockResolvedValue({
+        currentTrackId: 't-1',
+      } as any);
+
+      const result = await service.play(eventId, delegateeId, 'test-device-id');
+
+      expect(result.status).toBe('PLAYING');
+    });
+
+    it('should throw ForbiddenException for non-delegated user', async () => {
+      const eventId = 'event-1';
+      const userId = 'user-2';
+      jest.spyOn(repository, 'findById').mockResolvedValue({
+        id: eventId,
+        hostId: 'host-1',
+        status: 'LIVE',
+      } as any);
+      jest.spyOn(repository, 'findActiveDelegation').mockResolvedValue(null);
+
+      await expect(
+        service.play(eventId, userId, 'test-device-id'),
+      ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw ForbiddenException for device mismatch', async () => {
+      const eventId = 'event-1';
+      const delegateeId = 'user-2';
+      jest.spyOn(repository, 'findById').mockResolvedValue({
+        id: eventId,
+        hostId: 'host-1',
+        status: 'LIVE',
+      } as any);
+      jest.spyOn(repository, 'findActiveDelegation').mockResolvedValue({
+        deviceId: 'other-device',
+      } as any);
+
+      await expect(
+        service.play(eventId, delegateeId, 'test-device-id'),
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe('pause', () => {
+    it('should allow host to pause', async () => {
+      const eventId = 'event-1';
+      const hostId = 'host-1';
+      jest.spyOn(repository, 'findById').mockResolvedValue({
+        id: eventId,
+        hostId,
+        status: 'LIVE',
+        playbackStatus: 'PLAYING',
+        currentTrackStartedAt: new Date(),
+        pausedPlaybackPositionMs: 0,
+      } as any);
+      jest.spyOn(repository, 'updatePlaybackPause').mockResolvedValue({
+        currentTrackId: 't-1',
+      } as any);
+
+      const result = await service.pause(eventId, hostId, 'device');
+
+      expect(result.status).toBe('PAUSED');
+    });
+
+    it('should allow delegated user with matching deviceId to pause', async () => {
+      const eventId = 'event-1';
+      const delegateeId = 'user-2';
+      jest.spyOn(repository, 'findById').mockResolvedValue({
+        id: eventId,
+        hostId: 'host-1',
+        status: 'LIVE',
+        playbackStatus: 'PLAYING',
+        currentTrackStartedAt: new Date(),
+        pausedPlaybackPositionMs: 0,
+      } as any);
+      jest.spyOn(repository, 'findActiveDelegation').mockResolvedValue({
+        deviceId: 'test-device-id',
+      } as any);
+      jest.spyOn(repository, 'updatePlaybackPause').mockResolvedValue({
+        currentTrackId: 't-1',
+      } as any);
+
+      const result = await service.pause(
+        eventId,
+        delegateeId,
+        'test-device-id',
+      );
+
+      expect(result.status).toBe('PAUSED');
+    });
+
+    it('should throw ForbiddenException for non-delegated user on pause', async () => {
+      const eventId = 'event-1';
+      const userId = 'user-2';
+      jest.spyOn(repository, 'findById').mockResolvedValue({
+        id: eventId,
+        hostId: 'host-1',
+        status: 'LIVE',
+        playbackStatus: 'PLAYING',
+        currentTrackStartedAt: new Date(),
+        pausedPlaybackPositionMs: 0,
+      } as any);
+      jest.spyOn(repository, 'findActiveDelegation').mockResolvedValue(null);
+
+      await expect(
+        service.pause(eventId, userId, 'test-device-id'),
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe('next', () => {
+    it('should allow host to skip track', async () => {
+      const eventId = 'event-1';
+      const hostId = 'host-1';
+      jest.spyOn(repository, 'findById').mockResolvedValue({
+        id: eventId,
+        hostId,
+        currentTrackId: 'track-1',
+      } as any);
+      jest.spyOn(repository, 'advanceQueue').mockResolvedValue({
+        event: { currentTrackId: 't-2' },
+      } as any);
+
+      const result = await service.next(eventId, hostId, 'track-1', 'deviceId');
+      expect(result.currentTrackId).toBe('t-2');
+    });
+
+    it('should allow delegated user with matching deviceId to skip', async () => {
+      const eventId = 'event-1';
+      const delegateeId = 'user-2';
+      jest.spyOn(repository, 'findById').mockResolvedValue({
+        id: eventId,
+        hostId: 'host-1',
+      } as any);
+      jest.spyOn(repository, 'findActiveDelegation').mockResolvedValue({
+        deviceId: 'test-device-id',
+      } as any);
+      jest.spyOn(repository, 'advanceQueue').mockResolvedValue({
+        event: { currentTrackId: 't-2' },
+        nextTrackId: 't-2',
+      } as any);
+
+      const result = await service.next(
+        eventId,
+        delegateeId,
+        null,
+        'test-device-id',
+      );
+
+      expect(result.currentTrackId).toBe('t-2');
+    });
+
+    it('should throw ForbiddenException for non-delegated user on next', async () => {
+      const eventId = 'event-1';
+      const userId = 'user-2';
+      jest.spyOn(repository, 'findById').mockResolvedValue({
+        id: eventId,
+        hostId: 'host-1',
+      } as any);
+      jest.spyOn(repository, 'findActiveDelegation').mockResolvedValue(null);
+
+      await expect(
+        service.next(eventId, userId, null, 'test-device-id'),
+      ).rejects.toThrow(ForbiddenException);
+    });
+  });
+
+  describe('findOne - isDelegated', () => {
+    it('should return isDelegated true when user has active delegation', async () => {
+      const eventId = 'event-1';
+      const userId = 'user-2';
+      const mockEvent = {
+        id: eventId,
+        hostId: 'host-1',
+        visibility: Visibility.PUBLIC,
+        tracks: [],
+        invites: [],
+        host: { id: 'host-1', username: 'host' },
+        delegations: [{ delegateeId: userId, isActive: true }],
+      };
+
+      jest
+        .spyOn(repository, 'findByIdWithDetails')
+        .mockResolvedValue(mockEvent as any);
+
+      const result = await service.findOne(eventId, userId);
+
+      expect(result.isDelegated).toBe(true);
+    });
+
+    it('should return isDelegated false when user has no delegation', async () => {
+      const eventId = 'event-1';
+      const userId = 'user-2';
+
+      const mockEventWithoutDelegation = {
+        id: eventId,
+        hostId: 'host-1',
+        visibility: Visibility.PUBLIC,
+        tracks: [],
+        invites: [],
+        host: { id: 'host-1', username: 'host' },
+        delegations: [],
+      };
+      jest
+        .spyOn(repository, 'findByIdWithDetails')
+        .mockResolvedValue(mockEventWithoutDelegation as any);
+
+      const result = await service.findOne(eventId, userId);
+      expect(result.isDelegated).toBe(false);
     });
   });
 });

@@ -7,12 +7,18 @@ import {
   WsException,
   OnGatewayDisconnect,
 } from '@nestjs/websockets';
-import { Logger, UseGuards, forwardRef, Inject } from '@nestjs/common';
+import {
+  Logger,
+  UseGuards,
+  forwardRef,
+  Inject,
+  UsePipes,
+  ValidationPipe,
+} from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { WsAuthGuard } from '../websockets/guards/ws-auth.guard';
 import { WsThrottlerGuard } from '../websockets/guards/ws-throttler.guard';
-import { PrismaService } from '../prisma/prisma.service';
-import { EventStatus, Visibility, PlaybackStatus } from '@prisma/client';
+import { EventStatus, PlaybackStatus } from '@prisma/client';
 import { getPosition, EventsService } from './events.service';
 import { EventsRepository } from './events.repository';
 import { PlaybackPlayDto } from './dto/playback-play.dto';
@@ -24,11 +30,14 @@ import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 import { WS_EVENTS, REDIS_KEYS, BULL_QUEUES } from './events.constants';
 import { RedisService } from '../redis/redis.service';
-import { EventEmitter2 } from '@nestjs/event-emitter';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { AUDIT_LOG_EVENT, AuditAction } from '../audit-log/audit-log.constants';
 import { createAuditLogEvent } from '../audit-log/audit-log.event';
 import { ClientMeta } from '../common/decorators/client-meta.decorator';
 import { ClientMetaDto } from '../common/dto/client-meta.dto';
+import { DelegationsRepository } from '../delegations/delegations.repository';
+import { DelegationResponseDto } from '../delegations/dto/delegation-response.dto';
+import { INTERNAL_EVENTS } from './events.constants';
 
 @WebSocketGateway({ path: '/ws', cors: true })
 @UseGuards(WsAuthGuard, WsThrottlerGuard)
@@ -39,7 +48,6 @@ export class EventsGateway implements OnGatewayDisconnect {
   private readonly logger = new Logger(EventsGateway.name);
 
   constructor(
-    private readonly prisma: PrismaService,
     private readonly redisService: RedisService,
     private readonly eventEmitter: EventEmitter2,
     @InjectQueue(BULL_QUEUES.EVENT_TIMEOUTS)
@@ -47,6 +55,7 @@ export class EventsGateway implements OnGatewayDisconnect {
     @Inject(forwardRef(() => EventsService))
     private readonly eventsService: EventsService,
     private readonly eventsRepository: EventsRepository,
+    private readonly delegationsRepository: DelegationsRepository,
   ) {}
 
   private getRoomCount(roomName: string): number {
@@ -93,67 +102,50 @@ export class EventsGateway implements OnGatewayDisconnect {
     }
   }
 
-  private async removeExistingTimeoutJob(jobId: string) {
-    const existingJob = await this.eventTimeoutsQueue.getJob(jobId);
-    if (existingJob) {
-      existingJob.remove().catch((error: Error) => {
-        this.logger.error(
-          `Failed to remove existing timeout job with ID ${jobId} | Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
-        );
-      });
-    }
-  }
-
   @SubscribeMessage(WS_EVENTS.JOIN)
   async handleEventJoin(
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: { eventId: string },
     @WsUser() user: SocketUser,
   ) {
-    if (!payload?.eventId) {
-      throw new WsException('eventId is required');
-    }
+    if (!payload?.eventId) throw new WsException('eventId is required');
 
     const userId = user.id;
     const eventId = payload.eventId;
 
-    const event = await this.prisma.event.findUnique({
-      where: { id: eventId },
-      include: { invites: true },
-    });
+    try {
+      const event = await this.eventsService.findOne(eventId, userId)!; // Ensure event exists and is accessible, will throw if not
+      if (event.host?.id === userId)
+        throw new WsException(
+          'Forbidden: Host must use host_join to join an event',
+        );
+      if (event.status === EventStatus.ENDED)
+        throw new WsException('Event has already ended');
+      const roomName = `event_${eventId}`;
+      await client.join(roomName);
 
-    if (!event) throw new WsException('Event not found');
-    if (event.hostId === userId)
-      throw new WsException(
-        'Forbidden: Host must use host_join to join an event',
+      this.logger.log(
+        `Client ${client.id} (User: ${userId}) joined room ${roomName}`,
       );
-    if (event.status === EventStatus.ENDED)
-      throw new WsException('Event has already ended');
+      this.broadcastRoomCount(roomName);
 
-    if (event.visibility === Visibility.PRIVATE) {
-      const isInvited = event.invites.some((i) => i.userId === userId);
-      if (!isInvited) {
-        throw new WsException('Forbidden: Cannot join private event room');
-      }
+      client.emit(WS_EVENTS.STATUS, {
+        eventId,
+        status: event.status,
+        startDate: event.startDate,
+      });
+
+      this.server.to(roomName).emit(WS_EVENTS.USER_JOINED, { userId });
+
+      return { event: 'joined', eventId, status: event.status };
+    } catch (error: unknown) {
+      this.logger.error(
+        `Failed to fetch event ${eventId} for user ${userId} | Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+      throw new WsException(
+        error instanceof Error ? error.message : 'Unknown error',
+      );
     }
-
-    const roomName = `event_${eventId}`;
-    await client.join(roomName);
-
-    this.logger.log(
-      `Client ${client.id} (User: ${userId}) joined room ${roomName}`,
-    );
-    this.broadcastRoomCount(roomName);
-
-    client.emit(WS_EVENTS.STATUS, {
-      eventId,
-      status: event.status,
-      startDate: event.startDate,
-    });
-
-    this.server.to(roomName).emit(WS_EVENTS.USER_JOINED, { userId });
-
-    return { event: 'joined', eventId, status: event.status };
   }
 
   @SubscribeMessage(WS_EVENTS.HOST_JOIN)
@@ -167,33 +159,53 @@ export class EventsGateway implements OnGatewayDisconnect {
     const eventId = payload.eventId;
     const userId = user.id;
 
-    const event = await this.prisma.event.findUnique({
-      where: { id: eventId },
-    });
-
-    if (!event) throw new WsException('Event not found');
-    if (event.hostId !== userId)
-      throw new WsException('Forbidden: Only host can use host_join');
-    if (event.status !== EventStatus.LIVE)
-      throw new WsException('Forbidden: Host can only join live events');
-
-    const roomName = `event_${eventId}`;
-    await client.join(roomName);
-
-    this.logger.log(
-      `Host ${client.id} (User: ${userId}) joined room ${roomName}`,
+    // Single device capability enforcement
+    const redisClient = this.redisService.getClient();
+    const storedSocketId = await redisClient.get(
+      REDIS_KEYS.HOST_SOCKET(eventId),
     );
-    this.broadcastRoomCount(roomName);
 
-    await this.handleHostRejoined(eventId, userId, client.id);
+    if (storedSocketId && storedSocketId !== client.id) {
+      // Use fetchSockets() to check across all instances when using Redis Adapter
+      const sockets = await this.server.in(storedSocketId).fetchSockets();
+      if (sockets.length > 0) {
+        throw new WsException(
+          'Forbidden: Host is already connected from another device',
+        );
+      }
+    }
 
-    client.emit(WS_EVENTS.STATUS, {
-      eventId,
-      status: event.status,
-      startDate: event.startDate,
-    });
+    try {
+      const event = await this.eventsService.findOne(eventId, userId);
+      if (event.host?.id !== userId)
+        throw new WsException('Forbidden: Only host can use host_join');
+      if (event.status !== EventStatus.LIVE)
+        throw new WsException('Forbidden: Host can only join live events');
+      const roomName = `event_${eventId}`;
+      await client.join(roomName);
 
-    return { event: 'host_joined', eventId, status: event.status };
+      this.logger.log(
+        `Host ${client.id} (User: ${userId}) joined room ${roomName}`,
+      );
+      this.broadcastRoomCount(roomName);
+
+      await this.handleHostRejoined(eventId, userId, client.id);
+
+      client.emit(WS_EVENTS.STATUS, {
+        eventId,
+        status: event.status,
+        startDate: event.startDate,
+      });
+
+      return { event: 'host_joined', eventId, status: event.status };
+    } catch (error: unknown) {
+      this.logger.error(
+        `Failed to fetch event ${eventId} for host ${userId} | Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+      throw new WsException(
+        error instanceof Error ? error.message : 'Unknown error',
+      );
+    }
   }
 
   private async handleHostRejoined(
@@ -202,28 +214,31 @@ export class EventsGateway implements OnGatewayDisconnect {
     socketId: string,
   ) {
     const redisClient = this.redisService.getClient();
-    const disconnectFlag = await redisClient.get(
-      REDIS_KEYS.HOST_DISCONNECT(eventId),
-    );
-
     await redisClient.set(REDIS_KEYS.HOST_SOCKET(eventId), socketId);
 
-    if (disconnectFlag === userId) {
+    const softJob = await this.eventTimeoutsQueue.getJob(`soft-${eventId}`);
+    const hardJob = await this.eventTimeoutsQueue.getJob(`hard-${eventId}`);
+
+    if (softJob || hardJob) {
       this.logger.log(
         `Host ${userId} rejoined event ${eventId} in time, canceling timeouts.`,
       );
-      await redisClient.del(REDIS_KEYS.HOST_DISCONNECT(eventId));
 
-      const softJob = await this.eventTimeoutsQueue.getJob(`soft-${eventId}`);
-      if (softJob) await softJob.remove();
+      if (softJob) {
+        await softJob.remove().catch((error: Error) => {
+          this.logger.error(
+            `Failed to remove soft timeout job for event ${eventId} | Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+          );
+        });
+      }
 
-      const hardJob = await this.eventTimeoutsQueue.getJob(`hard-${eventId}`);
-      if (hardJob)
+      if (hardJob) {
         await hardJob.remove().catch((error: Error) => {
           this.logger.error(
             `Failed to remove hard timeout job for event ${eventId} | Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
           );
         });
+      }
 
       const roomName = `event_${eventId}`;
       this.server
@@ -243,22 +258,26 @@ export class EventsGateway implements OnGatewayDisconnect {
     const eventId = payload.eventId;
     const userId = user.id;
 
-    const event = await this.prisma.event.findUnique({
-      where: { id: eventId },
-    });
+    try {
+      const event = await this.eventsService.findOne(eventId, userId);
+      if (event.host?.id === userId)
+        throw new WsException(
+          'Forbidden: Host must use host_leave to leave an event',
+        );
+      const roomName = `event_${eventId}`;
+      await client.leave(roomName);
+      this.logger.log(`Client ${client.id} left room ${roomName}`);
+      this.broadcastRoomCount(roomName);
 
-    if (!event) throw new WsException('Event not found');
-    if (event.hostId === userId)
-      throw new WsException(
-        'Forbidden: Host must use host_leave to leave an event',
+      return { event: 'left', eventId };
+    } catch (error: unknown) {
+      this.logger.error(
+        `Failed to fetch event ${eventId} for user ${userId} | Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
       );
-
-    const roomName = `event_${eventId}`;
-    await client.leave(roomName);
-    this.logger.log(`Client ${client.id} left room ${roomName}`);
-    this.broadcastRoomCount(roomName);
-
-    return { event: 'left', eventId };
+      throw new WsException(
+        error instanceof Error ? error.message : 'Unknown error',
+      );
+    }
   }
 
   @SubscribeMessage(WS_EVENTS.HOST_LEAVE)
@@ -272,52 +291,63 @@ export class EventsGateway implements OnGatewayDisconnect {
     const eventId = payload.eventId;
     const userId = user.id;
 
-    const event = await this.prisma.event.findUnique({
-      where: { id: eventId },
-      select: {
-        id: true,
-        status: true,
-        hostId: true,
-        currentTrackId: true,
-        playbackStatus: true,
-        currentTrackStartedAt: true,
-        pausedPlaybackPositionMs: true,
-      },
-    });
+    // Reject stale signals from disconnected/old devices
+    const redisClient = this.redisService.getClient();
+    const storedSocketId = await redisClient.get(
+      REDIS_KEYS.HOST_SOCKET(eventId),
+    );
 
-    if (!event) throw new WsException('Event not found');
-    if (event.hostId !== userId)
-      throw new WsException('Forbidden: Only host can use host_leave');
-
-    const roomName = `event_${eventId}`;
-    await client.leave(roomName);
-    this.logger.log(`Host ${client.id} explicitly left room ${roomName}`);
-    this.broadcastRoomCount(roomName);
-
-    if (event.status === EventStatus.LIVE) {
-      // Delegate business logic to service
-      const position = getPosition(event);
-      await this.eventsService.startHostGracePeriod(eventId, userId);
-      await this.eventsRepository.pausePlayback(event.id, position);
-
-      // Handle WebSocket concerns only
-      const currentTrack = await this.eventsRepository.getCurrentTrackPayload(
-        event.currentTrackId,
+    if (storedSocketId && storedSocketId !== client.id) {
+      throw new WsException(
+        'Forbidden: Mismatched device. You are not the active host.',
       );
-      this.server.to(roomName).emit(WS_EVENTS.PLAYBACK_STATUS, {
-        status: PlaybackStatus.PAUSED,
-        currentTrack:
-          currentTrack === null
-            ? null
-            : {
-                ...currentTrack,
-                pausedPlaybackPositionMs: position,
-                currentTrackStartedAt: null,
-              },
-      });
     }
 
-    return { event: 'host_left', eventId };
+    try {
+      const event = await this.eventsService.findOne(eventId, userId);
+      if (event.host?.id !== userId)
+        throw new WsException('Forbidden: Only host can use host_leave');
+      const roomName = `event_${eventId}`;
+      await client.leave(roomName);
+      this.logger.log(`Host ${client.id} explicitly left room ${roomName}`);
+      this.broadcastRoomCount(roomName);
+      if (event.status === EventStatus.LIVE) {
+        // Delegate business logic to service
+        const position = getPosition(event);
+        await this.eventsService.startHostGracePeriod(eventId, userId);
+        await this.eventsRepository.pausePlayback(event.id, position);
+
+        // Clear the host socket so they can immediately join from another device
+        await redisClient.del(REDIS_KEYS.HOST_SOCKET(eventId));
+
+        // Handle WebSocket concerns only
+        const currentTrack = await this.eventsRepository.getCurrentTrackPayload(
+          event.currentTrack?.id ?? null,
+        );
+        this.logger.log(
+          `Emitting host_left for event ${eventId} with paused position ${position}ms`,
+        );
+        this.server.to(roomName).emit(WS_EVENTS.PLAYBACK_STATUS, {
+          status: PlaybackStatus.PAUSED,
+          currentTrack:
+            currentTrack === null
+              ? null
+              : {
+                  ...currentTrack,
+                  pausedPlaybackPositionMs: position,
+                  currentTrackStartedAt: null,
+                },
+        });
+      }
+      return { event: 'host_left', eventId };
+    } catch (error: unknown) {
+      this.logger.error(
+        `Failed to fetch event ${eventId} for host ${userId} | Error: ${error instanceof Error ? error.message : 'Unknown error'}`,
+      );
+      throw new WsException(
+        error instanceof Error ? error.message : 'Unknown error',
+      );
+    }
   }
 
   @SubscribeMessage(WS_EVENTS.START)
@@ -332,46 +362,51 @@ export class EventsGateway implements OnGatewayDisconnect {
     const eventId = payload.eventId;
     const userId = user.id;
     const socketId = client.id;
+    try {
+      // Delegate business logic to service
+      const updatedEvent = await this.eventsService.startEvent(
+        eventId,
+        userId,
+        socketId,
+      );
 
-    // Delegate business logic to service
-    const updatedEvent = await this.eventsService.startEvent(
-      eventId,
-      userId,
-      socketId,
-    );
+      // Handle WebSocket concerns only
+      const roomName = `event_${eventId}`;
+      await client.join(roomName);
 
-    // Handle WebSocket concerns only
-    const roomName = `event_${eventId}`;
-    await client.join(roomName);
+      this.server.to(roomName).emit(WS_EVENTS.STARTED, {
+        eventId,
+        status: EventStatus.LIVE,
+        startDate: updatedEvent.startDate,
+        hostId: userId,
+      });
+      this.broadcastRoomCount(roomName);
+      const currentTrack = await this.eventsRepository.getCurrentTrackPayload(
+        updatedEvent.currentTrackId,
+      );
+      this.server.to(roomName).emit(WS_EVENTS.PLAYBACK_STATUS, {
+        status: PlaybackStatus.PAUSED,
+        currentTrack:
+          currentTrack === null
+            ? null
+            : {
+                ...currentTrack,
+                pausedPlaybackPositionMs: 0,
+                currentTrackStartedAt: null,
+              },
+      });
 
-    this.server.to(roomName).emit(WS_EVENTS.STARTED, {
-      eventId,
-      status: EventStatus.LIVE,
-      startDate: updatedEvent.startDate,
-      hostId: userId,
-    });
-    this.broadcastRoomCount(roomName);
-    const currentTrack = await this.eventsRepository.getCurrentTrackPayload(
-      updatedEvent.currentTrackId,
-    );
-    this.server.to(roomName).emit(WS_EVENTS.PLAYBACK_STATUS, {
-      status: PlaybackStatus.PAUSED,
-      currentTrack:
-        currentTrack === null
-          ? null
-          : {
-              ...currentTrack,
-              pausedPlaybackPositionMs: 0,
-              currentTrackStartedAt: null,
-            },
-    });
+      this.eventEmitter.emit(
+        AUDIT_LOG_EVENT,
+        createAuditLogEvent(userId, AuditAction.EVENT_START, meta, { eventId }),
+      );
 
-    this.eventEmitter.emit(
-      AUDIT_LOG_EVENT,
-      createAuditLogEvent(userId, AuditAction.EVENT_START, meta, { eventId }),
-    );
-
-    return { event: 'started', eventId, status: EventStatus.LIVE };
+      return { event: 'started', eventId, status: EventStatus.LIVE };
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      throw new WsException(errorMessage);
+    }
   }
 
   @SubscribeMessage(WS_EVENTS.END)
@@ -385,34 +420,48 @@ export class EventsGateway implements OnGatewayDisconnect {
 
     const eventId = payload.eventId;
     const userId = user.id;
+    try {
+      // Delegate business logic to service
+      await this.eventsService.endEvent(eventId, userId);
 
-    // Delegate business logic to service
-    await this.eventsService.endEvent(eventId, userId);
+      // Handle WebSocket concerns only
+      const roomName = `event_${eventId}`;
+      this.server.to(roomName).emit(WS_EVENTS.ENDED, { reason: 'host_ended' });
+      this.server.in(roomName).socketsLeave(roomName);
 
-    // Handle WebSocket concerns only
-    const roomName = `event_${eventId}`;
-    this.server.to(roomName).emit(WS_EVENTS.ENDED, { reason: 'host_ended' });
-    this.server.in(roomName).socketsLeave(roomName);
+      this.eventEmitter.emit(
+        AUDIT_LOG_EVENT,
+        createAuditLogEvent(userId, AuditAction.EVENT_END, meta, {
+          eventId,
+          reason: 'host_ended',
+        }),
+      );
 
-    this.eventEmitter.emit(
-      AUDIT_LOG_EVENT,
-      createAuditLogEvent(userId, AuditAction.EVENT_END, meta, {
-        eventId,
-        reason: 'host_ended',
-      }),
-    );
-
-    return { event: 'ended', eventId };
+      return { event: 'ended', eventId };
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : 'Unknown error';
+      throw new WsException(errorMessage);
+    }
   }
 
   @SubscribeMessage(WS_EVENTS.PLAYBACK_PLAY)
   async handlePlaybackPlay(
     @MessageBody() payload: PlaybackPlayDto,
     @WsUser() user: SocketUser,
+    @ClientMeta() meta: ClientMetaDto,
   ) {
     if (!payload?.eventId) throw new WsException('eventId is required');
     try {
-      const result = await this.eventsService.play(payload.eventId, user.id);
+      const result = await this.eventsService.play(
+        payload.eventId,
+        user.id,
+        meta.deviceId,
+      );
+      this.eventEmitter.emit(
+        AUDIT_LOG_EVENT,
+        createAuditLogEvent(user.id, AuditAction.DELEGATED_PLAY, meta),
+      );
       return { event: 'playback_play', ...result };
     } catch (error: unknown) {
       const errorMessage =
@@ -425,10 +474,19 @@ export class EventsGateway implements OnGatewayDisconnect {
   async handlePlaybackPause(
     @MessageBody() payload: PlaybackPauseDto,
     @WsUser() user: SocketUser,
+    @ClientMeta() meta: ClientMetaDto,
   ) {
     if (!payload?.eventId) throw new WsException('eventId is required');
     try {
-      const result = await this.eventsService.pause(payload.eventId, user.id);
+      const result = await this.eventsService.pause(
+        payload.eventId,
+        user.id,
+        meta.deviceId,
+      );
+      this.eventEmitter.emit(
+        AUDIT_LOG_EVENT,
+        createAuditLogEvent(user.id, AuditAction.DELEGATED_PAUSE, meta),
+      );
       return { event: 'playback_pause', ...result };
     } catch (error: unknown) {
       const errorMessage =
@@ -441,6 +499,7 @@ export class EventsGateway implements OnGatewayDisconnect {
   async handlePlaybackNext(
     @MessageBody() payload: PlaybackNextDto,
     @WsUser() user: SocketUser,
+    @ClientMeta() meta: ClientMetaDto,
   ) {
     if (!payload?.eventId) throw new WsException('eventId is required');
     try {
@@ -448,12 +507,84 @@ export class EventsGateway implements OnGatewayDisconnect {
         payload.eventId,
         user.id,
         payload.trackId ?? null,
+        meta.deviceId,
+      );
+      this.eventEmitter.emit(
+        AUDIT_LOG_EVENT,
+        createAuditLogEvent(user.id, AuditAction.DELEGATED_NEXT, meta),
       );
       return { event: 'playback_next', ...result };
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : 'Unknown error';
       throw new WsException(errorMessage);
+    }
+  }
+
+  @OnEvent(INTERNAL_EVENTS.DELEGATION_INVITE_SENT)
+  async handleDelegationInviteSent(payload: {
+    eventId: string;
+    delegateeId: string;
+    delegationId: string;
+    hostname: string;
+    eventName: string;
+  }) {
+    const roomName = `event_${payload.eventId}`;
+    const sockets = await this.server.in(roomName).fetchSockets();
+
+    for (const socket of sockets) {
+      if (
+        (socket.data as { user?: { id: string } }).user?.id ===
+        payload.delegateeId
+      ) {
+        socket.emit(WS_EVENTS.DELEGATE, {
+          eventId: payload.eventId,
+          delegationId: payload.delegationId,
+          hostname: payload.hostname,
+          eventName: payload.eventName,
+        });
+      }
+    }
+  }
+
+  @SubscribeMessage(WS_EVENTS.DELEGATION_RESPONSE)
+  @UsePipes(
+    new ValidationPipe({
+      whitelist: true,
+      exceptionFactory: (errors) =>
+        new WsException(
+          errors.map((e) => Object.values(e.constraints ?? {})).flat(),
+        ),
+    }),
+  )
+  async handleDelegationResponse(
+    @MessageBody() payload: DelegationResponseDto,
+    @WsUser() user: SocketUser,
+    @ClientMeta() meta: ClientMetaDto,
+  ) {
+    try {
+      if (meta.deviceId === 'unknown')
+        throw new WsException('Invalid device ID');
+      if (payload.accept) {
+        const result = await this.delegationsRepository.activateById(
+          payload.delegationId,
+          meta.deviceId,
+          user.id,
+        );
+        if (result.count === 0) {
+          throw new WsException(
+            'Delegation could not be activated. It may be invalid, already active, or not owned by this user.',
+          );
+        }
+        this.eventEmitter.emit(
+          AUDIT_LOG_EVENT,
+          createAuditLogEvent(user.id, AuditAction.DELEGATION_ACCEPTED, meta),
+        );
+      }
+    } catch (error: unknown) {
+      throw new WsException(
+        error instanceof Error ? error.message : 'Unknown error',
+      );
     }
   }
 }

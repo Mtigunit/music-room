@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:music_room/core/widgets/app_scaffold.dart';
 import 'package:music_room/features/auth/presentation/pages/onboarding_page.dart';
+import 'package:music_room/features/auth/presentation/pages/post_registration_profile_page.dart';
 import 'package:music_room/features/auth/presentation/pages/sign_in_page.dart';
 import 'package:music_room/features/auth/presentation/pages/sign_up_page.dart';
 import 'package:music_room/features/music_control/presentation/pages/music_control_page.dart';
@@ -52,6 +53,10 @@ class AppRouter {
       return const SignUpPage();
     }
 
+    if (routeName == RouteNames.completeProfile) {
+      return const PostRegistrationProfilePage();
+    }
+
     if (routeName == RouteNames.preEvent) {
       if (arguments is! String || arguments.trim().isEmpty) {
         return _unknownRoutePage('$routeName (missing or invalid eventId)');
@@ -70,7 +75,11 @@ class AppRouter {
     }
 
     if (routeName == RouteNames.profile) {
-      return const ProfilePage();
+      return ProfilePage(
+        userId: arguments is String && arguments.trim().isNotEmpty
+            ? arguments.trim()
+            : null,
+      );
     }
 
     return _unknownRoutePage(routeName);
