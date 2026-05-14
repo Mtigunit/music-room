@@ -6,6 +6,14 @@ import 'package:socket_io_client/socket_io_client.dart' as io;
 
 typedef AccessTokenProvider = Future<String?> Function();
 
+/// Low-level socket.io wrapper.
+///
+/// Exposes [onConnected] and [onDisconnected] as broadcast streams so that
+/// feature modules can react to connection lifecycle events without registering
+/// timing-sensitive `on('connect', ...)` callbacks.
+///
+/// Reconnection is driven externally — `ConnectivityService` is the single
+/// owner of `reconnectWithAuth`. Feature modules must never call it directly.
 class SocketClient {
   SocketClient({
     required String baseUrl,
@@ -20,22 +28,38 @@ class SocketClient {
   final ClientMetaService _clientMetaService;
   io.Socket? _socket;
 
+  // ── Public streams ────────────────────────────────────────────────────────
+
+  final StreamController<void> _connectedController =
+      StreamController<void>.broadcast();
+
+  final StreamController<void> _disconnectedController =
+      StreamController<void>.broadcast();
+
   final StreamController<Object> _connectErrorController =
       StreamController<Object>.broadcast();
 
-  // Queue of listeners waiting to be attached
-  final List<_PendingListener> _pendingListeners = [];
+  /// Fires every time the socket establishes (or re-establishes) a connection.
+  Stream<void> get onConnected => _connectedController.stream;
 
+  /// Fires every time the socket loses its connection.
+  Stream<void> get onDisconnected => _disconnectedController.stream;
+
+  /// Fires when a connection attempt fails.
   Stream<Object> get connectErrors => _connectErrorController.stream;
 
+  // ── State ─────────────────────────────────────────────────────────────────
+
   bool get isConnected => _socket?.connected == true;
+
+  // Queue of listeners waiting to be attached once the socket connects.
+  final List<_PendingListener> _pendingListeners = [];
+
+  // ── Lifecycle ─────────────────────────────────────────────────────────────
 
   Future<void> connect() async {
     final token = await _tokenProvider();
     if (token == null || token.isEmpty) return;
-
-    // Note: Token expiration is validated by ApiClient interceptor.
-    // If 401 is returned, the session expired event will be emitted.
 
     _socket?.dispose();
 
@@ -52,7 +76,6 @@ class SocketClient {
       }
     }
 
-    // Using cascade operator (..) to address 'cascade_invocations' lint
     _socket =
         io.io(
             _baseUrl,
@@ -68,7 +91,11 @@ class SocketClient {
             },
           )
           ..on('connect', (_) {
+            _connectedController.add(null);
             _attachPendingListeners();
+          })
+          ..on('disconnect', (_) {
+            _disconnectedController.add(null);
           })
           ..on('connect_error', (dynamic error) {
             final connectError = error is Object ? error : 'connect_error';
@@ -76,13 +103,16 @@ class SocketClient {
           })
           ..on('reconnect_attempt', (_) async {
             final refreshedToken = await _tokenProvider();
-            // If no token available, socket will fail to reconnect
-            // Session expired handler in ApiClient will trigger logout
             _socket?.auth = <String, dynamic>{'token': refreshedToken ?? ''};
           })
           ..connect();
   }
 
+  /// Refreshes the auth token and reconnects.
+  ///
+  /// This must only be called by `ConnectivityService` (on internet restore)
+  /// and by `app.dart` (on auth state changes). Feature modules must not
+  /// call this directly.
   Future<void> reconnectWithAuth() async {
     if (_socket == null) {
       await connect();
@@ -95,20 +125,27 @@ class SocketClient {
       ..connect();
   }
 
+  void disconnect() {
+    _socket?.disconnect();
+  }
+
+  Future<void> dispose() async {
+    _socket?.dispose();
+    _socket = null;
+    _pendingListeners.clear();
+    await _connectedController.close();
+    await _disconnectedController.close();
+    await _connectErrorController.close();
+  }
+
+  // ── Event subscription ────────────────────────────────────────────────────
+
   void on(String eventName, void Function(dynamic payload) handler) {
     if (_socket != null && _socket!.connected) {
       _socket?.on(eventName, handler);
     } else {
-      // Queue the listener to be attached once socket is connected
       _pendingListeners.add(_PendingListener(eventName, handler));
     }
-  }
-
-  void _attachPendingListeners() {
-    for (final listener in _pendingListeners) {
-      _socket?.on(listener.eventName, listener.handler);
-    }
-    _pendingListeners.clear();
   }
 
   void off(String eventName, [void Function(dynamic payload)? handler]) {
@@ -119,15 +156,13 @@ class SocketClient {
     _socket?.emit(eventName, payload);
   }
 
-  void disconnect() {
-    _socket?.disconnect();
-  }
+  // ── Private helpers ───────────────────────────────────────────────────────
 
-  Future<void> dispose() async {
-    _socket?.dispose();
-    _socket = null;
+  void _attachPendingListeners() {
+    for (final listener in _pendingListeners) {
+      _socket?.on(listener.eventName, listener.handler);
+    }
     _pendingListeners.clear();
-    await _connectErrorController.close();
   }
 }
 

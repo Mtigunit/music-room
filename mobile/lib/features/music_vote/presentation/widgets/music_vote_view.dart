@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:ui';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/widgets/top_toast.dart';
@@ -34,6 +36,11 @@ class MusicVoteView extends StatefulWidget {
 class _MusicVoteViewState extends State<MusicVoteView> {
   bool _showMiniPlayer = false;
 
+  // ── Connectivity monitoring ──────────────────────────────────────────────
+  late final StreamSubscription<List<ConnectivityResult>>
+  _connectivitySubscription;
+  bool _sheetIsOpen = false;
+
   @override
   void initState() {
     super.initState();
@@ -46,12 +53,54 @@ class _MusicVoteViewState extends State<MusicVoteView> {
         unawaited(_setWakeLock(true));
       }
     });
+
+    _connectivitySubscription = Connectivity().onConnectivityChanged.listen(
+      _onConnectivityChanged,
+    );
   }
 
   @override
   void dispose() {
+    unawaited(_connectivitySubscription.cancel());
     unawaited(_setWakeLock(false));
     super.dispose();
+  }
+
+  /// Handles connectivity changes emitted by
+  /// `Connectivity.onConnectivityChanged`.
+  ///
+  /// • On [ConnectivityResult.none] → shows a non-dismissible offline sheet.
+  /// • On any other result          → closes the sheet and reloads the room.
+  void _onConnectivityChanged(List<ConnectivityResult> results) {
+    if (!mounted) return;
+
+    final isOffline = results.every(
+      (r) => r == ConnectivityResult.none,
+    );
+
+    if (isOffline && !_sheetIsOpen) {
+      _sheetIsOpen = true;
+      unawaited(
+        showModalBottomSheet<void>(
+          context: context,
+          isDismissible: false,
+          enableDrag: false,
+          backgroundColor: Colors.transparent,
+          builder: (_) => const _OfflineSheet(),
+        ),
+      );
+    } else if (!isOffline && _sheetIsOpen) {
+      _sheetIsOpen = false;
+      if (!mounted) return;
+      // Close the sheet that is on top of the navigator stack.
+      Navigator.of(context, rootNavigator: true).pop();
+      // Reload the room — loadRoom internally resets _hasJoinedLiveRoom and
+      // re-joins the WebSocket session, so no extra call is needed.
+      final eventId = widget.eventId;
+      if (eventId != null && eventId.isNotEmpty) {
+        unawaited(context.read<MusicVoteCubit>().loadRoom(eventId));
+      }
+    }
   }
 
   void _handleHeroVisibility(VisibilityInfo info) {
@@ -117,6 +166,98 @@ class _MusicVoteViewState extends State<MusicVoteView> {
             state: state,
           );
         },
+      ),
+    );
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────────────
+// Offline sheet (non-dismissible)
+// ────────────────────────────────────────────────────────────────────────────
+
+class _OfflineSheet extends StatelessWidget {
+  const _OfflineSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return PopScope(
+      canPop: false,
+      child: ClipRRect(
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+          child: Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: colorScheme.surface.withValues(alpha: 0.85),
+              border: Border(
+                top: BorderSide(
+                  color: colorScheme.onSurface.withValues(alpha: 0.1),
+                ),
+              ),
+            ),
+            padding: EdgeInsets.only(
+              left: 24,
+              right: 24,
+              top: 24,
+              bottom: MediaQuery.paddingOf(context).bottom + 24,
+            ),
+            child: Row(
+              children: [
+                // Icon
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: colorScheme.error.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.wifi_off_rounded,
+                    color: colorScheme.error,
+                    size: 28,
+                  ),
+                ),
+                const SizedBox(width: 20),
+                // Text
+                Expanded(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Connection Lost',
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(
+                              fontWeight: FontWeight.w700,
+                              color: colorScheme.onSurface,
+                            ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Reconnecting to network...',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: colorScheme.onSurface.withValues(alpha: 0.7),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 16),
+                // Loading
+                SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.5,
+                    color: colorScheme.primary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

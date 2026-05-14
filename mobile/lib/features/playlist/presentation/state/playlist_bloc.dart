@@ -38,6 +38,13 @@ class PlaylistBloc extends Bloc<PlaylistEvent, PlaylistState> {
     on<PlaylistSocketConnected>(_onPlaylistSocketConnected);
     on<PlaylistSocketPayloadReceived>(_onPlaylistSocketPayloadReceived);
     on<PlaylistSyncErrorCleared>(_onPlaylistSyncErrorCleared);
+
+    // Re-join the active playlist room whenever the global socket
+    // (re)connects.  ConnectivityService owns reconnectWithAuth(); this bloc
+    // only reacts to the resulting connection event.
+    _socketConnectedSub = socketClient.onConnected.listen(
+      (_) => add(const PlaylistSocketConnected()),
+    );
   }
 
   final IPlaylistRemoteDataSource _playlistRemoteDataSource;
@@ -46,6 +53,9 @@ class PlaylistBloc extends Bloc<PlaylistEvent, PlaylistState> {
   final SocketClient _socketClient;
 
   StreamSubscription<bool>? _connectivitySubscription;
+  // Manages the socket connected stream; reconnection is owned by
+  // ConnectivityService.
+  StreamSubscription<void>? _socketConnectedSub;
   Timer? _retryTimer;
   int _retryAttempt = 0;
 
@@ -283,7 +293,11 @@ class PlaylistBloc extends Bloc<PlaylistEvent, PlaylistState> {
     _retryAttempt = 0;
 
     emit(state.copyWith(isOffline: false, clearErrorMessage: true));
-    await _ensureSocketConnected();
+
+    // Reconnection is driven by ConnectivityService; only re-attach domain
+    // listeners here so the bloc receives socket events after a network
+    // restore, then fetch fresh data.
+    _reattachSocketListeners();
     await _fetchAndReplace(emit, isReconnect: true);
   }
 
@@ -530,13 +544,13 @@ class PlaylistBloc extends Bloc<PlaylistEvent, PlaylistState> {
     add(PlaylistConnectivityChanged(isOnline: isOnlineNow));
   }
 
-  Future<void> _ensureSocketConnected() async {
-    // Remove all previously registered listeners before re-attaching, so we
-    // never accumulate duplicate handlers across reconnects.
+  /// Re-attaches only domain-specific socket event listeners.
+  ///
+  /// The 'connect' lifecycle is handled via [SocketClient.onConnected]
+  /// subscribed in the constructor — it must not be registered here to avoid
+  /// duplicate handlers.
+  void _reattachSocketListeners() {
     _detachSocketListeners();
-
-    _socketClient.on('connect', (_) => add(const PlaylistSocketConnected()));
-
     for (final event in const [
       SocketEvent.playlistTrackAdded,
       SocketEvent.playlistTrackRemoved,
@@ -551,8 +565,6 @@ class PlaylistBloc extends Bloc<PlaylistEvent, PlaylistState> {
         );
       });
     }
-
-    await _socketClient.reconnectWithAuth();
   }
 
   Future<void> _joinActivePlaylistRoom() async {
@@ -730,7 +742,6 @@ class PlaylistBloc extends Bloc<PlaylistEvent, PlaylistState> {
 
   void _detachSocketListeners() {
     _socketClient
-      ..off('connect')
       ..off(SocketEvent.playlistTrackAdded.value)
       ..off(SocketEvent.playlistTrackRemoved.value)
       ..off(SocketEvent.playlistTrackReordered.value);
@@ -742,6 +753,7 @@ class PlaylistBloc extends Bloc<PlaylistEvent, PlaylistState> {
     // never fire after the bloc is closed.
     _retryTimer?.cancel();
     await _connectivitySubscription?.cancel();
+    await _socketConnectedSub?.cancel();
     _detachSocketListeners();
     return super.close();
   }
