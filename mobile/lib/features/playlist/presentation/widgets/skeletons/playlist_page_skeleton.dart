@@ -1,10 +1,16 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:music_room/core/widgets/responsive_layout.dart';
 import 'package:music_room/core/widgets/skeleton_box.dart';
 
 class PlaylistPageSkeleton extends StatefulWidget {
-  const PlaylistPageSkeleton({super.key});
+  const PlaylistPageSkeleton({
+    super.key,
+    this.screenSize = ScreenSize.compact,
+  });
+
+  final ScreenSize screenSize;
 
   @override
   State<PlaylistPageSkeleton> createState() => _PlaylistPageSkeletonState();
@@ -17,10 +23,13 @@ class _PlaylistPageSkeletonState extends State<PlaylistPageSkeleton>
   @override
   void initState() {
     super.initState();
+
     unawaited(
       (_controller = AnimationController(
         vsync: this,
-        duration: const Duration(milliseconds: 1200),
+        duration: const Duration(
+          milliseconds: 1200,
+        ),
       )).repeat(reverse: true),
     );
   }
@@ -37,14 +46,43 @@ class _PlaylistPageSkeletonState extends State<PlaylistPageSkeleton>
       animation: _controller,
       builder: (context, _) {
         final opacity = 0.55 + (_controller.value * 0.35);
-        return ListView.separated(
-          physics: const AlwaysScrollableScrollPhysics(),
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 120),
-          itemCount: 5,
-          separatorBuilder: (_, _) => const SizedBox(height: 12),
-          itemBuilder: (context, index) {
-            return _PlaylistTileSkeleton(opacity: opacity);
-          },
+
+        if (widget.screenSize == ScreenSize.compact) {
+          return ListView.separated(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.fromLTRB(
+              20,
+              12,
+              20,
+              120,
+            ),
+            itemCount: 6,
+            separatorBuilder: (_, _) => const SizedBox(height: 12),
+            itemBuilder: (_, _) => _PlaylistTileSkeleton(
+              opacity: opacity,
+            ),
+          );
+        }
+
+        return GridView.builder(
+          padding: const EdgeInsets.fromLTRB(
+            40,
+            12,
+            40,
+            40,
+          ),
+          itemCount: 6,
+          gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
+            maxCrossAxisExtent: widget.screenSize == ScreenSize.medium
+                ? 300
+                : 340,
+            mainAxisExtent: widget.screenSize == ScreenSize.medium ? 340 : 380,
+            crossAxisSpacing: 24,
+            mainAxisSpacing: 24,
+          ),
+          itemBuilder: (_, _) => _PlaylistGridSkeleton(
+            opacity: opacity,
+          ),
         );
       },
     );
@@ -52,7 +90,9 @@ class _PlaylistPageSkeletonState extends State<PlaylistPageSkeleton>
 }
 
 class _PlaylistTileSkeleton extends StatelessWidget {
-  const _PlaylistTileSkeleton({required this.opacity});
+  const _PlaylistTileSkeleton({
+    required this.opacity,
+  });
 
   final double opacity;
 
@@ -124,6 +164,91 @@ class _PlaylistTileSkeleton extends StatelessWidget {
                         opacity: opacity,
                         width: 72,
                         height: 22,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PlaylistGridSkeleton extends StatelessWidget {
+  const _PlaylistGridSkeleton({
+    required this.opacity,
+  });
+
+  final double opacity;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return Material(
+      color: Theme.of(context).cardColor,
+      borderRadius: BorderRadius.circular(20),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: colorScheme.onSurface.withValues(alpha: 0.08),
+          ),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: SkeletonBox(
+                opacity: opacity,
+                width: double.infinity,
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(20),
+                  topRight: Radius.circular(20),
+                ),
+              ),
+            ),
+
+            Padding(
+              padding: const EdgeInsets.all(18),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  SkeletonBox(
+                    opacity: opacity,
+                    height: 18,
+                    width: double.infinity,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+
+                  const SizedBox(height: 10),
+
+                  SkeletonBox(
+                    opacity: opacity,
+                    height: 14,
+                    width: 140,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  Row(
+                    children: [
+                      SkeletonBox(
+                        opacity: opacity,
+                        width: 54,
+                        height: 24,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
+                      const SizedBox(width: 8),
+                      SkeletonBox(
+                        opacity: opacity,
+                        width: 72,
+                        height: 24,
                         borderRadius: BorderRadius.circular(999),
                       ),
                     ],
