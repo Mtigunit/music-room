@@ -31,6 +31,7 @@ import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
 import { InviteUserDto } from './dto/invite-user.dto';
 import { AppendedTrackDto } from './dto/append-tracks.dto';
+import { EventQueryDto } from './dto/event-query.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ClientMeta } from '../common/decorators/client-meta.decorator';
 import { ClientMetaDto } from '../common/dto/client-meta.dto';
@@ -91,6 +92,30 @@ export class EventsController {
   ) {
     const userId = (req.user as { id: string }).id;
     return this.eventsService.findAll(userId, { page, limit, search });
+  }
+
+  @Get('explore')
+  @ApiOperation({
+    summary: 'Explore events',
+    description:
+      'Returns events that are either PUBLIC, hosted by the user, or where the user is invited. Filterable by status and tags.',
+  })
+  @ApiResponse({ status: 200, description: 'List of events found.' })
+  findExplore(@Query() query: EventQueryDto, @Req() req: Request) {
+    const userId = (req.user as { id: string }).id;
+    return this.eventsService.findExplore(userId, query);
+  }
+
+  @Get('friends')
+  @ApiOperation({
+    summary: "Get friends' events",
+    description:
+      'Returns events created by mutual friends that are PUBLIC, or any event the user is invited to. Filterable by status and tags.',
+  })
+  @ApiResponse({ status: 200, description: 'List of friends events found.' })
+  findFriendsEvents(@Query() query: EventQueryDto, @Req() req: Request) {
+    const userId = (req.user as { id: string }).id;
+    return this.eventsService.findFriendsEvents(userId, query);
   }
 
   @Get('hosting')

@@ -10,6 +10,8 @@ import {
 } from '@nestjs/common';
 import { CreateEventDto } from './dto/create-event.dto';
 import { UpdateEventDto } from './dto/update-event.dto';
+import { EventQueryDto } from './dto/event-query.dto';
+
 import { EventsRepository } from './events.repository';
 import { EventsGateway } from './events.gateway';
 import { AUDIT_LOG_EVENT, AuditAction } from '../audit-log/audit-log.constants';
@@ -154,6 +156,14 @@ export class EventsService {
     options: { page: number; limit: number; search?: string },
   ) {
     return this.eventsRepository.findAll(userId, options);
+  }
+
+  findExplore(userId: string, query: EventQueryDto) {
+    return this.eventsRepository.findExplore(userId, query);
+  }
+
+  findFriendsEvents(userId: string, query: EventQueryDto) {
+    return this.eventsRepository.findFriendsEvents(userId, query);
   }
 
   findHosting(
