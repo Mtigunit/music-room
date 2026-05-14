@@ -88,6 +88,7 @@ export class EventsRepository {
           select: { id: true },
         },
         tracks: {
+          where: { status: { not: TrackStatus.ENDED } }, // ✅ sibling of include
           include: { track: true },
           take: 10,
           orderBy: [{ voteScore: 'desc' }, { id: 'asc' }],
@@ -594,7 +595,10 @@ export class EventsRepository {
   }
 
   async getTracks(eventId: string, skip: number, take: number, userId: string) {
-    const where: Prisma.EventTrackWhereInput = { eventId };
+    const where: Prisma.EventTrackWhereInput = {
+      eventId,
+      status: { not: TrackStatus.ENDED },
+    };
 
     const [tracks, total] = await Promise.all([
       this.prisma.eventTrack.findMany({
