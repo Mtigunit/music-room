@@ -92,7 +92,20 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
   }) : _repository = repository,
        _socketClient = socketClient,
        _currentUserId = userId,
-       super(const MusicVoteState());
+       super(const MusicVoteState()) {
+    // Re-join the event room whenever the global socket (re)connects.
+    // ConnectivityService is the sole owner of reconnectWithAuth(); this
+    // cubit only reacts to the resulting connection event.
+    _socketConnectedSub = socketClient.onConnected.listen((_) {
+      _hasJoinedLiveRoom = false;
+      unawaited(_joinEventRoom());
+    });
+    // Clear the join flag on disconnect so the next onConnected fires a
+    // fresh join instead of being blocked by a stale true value.
+    _socketDisconnectedSub = socketClient.onDisconnected.listen((_) {
+      _hasJoinedLiveRoom = false;
+    });
+  }
 
   final MusicVoteRepository _repository;
   final SocketClient _socketClient;
@@ -100,6 +113,10 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
   String? _activeEventId;
   bool _socketListenersAttached = false;
   bool _hasJoinedLiveRoom = false;
+
+  // ── Socket lifecycle subscriptions (reconnect in ConnectivityService) ──
+  StreamSubscription<void>? _socketConnectedSub;
+  StreamSubscription<void>? _socketDisconnectedSub;
 
   /// Tracks in-flight vote attempts: trackId → intended voteType ('up'|'none').
   /// The UI is NOT updated until the server confirms via [track:vote_updated].
@@ -121,11 +138,20 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
   }
 
   /// Loads the event details and queued tracks concurrently.
+  ///
+  /// Socket reconnection is NOT triggered here — `ConnectivityService` owns
+  /// that responsibility.  This method attaches domain listeners and attempts
+  /// a room join if the socket is already connected; if not, the
+  /// `onConnected` subscription (set up in the constructor) will join once the
+  /// socket comes online.
   Future<void> loadRoom(String eventId) async {
     _activeEventId = eventId;
     _hasJoinedLiveRoom = false;
     emit(state.copyWith(isLoading: true, clearError: true));
-    await _ensureSocketConnected();
+
+    // Attach domain-specific socket event listeners. Reconnection is handled
+    // globally by ConnectivityService — never call reconnectWithAuth() here.
+    _attachSocketListeners();
 
     try {
       final results = await Future.wait([
@@ -244,7 +270,7 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
     emit(state.copyWith(isStartingEvent: true, clearError: true));
 
     _activeEventId = eventId;
-    await _ensureSocketConnected();
+    _attachSocketListeners();
 
     if (!_socketClient.isConnected) {
       if (isClosed) return;
@@ -282,7 +308,7 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
     emit(state.copyWith(isEndingEvent: true, clearError: true));
 
     _activeEventId = eventId;
-    await _ensureSocketConnected();
+    _attachSocketListeners();
 
     if (!_socketClient.isConnected) {
       if (isClosed) return;
@@ -358,17 +384,15 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
     );
   }
 
-  Future<void> _ensureSocketConnected() async {
-    _attachSocketListeners();
-    await _socketClient.reconnectWithAuth();
-  }
-
+  /// Attaches domain-specific socket event listeners.
+  ///
+  /// The 'connect' lifecycle event is handled via [SocketClient.onConnected]
+  /// (subscribed in the constructor) — it must not be registered here to
+  /// avoid duplicate handlers and to guarantee it fires even when this method
+  /// hasn't been called yet.
   void _attachSocketListeners() {
     _detachSocketListeners();
     _socketClient
-      ..on(SocketEvent.connected.value, (_) {
-        unawaited(_joinEventRoom());
-      })
       ..on(SocketEvent.eventStarted.value, _handleEventStarted)
       ..on(SocketEvent.eventEnded.value, _handleEventEnded)
       ..on(SocketEvent.eventStatus.value, _handleEventStatus)
@@ -386,7 +410,6 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
   void _detachSocketListeners() {
     if (!_socketListenersAttached) return;
     _socketClient
-      ..off(SocketEvent.connected.value)
       ..off(SocketEvent.eventStarted.value)
       ..off(SocketEvent.eventEnded.value)
       ..off(SocketEvent.eventStatus.value)
@@ -543,13 +566,35 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
       clearTrack = true;
     }
 
+    // Remove the previous track from the queue when the current track
+    // actually changes (i.e. a new song started, not just pause/resume).
+    final previousTrack = state.currentTrack;
+    final trackChanged =
+        newTrack != null &&
+        previousTrack != null &&
+        previousTrack.id != newTrack.id;
+
+    var updatedTracks = state.tracks;
+    if (trackChanged) {
+      updatedTracks = state.tracks
+          .where((t) => t.id != previousTrack.id)
+          .toList();
+    }
+
     emit(
       state.copyWith(
         playbackStatus: status is String && status.isNotEmpty ? status : null,
         currentTrack: newTrack,
         clearCurrentTrack: clearTrack,
+        tracks: updatedTracks,
       ),
     );
+
+    // Re-sort so the new current track is pinned to the top immediately.
+    final sortedTracks = List<EventTrackModel>.from(state.tracks);
+    _sortTracks(sortedTracks);
+    if (isClosed) return;
+    emit(state.copyWith(tracks: sortedTracks));
 
     _schedulePlaybackAutoAdvance();
   }
@@ -644,23 +689,47 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
   }
 
   void _sortTracks(List<EventTrackModel> tracks) {
+    final currentId = state.currentTrack?.id;
     tracks.sort((a, b) {
+      // Pin the currently playing track to the top, regardless of vote score.
+      if (currentId != null) {
+        if (a.id == currentId) return -1;
+        if (b.id == currentId) return 1;
+      }
+      // All other tracks sort by voteScore descending.
       final voteDiff = b.voteScore.compareTo(a.voteScore);
       if (voteDiff != 0) return voteDiff;
-      // Tie breaker by id length or lexicographical
-      // (a fallback since addedAt doesn't exist on this model).
+      // Tie-breaker: stable lexicographical order by id.
       return a.id.compareTo(b.id);
     });
   }
 
   Future<void> _joinEventRoom() async {
-    if (_hasJoinedLiveRoom) return;
+    debugPrint(
+      'DEBUG: _joinEventRoom called — '
+      '_hasJoinedLiveRoom=$_hasJoinedLiveRoom '
+      'event=${state.event?.id} '
+      'status=${state.event?.status} '
+      'socketConnected=${_socketClient.isConnected}',
+    );
+
+    if (_hasJoinedLiveRoom) {
+      return;
+    }
     final event = state.event;
-    if (event == null) return;
-    if (event.status != 'LIVE') return;
+    if (event == null) {
+      return;
+    }
+    if (event.status != 'LIVE') {
+      return;
+    }
     final eventId = _activeEventId ?? event.id;
-    if (eventId.isEmpty) return;
-    if (!_socketClient.isConnected) return;
+    if (eventId.isEmpty) {
+      return;
+    }
+    if (!_socketClient.isConnected) {
+      return;
+    }
 
     final eventName = _isHost
         ? SocketEvent.eventHostJoin.value
@@ -825,10 +894,12 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
   }
 
   @override
-  Future<void> close() {
+  Future<void> close() async {
     final eventId = _activeEventId ?? state.event?.id;
     debugPrint('👋 [MusicVoteCubit] Closing with eventId: $eventId');
     _autoAdvanceTimer?.cancel();
+    await _socketConnectedSub?.cancel();
+    await _socketDisconnectedSub?.cancel();
     if (eventId != null && eventId.isNotEmpty) {
       leaveEvent(eventId);
     }

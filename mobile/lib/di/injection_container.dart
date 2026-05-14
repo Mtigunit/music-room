@@ -76,7 +76,6 @@ class InjectionContainer {
     );
     _searchQueryService = SearchQueryService();
     _googleAuthService = GoogleAuthService();
-    _connectivityService = ConnectivityService();
     _clientMetaService = ClientMetaService(
       sharedPreferences: sharedPreferences,
     );
@@ -94,11 +93,14 @@ class InjectionContainer {
       tokenStorage: _tokenStorageService,
       clientMetaService: _clientMetaService,
     );
+    // SocketClient must be created before ConnectivityService because
+    // ConnectivityService owns the socket reconnection lifecycle.
     _socketClient = SocketClient(
       baseUrl: AppConfig.apiBaseUrl,
       tokenProvider: _tokenStorageService.getToken,
       clientMetaService: _clientMetaService,
     );
+    _connectivityService = ConnectivityService(socketClient: _socketClient);
 
     _notificationsService = NotificationsService(
       apiClient: _apiClient,
