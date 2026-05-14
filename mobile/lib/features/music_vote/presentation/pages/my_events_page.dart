@@ -7,7 +7,6 @@ import 'package:music_room/core/widgets/empty_state_widget.dart';
 import 'package:music_room/core/widgets/premium_segmented_tab_bar.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
-import 'package:music_room/features/auth/presentation/state/auth_state.dart';
 import 'package:music_room/features/events/data/datasources/event_remote_datasource.dart';
 import 'package:music_room/features/events/presentation/pages/create_event_page.dart';
 import 'package:music_room/features/music_vote/data/models/my_event_item.dart';
@@ -380,10 +379,5 @@ Future<void> _enterRoom(BuildContext context, MyEventItem event) async {
 }
 
 String? _currentUserId(BuildContext context) {
-  final authState = context.read<AuthBloc>().state;
-  if (authState is AuthAuthenticated) return authState.user.id;
-  if (authState is LoginSuccess) return authState.user.id;
-  if (authState is RegisterSuccess) return authState.user.id;
-  if (authState is GoogleLoginSuccess) return authState.user.id;
-  return null;
+  return context.read<AuthBloc>().state.currentUser?.id;
 }

@@ -34,6 +34,26 @@ class MusicVoteView extends StatefulWidget {
 class _MusicVoteViewState extends State<MusicVoteView> {
   bool _showMiniPlayer = false;
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final state = context.read<MusicVoteCubit>().state;
+      final shouldKeepAwake =
+          state.playbackStatus == 'PLAYING' && state.currentTrack != null;
+      if (shouldKeepAwake) {
+        unawaited(_setWakeLock(true));
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    unawaited(_setWakeLock(false));
+    super.dispose();
+  }
+
   void _handleHeroVisibility(VisibilityInfo info) {
     final shouldShow = info.visibleFraction < 0.1;
     if (shouldShow != _showMiniPlayer) {
@@ -180,7 +200,11 @@ class _LoadedScaffold extends StatelessWidget {
                   ),
                 ),
                 SliverToBoxAdapter(
-                  child: SizedBox(height: showMiniPlayer ? 104 : 24),
+                  child: SizedBox(
+                    height: showMiniPlayer && state.currentTrack != null
+                        ? 104
+                        : 24,
+                  ),
                 ),
               ],
             ),

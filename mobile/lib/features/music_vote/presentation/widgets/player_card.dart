@@ -125,6 +125,9 @@ class _PlayerCardState extends State<PlayerCard> {
     return BlocBuilder<MusicVoteCubit, MusicVoteState>(
       buildWhen: (prev, curr) =>
           prev.currentTrack?.id != curr.currentTrack?.id ||
+          prev.currentTrack?.title != curr.currentTrack?.title ||
+          prev.currentTrack?.thumbnailUrl != curr.currentTrack?.thumbnailUrl ||
+          prev.currentTrack?.durationMs != curr.currentTrack?.durationMs ||
           prev.playbackStatus != curr.playbackStatus ||
           prev.currentTrack?.pausedPlaybackPositionMs !=
               curr.currentTrack?.pausedPlaybackPositionMs ||
