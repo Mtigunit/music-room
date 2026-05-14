@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/widgets/app_button.dart';
 import 'package:music_room/core/widgets/empty_state_widget.dart';
@@ -563,6 +564,7 @@ class _PlaylistGridCard extends StatefulWidget {
 
 class _PlaylistGridCardState extends State<_PlaylistGridCard> {
   bool _isHovered = false;
+  bool _isFocused = false;
 
   @override
   Widget build(BuildContext context) {
@@ -579,132 +581,161 @@ class _PlaylistGridCardState extends State<_PlaylistGridCard> {
       onExit: (_) {
         setState(() => _isHovered = false);
       },
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-              color: _isHovered
-                  ? colorScheme.primary.withValues(alpha: 0.3)
-                  : colorScheme.onSurface.withValues(alpha: 0.08),
-            ),
-            color: Theme.of(context).cardColor,
+      child: FocusableActionDetector(
+        shortcuts: <LogicalKeySet, Intent>{
+          LogicalKeySet(LogicalKeyboardKey.enter): const ActivateIntent(),
+          LogicalKeySet(LogicalKeyboardKey.space): const ActivateIntent(),
+        },
+        actions: <Type, Action<Intent>>{
+          ActivateIntent: CallbackAction<ActivateIntent>(
+            onInvoke: (intent) {
+              widget.onTap();
+              return null;
+            },
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Stack(
-                  children: [
-                    Container(
-                      decoration: BoxDecoration(
-                        borderRadius: const BorderRadius.only(
-                          topLeft: Radius.circular(16),
-                          topRight: Radius.circular(16),
-                        ),
-                        color: colorScheme.secondary.withValues(alpha: 0.75),
-                      ),
-                      child: hasThumbnail
-                          ? ClipRRect(
-                              borderRadius: const BorderRadius.only(
-                                topLeft: Radius.circular(16),
-                                topRight: Radius.circular(16),
-                              ),
-                              child: Image.network(
-                                widget.playlist.thumbnailUrl!,
-                                fit: BoxFit.cover,
-                                loadingBuilder:
-                                    (context, child, loadingProgress) {
-                                      if (loadingProgress == null) return child;
-                                      return SizedBox.expand(
-                                        child: ColoredBox(
-                                          color: colorScheme.onSurface
-                                              .withValues(alpha: 0.04),
-                                          child: const Center(
-                                            child: SizedBox(
-                                              width: 24,
-                                              height: 24,
-                                              child: CircularProgressIndicator(
-                                                strokeWidth: 2,
+        },
+        onShowFocusHighlight: (focused) => setState(() => _isFocused = focused),
+        onShowHoverHighlight: (hovering) =>
+            setState(() => _isHovered = hovering),
+        child: Semantics(
+          button: true,
+          focusable: true,
+          onTap: widget.onTap,
+          child: GestureDetector(
+            onTap: widget.onTap,
+            child: Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(
+                  color: (_isHovered || _isFocused)
+                      ? colorScheme.primary.withValues(alpha: 0.3)
+                      : colorScheme.onSurface.withValues(alpha: 0.08),
+                ),
+                color: Theme.of(context).cardColor,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Stack(
+                      children: [
+                        Container(
+                          decoration: BoxDecoration(
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(16),
+                              topRight: Radius.circular(16),
+                            ),
+                            color: colorScheme.secondary.withValues(
+                              alpha: 0.75,
+                            ),
+                          ),
+                          child: hasThumbnail
+                              ? ClipRRect(
+                                  borderRadius: const BorderRadius.only(
+                                    topLeft: Radius.circular(16),
+                                    topRight: Radius.circular(16),
+                                  ),
+                                  child: Image.network(
+                                    widget.playlist.thumbnailUrl!,
+                                    fit: BoxFit.cover,
+                                    loadingBuilder:
+                                        (context, child, loadingProgress) {
+                                          if (loadingProgress == null) {
+                                            return child;
+                                          }
+                                          return SizedBox.expand(
+                                            child: ColoredBox(
+                                              color: colorScheme.onSurface
+                                                  .withValues(alpha: 0.04),
+                                              child: const Center(
+                                                child: SizedBox(
+                                                  width: 24,
+                                                  height: 24,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                        strokeWidth: 2,
+                                                      ),
+                                                ),
                                               ),
                                             ),
-                                          ),
-                                        ),
-                                      );
-                                    },
-                                errorBuilder: (_, _, _) => Center(
+                                          );
+                                        },
+                                    errorBuilder: (_, _, _) => Center(
+                                      child: Icon(
+                                        Icons.queue_music,
+                                        size: 48,
+                                        color: colorScheme.primary,
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              : Center(
                                   child: Icon(
                                     Icons.queue_music,
                                     size: 48,
                                     color: colorScheme.primary,
                                   ),
                                 ),
-                              ),
-                            )
-                          : Center(
-                              child: Icon(
-                                Icons.queue_music,
-                                size: 48,
-                                color: colorScheme.primary,
-                              ),
-                            ),
-                    ),
-                    if (_isHovered)
-                      Container(
-                        decoration: BoxDecoration(
-                          borderRadius: const BorderRadius.only(
-                            topLeft: Radius.circular(16),
-                            topRight: Radius.circular(16),
-                          ),
-                          color: Colors.black.withValues(alpha: 0.3),
                         ),
-                        child: Center(
-                          child: Container(
-                            padding: const EdgeInsets.all(12),
+                        if (_isHovered)
+                          Container(
                             decoration: BoxDecoration(
-                              color: colorScheme.primary,
-                              shape: BoxShape.circle,
+                              borderRadius: const BorderRadius.only(
+                                topLeft: Radius.circular(16),
+                                topRight: Radius.circular(16),
+                              ),
+                              color: Colors.black.withValues(alpha: 0.3),
                             ),
-                            child: Icon(
-                              Icons.play_arrow,
-                              color: colorScheme.onPrimary,
-                              size: 24,
+                            child: Center(
+                              child: Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: colorScheme.primary,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: Icon(
+                                  Icons.play_arrow,
+                                  color: colorScheme.onPrimary,
+                                  size: 24,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  Padding(
+                    padding: const EdgeInsets.all(16),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          widget.playlist.name,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            height: 1.2,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '${widget.playlist.trackCount} tracks • '
+                          '${widget.playlist.visibility.toLowerCase()}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: textTheme.bodySmall?.copyWith(
+                            color: colorScheme.onSurface.withValues(
+                              alpha: 0.65,
                             ),
                           ),
                         ),
-                      ),
-                  ],
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.playlist.name,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                      style: textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        height: 1.2,
-                      ),
+                      ],
                     ),
-                    const SizedBox(height: 8),
-                    Text(
-                      '${widget.playlist.trackCount} tracks • '
-                      '${widget.playlist.visibility.toLowerCase()}',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurface.withValues(alpha: 0.65),
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
