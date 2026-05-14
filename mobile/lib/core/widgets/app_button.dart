@@ -81,9 +81,12 @@ class AppButton extends StatelessWidget {
         ),
       ),
       // Keep max width unconstrained so non-expanded buttons can
-      // shrink-wrap to their content. Only limit the max height when
-      // `expand` is true (allowing infinite height if no explicit
-      // `height` was provided).
+      // shrink-wrap to their content.
+      // For `maximumSize` (WidgetStatePropertyAll):
+      // - When `expand` is true the max height is allowed to be infinite (so
+      //   the button can expand to the provided `height` or fill available
+      //   space).
+      // - When `expand` is false the max height is capped to `height ?? 48`.
       maximumSize: WidgetStatePropertyAll(
         Size(
           double.infinity,

@@ -361,7 +361,6 @@ class _PlaylistPageState extends State<PlaylistPage> {
                             children: [
                               PremiumSegmentedTabBar(
                                 width: 340,
-                                // height: 48,
                                 margin: EdgeInsets.zero,
                                 onTap: (_) => unawaited(_loadPlaylists()),
                                 tabs: const [
@@ -376,8 +375,6 @@ class _PlaylistPageState extends State<PlaylistPage> {
                                   height: 40,
                                   borderRadius: 999,
                                   gradient: const LinearGradient(
-                                    // begin: Alignment.centerLeft,
-                                    // end: Alignment.centerRight,
                                     colors: [
                                       Color(0xFF8B3DFF),
                                       Color(0xFF6F2CFF),
