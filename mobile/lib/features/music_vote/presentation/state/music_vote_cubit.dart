@@ -114,8 +114,10 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
 
   /// Whether the current user is the host of the active event.
   bool get _isHost {
-    final hostId = state.event?.hostId;
-    return hostId != null && hostId.isNotEmpty && hostId == _currentUserId;
+    final event = state.event;
+    final hostId = event?.hostId;
+    return (event?.isHost ?? false) ||
+        (hostId != null && hostId.isNotEmpty && hostId == _currentUserId);
   }
 
   /// Loads the event details and queued tracks concurrently.
@@ -315,11 +317,7 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
   void leaveEvent(String eventId) {
     if (eventId.isEmpty || !_socketClient.isConnected) return;
 
-    final hostId = state.event?.hostId;
-    final isHost =
-        hostId != null && hostId.isNotEmpty && hostId == _currentUserId;
-
-    final eventName = isHost
+    final eventName = _isHost
         ? SocketEvent.eventHostLeave.value
         : SocketEvent.eventLeave.value;
 
@@ -664,9 +662,7 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
     if (eventId.isEmpty) return;
     if (!_socketClient.isConnected) return;
 
-    final hostId = event.hostId;
-    final isHost = hostId.isNotEmpty && hostId == _currentUserId;
-    final eventName = isHost
+    final eventName = _isHost
         ? SocketEvent.eventHostJoin.value
         : SocketEvent.eventJoin.value;
 

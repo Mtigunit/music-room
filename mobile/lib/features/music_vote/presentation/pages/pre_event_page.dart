@@ -47,7 +47,8 @@ class PreEventPage extends StatelessWidget {
         listenWhen: (prev, curr) =>
             prev.event?.status != 'LIVE' && curr.event?.status == 'LIVE',
         listener: (context, state) {
-          final isHost = state.event?.hostId == userId;
+          final isHost =
+              (state.event?.isHost ?? false) || (state.event?.hostId == userId);
           if (isHost) {
             unawaited(
               Navigator.of(context).push(
@@ -78,7 +79,7 @@ class PreEventPage extends StatelessWidget {
           }
 
           final event = state.event!;
-          final isHost = userId == event.hostId;
+          final isHost = event.isHost || (userId == event.hostId);
 
           if (isHost) {
             return HostEventInfoView(event: event, tracks: state.tracks);
