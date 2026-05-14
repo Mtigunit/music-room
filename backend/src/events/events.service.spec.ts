@@ -345,7 +345,7 @@ describe('EventsService', () => {
         currentTrackId: 't-1',
       } as any);
 
-      const result = await service.play(eventId, hostId);
+      const result = await service.play(eventId, hostId, 'deviceId');
 
       expect(result.status).toBe('PLAYING');
     });
@@ -419,7 +419,7 @@ describe('EventsService', () => {
         currentTrackId: 't-1',
       } as any);
 
-      const result = await service.pause(eventId, hostId);
+      const result = await service.pause(eventId, hostId, 'device');
 
       expect(result.status).toBe('PAUSED');
     });
@@ -477,14 +477,13 @@ describe('EventsService', () => {
       jest.spyOn(repository, 'findById').mockResolvedValue({
         id: eventId,
         hostId,
+        currentTrackId: 'track-1',
       } as any);
       jest.spyOn(repository, 'advanceQueue').mockResolvedValue({
         event: { currentTrackId: 't-2' },
-        nextTrackId: 't-2',
       } as any);
 
-      const result = await service.next(eventId, hostId, null);
-
+      const result = await service.next(eventId, hostId, 'track-1', 'deviceId');
       expect(result.currentTrackId).toBe('t-2');
     });
 
