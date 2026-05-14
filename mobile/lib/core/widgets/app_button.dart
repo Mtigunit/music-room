@@ -161,14 +161,14 @@ class AppButton extends StatelessWidget {
               ).copyWith(
                 backgroundColor: WidgetStateProperty.resolveWith(
                   (states) {
-                    if (gradient != null) {
-                      return Colors.transparent;
-                    }
-
                     if (states.contains(
                       WidgetState.disabled,
                     )) {
                       return disabledBackgroundColor;
+                    }
+
+                    if (gradient != null) {
+                      return Colors.transparent;
                     }
 
                     return backgroundColor ?? colorScheme.primary;
@@ -215,7 +215,9 @@ class AppButton extends StatelessWidget {
         );
     }
 
-    if (gradient != null && variant == AppButtonVariant.filled) {
+    if (gradient != null &&
+        variant == AppButtonVariant.filled &&
+        resolvedOnPressed != null) {
       return Container(
         width: width,
         height: height,
