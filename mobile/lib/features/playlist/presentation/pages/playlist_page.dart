@@ -266,9 +266,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
                           const SizedBox(height: 10),
                           Expanded(
                             child: _isLoading
-                                ? const PlaylistPageSkeleton(
-                                    // screenSize: ScreenSize.compact,
-                                  )
+                                ? const PlaylistPageSkeleton()
                                 : _errorMessage != null
                                 ? EmptyStateWidget(
                                     icon: Icons.error_outline,
@@ -563,25 +561,8 @@ class _PlaylistGridCard extends StatefulWidget {
   State<_PlaylistGridCard> createState() => _PlaylistGridCardState();
 }
 
-class _PlaylistGridCardState extends State<_PlaylistGridCard>
-    with SingleTickerProviderStateMixin {
+class _PlaylistGridCardState extends State<_PlaylistGridCard> {
   bool _isHovered = false;
-  late AnimationController _animationController;
-
-  @override
-  void initState() {
-    super.initState();
-    _animationController = AnimationController(
-      duration: const Duration(milliseconds: 200),
-      vsync: this,
-    );
-  }
-
-  @override
-  void dispose() {
-    _animationController.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -594,11 +575,9 @@ class _PlaylistGridCardState extends State<_PlaylistGridCard>
     return MouseRegion(
       onEnter: (_) {
         setState(() => _isHovered = true);
-        unawaited(_animationController.forward());
       },
       onExit: (_) {
         setState(() => _isHovered = false);
-        unawaited(_animationController.reverse());
       },
       child: GestureDetector(
         onTap: widget.onTap,
@@ -635,6 +614,25 @@ class _PlaylistGridCardState extends State<_PlaylistGridCard>
                               child: Image.network(
                                 widget.playlist.thumbnailUrl!,
                                 fit: BoxFit.cover,
+                                loadingBuilder:
+                                    (context, child, loadingProgress) {
+                                      if (loadingProgress == null) return child;
+                                      return SizedBox.expand(
+                                        child: ColoredBox(
+                                          color: colorScheme.onSurface
+                                              .withValues(alpha: 0.04),
+                                          child: const Center(
+                                            child: SizedBox(
+                                              width: 24,
+                                              height: 24,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                              ),
+                                            ),
+                                          ),
+                                        ),
+                                      );
+                                    },
                                 errorBuilder: (_, _, _) => Center(
                                   child: Icon(
                                     Icons.queue_music,

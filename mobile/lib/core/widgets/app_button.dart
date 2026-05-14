@@ -80,10 +80,14 @@ class AppButton extends StatelessWidget {
           height ?? 48,
         ),
       ),
+      // Keep max width unconstrained so non-expanded buttons can
+      // shrink-wrap to their content. Only limit the max height when
+      // `expand` is true (allowing infinite height if no explicit
+      // `height` was provided).
       maximumSize: WidgetStatePropertyAll(
         Size(
-          expand ? double.infinity : double.infinity,
-          height ?? double.infinity,
+          double.infinity,
+          expand ? (height ?? double.infinity) : (height ?? 48),
         ),
       ),
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -92,7 +96,6 @@ class AppButton extends StatelessWidget {
         padding ??
             const EdgeInsets.symmetric(
               horizontal: 20,
-              // vertical: 0,
             ),
       ),
       shape: WidgetStatePropertyAll(
