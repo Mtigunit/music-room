@@ -276,7 +276,7 @@ describe('EventsController', () => {
         pagination: { total: 0, page, limit, totalPages: 0 },
       } as any);
 
-      await controller.getInvitedUsers(eventId, mockReq, page, limit);
+      await controller.getInvitedUsers(eventId, mockReq, { page, limit });
 
       expect(spy).toHaveBeenCalledWith(eventId, mockUser.id, { page, limit });
     });
