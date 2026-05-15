@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:music_room/core/config/app_config.dart';
 import 'package:music_room/core/widgets/app_back_button.dart';
 import 'package:music_room/core/widgets/app_button.dart';
+import 'package:music_room/core/widgets/responsive_layout.dart';
 import 'package:music_room/features/playlist/domain/entities/playlist_entity.dart';
 import 'package:music_room/features/profile/domain/entities/profile_entity.dart';
 
@@ -44,160 +45,354 @@ class _ProfileViewState extends State<ProfileView> {
 
   @override
   Widget build(BuildContext context) {
+    return ResponsiveLayout(
+      builder: (context, screenSize) {
+        return switch (screenSize) {
+          ScreenSize.compact => _buildCompact(context),
+          ScreenSize.medium => _buildMedium(context),
+          ScreenSize.expanded => _buildExpanded(context),
+        };
+      },
+    );
+  }
+
+  // ── Shared data accessors ────────────────────────────────────────
+
+  UserProfileEntity get _profile => widget.data.profile;
+  bool get _isOwnProfile => _profile.isSelf;
+  bool get _hasShortBio =>
+      _profile.shortBio != null && _profile.shortBio!.trim().isNotEmpty;
+  String get _roomTabLabel => _isOwnProfile ? 'My Rooms' : 'Rooms';
+  String get _playlistTabLabel => _isOwnProfile ? 'My Playlists' : 'Playlists';
+
+  // ── Compact (< 600px) — original mobile layout ──────────────────
+
+  Widget _buildCompact(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final profile = widget.data.profile;
-    final isOwnProfile = profile.isSelf;
-    final hasShortBio =
-        profile.shortBio != null && profile.shortBio!.trim().isNotEmpty;
-    final roomTabLabel = isOwnProfile ? 'My Rooms' : 'Rooms';
-    final playlistTabLabel = isOwnProfile ? 'My Playlists' : 'Playlists';
-    final rooms = widget.data.hostedRooms;
-    final playlists = widget.data.playlists;
 
-    return Stack(
-      children: [
-        RefreshIndicator(
-          color: colorScheme.primary,
-          onRefresh: widget.onRefresh,
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 920),
-              child: ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                children: [
-                  Row(
+    return _wrapWithBusyOverlay(
+      context,
+      child: RefreshIndicator(
+        color: colorScheme.primary,
+        onRefresh: widget.onRefresh,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+          children: [
+            _buildHeader(context, showLogout: true),
+            const SizedBox(height: 16),
+            _buildHeroCard(),
+            const SizedBox(height: 16),
+            _buildStatsRow(),
+            if (_hasShortBio) ...[
+              const SizedBox(height: 16),
+              _BioCard(bio: _profile.shortBio!.trim()),
+            ],
+            if (_isOwnProfile) ...[
+              const SizedBox(height: 16),
+              _PremiumCard(subscriptionTier: _profile.subscriptionTier),
+            ] else ...[
+              const SizedBox(height: 12),
+            ],
+            const SizedBox(height: 16),
+            _buildSegmentedControl(),
+            const SizedBox(height: 16),
+            _buildTabContent(),
+            if (_isOwnProfile) ...[
+              const SizedBox(height: 16),
+              _PrivateInfoCard(profile: _profile),
+              const SizedBox(height: 16),
+              _GoogleAccountCard(
+                profile: _profile,
+                onAction: widget.onGoogleAccountAction,
+                message: widget.googleAccountMessage,
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Medium (600–1024px) — centered, tighter max-width ───────────
+
+  Widget _buildMedium(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return _wrapWithBusyOverlay(
+      context,
+      child: RefreshIndicator(
+        color: colorScheme.primary,
+        onRefresh: widget.onRefresh,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.fromLTRB(0, 16, 0, 32),
+          children: [
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 680),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      if (!isOwnProfile)
-                        AppBackButton(
-                          color: colorScheme.onSurface,
-                          padding: EdgeInsets.zero,
+                      _buildHeader(context, showLogout: true),
+                      const SizedBox(height: 16),
+                      _buildHeroCard(),
+                      const SizedBox(height: 16),
+                      _buildStatsRow(),
+                      if (_hasShortBio) ...[
+                        const SizedBox(height: 16),
+                        _BioCard(bio: _profile.shortBio!.trim()),
+                      ],
+                      if (_isOwnProfile) ...[
+                        const SizedBox(height: 16),
+                        _PremiumCard(
+                          subscriptionTier: _profile.subscriptionTier,
                         ),
-                      Expanded(
-                        child: Text(
-                          'Profile',
-                          style: theme.textTheme.displaySmall?.copyWith(
-                            fontSize: 28,
-                            fontWeight: FontWeight.w800,
-                          ),
+                      ] else ...[
+                        const SizedBox(height: 12),
+                      ],
+                      const SizedBox(height: 16),
+                      _buildSegmentedControl(),
+                      const SizedBox(height: 16),
+                      _buildTabContent(),
+                      if (_isOwnProfile) ...[
+                        const SizedBox(height: 16),
+                        _PrivateInfoCard(profile: _profile),
+                        const SizedBox(height: 16),
+                        _GoogleAccountCard(
+                          profile: _profile,
+                          onAction: widget.onGoogleAccountAction,
+                          message: widget.googleAccountMessage,
                         ),
-                      ),
-                      if (isOwnProfile && widget.onLogout != null)
-                        IconButton(
-                          tooltip: 'Log out',
-                          onPressed: widget.onLogout,
-                          icon: Icon(
-                            Icons.logout_rounded,
-                            color: colorScheme.onSurface,
-                          ),
-                          splashRadius: 20,
-                        ),
+                      ],
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  _ProfileHeroCard(
-                    profile: profile,
-                    isOwnProfile: isOwnProfile,
-                    onFollowProfile: widget.onFollowProfile,
-                    onEditProfile: widget.onEditProfile,
-                    onChangeAvatar: widget.onChangeAvatar,
-                  ),
-                  const SizedBox(height: 16),
-                  _StatsRow(
-                    roomsCount: widget.data.roomsCount,
-                    followersCount: widget.data.followersCount,
-                    followingCount: widget.data.followingCount,
-                  ),
-                  // Dedicated Bio card moved out of hero
-                  if (hasShortBio) ...[
-                    const SizedBox(height: 16),
-                    _BioCard(
-                      bio: profile.shortBio!.trim(),
-                    ),
-                  ],
-                  if (isOwnProfile) ...[
-                    const SizedBox(height: 16),
-                    _PremiumCard(subscriptionTier: profile.subscriptionTier),
-                  ] else ...[
-                    const SizedBox(height: 12),
-                    // _RelationshipRow(profile: profile),
-                  ],
-                  const SizedBox(height: 16),
-                  _SegmentedControl(
-                    firstLabel: roomTabLabel,
-                    secondLabel: playlistTabLabel,
-                    selectedIndex: _selectedTabIndex,
-                    onChanged: (index) {
-                      setState(() {
-                        _selectedTabIndex = index;
-                      });
-                    },
-                  ),
-                  const SizedBox(height: 16),
-                  AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 220),
-                    switchInCurve: Curves.easeOutCubic,
-                    switchOutCurve: Curves.easeInCubic,
-                    child: _selectedTabIndex == 0
-                        ? _RoomsSection(
-                            key: const ValueKey<String>('rooms'),
-                            rooms: rooms,
-                            isOwnProfile: isOwnProfile,
-                            onOpenRoom: widget.onOpenRoom,
-                          )
-                        : _PlaylistsSection(
-                            key: const ValueKey<String>('playlists'),
-                            playlists: playlists,
-                            isOwnProfile: isOwnProfile,
-                            onOpenPlaylist: widget.onOpenPlaylist,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // ── Expanded (≥ 1024px) — two-column desktop layout ─────────────
+
+  Widget _buildExpanded(BuildContext context) {
+    return _wrapWithBusyOverlay(
+      context,
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1060),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(32, 20, 32, 48),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Left — identity sidebar
+                  SizedBox(
+                    width: 340,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        _buildHeader(
+                          context,
+                          // Nav rail already has logout on desktop.
+                          showLogout: false,
+                        ),
+                        const SizedBox(height: 16),
+                        _buildHeroCard(desktopScale: true),
+                        const SizedBox(height: 16),
+                        _buildStatsRow(),
+                        if (_hasShortBio) ...[
+                          const SizedBox(height: 16),
+                          _BioCard(bio: _profile.shortBio!.trim()),
+                        ],
+                        if (_isOwnProfile) ...[
+                          const SizedBox(height: 16),
+                          _PremiumCard(
+                            subscriptionTier: _profile.subscriptionTier,
                           ),
-                  ),
-                  if (isOwnProfile) ...[
-                    const SizedBox(height: 16),
-                    _PrivateInfoCard(profile: profile),
-                    const SizedBox(height: 16),
-                    _GoogleAccountCard(
-                      profile: profile,
-                      onAction: widget.onGoogleAccountAction,
-                      message: widget.googleAccountMessage,
+                        ],
+                      ],
                     ),
-                  ],
+                  ),
+
+                  const SizedBox(width: 28),
+
+                  // Right — content area
+                  Expanded(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const SizedBox(height: 52),
+                        _buildSegmentedControl(),
+                        const SizedBox(height: 16),
+                        _buildTabContent(),
+                        if (_isOwnProfile) ...[
+                          const SizedBox(height: 16),
+                          _PrivateInfoCard(profile: _profile),
+                          const SizedBox(height: 16),
+                          _GoogleAccountCard(
+                            profile: _profile,
+                            onAction: widget.onGoogleAccountAction,
+                            message: widget.googleAccountMessage,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
                 ],
               ),
             ),
           ),
         ),
-        if (widget.isBusy)
-          Positioned.fill(
-            child: AbsorbPointer(
-              child: ColoredBox(
-                color: colorScheme.surface.withValues(alpha: 0.52),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 220),
-                    child: Card(
-                      elevation: 12,
-                      color: colorScheme.surface,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 18,
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const CircularProgressIndicator(),
-                            const SizedBox(height: 14),
-                            Text(
-                              widget.busyLabel ?? 'Updating profile...',
-                              textAlign: TextAlign.center,
-                              style: theme.textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w700,
-                              ),
+      ),
+    );
+  }
+
+  // ── Shared widget builders ──────────────────────────────────────
+
+  Widget _buildHeader(
+    BuildContext context, {
+    required bool showLogout,
+  }) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Row(
+      children: [
+        if (!_isOwnProfile)
+          AppBackButton(
+            color: colorScheme.onSurface,
+            padding: EdgeInsets.zero,
+          ),
+        Expanded(
+          child: Text(
+            'Profile',
+            style: theme.textTheme.displaySmall?.copyWith(
+              fontSize: 28,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+        if (showLogout && _isOwnProfile && widget.onLogout != null)
+          IconButton(
+            tooltip: 'Log out',
+            onPressed: widget.onLogout,
+            icon: Icon(
+              Icons.logout_rounded,
+              color: colorScheme.onSurface,
+            ),
+            splashRadius: 20,
+          ),
+      ],
+    );
+  }
+
+  Widget _buildHeroCard({bool desktopScale = false}) {
+    return _ProfileHeroCard(
+      profile: _profile,
+      isOwnProfile: _isOwnProfile,
+      onFollowProfile: widget.onFollowProfile,
+      onEditProfile: widget.onEditProfile,
+      onChangeAvatar: widget.onChangeAvatar,
+      avatarRadius: desktopScale ? 56 : 48,
+      usernameFontSize: desktopScale ? 32 : 29,
+    );
+  }
+
+  Widget _buildStatsRow() {
+    return _StatsRow(
+      roomsCount: widget.data.roomsCount,
+      followersCount: widget.data.followersCount,
+      followingCount: widget.data.followingCount,
+    );
+  }
+
+  Widget _buildSegmentedControl() {
+    return _SegmentedControl(
+      firstLabel: _roomTabLabel,
+      secondLabel: _playlistTabLabel,
+      selectedIndex: _selectedTabIndex,
+      onChanged: (index) {
+        setState(() {
+          _selectedTabIndex = index;
+        });
+      },
+    );
+  }
+
+  Widget _buildTabContent() {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 220),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      child: _selectedTabIndex == 0
+          ? _RoomsSection(
+              key: const ValueKey<String>('rooms'),
+              rooms: widget.data.hostedRooms,
+              isOwnProfile: _isOwnProfile,
+              onOpenRoom: widget.onOpenRoom,
+            )
+          : _PlaylistsSection(
+              key: const ValueKey<String>('playlists'),
+              playlists: widget.data.playlists,
+              isOwnProfile: _isOwnProfile,
+              onOpenPlaylist: widget.onOpenPlaylist,
+            ),
+    );
+  }
+
+  /// Busy overlay shown on top during mutations.
+  Widget _wrapWithBusyOverlay(
+    BuildContext context, {
+    required Widget child,
+  }) {
+    if (!widget.isBusy) return child;
+
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Stack(
+      children: [
+        child,
+        Positioned.fill(
+          child: AbsorbPointer(
+            child: ColoredBox(
+              color: colorScheme.surface.withValues(alpha: 0.52),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 220),
+                  child: Card(
+                    elevation: 12,
+                    color: colorScheme.surface,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 18,
+                      ),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const CircularProgressIndicator(),
+                          const SizedBox(height: 14),
+                          Text(
+                            widget.busyLabel ?? 'Updating profile...',
+                            textAlign: TextAlign.center,
+                            style: theme.textTheme.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
@@ -205,6 +400,7 @@ class _ProfileViewState extends State<ProfileView> {
               ),
             ),
           ),
+        ),
       ],
     );
   }
@@ -217,6 +413,8 @@ class _ProfileHeroCard extends StatelessWidget {
     this.onFollowProfile,
     this.onEditProfile,
     this.onChangeAvatar,
+    this.avatarRadius = 48,
+    this.usernameFontSize = 29,
   });
 
   final UserProfileEntity profile;
@@ -224,6 +422,8 @@ class _ProfileHeroCard extends StatelessWidget {
   final VoidCallback? onFollowProfile;
   final VoidCallback? onEditProfile;
   final VoidCallback? onChangeAvatar;
+  final double avatarRadius;
+  final double usernameFontSize;
 
   @override
   Widget build(BuildContext context) {
@@ -300,6 +500,7 @@ class _ProfileHeroCard extends StatelessWidget {
                       _ProfileAvatar(
                         avatarUrl: profile.avatarUrl,
                         username: profile.username,
+                        size: avatarRadius * 2,
                         onTap: isOwnProfile ? onChangeAvatar : null,
                       ),
                       const SizedBox(width: 14),
@@ -313,7 +514,7 @@ class _ProfileHeroCard extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                               style: theme.textTheme.displaySmall?.copyWith(
                                 color: bannerTextColor,
-                                fontSize: 29,
+                                fontSize: usernameFontSize,
                               ),
                             ),
                             const SizedBox(height: 4),
@@ -439,11 +640,13 @@ class _ProfileAvatar extends StatelessWidget {
   const _ProfileAvatar({
     required this.avatarUrl,
     required this.username,
+    this.size = 96,
     this.onTap,
   });
 
   final String? avatarUrl;
   final String username;
+  final double size;
   final VoidCallback? onTap;
 
   @override
@@ -452,8 +655,8 @@ class _ProfileAvatar extends StatelessWidget {
     final imageUrl = _resolveImageUrl(avatarUrl);
 
     final avatar = Container(
-      width: 96,
-      height: 96,
+      width: size,
+      height: size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         border: Border.all(color: Colors.white, width: 3),

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:music_room/features/profile/domain/entities/profile_entity.dart';
 
 /// Abstract repository interface for profile operations
@@ -29,7 +31,7 @@ abstract class ProfileRepository {
   Future<ProfilePageData> unlinkMyGoogleAccount(String userId);
 
   Future<ProfilePageData> uploadMyAvatar(
-    String filePath,
+    Uint8List bytes,
     String fileName,
   );
 

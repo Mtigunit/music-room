@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:music_room/core/widgets/app_snackbar.dart';
 import 'package:music_room/core/widgets/confirmation_dialog.dart';
+import 'package:music_room/core/widgets/responsive_layout.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
 import 'package:music_room/features/auth/presentation/state/auth_event.dart';
@@ -286,15 +287,46 @@ class _ProfilePageBody extends StatelessWidget {
     UserProfileEntity profile,
   ) async {
     final profileBloc = context.read<ProfileBloc>();
-    final request = await showModalBottomSheet<ProfileUpdateRequest>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      builder: (_) => BlocProvider.value(
-        value: profileBloc,
-        child: ProfileEditSheet(profile: profile),
-      ),
+    final width = MediaQuery.of(context).size.width;
+    final isDesktop = width >= ResponsiveLayout.expandedBreakpoint;
+
+    final sheetContent = BlocProvider.value(
+      value: profileBloc,
+      child: ProfileEditSheet(profile: profile),
     );
+
+    final ProfileUpdateRequest? request;
+
+    if (isDesktop) {
+      request = await showDialog<ProfileUpdateRequest>(
+        context: context,
+        builder: (_) => Center(
+          child: Material(
+            color: Colors.transparent,
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(
+                maxWidth: 560,
+                maxHeight: 720,
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(28),
+                child: ColoredBox(
+                  color: Theme.of(context).colorScheme.surface,
+                  child: sheetContent,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    } else {
+      request = await showModalBottomSheet<ProfileUpdateRequest>(
+        context: context,
+        isScrollControlled: true,
+        showDragHandle: true,
+        builder: (_) => sheetContent,
+      );
+    }
 
     if (request == null || !context.mounted) {
       return;
@@ -316,12 +348,21 @@ class _ProfilePageBody extends StatelessWidget {
       maxWidth: 1600,
     );
 
-    if (avatar == null || !context.mounted) {
+    if (avatar == null) {
+      return;
+    }
+
+    final bytes = await avatar.readAsBytes();
+
+    if (!context.mounted) {
       return;
     }
 
     context.read<ProfileBloc>().add(
-      ProfileAvatarUploadRequested(avatar: avatar),
+      ProfileAvatarUploadRequested(
+        bytes: bytes,
+        fileName: avatar.name,
+      ),
     );
   }
 }

@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 import 'package:music_room/core/config/app_config.dart';
 import 'package:music_room/core/network/api_client.dart';
@@ -29,7 +31,7 @@ abstract class IProfileRemoteDataSource {
   Future<UserProfileModel> unlinkGoogleAccount();
 
   Future<UserProfileModel> uploadMyAvatar({
-    required String filePath,
+    required Uint8List bytes,
     required String fileName,
   });
 
@@ -219,15 +221,15 @@ class ProfileRemoteDataSource implements IProfileRemoteDataSource {
 
   @override
   Future<UserProfileModel> uploadMyAvatar({
-    required String filePath,
+    required Uint8List bytes,
     required String fileName,
   }) async {
     try {
       const endpoint = '${AppConfig.myProfileEndpoint}/avatar';
       final formData = FormData.fromMap(
         <String, dynamic>{
-          'avatar': await MultipartFile.fromFile(
-            filePath,
+          'avatar': MultipartFile.fromBytes(
+            bytes,
             filename: fileName,
           ),
         },

@@ -1,5 +1,6 @@
+import 'dart:typed_data';
+
 import 'package:equatable/equatable.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:music_room/features/profile/domain/entities/profile_entity.dart';
 
 abstract class ProfileEvent extends Equatable {
@@ -76,10 +77,14 @@ class ProfileGoogleUnlinkRequested extends ProfileEvent {
 }
 
 class ProfileAvatarUploadRequested extends ProfileEvent {
-  const ProfileAvatarUploadRequested({required this.avatar});
+  const ProfileAvatarUploadRequested({
+    required this.bytes,
+    required this.fileName,
+  });
 
-  final XFile avatar;
+  final Uint8List bytes;
+  final String fileName;
 
   @override
-  List<Object?> get props => [avatar.path, avatar.name];
+  List<Object?> get props => [bytes, fileName];
 }

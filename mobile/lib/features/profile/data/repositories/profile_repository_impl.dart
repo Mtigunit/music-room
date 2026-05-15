@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:music_room/core/services/google_auth_service.dart';
 import 'package:music_room/core/services/google_link_status_service.dart';
 import 'package:music_room/core/services/theme_preference_service.dart';
@@ -182,11 +184,11 @@ class ProfileRepositoryImpl implements ProfileRepository {
 
   @override
   Future<ProfilePageData> uploadMyAvatar(
-    String filePath,
+    Uint8List bytes,
     String fileName,
   ) async {
     await _remoteDataSource.uploadMyAvatar(
-      filePath: filePath,
+      bytes: bytes,
       fileName: fileName,
     );
     return loadMyProfilePage();

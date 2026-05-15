@@ -39,14 +39,19 @@ class _EmailUpdatePageState extends State<EmailUpdatePage> {
     return Scaffold(
       appBar: AppBar(title: const Text('Change email')),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(
-            16,
-            16,
-            16,
-            MediaQuery.viewInsetsOf(context).bottom + 16,
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(
+                24,
+                24,
+                24,
+                MediaQuery.viewInsetsOf(context).bottom + 24,
+              ),
+              child: _buildRequestForm(),
+            ),
           ),
-          child: _buildRequestForm(),
         ),
       ),
     );
