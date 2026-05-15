@@ -34,6 +34,7 @@ import { WS_EVENTS } from './events.constants';
 import { NOTIFICATION_TRIGGER_EVENT } from '../notifications/notifications.constants';
 import type { NotificationTriggerEvent } from '../notifications/notifications.event';
 import { NotificationPayloadType } from '../notifications/dto/notification-payload.dto';
+import { PaginationDto } from '../common/dto/pagination.dto';
 
 export function getPosition(event: {
   playbackStatus: PlaybackStatus;
@@ -419,6 +420,7 @@ export class EventsService {
       skip,
       limit,
       userId,
+      event.status,
     );
 
     return {
@@ -849,5 +851,21 @@ export class EventsService {
         removeOnFail: true,
       },
     );
+  }
+
+  async getInvitedUsers(
+    eventId: string,
+    requesterId: string,
+    pagination: PaginationDto,
+  ) {
+    const event = await this.eventsRepository.findById(eventId);
+    if (!event) throw new NotFoundException('Event not found');
+
+    const isHost = event.hostId === requesterId;
+    if (!isHost) {
+      throw new ForbiddenException('You do not have access to this event');
+    }
+
+    return this.eventsRepository.findInvitedUsers(eventId, pagination);
   }
 }

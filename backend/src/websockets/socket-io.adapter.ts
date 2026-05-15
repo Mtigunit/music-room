@@ -91,7 +91,12 @@ export class RedisIoAdapter extends IoAdapter {
   }
 
   override createIOServer(port: number, options?: ServerOptions): Server {
-    const server = super.createIOServer(port, options) as Server;
+    // const server = super.createIOServer(port, options) as Server;
+    const server = super.createIOServer(port, {
+      ...options,
+      pingInterval: 10000, // send ping every 10s
+      pingTimeout: 5000, // wait 5s for pong before disconnecting
+    }) as Server;
 
     const handshake = this.appContext.get(HandshakeMiddleware);
     server.use(handshake.use());
