@@ -2,6 +2,8 @@ export const INTERNAL_EVENTS = {
   DELEGATION_INVITE_SENT: 'delegation.invite_sent',
 };
 
+export const MAX_VOTES_PER_EVENT = 100;
+
 export const WS_EVENTS = {
   // LISTENER EVENTS
   JOIN: 'event:join',
