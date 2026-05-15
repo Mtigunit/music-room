@@ -7,6 +7,7 @@ import 'package:music_room/core/widgets/form_input_decoration.dart';
 import 'package:music_room/core/widgets/form_section_label.dart';
 import 'package:music_room/core/widgets/form_toggle_row.dart';
 import 'package:music_room/core/widgets/genre_selection_grid.dart';
+import 'package:music_room/core/widgets/responsive_layout.dart';
 import 'package:music_room/features/events/presentation/widgets/selection_card.dart';
 import 'package:music_room/features/playlist/domain/types/playlist_tags.dart';
 import 'package:music_room/features/profile/domain/entities/profile_entity.dart';
@@ -92,6 +93,10 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
     final profileState = context.watch<ProfileBloc>().state;
     final currentProfile = _profileFromState(profileState);
 
+    final isDesktop =
+        MediaQuery.of(context).size.width >=
+        ResponsiveLayout.expandedBreakpoint;
+
     return SafeArea(
       child: BlocListener<ProfileBloc, ProfileState>(
         listenWhen: (previous, current) =>
@@ -111,7 +116,7 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
         child: SingleChildScrollView(
           padding: EdgeInsets.fromLTRB(
             20,
-            12,
+            isDesktop ? 20 : 12,
             20,
             MediaQuery.viewInsetsOf(context).bottom + 20,
           ),
@@ -123,23 +128,39 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Center(
-                      child: Container(
-                        width: 42,
-                        height: 4,
-                        decoration: BoxDecoration(
-                          color: colorScheme.onSurface.withValues(alpha: 0.18),
-                          borderRadius: BorderRadius.circular(999),
+                    // Drag handle — only relevant inside a bottom sheet.
+                    if (!isDesktop)
+                      Center(
+                        child: Container(
+                          width: 42,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: colorScheme.onSurface.withValues(
+                              alpha: 0.18,
+                            ),
+                            borderRadius: BorderRadius.circular(999),
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 20),
+                    if (!isDesktop) const SizedBox(height: 20),
                     Row(
                       children: [
-                        AppBackButton(
-                          color: theme.colorScheme.onSurface,
-                          padding: EdgeInsets.zero,
-                        ),
+                        if (isDesktop)
+                          IconButton(
+                            icon: Icon(
+                              Icons.close_rounded,
+                              color: theme.colorScheme.onSurface,
+                            ),
+                            tooltip: 'Close',
+                            onPressed: () => Navigator.of(context).pop(),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                          )
+                        else
+                          AppBackButton(
+                            color: theme.colorScheme.onSurface,
+                            padding: EdgeInsets.zero,
+                          ),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
@@ -153,8 +174,8 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'Update your account, preferences, and '
-                                'security settings.',
+                                'Update your account, preferences, '
+                                'and security settings.',
                                 style: theme.textTheme.bodyMedium?.copyWith(
                                   color: theme.colorScheme.onSurfaceVariant,
                                 ),

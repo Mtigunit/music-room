@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
@@ -265,7 +266,9 @@ class _PostRegistrationProfilePageState
                 final avatarImage = _avatarUrl != null
                     ? NetworkImage(_avatarUrl!) as ImageProvider<Object>?
                     : (_pickedAvatar != null
-                          ? FileImage(File(_pickedAvatar!.path))
+                          ? (kIsWeb
+                                    ? NetworkImage(_pickedAvatar!.path)
+                                    : FileImage(File(_pickedAvatar!.path)))
                                 as ImageProvider<Object>?
                           : null);
 
@@ -352,11 +355,11 @@ class _PostRegistrationProfilePageState
     });
 
     try {
-      final avatarPath = avatar.path;
+      final bytes = await avatar.readAsBytes();
       final avatarName = avatar.name;
       final profileRepository = InjectionContainer().profileRepository;
       final updated = await profileRepository.uploadMyAvatar(
-        avatarPath,
+        bytes,
         avatarName,
       );
 
@@ -435,8 +438,9 @@ class _PostRegistrationProfilePageState
       }
 
       if (_pickedAvatar != null) {
+        final bytes = await _pickedAvatar!.readAsBytes();
         await profileRepository.uploadMyAvatar(
-          _pickedAvatar!.path,
+          bytes,
           _pickedAvatar!.name,
         );
       }
