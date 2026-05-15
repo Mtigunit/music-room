@@ -265,4 +265,20 @@ describe('EventsController', () => {
       );
     });
   });
+
+  describe('getInvitedUsers', () => {
+    it('should call eventsService.getInvitedUsers with correct parameters', async () => {
+      const eventId = '740777df-e348-40b6-925e-4c0f020cf68c';
+      const page = 1;
+      const limit = 10;
+      const spy = jest.spyOn(service, 'getInvitedUsers').mockResolvedValue({
+        data: [],
+        pagination: { total: 0, page, limit, totalPages: 0 },
+      } as any);
+
+      await controller.getInvitedUsers(eventId, mockReq, { page, limit });
+
+      expect(spy).toHaveBeenCalledWith(eventId, mockUser.id, { page, limit });
+    });
+  });
 });

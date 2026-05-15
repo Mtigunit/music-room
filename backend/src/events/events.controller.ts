@@ -37,6 +37,7 @@ import { ClientMeta } from '../common/decorators/client-meta.decorator';
 import { ClientMetaDto } from '../common/dto/client-meta.dto';
 import { ApiClientMeta } from '../common/decorators/api-client-meta.decorator';
 import type { Request } from 'express';
+import { PaginationDto } from '../common/dto/pagination.dto';
 
 @ApiTags('Events')
 @Controller('events')
@@ -337,5 +338,20 @@ export class EventsController {
       userId,
       meta,
     );
+  }
+
+  @Get(':id/invited')
+  @ApiOperation({ summary: 'Get all users invited to an event' })
+  @ApiParam({ name: 'id', type: String })
+  @ApiResponse({ status: 200, description: 'List of invited users.' })
+  @ApiResponse({ status: 403, description: 'Forbidden. No access to event.' })
+  @ApiResponse({ status: 404, description: 'Event not found.' })
+  getInvitedUsers(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+    @Query() pagination: PaginationDto,
+  ) {
+    const userId = (req.user as { id: string }).id;
+    return this.eventsService.getInvitedUsers(id, userId, pagination);
   }
 }
