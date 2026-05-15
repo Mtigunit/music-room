@@ -213,8 +213,8 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
 
     try {
       final updated = await _profileRepository.uploadMyAvatar(
-        event.avatar.path,
-        event.avatar.name,
+        event.bytes,
+        event.fileName,
       );
       emit(
         ProfileMutationSuccess(
