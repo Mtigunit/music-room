@@ -20,6 +20,7 @@ import { TrackVoteResultDto } from './dto/track-vote-result.dto';
 import {
   TrackNotFoundError,
   TrackNotQueuedError,
+  MaxVotesReachedError,
 } from './track-votes.repository';
 import { WsAuthGuard } from '../websockets/guards/ws-auth.guard';
 import { WsThrottlerGuard } from '../websockets/guards/ws-throttler.guard';
@@ -80,7 +81,8 @@ export class TrackVotesGateway {
     } catch (error) {
       if (
         error instanceof TrackNotFoundError ||
-        error instanceof TrackNotQueuedError
+        error instanceof TrackNotQueuedError ||
+        error instanceof MaxVotesReachedError
       ) {
         throw new WsException(error.message);
       }
