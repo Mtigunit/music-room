@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { TrackStatus } from '@prisma/client';
+import { TrackStatus, SubscriptionTier } from '@prisma/client';
+import { MAX_VOTES_PER_EVENT } from '../events/events.constants';
 
 type VoteDirection = 'up' | 'down' | 'none';
 
@@ -20,6 +21,13 @@ export class TrackNotQueuedError extends Error {
   constructor(message: string) {
     super(message);
     this.name = 'TrackNotQueuedError';
+  }
+}
+
+export class MaxVotesReachedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'MaxVotesReachedError';
   }
 }
 
@@ -84,6 +92,30 @@ export class TrackVotesRepository {
           },
         },
       });
+
+      if (vote !== 'none' && !previousVote) {
+        const user = await tx.user.findUnique({
+          where: { id: userId },
+          select: { subscriptionTier: true },
+        });
+
+        if (user && user.subscriptionTier === SubscriptionTier.BASIC) {
+          const userVoteCount = await tx.vote.count({
+            where: {
+              userId,
+              eventTrack: {
+                eventId,
+              },
+            },
+          });
+
+          if (userVoteCount >= MAX_VOTES_PER_EVENT) {
+            throw new MaxVotesReachedError(
+              'You have reached the maximum number of votes for this event.',
+            );
+          }
+        }
+      }
 
       let scoreDiff = 0;
 
