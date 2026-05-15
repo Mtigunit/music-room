@@ -154,7 +154,10 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
                             tooltip: 'Close',
                             onPressed: () => Navigator.of(context).pop(),
                             padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(),
+                            constraints: const BoxConstraints(
+                              minWidth: 48,
+                              minHeight: 48,
+                            ),
                           )
                         else
                           AppBackButton(
