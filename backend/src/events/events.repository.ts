@@ -88,7 +88,6 @@ export class EventsRepository {
           select: { id: true },
         },
         tracks: {
-          where: { status: { not: TrackStatus.ENDED } }, // ✅ sibling of include
           include: { track: true },
           take: 10,
           orderBy: [{ voteScore: 'desc' }, { id: 'asc' }],
@@ -594,10 +593,18 @@ export class EventsRepository {
     });
   }
 
-  async getTracks(eventId: string, skip: number, take: number, userId: string) {
+  async getTracks(
+    eventId: string,
+    skip: number,
+    take: number,
+    userId: string,
+    status: EventStatus,
+  ) {
     const where: Prisma.EventTrackWhereInput = {
       eventId,
-      status: { not: TrackStatus.ENDED },
+      ...(status === EventStatus.LIVE && {
+        status: { not: TrackStatus.ENDED },
+      }),
     };
 
     const [tracks, total] = await Promise.all([
@@ -855,5 +862,41 @@ export class EventsRepository {
         pausedPlaybackPositionMs: position,
       },
     });
+  }
+
+  async findInvitedUsers(
+    eventId: string,
+    pagination: { page: number; limit: number },
+  ) {
+    const { page, limit } = pagination;
+    const skip = (page - 1) * limit;
+
+    const [invites, total] = await Promise.all([
+      this.prisma.eventInvite.findMany({
+        where: { eventId },
+        skip,
+        take: limit,
+        select: {
+          user: {
+            select: {
+              id: true,
+              username: true,
+              avatarUrl: true,
+            },
+          },
+        },
+      }),
+      this.prisma.eventInvite.count({ where: { eventId } }),
+    ]);
+
+    return {
+      data: invites.map((i) => i.user),
+      pagination: {
+        total,
+        page,
+        limit,
+        totalPages: Math.ceil(total / limit),
+      },
+    };
   }
 }

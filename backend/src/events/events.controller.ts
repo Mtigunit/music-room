@@ -338,4 +338,32 @@ export class EventsController {
       meta,
     );
   }
+
+  @Get(':id/invited')
+  @ApiOperation({ summary: 'Get all users invited to an event' })
+  @ApiParam({ name: 'id', type: String })
+  @ApiQuery({
+    name: 'page',
+    required: false,
+    type: Number,
+    description: 'Page number (default 1)',
+  })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Items per page (default 10)',
+  })
+  @ApiResponse({ status: 200, description: 'List of invited users.' })
+  @ApiResponse({ status: 403, description: 'Forbidden. No access to event.' })
+  @ApiResponse({ status: 404, description: 'Event not found.' })
+  getInvitedUsers(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Req() req: Request,
+    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
+    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+  ) {
+    const userId = (req.user as { id: string }).id;
+    return this.eventsService.getInvitedUsers(id, userId, { page, limit });
+  }
 }

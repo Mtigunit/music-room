@@ -419,6 +419,7 @@ export class EventsService {
       skip,
       limit,
       userId,
+      event.status,
     );
 
     return {
@@ -849,5 +850,21 @@ export class EventsService {
         removeOnFail: true,
       },
     );
+  }
+
+  async getInvitedUsers(
+    eventId: string,
+    requesterId: string,
+    pagination: { page: number; limit: number },
+  ) {
+    const event = await this.eventsRepository.findById(eventId);
+    if (!event) throw new NotFoundException('Event not found');
+
+    const isHost = event.hostId === requesterId;
+    if (!isHost) {
+      throw new ForbiddenException('You do not have access to this event');
+    }
+
+    return this.eventsRepository.findInvitedUsers(eventId, pagination);
   }
 }
