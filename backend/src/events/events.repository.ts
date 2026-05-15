@@ -12,6 +12,7 @@ import {
 } from '@prisma/client';
 import { TrackSearchResultDto } from '../tracks/dto/track-search-result.dto';
 import { EventQueryDto } from './dto/event-query.dto';
+import { PaginationDto } from '../common/dto/pagination.dto';
 
 const firstTrackSelect = {
   select: { track: { select: { thumbnailUrl: true } } },
@@ -864,11 +865,8 @@ export class EventsRepository {
     });
   }
 
-  async findInvitedUsers(
-    eventId: string,
-    pagination: { page: number; limit: number },
-  ) {
-    const { page, limit } = pagination;
+  async findInvitedUsers(eventId: string, pagination: PaginationDto) {
+    const { page = 1, limit = 20 } = pagination;
     const skip = (page - 1) * limit;
 
     const [invites, total] = await Promise.all([
