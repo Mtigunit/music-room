@@ -333,6 +333,7 @@ class _LoadedScaffold extends StatelessWidget {
                       tracks: state.tracks,
                       policies: state.event?.policies ?? const EventPolicies(),
                       eventId: eventId,
+                      eventName: eventName,
                       isHost: isHost,
                       isEnded: isEnded,
                       canVote: canVote,

@@ -24,6 +24,9 @@ abstract class IMusicVoteRemoteDataSource {
 
   /// DELETE /events/{eventId}/tracks/{providerTrackId} — remove a track.
   Future<void> removeTrackFromEvent(String eventId, String providerTrackId);
+
+  /// POST /events/{eventId}/invites — invite a user to the event.
+  Future<void> inviteUserToEvent(String eventId, String userId);
 }
 
 class MusicVoteRemoteDataSource implements IMusicVoteRemoteDataSource {
@@ -160,6 +163,37 @@ class MusicVoteRemoteDataSource implements IMusicVoteRemoteDataSource {
       throw DioException(
         requestOptions: RequestOptions(
           path: '${AppConfig.eventsEndpoint}/$eventId/tracks/$providerTrackId',
+        ),
+        error: e,
+      );
+    }
+  }
+
+  @override
+  Future<void> inviteUserToEvent(String eventId, String userId) async {
+    try {
+      final response = await _apiClient.post<dynamic>(
+        '${AppConfig.eventsEndpoint}/$eventId/invites',
+        data: {'userId': userId},
+      );
+
+      if (response.statusCode == 200 ||
+          response.statusCode == 201 ||
+          response.statusCode == 204) {
+        return;
+      }
+
+      throw DioException(
+        requestOptions: response.requestOptions,
+        response: response,
+        type: DioExceptionType.badResponse,
+      );
+    } on DioException {
+      rethrow;
+    } on Object catch (e) {
+      throw DioException(
+        requestOptions: RequestOptions(
+          path: '${AppConfig.eventsEndpoint}/$eventId/invites',
         ),
         error: e,
       );
