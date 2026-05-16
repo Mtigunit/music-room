@@ -68,6 +68,17 @@ export class PlaylistsRepository {
           _count: {
             select: { tracks: true },
           },
+          tracks: {
+            take: 4,
+            orderBy: { position: 'asc' },
+            select: {
+              track: {
+                select: {
+                  thumbnailUrl: true,
+                },
+              },
+            },
+          },
         },
         orderBy: { updatedAt: 'desc' },
         skip,
@@ -117,6 +128,17 @@ export class PlaylistsRepository {
           },
           _count: {
             select: { tracks: true },
+          },
+          tracks: {
+            take: 4,
+            orderBy: { position: 'asc' },
+            select: {
+              track: {
+                select: {
+                  thumbnailUrl: true,
+                },
+              },
+            },
           },
         },
         orderBy: { updatedAt: 'desc' },
