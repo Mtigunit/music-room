@@ -4,6 +4,7 @@ import 'package:music_room/core/widgets/app_back_button.dart';
 import 'package:music_room/core/widgets/app_button.dart';
 import 'package:music_room/core/widgets/responsive_layout.dart';
 import 'package:music_room/features/playlist/domain/entities/playlist_entity.dart';
+import 'package:music_room/features/playlist/presentation/widgets/playlist_collage_image.dart';
 import 'package:music_room/features/profile/domain/entities/profile_entity.dart';
 
 class ProfileView extends StatefulWidget {
@@ -1311,7 +1312,6 @@ class _PlaylistCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final thumbnail = _resolveImageUrl(playlist.thumbnailUrl);
 
     final card = Container(
       padding: const EdgeInsets.all(12),
@@ -1324,33 +1324,10 @@ class _PlaylistCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: SizedBox(
-              width: 72,
-              height: 72,
-              child: thumbnail == null
-                  ? ColoredBox(
-                      color: colorScheme.primaryContainer,
-                      child: Icon(
-                        Icons.queue_music_rounded,
-                        color: colorScheme.primary,
-                        size: 30,
-                      ),
-                    )
-                  : Image.network(
-                      thumbnail,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => ColoredBox(
-                        color: colorScheme.primaryContainer,
-                        child: Icon(
-                          Icons.queue_music_rounded,
-                          color: colorScheme.primary,
-                          size: 30,
-                        ),
-                      ),
-                    ),
-            ),
+          PlaylistCollageImage(
+            thumbnailUrl: playlist.thumbnailUrl,
+            collageImageUrls: playlist.collageImageUrls,
+            borderRadius: BorderRadius.circular(22),
           ),
           const SizedBox(width: 12),
           Expanded(
