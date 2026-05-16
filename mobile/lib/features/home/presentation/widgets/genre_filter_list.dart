@@ -122,41 +122,45 @@ class _HorizontalFilterListState extends State<HorizontalFilterList> {
                 return Material(
                   color: Colors.transparent,
                   borderRadius: BorderRadius.circular(widget.borderRadius),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(widget.borderRadius),
-                    onTap: () => widget.onSelected?.call(index),
-                    splashColor: colorScheme.primary.withValues(alpha: 0.15),
-                    highlightColor: colorScheme.primary.withValues(alpha: 0.08),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      curve: Curves.easeOutCubic,
-                      padding: widget.itemPadding,
-                      alignment: Alignment.center,
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? colorScheme.primary
-                            : colorScheme.onSurface.withValues(alpha: 0.06),
-                        borderRadius: BorderRadius.circular(
-                          widget.borderRadius,
-                        ),
-                        border: isSelected
-                            ? null
-                            : Border.all(
-                                color: colorScheme.onSurface.withValues(
-                                  alpha: 0.12,
-                                ),
-                              ),
+                  child: Ink(
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? colorScheme.primary
+                          : colorScheme.onSurface.withValues(alpha: 0.06),
+                      borderRadius: BorderRadius.circular(
+                        widget.borderRadius,
                       ),
-                      child: Text(
-                        widget.items[index],
-                        style: TextStyle(
-                          color: isSelected
-                              ? colorScheme.onPrimary
-                              : colorScheme.onSurface.withValues(alpha: 0.8),
-                          fontWeight: isSelected
-                              ? widget.selectedFontWeight
-                              : widget.unselectedFontWeight,
-                          fontSize: widget.fontSize,
+                      border: isSelected
+                          ? null
+                          : Border.all(
+                              color: colorScheme.onSurface.withValues(
+                                alpha: 0.12,
+                              ),
+                            ),
+                    ),
+                    child: InkWell(
+                      borderRadius: BorderRadius.circular(widget.borderRadius),
+                      onTap: () => widget.onSelected?.call(index),
+                      splashColor: colorScheme.primary.withValues(alpha: 0.15),
+                      highlightColor: colorScheme.primary.withValues(
+                        alpha: 0.08,
+                      ),
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        curve: Curves.easeOutCubic,
+                        padding: widget.itemPadding,
+                        alignment: Alignment.center,
+                        child: Text(
+                          widget.items[index],
+                          style: TextStyle(
+                            color: isSelected
+                                ? colorScheme.onPrimary
+                                : colorScheme.onSurface.withValues(alpha: 0.8),
+                            fontWeight: isSelected
+                                ? widget.selectedFontWeight
+                                : widget.unselectedFontWeight,
+                            fontSize: widget.fontSize,
+                          ),
                         ),
                       ),
                     ),
