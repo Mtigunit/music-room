@@ -1,3 +1,4 @@
+import 'package:music_room/core/config/app_config.dart';
 import 'package:music_room/features/playlist/domain/entities/playlist_entity.dart';
 
 class PlaylistModel {
@@ -11,6 +12,7 @@ class PlaylistModel {
     this.ownerUserId,
     this.description,
     this.thumbnailUrl,
+    this.collageImageUrls = const <String>[],
   });
 
   factory PlaylistModel.fromJson(Map<String, dynamic> json) {
@@ -31,8 +33,22 @@ class PlaylistModel {
       ),
       ownerUserId: _asNullableString(json['ownerId']),
       description: _asNullableString(json['description']),
-      thumbnailUrl: _asNullableString(json['thumbnailUrl']),
+      thumbnailUrl: _absoluteImageUrl(json['thumbnailUrl']),
+      collageImageUrls: _parseCollageUrls(json['tracks']),
     );
+  }
+
+  static List<String> _parseCollageUrls(Object? tracks) {
+    if (tracks is! List<dynamic>) return const <String>[];
+    return tracks
+        .map((t) {
+          if (t is! Map<String, dynamic>) return null;
+          final track = t['track'];
+          if (track is! Map<String, dynamic>) return null;
+          return _absoluteImageUrl(track['thumbnailUrl']);
+        })
+        .whereType<String>()
+        .toList(growable: false);
   }
 
   final String id;
@@ -44,6 +60,7 @@ class PlaylistModel {
   final String? ownerUserId;
   final String? description;
   final String? thumbnailUrl;
+  final List<String> collageImageUrls;
 
   PlaylistEntity toEntity() {
     return PlaylistEntity(
@@ -56,6 +73,7 @@ class PlaylistModel {
       ownerUserId: ownerUserId,
       description: description,
       thumbnailUrl: thumbnailUrl,
+      collageImageUrls: collageImageUrls,
     );
   }
 }
@@ -266,7 +284,7 @@ class TrackSearchModel {
       title: _asString(json['title'], fallback: 'Unknown track'),
       durationMs: _asInt(json['durationMs']),
       artist: _asNullableString(json['artist']),
-      thumbnailUrl: _asNullableString(json['thumbnailUrl']),
+      thumbnailUrl: _absoluteImageUrl(json['thumbnailUrl']),
     );
   }
 
@@ -342,4 +360,15 @@ List<String> _asCollaboratorIds(Object? value) {
       })
       .whereType<String>()
       .toList(growable: false);
+}
+
+String? _absoluteImageUrl(Object? value) {
+  final raw = _asNullableString(value);
+  if (raw == null) return null;
+
+  if (raw.startsWith('http')) return raw;
+
+  final baseUrl = AppConfig.apiBaseUrl.replaceAll(RegExp(r'/+$'), '');
+  final relativePath = raw.replaceAll(RegExp('^/+'), '');
+  return '$baseUrl/$relativePath';
 }

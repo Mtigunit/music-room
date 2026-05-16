@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:music_room/features/playlist/presentation/widgets/playlist_collage_image.dart';
 import 'package:music_room/features/search/data/models/search_result_models.dart';
 
 class SearchPlaylistResultCard extends StatelessWidget {
@@ -9,7 +10,6 @@ class SearchPlaylistResultCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final hasImage = item.thumbnailUrl != null && item.thumbnailUrl!.isNotEmpty;
     final tags = item.tags.take(3).toList(growable: false);
 
     return Container(
@@ -24,29 +24,10 @@ class SearchPlaylistResultCard extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 72,
-            height: 72,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(14),
-              color: colorScheme.secondary.withValues(alpha: 0.78),
-            ),
-            child: hasImage
-                ? ClipRRect(
-                    borderRadius: BorderRadius.circular(14),
-                    child: Image.network(
-                      item.thumbnailUrl!,
-                      fit: BoxFit.cover,
-                      errorBuilder: (_, _, _) => Icon(
-                        Icons.queue_music,
-                        color: colorScheme.primary,
-                      ),
-                    ),
-                  )
-                : Icon(
-                    Icons.queue_music,
-                    color: colorScheme.primary,
-                  ),
+          PlaylistCollageImage(
+            thumbnailUrl: item.thumbnailUrl,
+            collageImageUrls: item.collageImageUrls,
+            borderRadius: BorderRadius.circular(22),
           ),
           const SizedBox(width: 14),
           Expanded(

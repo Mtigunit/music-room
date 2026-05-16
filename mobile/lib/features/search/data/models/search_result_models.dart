@@ -87,6 +87,7 @@ class SearchPlaylistResultModel extends SearchResultModel {
     required this.ownerName,
     this.description,
     this.thumbnailUrl,
+    this.collageImageUrls = const <String>[],
   }) : super(filterType: SearchFilterType.playlists);
 
   factory SearchPlaylistResultModel.fromJson(Map<String, dynamic> json) {
@@ -112,7 +113,21 @@ class SearchPlaylistResultModel extends SearchResultModel {
       ownerName: _string(ownerMap['username'], fallback: 'Unknown owner'),
       description: _nullableString(json['description']),
       thumbnailUrl: _absoluteImageUrl(json['thumbnailUrl']),
+      collageImageUrls: _parseCollageUrls(json['tracks']),
     );
+  }
+
+  static List<String> _parseCollageUrls(Object? tracks) {
+    if (tracks is! List<dynamic>) return const <String>[];
+    return tracks
+        .map((t) {
+          if (t is! Map<String, dynamic>) return null;
+          final track = t['track'];
+          if (track is! Map<String, dynamic>) return null;
+          return _absoluteImageUrl(track['thumbnailUrl']);
+        })
+        .whereType<String>()
+        .toList(growable: false);
   }
 
   final String id;
@@ -124,6 +139,7 @@ class SearchPlaylistResultModel extends SearchResultModel {
   final String ownerName;
   final String? description;
   final String? thumbnailUrl;
+  final List<String> collageImageUrls;
 }
 
 class SearchUserResultModel extends SearchResultModel {

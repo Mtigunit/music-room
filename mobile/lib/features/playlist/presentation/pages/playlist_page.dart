@@ -15,6 +15,7 @@ import 'package:music_room/features/playlist/data/datasources/playlist_remote_da
 import 'package:music_room/features/playlist/domain/entities/playlist_entity.dart';
 import 'package:music_room/features/playlist/presentation/pages/create_playlist_page.dart';
 import 'package:music_room/features/playlist/presentation/pages/playlist_details_page.dart';
+import 'package:music_room/features/playlist/presentation/widgets/playlist_collage_image.dart';
 import 'package:music_room/features/playlist/presentation/widgets/skeletons/playlist_page_skeleton.dart';
 
 class PlaylistPage extends StatefulWidget {
@@ -567,9 +568,6 @@ class _PlaylistGridCardState extends State<_PlaylistGridCard> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final hasThumbnail =
-        widget.playlist.thumbnailUrl != null &&
-        widget.playlist.thumbnailUrl!.isNotEmpty;
 
     return MouseRegion(
       onEnter: (_) {
@@ -626,53 +624,15 @@ class _PlaylistGridCardState extends State<_PlaylistGridCard> {
                               alpha: 0.75,
                             ),
                           ),
-                          child: hasThumbnail
-                              ? ClipRRect(
-                                  borderRadius: const BorderRadius.only(
-                                    topLeft: Radius.circular(16),
-                                    topRight: Radius.circular(16),
-                                  ),
-                                  child: Image.network(
-                                    widget.playlist.thumbnailUrl!,
-                                    fit: BoxFit.cover,
-                                    loadingBuilder:
-                                        (context, child, loadingProgress) {
-                                          if (loadingProgress == null) {
-                                            return child;
-                                          }
-                                          return SizedBox.expand(
-                                            child: ColoredBox(
-                                              color: colorScheme.onSurface
-                                                  .withValues(alpha: 0.04),
-                                              child: const Center(
-                                                child: SizedBox(
-                                                  width: 24,
-                                                  height: 24,
-                                                  child:
-                                                      CircularProgressIndicator(
-                                                        strokeWidth: 2,
-                                                      ),
-                                                ),
-                                              ),
-                                            ),
-                                          );
-                                        },
-                                    errorBuilder: (_, _, _) => Center(
-                                      child: Icon(
-                                        Icons.queue_music,
-                                        size: 48,
-                                        color: colorScheme.primary,
-                                      ),
-                                    ),
-                                  ),
-                                )
-                              : Center(
-                                  child: Icon(
-                                    Icons.queue_music,
-                                    size: 48,
-                                    color: colorScheme.primary,
-                                  ),
-                                ),
+                          child: PlaylistCollageImage(
+                            thumbnailUrl: widget.playlist.thumbnailUrl,
+                            collageImageUrls: widget.playlist.collageImageUrls,
+                            size: double.infinity,
+                            borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(16),
+                              topRight: Radius.circular(16),
+                            ),
+                          ),
                         ),
                         if (_isHovered)
                           Container(
@@ -963,8 +923,6 @@ class _PlaylistListTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final hasThumbnail =
-        playlist.thumbnailUrl != null && playlist.thumbnailUrl!.isNotEmpty;
 
     return Material(
       color: Theme.of(context).cardColor,
@@ -982,29 +940,11 @@ class _PlaylistListTile extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  color: colorScheme.secondary.withValues(alpha: 0.75),
-                ),
-                child: hasThumbnail
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(12),
-                        child: Image.network(
-                          playlist.thumbnailUrl!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => Icon(
-                            Icons.queue_music,
-                            color: colorScheme.primary,
-                          ),
-                        ),
-                      )
-                    : Icon(
-                        Icons.queue_music,
-                        color: colorScheme.primary,
-                      ),
+              PlaylistCollageImage(
+                thumbnailUrl: playlist.thumbnailUrl,
+                collageImageUrls: playlist.collageImageUrls,
+                size: 64,
+                borderRadius: BorderRadius.circular(12),
               ),
               const SizedBox(width: 12),
               Expanded(

@@ -9,6 +9,7 @@ class PlaylistEntity {
     this.ownerUserId,
     this.description,
     this.thumbnailUrl,
+    this.collageImageUrls = const <String>[],
   });
 
   final String id;
@@ -20,6 +21,7 @@ class PlaylistEntity {
   final String? ownerUserId;
   final String? description;
   final String? thumbnailUrl;
+  final List<String> collageImageUrls;
 }
 
 class PlaylistTrackEntity {
