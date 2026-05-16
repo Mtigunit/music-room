@@ -288,6 +288,118 @@ class _HeaderAndFilters extends StatelessWidget {
       ),
     );
   }
+
+  Widget _buildHorizontalList(
+    BuildContext context,
+    List<MyEventItemModel> events,
+    ScrollController controller,
+    IconData emptyIcon,
+    String emptyMessage,
+  ) {
+    if (events.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 24),
+          decoration: BoxDecoration(
+            color: Theme.of(
+              context,
+            ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+            borderRadius: BorderRadius.circular(24),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                emptyIcon,
+                size: 48,
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.4),
+              ),
+              const SizedBox(height: 16),
+              Text(
+                emptyMessage,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.6),
+                  fontSize: 15,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return SizedBox(
+      height: 160,
+      child: ListView.separated(
+        controller: controller,
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        scrollDirection: Axis.horizontal,
+        clipBehavior: Clip.none,
+        itemCount: events.length,
+        separatorBuilder: (context, index) => const SizedBox(width: 16),
+        itemBuilder: (context, index) {
+          final event = events[index];
+          return EventVerticalCard(
+            event: event,
+            onTap: () => _enterRoom(context, event),
+          );
+        },
+      ),
+    );
+  }
+
+  Future<void> _enterRoom(BuildContext context, MyEventItemModel event) async {
+    if (event.status == 'UPCOMING' || event.status == 'ENDED') {
+      await Navigator.of(context).pushNamed(
+        RouteNames.preEvent,
+        arguments: event.id,
+      );
+      return;
+    }
+
+    // Get current user ID to decide between Host or Guest view
+    var currentUserId = _currentUserId(context);
+    if (currentUserId == null || currentUserId.isEmpty) {
+      final tokenStorage = InjectionContainer().tokenStorageService;
+      final userJson = await tokenStorage.getUserProfile();
+      if (userJson != null && userJson.isNotEmpty) {
+        try {
+          final parsed = jsonDecode(userJson);
+          if (parsed is Map<String, dynamic>) {
+            currentUserId = (parsed['id'] ?? parsed['userId']) as String?;
+          }
+        } on Exception catch (_) {}
+      }
+    }
+
+    if (!context.mounted) return;
+
+    if (currentUserId == event.hostId) {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => HostMusicVotePage(eventId: event.id),
+        ),
+      );
+    } else {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => GuestMusicVotePage(eventId: event.id),
+        ),
+      );
+    }
+  }
+
+  String? _currentUserId(BuildContext context) {
+    return context.read<AuthBloc>().state.currentUser?.id;
+  }
 }
 
 class _EventsBody extends StatelessWidget {
