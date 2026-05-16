@@ -54,7 +54,11 @@ export class PlaylistsController {
 
   @Get()
   @ApiOperation({ summary: 'Get all playlists for the authenticated user' })
-  @ApiResponse({ status: 200, description: 'List of playlists.' })
+  @ApiResponse({
+    status: 200,
+    description:
+      'List of playlists for the authenticated user, including up to 4 tracks for collage generation.',
+  })
   findAll(
     @Request() req: Express.Request,
     @Query() paginationDto: PaginationDto,
@@ -64,7 +68,11 @@ export class PlaylistsController {
 
   @Get('explore')
   @ApiOperation({ summary: 'Explore public playlists' })
-  @ApiResponse({ status: 200, description: 'List of public playlists.' })
+  @ApiResponse({
+    status: 200,
+    description:
+      'List of public playlists, including up to 4 tracks for collage generation.',
+  })
   explorePublicPlaylists(@Query() query: ExplorePlaylistsQueryDto) {
     return this.playlistsService.explorePublicPlaylists(
       query.q,
