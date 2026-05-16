@@ -7,7 +7,7 @@ class HorizontalFilterList extends StatefulWidget {
     required this.items,
     this.selectedIndex = 0,
     this.onSelected,
-    this.height = 38,
+    this.height = 44,
     this.itemSpacing = 8,
     this.itemPadding = const EdgeInsets.symmetric(horizontal: 18),
     this.listPadding,
