@@ -160,9 +160,20 @@ class HomeRemoteDataSource implements IHomeRemoteDataSource {
       );
     }
 
-    return items
-        .whereType<Map<String, dynamic>>()
-        .map(MyEventItemModel.fromJson)
-        .toList(growable: false);
+    final result = <MyEventItemModel>[];
+    for (var i = 0; i < items.length; i++) {
+      final item = items[i];
+      if (item is! Map<String, dynamic>) {
+        throw DioException(
+          requestOptions: response.requestOptions,
+          response: response,
+          error:
+              'Unexpected item shape at index $i: expected Map, '
+              'got ${item.runtimeType}. Item: $item',
+        );
+      }
+      result.add(MyEventItemModel.fromJson(item));
+    }
+    return List.unmodifiable(result);
   }
 }

@@ -79,7 +79,7 @@ class HomeEventsCubit extends Cubit<HomeEventsState> {
       return;
     }
 
-    final epoch = ++_requestEpoch;
+    final epoch = _requestEpoch;
     _isLoadingMoreExplore = true;
     final nextPage = currentState.explorePage + 1;
 
@@ -115,7 +115,7 @@ class HomeEventsCubit extends Cubit<HomeEventsState> {
       return;
     }
 
-    final epoch = ++_requestEpoch;
+    final epoch = _requestEpoch;
     _isLoadingMoreFriends = true;
     final nextPage = currentState.friendsPage + 1;
 
