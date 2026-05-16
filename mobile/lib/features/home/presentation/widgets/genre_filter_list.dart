@@ -71,9 +71,10 @@ class _HorizontalFilterListState extends State<HorizontalFilterList> {
   }
 
   void _scrollLeft() {
+    final step = MediaQuery.of(context).size.width * 0.25;
     unawaited(
       _scrollController.animateTo(
-        (_scrollController.offset - 150).clamp(
+        (_scrollController.offset - step).clamp(
           0,
           _scrollController.position.maxScrollExtent,
         ),
@@ -84,9 +85,10 @@ class _HorizontalFilterListState extends State<HorizontalFilterList> {
   }
 
   void _scrollRight() {
+    final step = MediaQuery.of(context).size.width * 0.25;
     unawaited(
       _scrollController.animateTo(
-        (_scrollController.offset + 150).clamp(
+        (_scrollController.offset + step).clamp(
           0,
           _scrollController.position.maxScrollExtent,
         ),
@@ -153,80 +155,100 @@ class _HorizontalFilterListState extends State<HorizontalFilterList> {
             ),
           ),
 
-          // Left Gradient & Arrow
           if (_showLeftArrow)
             Positioned(
               left: 0,
               top: 0,
               bottom: 0,
-              child: Row(
-                children: [
-                  Container(
-                    width: 32,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        colors: [
-                          scaffoldBg,
-                          scaffoldBg.withValues(alpha: 0),
-                        ],
-                      ),
-                    ),
+              child: Container(
+                width: 56,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      scaffoldBg,
+                      scaffoldBg.withValues(alpha: 0),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           if (_showLeftArrow)
             Positioned(
-              left: -8,
+              left: 4,
               top: 0,
               bottom: 0,
               child: Center(
-                child: IconButton(
-                  onPressed: _scrollLeft,
-                  icon: const Icon(Icons.chevron_left_rounded),
-                  color: colorScheme.primary,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
+                child: Container(
+                  height: 32,
+                  width: 32,
+                  decoration: BoxDecoration(
+                    color: colorScheme.surface,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: IconButton(
+                    onPressed: _scrollLeft,
+                    icon: const Icon(Icons.chevron_left_rounded),
+                    color: colorScheme.primary,
+                    iconSize: 20,
+                    padding: EdgeInsets.zero,
+                  ),
                 ),
               ),
             ),
 
-          // Right Gradient & Arrow
           if (_showRightArrow)
             Positioned(
               right: 0,
               top: 0,
               bottom: 0,
-              child: Row(
-                children: [
-                  Container(
-                    width: 32,
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.centerRight,
-                        end: Alignment.centerLeft,
-                        colors: [
-                          scaffoldBg,
-                          scaffoldBg.withValues(alpha: 0),
-                        ],
-                      ),
-                    ),
+              child: Container(
+                width: 56,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.centerRight,
+                    end: Alignment.centerLeft,
+                    colors: [
+                      scaffoldBg,
+                      scaffoldBg.withValues(alpha: 0),
+                    ],
                   ),
-                ],
+                ),
               ),
             ),
           if (_showRightArrow)
             Positioned(
-              right: -8,
+              right: 4,
               top: 0,
               bottom: 0,
               child: Center(
-                child: IconButton(
-                  onPressed: _scrollRight,
-                  icon: const Icon(Icons.chevron_right_rounded),
-                  color: colorScheme.primary,
-                  padding: EdgeInsets.zero,
-                  constraints: const BoxConstraints(),
+                child: Container(
+                  height: 32,
+                  width: 32,
+                  decoration: BoxDecoration(
+                    color: colorScheme.surface,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.1),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: IconButton(
+                    onPressed: _scrollRight,
+                    icon: const Icon(Icons.chevron_right_rounded),
+                    color: colorScheme.primary,
+                    iconSize: 20,
+                    padding: EdgeInsets.zero,
+                  ),
                 ),
               ),
             ),

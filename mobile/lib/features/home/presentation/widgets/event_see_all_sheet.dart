@@ -49,29 +49,12 @@ class EventSeeAllSheet extends StatefulWidget {
 }
 
 class _EventSeeAllSheetState extends State<EventSeeAllSheet> {
-  final ScrollController _scrollController = ScrollController();
-
-  @override
-  void initState() {
-    super.initState();
-    _scrollController.addListener(_onScroll);
-  }
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  void _onScroll() {
-    if (_scrollController.position.pixels >=
-        _scrollController.position.maxScrollExtent - 200) {
-      final cubit = context.read<HomeEventsCubit>();
-      if (widget.type == EventListType.explore) {
-        unawaited(cubit.loadMoreExplore());
-      } else {
-        unawaited(cubit.loadMoreFriends());
-      }
+  void _loadMore(BuildContext context) {
+    final cubit = context.read<HomeEventsCubit>();
+    if (widget.type == EventListType.explore) {
+      unawaited(cubit.loadMoreExplore());
+    } else {
+      unawaited(cubit.loadMoreFriends());
     }
   }
 
@@ -83,21 +66,6 @@ class _EventSeeAllSheetState extends State<EventSeeAllSheet> {
       maxChildSize: 0.9,
       expand: false,
       builder: (context, scrollController) {
-        // We use the scrollController provided by DraggableScrollableSheet
-        // but we still want to detect end-of-scroll.
-        // We can attach our listener to this controller.
-        scrollController.addListener(() {
-          if (scrollController.position.pixels >=
-              scrollController.position.maxScrollExtent - 200) {
-            final cubit = context.read<HomeEventsCubit>();
-            if (widget.type == EventListType.explore) {
-              unawaited(cubit.loadMoreExplore());
-            } else {
-              unawaited(cubit.loadMoreFriends());
-            }
-          }
-        });
-
         return Container(
           decoration: BoxDecoration(
             color: Theme.of(context).scaffoldBackgroundColor,
@@ -174,26 +142,35 @@ class _EventSeeAllSheetState extends State<EventSeeAllSheet> {
                       );
                     }
 
-                    return GridView.builder(
-                      controller: scrollController,
-                      padding: const EdgeInsets.fromLTRB(24, 12, 24, 40),
-                      gridDelegate:
-                          const SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: 2,
-                            mainAxisSpacing: 24,
-                            crossAxisSpacing: 16,
-                            // Adjust based on EventVerticalCard content
-                            childAspectRatio: 0.75,
-                          ),
-                      itemCount: events.length,
-                      itemBuilder: (context, index) {
-                        final event = events[index];
-                        return EventVerticalCard(
-                          event: event,
-                          width: double.infinity,
-                          onTap: () => widget.onEventTapped(context, event),
-                        );
+                    return NotificationListener<ScrollNotification>(
+                      onNotification: (notification) {
+                        if (notification.metrics.pixels >=
+                            notification.metrics.maxScrollExtent - 200) {
+                          _loadMore(context);
+                        }
+                        return false;
                       },
+                      child: GridView.builder(
+                        controller: scrollController,
+                        padding: const EdgeInsets.fromLTRB(24, 12, 24, 40),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              mainAxisSpacing: 24,
+                              crossAxisSpacing: 16,
+                              // Adjust based on EventVerticalCard content
+                              childAspectRatio: 0.75,
+                            ),
+                        itemCount: events.length,
+                        itemBuilder: (context, index) {
+                          final event = events[index];
+                          return EventVerticalCard(
+                            event: event,
+                            width: double.infinity,
+                            onTap: () => widget.onEventTapped(context, event),
+                          );
+                        },
+                      ),
                     );
                   },
                 ),
