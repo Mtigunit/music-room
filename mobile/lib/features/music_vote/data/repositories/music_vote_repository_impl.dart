@@ -36,4 +36,9 @@ class MusicVoteRepositoryImpl implements MusicVoteRepository {
   Future<void> removeTrack(String eventId, String providerTrackId) async {
     await _remoteDataSource.removeTrackFromEvent(eventId, providerTrackId);
   }
+
+  @override
+  Future<void> inviteUserToEvent(String eventId, String userId) async {
+    await _remoteDataSource.inviteUserToEvent(eventId, userId);
+  }
 }

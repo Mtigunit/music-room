@@ -10,4 +10,5 @@ abstract class MusicVoteRepository {
   });
   Future<EventTrackModel> addTrack(String eventId, String providerTrackId);
   Future<void> removeTrack(String eventId, String providerTrackId);
+  Future<void> inviteUserToEvent(String eventId, String userId);
 }

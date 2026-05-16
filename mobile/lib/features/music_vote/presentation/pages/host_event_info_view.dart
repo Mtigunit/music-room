@@ -699,12 +699,21 @@ class _StartEventBottomBar extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16),
               ),
             ),
-            child: state.isStartingEvent
-                ? const CircularProgressIndicator(color: Colors.white)
-                : const Text(
-                    '🚀 Start Event',
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (state.isStartingEvent)
+                  const CircularProgressIndicator(color: Colors.white)
+                else ...[
+                  const Text(
+                    'Start Event',
                     style: TextStyle(fontSize: 17, fontWeight: FontWeight.bold),
                   ),
+                  const SizedBox(width: 8),
+                  const Icon(Icons.play_arrow_rounded, color: Colors.white),
+                ],
+              ],
+            ),
           );
         },
       ),

@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:music_room/core/widgets/dynamic_search_bottom_sheet.dart';
-import 'package:music_room/core/widgets/invite_bottom_sheet.dart';
 import 'package:music_room/core/widgets/top_toast.dart';
 import 'package:music_room/core/widgets/track_search_list_tile.dart';
 import 'package:music_room/di/injection_container.dart';
@@ -12,6 +11,7 @@ import 'package:music_room/features/events/presentation/state/track_search_cubit
 import 'package:music_room/features/music_vote/data/models/event_detail_model.dart';
 import 'package:music_room/features/music_vote/data/models/event_track_model.dart';
 import 'package:music_room/features/music_vote/presentation/state/music_vote_cubit.dart';
+import 'package:music_room/features/music_vote/presentation/widgets/event_user_invite_bottom_sheet.dart';
 
 /// The "Up Next" queue section with action row and voting controls.
 ///
@@ -24,6 +24,7 @@ class QueueSection extends StatelessWidget {
     required this.policies,
     super.key,
     this.eventId,
+    this.eventName,
     this.isHost = false,
     this.isEnded = false,
     this.canVote = true,
@@ -33,6 +34,7 @@ class QueueSection extends StatelessWidget {
   final List<EventTrackModel> tracks;
   final EventPolicies policies;
   final String? eventId;
+  final String? eventName;
   final bool isHost;
   final bool isEnded;
   final bool canVote;
@@ -52,7 +54,7 @@ class QueueSection extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: _ActionRow(eventId: eventId),
+          child: _ActionRow(eventId: eventId, eventName: eventName),
         ),
         const SizedBox(height: 12),
         if (tracks.isEmpty)
@@ -107,9 +109,10 @@ class QueueSection extends StatelessWidget {
 // ────────────────────────────────────────────────────────────────────────────
 
 class _ActionRow extends StatelessWidget {
-  const _ActionRow({required this.eventId});
+  const _ActionRow({required this.eventId, this.eventName});
 
   final String? eventId;
+  final String? eventName;
 
   @override
   Widget build(BuildContext context) {
@@ -117,7 +120,10 @@ class _ActionRow extends StatelessWidget {
       children: [
         Expanded(flex: 3, child: _AddTrackButton(eventId: eventId)),
         const SizedBox(width: 12),
-        Expanded(flex: 2, child: _InviteFriendsButton(eventId: eventId)),
+        Expanded(
+          flex: 2,
+          child: _InviteFriendsButton(eventId: eventId, eventName: eventName),
+        ),
       ],
     );
   }
@@ -182,9 +188,10 @@ class _AddTrackButton extends StatelessWidget {
 }
 
 class _InviteFriendsButton extends StatelessWidget {
-  const _InviteFriendsButton({this.eventId});
+  const _InviteFriendsButton({this.eventId, this.eventName});
 
   final String? eventId;
+  final String? eventName;
 
   @override
   Widget build(BuildContext context) {
@@ -224,11 +231,14 @@ class _InviteFriendsButton extends StatelessWidget {
   }
 
   void _showInviteSheet(BuildContext context) {
+    final musicVoteCubit = context.read<MusicVoteCubit>();
+    final state = musicVoteCubit.state;
     final resolvedEventId = (eventId != null && eventId!.isNotEmpty)
         ? eventId!
-        : 'room-1';
-    final shareLink = 'musicroom.app/join/$resolvedEventId';
-    final friends = <InviteFriendData>[];
+        : (state.event?.id ?? '');
+    final resolvedEventName = eventName ?? state.event?.name ?? 'Live Event';
+
+    if (resolvedEventId.isEmpty) return;
 
     unawaited(
       showModalBottomSheet<void>(
@@ -237,13 +247,14 @@ class _InviteFriendsButton extends StatelessWidget {
         useSafeArea: true,
         barrierColor: Colors.black.withValues(alpha: 0.7),
         backgroundColor: Colors.transparent,
-        builder: (_) => InviteBottomSheet(
+        builder: (_) => EventUserInviteBottomSheet(
           eventId: resolvedEventId,
-          shareLink: shareLink,
-          friends: friends,
-          onCopyLink: () {},
-          onShareTapped: (action) {},
-          onFriendInviteChanged: (change) {},
+          eventName: resolvedEventName,
+          // We can get the currentUserId if needed, but the cubit has it.
+          // For searching (to exclude self), we might want to pass it.
+          // PlaylistUserInviteBottomSheet takes it from the container
+          // but also accepts it as a param.
+          // In this project, state doesn't hold userId, but cubit does.
         ),
       ),
     );
