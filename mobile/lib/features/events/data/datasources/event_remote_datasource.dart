@@ -25,6 +25,7 @@ class MyEventItemModel {
     required this.hostId,
     required this.membersCount,
     this.coverImage,
+    this.firstTrack,
   });
 
   factory MyEventItemModel.fromJson(Map<String, dynamic> json) {
@@ -45,6 +46,7 @@ class MyEventItemModel {
           : (json['hostId'] as String? ?? ''),
       membersCount: _parseMembersCount(json['membersCount']),
       coverImage: _buildCoverImageUrl(json['coverImage'] as String?),
+      firstTrack: json['firstTrack'] as String?,
     );
   }
 
@@ -67,6 +69,9 @@ class MyEventItemModel {
 
   /// URL string for the cover image, if provided by the backend.
   final String? coverImage;
+
+  /// URL string for the first track thumbnail, if provided by the backend.
+  final String? firstTrack;
 
   /// Builds a fully-qualified image URL from the [relativePath] returned by
   /// the backend (e.g. `uploads/cover.jpg` → `http://host:3000/uploads/cover.jpg`).

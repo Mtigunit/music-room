@@ -1,1 +1,142 @@
-class HomeRemoteDataSource {}
+import 'package:dio/dio.dart';
+import 'package:music_room/core/config/app_config.dart';
+import 'package:music_room/core/network/api_client.dart';
+import 'package:music_room/features/events/data/datasources/event_remote_datasource.dart';
+
+abstract class IHomeRemoteDataSource {
+  Future<List<MyEventItemModel>> fetchExploreEvents({
+    int page = 1,
+    int limit = 20,
+    String? tags,
+    String? status,
+    String? search,
+  });
+
+  Future<List<MyEventItemModel>> fetchFriendsEvents({
+    int page = 1,
+    int limit = 20,
+    String? tags,
+    String? status,
+    String? search,
+  });
+}
+
+class HomeRemoteDataSource implements IHomeRemoteDataSource {
+  HomeRemoteDataSource({required ApiClient apiClient}) : _apiClient = apiClient;
+
+  final ApiClient _apiClient;
+
+  @override
+  Future<List<MyEventItemModel>> fetchExploreEvents({
+    int page = 1,
+    int limit = 20,
+    String? tags,
+    String? status,
+    String? search,
+  }) async {
+    try {
+      final queryParameters = <String, dynamic>{
+        'page': page,
+        'limit': limit,
+      };
+
+      if (tags != null && tags.isNotEmpty && tags != 'All') {
+        queryParameters['tags'] = tags.toUpperCase();
+      }
+      if (status != null && status.isNotEmpty && status != 'All') {
+        queryParameters['status'] = status.toUpperCase();
+      }
+      if (search != null && search.trim().isNotEmpty) {
+        queryParameters['search'] = search.trim();
+      }
+
+      final response = await _apiClient.get<dynamic>(
+        AppConfig.eventsExploreEndpoint,
+        queryParameters: queryParameters,
+      );
+
+      return _parseEventListResponse(response);
+    } on DioException {
+      rethrow;
+    } on Object catch (e) {
+      throw DioException(
+        requestOptions: RequestOptions(path: AppConfig.eventsExploreEndpoint),
+        error: e,
+      );
+    }
+  }
+
+  @override
+  Future<List<MyEventItemModel>> fetchFriendsEvents({
+    int page = 1,
+    int limit = 20,
+    String? tags,
+    String? status,
+    String? search,
+  }) async {
+    try {
+      final queryParameters = <String, dynamic>{
+        'page': page,
+        'limit': limit,
+      };
+
+      if (tags != null && tags.isNotEmpty && tags != 'All') {
+        queryParameters['tags'] = tags.toUpperCase();
+      }
+      if (status != null && status.isNotEmpty && status != 'All') {
+        queryParameters['status'] = status.toUpperCase();
+      }
+      if (search != null && search.trim().isNotEmpty) {
+        queryParameters['search'] = search.trim();
+      }
+
+      final response = await _apiClient.get<dynamic>(
+        AppConfig.eventsFriendsEndpoint,
+        queryParameters: queryParameters,
+      );
+
+      return _parseEventListResponse(response);
+    } on DioException {
+      rethrow;
+    } on Object catch (e) {
+      throw DioException(
+        requestOptions: RequestOptions(path: AppConfig.eventsFriendsEndpoint),
+        error: e,
+      );
+    }
+  }
+
+  List<MyEventItemModel> _parseEventListResponse(Response<dynamic> response) {
+    final statusCode = response.statusCode;
+    final body = response.data;
+
+    final isSuccess = statusCode == 200 || statusCode == 201;
+    if (!isSuccess || body == null) {
+      throw DioException(
+        requestOptions: response.requestOptions,
+        response: response,
+        type: DioExceptionType.badResponse,
+      );
+    }
+
+    final List<dynamic> items;
+    if (body is List) {
+      items = body;
+    } else if (body is Map<String, dynamic>) {
+      if (body['data'] is List) {
+        items = body['data'] as List<dynamic>;
+      } else if (body['items'] is List) {
+        items = body['items'] as List<dynamic>;
+      } else {
+        items = const [];
+      }
+    } else {
+      items = const [];
+    }
+
+    return items
+        .whereType<Map<String, dynamic>>()
+        .map(MyEventItemModel.fromJson)
+        .toList(growable: false);
+  }
+}

@@ -93,7 +93,7 @@ class MyEventsPage extends StatelessWidget {
       hostId: selectedEvent.hostId,
       dateTime: selectedEvent.startDate,
       status: selectedEvent.status,
-      coverImageAsset: selectedEvent.coverImage,
+      coverImageAsset: selectedEvent.coverImage ?? selectedEvent.firstTrack,
     );
 
     unawaited(_enterRoom(context, uiEvent));
@@ -216,7 +216,7 @@ class _MyEventsBody extends StatelessWidget {
       status: model.status,
       // coverImageAsset is not used when a URL is available; the tile falls
       // back to the gradient + icon when null.
-      coverImageAsset: model.coverImage,
+      coverImageAsset: model.coverImage ?? model.firstTrack,
     );
   }
 

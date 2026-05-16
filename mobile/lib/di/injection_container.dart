@@ -17,6 +17,10 @@ import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
 import 'package:music_room/features/events/data/datasources/event_remote_datasource.dart';
 import 'package:music_room/features/events/data/datasources/track_remote_datasource.dart';
 import 'package:music_room/features/events/domain/repositories/event_repository.dart';
+import 'package:music_room/features/home/data/datasources/home_remote_datasource.dart';
+import 'package:music_room/features/home/data/repositories/home_repository_impl.dart';
+import 'package:music_room/features/home/domain/repositories/home_repository.dart';
+import 'package:music_room/features/home/presentation/state/home_events_cubit.dart';
 import 'package:music_room/features/music_vote/data/datasources/music_vote_remote_datasource.dart';
 import 'package:music_room/features/music_vote/data/repositories/music_vote_repository_impl.dart';
 import 'package:music_room/features/music_vote/domain/repositories/music_vote_repository.dart';
@@ -63,6 +67,8 @@ class InjectionContainer {
   late ThemePreferenceService _themePreferenceService;
   late GoogleLinkStatusService _googleLinkStatusService;
   late NotificationsService _notificationsService;
+  late IHomeRemoteDataSource _homeRemoteDataSource;
+  late HomeRepository _homeRepository;
 
   /// Initialize all dependencies
   Future<void> init() async {
@@ -130,6 +136,11 @@ class InjectionContainer {
     );
 
     // Repositories
+    _homeRemoteDataSource = HomeRemoteDataSource(apiClient: _apiClient);
+    _homeRepository = HomeRepositoryImpl(
+      remoteDataSource: _homeRemoteDataSource,
+    );
+
     _authRepository = AuthRepositoryImpl(
       remoteDataSource: _authRemoteDataSource,
       tokenStorage: _tokenStorageService,
@@ -171,6 +182,8 @@ class InjectionContainer {
   GoogleLinkStatusService get googleLinkStatusService =>
       _googleLinkStatusService;
   NotificationsService get notificationsService => _notificationsService;
+  IHomeRemoteDataSource get homeRemoteDataSource => _homeRemoteDataSource;
+  HomeRepository get homeRepository => _homeRepository;
 
   AuthBloc createAuthBloc() {
     return AuthBloc(
@@ -191,5 +204,9 @@ class InjectionContainer {
 
   ProfileBloc createProfileBloc() {
     return ProfileBloc(profileRepository: _profileRepository);
+  }
+
+  HomeEventsCubit createHomeEventsCubit() {
+    return HomeEventsCubit(homeRepository: _homeRepository);
   }
 }
