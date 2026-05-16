@@ -21,6 +21,13 @@ class HomeEventsCubit extends Cubit<HomeEventsState> {
 
   int _requestEpoch = 0;
 
+  Future<void> clearFilters() {
+    _currentTags = null;
+    _currentStatus = null;
+    _currentSearch = null;
+    return fetchEvents();
+  }
+
   Future<void> fetchEvents({
     String? tags,
     String? status,

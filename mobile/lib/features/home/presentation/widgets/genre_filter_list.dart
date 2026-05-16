@@ -7,12 +7,12 @@ class HorizontalFilterList extends StatefulWidget {
     required this.items,
     this.selectedIndex = 0,
     this.onSelected,
-    this.height = 40,
-    this.itemSpacing = 12,
-    this.itemPadding = const EdgeInsets.symmetric(horizontal: 24),
+    this.height = 38,
+    this.itemSpacing = 8,
+    this.itemPadding = const EdgeInsets.symmetric(horizontal: 18),
     this.listPadding,
     this.borderRadius = 20,
-    this.fontSize = 14,
+    this.fontSize = 13,
     this.selectedFontWeight = FontWeight.w600,
     this.unselectedFontWeight = FontWeight.w500,
     super.key,
@@ -119,34 +119,45 @@ class _HorizontalFilterListState extends State<HorizontalFilterList> {
               itemBuilder: (context, index) {
                 final isSelected = index == widget.selectedIndex;
 
-                return GestureDetector(
-                  onTap: () => widget.onSelected?.call(index),
-                  child: Container(
-                    padding: widget.itemPadding,
-                    alignment: Alignment.center,
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? colorScheme.primary
-                          : Colors.transparent,
-                      borderRadius: BorderRadius.circular(widget.borderRadius),
-                      border: isSelected
-                          ? null
-                          : Border.all(
-                              color: colorScheme.onSurface.withValues(
-                                alpha: 0.1,
-                              ),
-                            ),
-                    ),
-                    child: Text(
-                      widget.items[index],
-                      style: TextStyle(
+                return Material(
+                  color: Colors.transparent,
+                  borderRadius: BorderRadius.circular(widget.borderRadius),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(widget.borderRadius),
+                    onTap: () => widget.onSelected?.call(index),
+                    splashColor: colorScheme.primary.withValues(alpha: 0.15),
+                    highlightColor: colorScheme.primary.withValues(alpha: 0.08),
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      curve: Curves.easeOutCubic,
+                      padding: widget.itemPadding,
+                      alignment: Alignment.center,
+                      decoration: BoxDecoration(
                         color: isSelected
-                            ? colorScheme.onPrimary
-                            : colorScheme.onSurface.withValues(alpha: 0.7),
-                        fontWeight: isSelected
-                            ? widget.selectedFontWeight
-                            : widget.unselectedFontWeight,
-                        fontSize: widget.fontSize,
+                            ? colorScheme.primary
+                            : colorScheme.onSurface.withValues(alpha: 0.06),
+                        borderRadius: BorderRadius.circular(
+                          widget.borderRadius,
+                        ),
+                        border: isSelected
+                            ? null
+                            : Border.all(
+                                color: colorScheme.onSurface.withValues(
+                                  alpha: 0.12,
+                                ),
+                              ),
+                      ),
+                      child: Text(
+                        widget.items[index],
+                        style: TextStyle(
+                          color: isSelected
+                              ? colorScheme.onPrimary
+                              : colorScheme.onSurface.withValues(alpha: 0.8),
+                          fontWeight: isSelected
+                              ? widget.selectedFontWeight
+                              : widget.unselectedFontWeight,
+                          fontSize: widget.fontSize,
+                        ),
                       ),
                     ),
                   ),
@@ -212,35 +223,6 @@ class _HorizontalFilterListState extends State<HorizontalFilterList> {
             ),
         ],
       ),
-    );
-  }
-}
-
-class GenreFilterList extends StatelessWidget {
-  const GenreFilterList({
-    super.key,
-    this.selectedIndex = 0,
-    this.onSelected,
-  });
-
-  final int selectedIndex;
-  final ValueChanged<int>? onSelected;
-
-  static const List<String> genres = [
-    'All',
-    'Electronic',
-    'Hip Hop',
-    'Lo-Fi',
-    'Pop',
-    'Jazz',
-  ];
-
-  @override
-  Widget build(BuildContext context) {
-    return HorizontalFilterList(
-      items: genres,
-      selectedIndex: selectedIndex,
-      onSelected: onSelected,
     );
   }
 }

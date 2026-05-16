@@ -144,6 +144,7 @@ class _HomePageState extends State<HomePage> {
                             ),
                           );
                         },
+                        onClearFilters: _clearFilters,
                         statuses: statuses,
                         tagLabels: _tagLabels,
                       ),
@@ -164,6 +165,14 @@ class _HomePageState extends State<HomePage> {
         },
       ),
     );
+  }
+
+  void _clearFilters() {
+    setState(() {
+      _selectedStatusIndex = 0;
+      _selectedGenreIndex = 0;
+    });
+    unawaited(_cubit.clearFilters());
   }
 
   Future<void> _enterRoom(BuildContext context, MyEventItemModel event) async {
@@ -219,6 +228,7 @@ class _HeaderAndFilters extends StatelessWidget {
     required this.onStatusSelected,
     required this.selectedGenreIndex,
     required this.onGenreSelected,
+    required this.onClearFilters,
     required this.statuses,
     required this.tagLabels,
   });
@@ -228,8 +238,12 @@ class _HeaderAndFilters extends StatelessWidget {
   final ValueChanged<int> onStatusSelected;
   final int selectedGenreIndex;
   final ValueChanged<int> onGenreSelected;
+  final VoidCallback onClearFilters;
   final List<String> statuses;
   final List<String> tagLabels;
+
+  bool get _hasActiveFilters =>
+      selectedStatusIndex != 0 || selectedGenreIndex != 0;
 
   @override
   Widget build(BuildContext context) {
@@ -242,7 +256,7 @@ class _HeaderAndFilters extends StatelessWidget {
             padding: EdgeInsets.symmetric(horizontal: 24),
             child: HomeHeader(),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: HomeSearchBar(
@@ -257,53 +271,114 @@ class _HeaderAndFilters extends StatelessWidget {
               },
             ),
           ),
-          const SizedBox(height: 24),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Text(
-              'STATUS',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.5),
-                letterSpacing: 1.2,
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           HorizontalFilterList(
             items: statuses,
             selectedIndex: selectedStatusIndex,
             onSelected: onStatusSelected,
             listPadding: const EdgeInsets.symmetric(horizontal: 24),
           ),
-          const SizedBox(height: 24),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Text(
-              'TAGS',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.5),
-                letterSpacing: 1.2,
-              ),
-            ),
-          ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 10),
           HorizontalFilterList(
             items: tagLabels,
             selectedIndex: selectedGenreIndex,
             onSelected: onGenreSelected,
             listPadding: const EdgeInsets.symmetric(horizontal: 24),
           ),
-          const SizedBox(height: 32),
+          if (_hasActiveFilters) ...[
+            const SizedBox(height: 12),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: _ActiveFilterBar(
+                statusLabel: selectedStatusIndex != 0
+                    ? statuses[selectedStatusIndex]
+                    : null,
+                tagLabel: selectedGenreIndex != 0
+                    ? tagLabels[selectedGenreIndex]
+                    : null,
+                onClear: onClearFilters,
+              ),
+            ),
+          ],
+          const SizedBox(height: 20),
         ],
       ),
+    );
+  }
+}
+
+class _ActiveFilterBar extends StatelessWidget {
+  const _ActiveFilterBar({
+    required this.onClear,
+    this.statusLabel,
+    this.tagLabel,
+  });
+
+  final String? statusLabel;
+  final String? tagLabel;
+  final VoidCallback onClear;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final labels = [
+      ?statusLabel,
+      ?tagLabel,
+    ];
+
+    return Row(
+      children: [
+        Icon(
+          Icons.filter_list_rounded,
+          size: 16,
+          color: colorScheme.primary,
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+            labels.join(' · '),
+            style: TextStyle(
+              color: colorScheme.primary,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        Material(
+          color: Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(8),
+            onTap: onClear,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 4,
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Clear',
+                    style: TextStyle(
+                      color: colorScheme.onSurface.withValues(alpha: 0.5),
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    Icons.close_rounded,
+                    size: 14,
+                    color: colorScheme.onSurface.withValues(alpha: 0.5),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
