@@ -349,56 +349,11 @@ class _HeaderAndFilters extends StatelessWidget {
           final event = events[index];
           return EventVerticalCard(
             event: event,
-            onTap: () => _enterRoom(context, event),
+            onTap: () => onEventTapped(context, event),
           );
         },
       ),
     );
-  }
-
-  Future<void> _enterRoom(BuildContext context, MyEventItemModel event) async {
-    if (event.status == 'UPCOMING' || event.status == 'ENDED') {
-      await Navigator.of(context).pushNamed(
-        RouteNames.preEvent,
-        arguments: event.id,
-      );
-      return;
-    }
-
-    // Get current user ID to decide between Host or Guest view
-    var currentUserId = _currentUserId(context);
-    if (currentUserId == null || currentUserId.isEmpty) {
-      final tokenStorage = InjectionContainer().tokenStorageService;
-      final userJson = await tokenStorage.getUserProfile();
-      if (userJson != null && userJson.isNotEmpty) {
-        try {
-          final parsed = jsonDecode(userJson);
-          if (parsed is Map<String, dynamic>) {
-            currentUserId = (parsed['id'] ?? parsed['userId']) as String?;
-          }
-        } on Exception catch (_) {}
-      }
-    }
-
-    if (!context.mounted) return;
-
-    if (currentUserId == event.hostId) {
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => HostMusicVotePage(eventId: event.id),
-        ),
-      );
-    } else {
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => GuestMusicVotePage(eventId: event.id),
-        ),
-      );
-    }
-  }
-
-  String? _currentUserId(BuildContext context) {
-    return context.read<AuthBloc>().state.currentUser?.id;
   }
 }
 
