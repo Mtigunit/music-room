@@ -10,6 +10,7 @@ import 'package:music_room/features/events/domain/entities/my_event_item_model.d
 import 'package:music_room/features/events/presentation/pages/create_event_page.dart';
 import 'package:music_room/features/home/presentation/state/home_events_cubit.dart';
 import 'package:music_room/features/home/presentation/state/home_events_state.dart';
+import 'package:music_room/features/home/presentation/widgets/event_see_all_sheet.dart';
 import 'package:music_room/features/home/presentation/widgets/event_vertical_card.dart';
 import 'package:music_room/features/home/presentation/widgets/genre_filter_list.dart';
 import 'package:music_room/features/home/presentation/widgets/home_header.dart';
@@ -17,6 +18,7 @@ import 'package:music_room/features/home/presentation/widgets/home_search_bar.da
 import 'package:music_room/features/home/presentation/widgets/section_title.dart';
 import 'package:music_room/features/music_vote/presentation/pages/guest_music_vote_page.dart';
 import 'package:music_room/features/music_vote/presentation/pages/host_music_vote_page.dart';
+import 'package:music_room/features/search/presentation/pages/search_page.dart';
 import 'package:music_room/routes/route_names.dart';
 
 class HomePage extends StatefulWidget {
@@ -241,8 +243,10 @@ class _HeaderAndFilters extends StatelessWidget {
           HomeSearchBar(
             onSubmitted: (query) {
               unawaited(
-                cubit.fetchEvents(
-                  search: query,
+                Navigator.of(context).push<void>(
+                  MaterialPageRoute<void>(
+                    builder: (_) => SearchPage(initialQuery: query),
+                  ),
                 ),
               );
             },
@@ -359,7 +363,17 @@ class _EventsBody extends StatelessWidget {
                   subtitle:
                       'Discover public and '
                       'invited music rooms',
-                  onSeeAllPressed: () {},
+                  onSeeAllPressed: () {
+                    unawaited(
+                      EventSeeAllSheet.show(
+                        context,
+                        title: 'Explore Events',
+                        type: EventListType.explore,
+                        cubit: cubit,
+                        onEventTapped: onEventTapped,
+                      ),
+                    );
+                  },
                 ),
               ),
               const SizedBox(height: 16),
@@ -378,7 +392,17 @@ class _EventsBody extends StatelessWidget {
                 child: SectionTitle(
                   title: "Friends' Events",
                   subtitle: 'Events from people you follow',
-                  onSeeAllPressed: () {},
+                  onSeeAllPressed: () {
+                    unawaited(
+                      EventSeeAllSheet.show(
+                        context,
+                        title: "Friends' Events",
+                        type: EventListType.friends,
+                        cubit: cubit,
+                        onEventTapped: onEventTapped,
+                      ),
+                    );
+                  },
                 ),
               ),
               const SizedBox(height: 16),
