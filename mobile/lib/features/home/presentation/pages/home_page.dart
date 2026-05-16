@@ -448,18 +448,27 @@ class _EventsBody extends StatelessWidget {
 
     return SizedBox(
       height: 160,
-      child: ListView.separated(
-        controller: controller,
-        padding: const EdgeInsets.symmetric(horizontal: 24),
-        scrollDirection: Axis.horizontal,
-        clipBehavior: Clip.none,
-        itemCount: events.length,
-        separatorBuilder: (context, index) => const SizedBox(width: 16),
-        itemBuilder: (context, index) {
-          final event = events[index];
-          return EventVerticalCard(
-            event: event,
-            onTap: () => onEventTapped(context, event),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final screenWidth = MediaQuery.sizeOf(context).width;
+          // Card width is ~45% of the screen width, min 150, max 250
+          final cardWidth = (screenWidth * 0.45).clamp(150.0, 250.0);
+
+          return ListView.separated(
+            controller: controller,
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            scrollDirection: Axis.horizontal,
+            clipBehavior: Clip.none,
+            itemCount: events.length,
+            separatorBuilder: (context, index) => const SizedBox(width: 16),
+            itemBuilder: (context, index) {
+              final event = events[index];
+              return EventVerticalCard(
+                event: event,
+                width: cardWidth,
+                onTap: () => onEventTapped(context, event),
+              );
+            },
           );
         },
       ),

@@ -24,11 +24,17 @@ class MyEventItemModel {
         ? hostMap['name'] as String
         : '';
 
+    var parsedStartDate = DateTime.now();
+    final rawDate = json['startDate'];
+    if (rawDate is String && rawDate.isNotEmpty) {
+      parsedStartDate = DateTime.tryParse(rawDate) ?? parsedStartDate;
+    }
+
     return MyEventItemModel(
       id: json['id'] as String,
       name: json['name'] as String,
       status: json['status'] as String,
-      startDate: DateTime.parse(json['startDate'] as String),
+      startDate: parsedStartDate,
       hostName: hostName,
       hostId: (hostMap is Map<String, dynamic> && hostMap['id'] is String)
           ? hostMap['id'] as String
@@ -81,6 +87,7 @@ class MyEventItemModel {
   static int _parseMembersCount(Object? value) {
     if (value is int) return value;
     if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value.trim()) ?? 0;
     return 0;
   }
 }

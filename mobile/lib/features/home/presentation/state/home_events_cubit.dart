@@ -19,6 +19,8 @@ class HomeEventsCubit extends Cubit<HomeEventsState> {
   bool _isLoadingMoreExplore = false;
   bool _isLoadingMoreFriends = false;
 
+  int _requestEpoch = 0;
+
   Future<void> fetchEvents({
     String? tags,
     String? status,
@@ -28,6 +30,7 @@ class HomeEventsCubit extends Cubit<HomeEventsState> {
     _currentStatus = status ?? _currentStatus;
     _currentSearch = search ?? _currentSearch;
 
+    final epoch = ++_requestEpoch;
     emit(HomeEventsLoading());
 
     try {
@@ -44,7 +47,7 @@ class HomeEventsCubit extends Cubit<HomeEventsState> {
         ),
       ]);
 
-      if (isClosed) return;
+      if (isClosed || epoch != _requestEpoch) return;
 
       final exploreEvents = results[0];
       final friendsEvents = results[1];
@@ -60,10 +63,10 @@ class HomeEventsCubit extends Cubit<HomeEventsState> {
         ),
       );
     } on DioException catch (e) {
-      if (isClosed) return;
+      if (isClosed || epoch != _requestEpoch) return;
       emit(HomeEventsError(_extractDioMessage(e)));
     } on Object {
-      if (isClosed) return;
+      if (isClosed || epoch != _requestEpoch) return;
       emit(HomeEventsError('Unable to load home events right now.'));
     }
   }
@@ -76,6 +79,7 @@ class HomeEventsCubit extends Cubit<HomeEventsState> {
       return;
     }
 
+    final epoch = ++_requestEpoch;
     _isLoadingMoreExplore = true;
     final nextPage = currentState.explorePage + 1;
 
@@ -87,7 +91,7 @@ class HomeEventsCubit extends Cubit<HomeEventsState> {
         search: _currentSearch,
       );
 
-      if (isClosed) return;
+      if (isClosed || epoch != _requestEpoch) return;
 
       emit(
         currentState.copyWith(
@@ -111,6 +115,7 @@ class HomeEventsCubit extends Cubit<HomeEventsState> {
       return;
     }
 
+    final epoch = ++_requestEpoch;
     _isLoadingMoreFriends = true;
     final nextPage = currentState.friendsPage + 1;
 
@@ -122,7 +127,7 @@ class HomeEventsCubit extends Cubit<HomeEventsState> {
         search: _currentSearch,
       );
 
-      if (isClosed) return;
+      if (isClosed || epoch != _requestEpoch) return;
 
       emit(
         currentState.copyWith(

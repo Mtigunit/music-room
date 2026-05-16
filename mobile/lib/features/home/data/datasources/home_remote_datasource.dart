@@ -40,11 +40,18 @@ class HomeRemoteDataSource implements IHomeRemoteDataSource {
         'limit': limit,
       };
 
-      if (tags != null && tags.isNotEmpty && tags != 'All') {
-        queryParameters['tags'] = tags.toUpperCase();
+      final normalizedTags = tags?.trim().toLowerCase();
+      if (normalizedTags != null &&
+          normalizedTags.isNotEmpty &&
+          normalizedTags != 'all') {
+        queryParameters['tags'] = tags!.trim().toUpperCase();
       }
-      if (status != null && status.isNotEmpty && status != 'All') {
-        queryParameters['status'] = status.toUpperCase();
+
+      final normalizedStatus = status?.trim().toLowerCase();
+      if (normalizedStatus != null &&
+          normalizedStatus.isNotEmpty &&
+          normalizedStatus != 'all') {
+        queryParameters['status'] = status!.trim().toUpperCase();
       }
       if (search != null && search.trim().isNotEmpty) {
         queryParameters['search'] = search.trim();
@@ -80,11 +87,18 @@ class HomeRemoteDataSource implements IHomeRemoteDataSource {
         'limit': limit,
       };
 
-      if (tags != null && tags.isNotEmpty && tags != 'All') {
-        queryParameters['tags'] = tags.toUpperCase();
+      final normalizedTags = tags?.trim().toLowerCase();
+      if (normalizedTags != null &&
+          normalizedTags.isNotEmpty &&
+          normalizedTags != 'all') {
+        queryParameters['tags'] = tags!.trim().toUpperCase();
       }
-      if (status != null && status.isNotEmpty && status != 'All') {
-        queryParameters['status'] = status.toUpperCase();
+
+      final normalizedStatus = status?.trim().toLowerCase();
+      if (normalizedStatus != null &&
+          normalizedStatus.isNotEmpty &&
+          normalizedStatus != 'all') {
+        queryParameters['status'] = status!.trim().toUpperCase();
       }
       if (search != null && search.trim().isNotEmpty) {
         queryParameters['search'] = search.trim();
@@ -128,10 +142,22 @@ class HomeRemoteDataSource implements IHomeRemoteDataSource {
       } else if (body['items'] is List) {
         items = body['items'] as List<dynamic>;
       } else {
-        items = const [];
+        throw DioException(
+          requestOptions: response.requestOptions,
+          response: response,
+          error:
+              'Unexpected Map response shape: no "data" or "items" '
+              'array found. Payload: $body',
+        );
       }
     } else {
-      items = const [];
+      throw DioException(
+        requestOptions: response.requestOptions,
+        response: response,
+        error:
+            'Unexpected response type: expected List or Map, '
+            'got ${body.runtimeType}. Payload: $body',
+      );
     }
 
     return items

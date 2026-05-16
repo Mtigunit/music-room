@@ -155,9 +155,12 @@ class EventVerticalCard extends StatelessWidget {
     } else if (isUpcoming) {
       bgColor = const Color(0xFF007AFF);
       text = 'UPCOMING';
-    } else {
+    } else if (isEnded) {
       bgColor = Colors.black.withValues(alpha: 0.6);
       text = 'ENDED';
+    } else {
+      bgColor = Colors.grey.withValues(alpha: 0.6);
+      text = 'UNKNOWN';
     }
 
     return Container(

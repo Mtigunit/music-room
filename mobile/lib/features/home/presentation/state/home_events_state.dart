@@ -8,13 +8,14 @@ class HomeEventsLoading extends HomeEventsState {}
 
 class HomeEventsSuccess extends HomeEventsState {
   HomeEventsSuccess({
-    required this.exploreEvents,
-    required this.friendsEvents,
+    required List<MyEventItemModel> exploreEvents,
+    required List<MyEventItemModel> friendsEvents,
     required this.explorePage,
     required this.friendsPage,
     required this.hasMoreExplore,
     required this.hasMoreFriends,
-  });
+  }) : exploreEvents = List.unmodifiable(exploreEvents),
+       friendsEvents = List.unmodifiable(friendsEvents);
 
   final List<MyEventItemModel> exploreEvents;
   final List<MyEventItemModel> friendsEvents;
