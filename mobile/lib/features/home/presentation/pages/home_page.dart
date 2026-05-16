@@ -234,33 +234,42 @@ class _HeaderAndFilters extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+      padding: const EdgeInsets.only(top: 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const HomeHeader(),
-          const SizedBox(height: 24),
-          HomeSearchBar(
-            onSubmitted: (query) {
-              unawaited(
-                Navigator.of(context).push<void>(
-                  MaterialPageRoute<void>(
-                    builder: (_) => SearchPage(initialQuery: query),
-                  ),
-                ),
-              );
-            },
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 24),
+            child: HomeHeader(),
           ),
           const SizedBox(height: 24),
-          Text(
-            'STATUS',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: Theme.of(
-                context,
-              ).colorScheme.onSurface.withValues(alpha: 0.5),
-              letterSpacing: 1.2,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: HomeSearchBar(
+              onSubmitted: (query) {
+                unawaited(
+                  Navigator.of(context).push<void>(
+                    MaterialPageRoute<void>(
+                      builder: (_) => SearchPage(initialQuery: query),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          const SizedBox(height: 24),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Text(
+              'STATUS',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.5),
+                letterSpacing: 1.2,
+              ),
             ),
           ),
           const SizedBox(height: 12),
@@ -268,17 +277,21 @@ class _HeaderAndFilters extends StatelessWidget {
             items: statuses,
             selectedIndex: selectedStatusIndex,
             onSelected: onStatusSelected,
+            listPadding: const EdgeInsets.symmetric(horizontal: 24),
           ),
           const SizedBox(height: 24),
-          Text(
-            'TAGS',
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              color: Theme.of(
-                context,
-              ).colorScheme.onSurface.withValues(alpha: 0.5),
-              letterSpacing: 1.2,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            child: Text(
+              'TAGS',
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                color: Theme.of(
+                  context,
+                ).colorScheme.onSurface.withValues(alpha: 0.5),
+                letterSpacing: 1.2,
+              ),
             ),
           ),
           const SizedBox(height: 12),
@@ -286,6 +299,7 @@ class _HeaderAndFilters extends StatelessWidget {
             items: tagLabels,
             selectedIndex: selectedGenreIndex,
             onSelected: onGenreSelected,
+            listPadding: const EdgeInsets.symmetric(horizontal: 24),
           ),
           const SizedBox(height: 32),
         ],

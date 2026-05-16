@@ -161,7 +161,7 @@ class _HorizontalFilterListState extends State<HorizontalFilterList> {
               top: 0,
               bottom: 0,
               child: Container(
-                width: 56,
+                width: 48,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     colors: [
@@ -170,35 +170,14 @@ class _HorizontalFilterListState extends State<HorizontalFilterList> {
                     ],
                   ),
                 ),
-              ),
-            ),
-          if (_showLeftArrow)
-            Positioned(
-              left: 4,
-              top: 0,
-              bottom: 0,
-              child: Center(
-                child: Container(
-                  height: 32,
-                  width: 32,
-                  decoration: BoxDecoration(
-                    color: colorScheme.surface,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.1),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: IconButton(
-                    onPressed: _scrollLeft,
-                    icon: const Icon(Icons.chevron_left_rounded),
-                    color: colorScheme.primary,
-                    iconSize: 20,
-                    padding: EdgeInsets.zero,
-                  ),
+                alignment: Alignment.centerLeft,
+                child: IconButton(
+                  onPressed: _scrollLeft,
+                  icon: const Icon(Icons.chevron_left_rounded),
+                  color: colorScheme.primary,
+                  iconSize: 28,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
                 ),
               ),
             ),
@@ -209,7 +188,7 @@ class _HorizontalFilterListState extends State<HorizontalFilterList> {
               top: 0,
               bottom: 0,
               child: Container(
-                width: 56,
+                width: 48,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.centerRight,
@@ -220,35 +199,14 @@ class _HorizontalFilterListState extends State<HorizontalFilterList> {
                     ],
                   ),
                 ),
-              ),
-            ),
-          if (_showRightArrow)
-            Positioned(
-              right: 4,
-              top: 0,
-              bottom: 0,
-              child: Center(
-                child: Container(
-                  height: 32,
-                  width: 32,
-                  decoration: BoxDecoration(
-                    color: colorScheme.surface,
-                    shape: BoxShape.circle,
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.1),
-                        blurRadius: 8,
-                        offset: const Offset(0, 2),
-                      ),
-                    ],
-                  ),
-                  child: IconButton(
-                    onPressed: _scrollRight,
-                    icon: const Icon(Icons.chevron_right_rounded),
-                    color: colorScheme.primary,
-                    iconSize: 20,
-                    padding: EdgeInsets.zero,
-                  ),
+                alignment: Alignment.centerRight,
+                child: IconButton(
+                  onPressed: _scrollRight,
+                  icon: const Icon(Icons.chevron_right_rounded),
+                  color: colorScheme.primary,
+                  iconSize: 28,
+                  padding: EdgeInsets.zero,
+                  constraints: const BoxConstraints(),
                 ),
               ),
             ),
