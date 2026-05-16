@@ -1,4 +1,4 @@
-import 'package:music_room/features/events/data/datasources/event_remote_datasource.dart';
+import 'package:music_room/features/events/domain/entities/my_event_item_model.dart';
 
 abstract class HomeEventsState {}
 

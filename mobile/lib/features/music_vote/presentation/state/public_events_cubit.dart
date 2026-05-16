@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:music_room/features/events/data/datasources/event_remote_datasource.dart';
+import 'package:music_room/features/events/domain/entities/my_event_item_model.dart';
 import 'package:music_room/features/events/domain/repositories/event_repository.dart';
 
 abstract class PublicEventsState {}

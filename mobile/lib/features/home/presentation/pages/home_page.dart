@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
-import 'package:music_room/features/events/data/datasources/event_remote_datasource.dart';
 import 'package:music_room/features/events/domain/entities/event_tag.dart';
+import 'package:music_room/features/events/domain/entities/my_event_item_model.dart';
 import 'package:music_room/features/events/presentation/pages/create_event_page.dart';
 import 'package:music_room/features/home/presentation/state/home_events_cubit.dart';
 import 'package:music_room/features/home/presentation/state/home_events_state.dart';
@@ -111,180 +111,47 @@ class _HomePageState extends State<HomePage> {
               body: RefreshIndicator(
                 onRefresh: () => _cubit.fetchEvents(),
                 child: CustomScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
                   slivers: [
                     SliverToBoxAdapter(
-                      child: Padding(
-                        padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const HomeHeader(),
-                            const SizedBox(height: 24),
-                            HomeSearchBar(
-                              onSubmitted: (query) {
-                                unawaited(
-                                  _cubit.fetchEvents(
-                                    search: query,
-                                  ),
-                                );
-                              },
+                      child: _HeaderAndFilters(
+                        cubit: _cubit,
+                        selectedStatusIndex: _selectedStatusIndex,
+                        onStatusSelected: (index) {
+                          setState(() {
+                            _selectedStatusIndex = index;
+                          });
+                          final status = statuses[index];
+                          unawaited(
+                            _cubit.fetchEvents(
+                              status: status == 'All' ? '' : status,
                             ),
-                            const SizedBox(height: 24),
-                            Text(
-                              'STATUS',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onSurface.withValues(alpha: 0.5),
-                                letterSpacing: 1.2,
-                              ),
+                          );
+                        },
+                        selectedGenreIndex: _selectedGenreIndex,
+                        onGenreSelected: (index) {
+                          setState(() {
+                            _selectedGenreIndex = index;
+                          });
+                          final tag = index == 0
+                              ? ''
+                              : EventTag.values[index - 1].backendValue;
+                          unawaited(
+                            _cubit.fetchEvents(
+                              tags: tag,
                             ),
-                            const SizedBox(height: 12),
-                            HorizontalFilterList(
-                              items: statuses,
-                              selectedIndex: _selectedStatusIndex,
-                              onSelected: (index) {
-                                setState(() {
-                                  _selectedStatusIndex = index;
-                                });
-                                final status = statuses[index];
-                                unawaited(
-                                  _cubit.fetchEvents(
-                                    status: status == 'All' ? '' : status,
-                                  ),
-                                );
-                              },
-                            ),
-                            const SizedBox(height: 24),
-                            Text(
-                              'TAGS',
-                              style: TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                color: Theme.of(
-                                  context,
-                                ).colorScheme.onSurface.withValues(alpha: 0.5),
-                                letterSpacing: 1.2,
-                              ),
-                            ),
-                            const SizedBox(height: 12),
-                            HorizontalFilterList(
-                              items: _tagLabels,
-                              selectedIndex: _selectedGenreIndex,
-                              onSelected: (index) {
-                                setState(() {
-                                  _selectedGenreIndex = index;
-                                });
-                                final tag = index == 0
-                                    ? ''
-                                    : EventTag.values[index - 1].backendValue;
-                                unawaited(
-                                  _cubit.fetchEvents(
-                                    tags: tag,
-                                  ),
-                                );
-                              },
-                            ),
-                            const SizedBox(height: 32),
-                          ],
-                        ),
+                          );
+                        },
+                        statuses: statuses,
+                        tagLabels: _tagLabels,
                       ),
                     ),
                     SliverToBoxAdapter(
-                      child: BlocBuilder<HomeEventsCubit, HomeEventsState>(
-                        builder: (context, state) {
-                          if (state is HomeEventsLoading ||
-                              state is HomeEventsInitial) {
-                            return const SizedBox(
-                              height: 300,
-                              child: Center(child: CircularProgressIndicator()),
-                            );
-                          }
-
-                          if (state is HomeEventsError) {
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 24,
-                              ),
-                              child: Center(
-                                child: Column(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const Icon(
-                                      Icons.error_outline,
-                                      size: 48,
-                                      color: Colors.grey,
-                                    ),
-                                    const SizedBox(height: 16),
-                                    Text(
-                                      state.message,
-                                      textAlign: TextAlign.center,
-                                    ),
-                                    const SizedBox(height: 16),
-                                    FilledButton.tonal(
-                                      onPressed: () {
-                                        unawaited(_cubit.fetchEvents());
-                                      },
-                                      child: const Text('Retry'),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            );
-                          }
-
-                          if (state is HomeEventsSuccess) {
-                            return Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 24,
-                                  ),
-                                  child: SectionTitle(
-                                    title: 'Explore Events',
-                                    subtitle:
-                                        'Discover public and '
-                                        'invited music rooms',
-                                    onSeeAllPressed: () {},
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                _buildHorizontalList(
-                                  context,
-                                  state.exploreEvents,
-                                  _exploreScrollController,
-                                  Icons.explore_off_outlined,
-                                  'No public events found.',
-                                ),
-                                const SizedBox(height: 32),
-                                Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 24,
-                                  ),
-                                  child: SectionTitle(
-                                    title: "Friends' Events",
-                                    subtitle: 'Events from people you follow',
-                                    onSeeAllPressed: () {},
-                                  ),
-                                ),
-                                const SizedBox(height: 16),
-                                _buildHorizontalList(
-                                  context,
-                                  state.friendsEvents,
-                                  _friendsScrollController,
-                                  Icons.people_outline,
-                                  'None of your friends are currently hosting.',
-                                ),
-                                const SizedBox(height: 100),
-                              ],
-                            );
-                          }
-
-                          return const SizedBox.shrink();
-                        },
+                      child: _EventsBody(
+                        cubit: _cubit,
+                        exploreScrollController: _exploreScrollController,
+                        friendsScrollController: _friendsScrollController,
+                        onEventTapped: _enterRoom,
                       ),
                     ),
                   ],
@@ -294,6 +161,241 @@ class _HomePageState extends State<HomePage> {
           );
         },
       ),
+    );
+  }
+
+  Future<void> _enterRoom(BuildContext context, MyEventItemModel event) async {
+    if (event.status == 'UPCOMING' || event.status == 'ENDED') {
+      await Navigator.of(context).pushNamed(
+        RouteNames.preEvent,
+        arguments: event.id,
+      );
+      return;
+    }
+
+    // Get current user ID to decide between Host or Guest view
+    var currentUserId = _currentUserId(context);
+    if (currentUserId == null || currentUserId.isEmpty) {
+      final tokenStorage = InjectionContainer().tokenStorageService;
+      final userJson = await tokenStorage.getUserProfile();
+      if (userJson != null && userJson.isNotEmpty) {
+        try {
+          final parsed = jsonDecode(userJson);
+          if (parsed is Map<String, dynamic>) {
+            currentUserId = (parsed['id'] ?? parsed['userId'])?.toString();
+          }
+        } on Object catch (_) {}
+      }
+    }
+
+    if (!context.mounted) return;
+
+    if (currentUserId == event.hostId) {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => HostMusicVotePage(eventId: event.id),
+        ),
+      );
+    } else {
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => GuestMusicVotePage(eventId: event.id),
+        ),
+      );
+    }
+  }
+
+  String? _currentUserId(BuildContext context) {
+    return context.read<AuthBloc>().state.currentUser?.id;
+  }
+}
+
+class _HeaderAndFilters extends StatelessWidget {
+  const _HeaderAndFilters({
+    required this.cubit,
+    required this.selectedStatusIndex,
+    required this.onStatusSelected,
+    required this.selectedGenreIndex,
+    required this.onGenreSelected,
+    required this.statuses,
+    required this.tagLabels,
+  });
+
+  final HomeEventsCubit cubit;
+  final int selectedStatusIndex;
+  final ValueChanged<int> onStatusSelected;
+  final int selectedGenreIndex;
+  final ValueChanged<int> onGenreSelected;
+  final List<String> statuses;
+  final List<String> tagLabels;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 16, 24, 0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const HomeHeader(),
+          const SizedBox(height: 24),
+          HomeSearchBar(
+            onSubmitted: (query) {
+              unawaited(
+                cubit.fetchEvents(
+                  search: query,
+                ),
+              );
+            },
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'STATUS',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.5),
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(height: 12),
+          HorizontalFilterList(
+            items: statuses,
+            selectedIndex: selectedStatusIndex,
+            onSelected: onStatusSelected,
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'TAGS',
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: Theme.of(
+                context,
+              ).colorScheme.onSurface.withValues(alpha: 0.5),
+              letterSpacing: 1.2,
+            ),
+          ),
+          const SizedBox(height: 12),
+          HorizontalFilterList(
+            items: tagLabels,
+            selectedIndex: selectedGenreIndex,
+            onSelected: onGenreSelected,
+          ),
+          const SizedBox(height: 32),
+        ],
+      ),
+    );
+  }
+}
+
+class _EventsBody extends StatelessWidget {
+  const _EventsBody({
+    required this.cubit,
+    required this.exploreScrollController,
+    required this.friendsScrollController,
+    required this.onEventTapped,
+  });
+
+  final HomeEventsCubit cubit;
+  final ScrollController exploreScrollController;
+  final ScrollController friendsScrollController;
+  final void Function(BuildContext, MyEventItemModel) onEventTapped;
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<HomeEventsCubit, HomeEventsState>(
+      builder: (context, state) {
+        if (state is HomeEventsLoading || state is HomeEventsInitial) {
+          return const SizedBox(
+            height: 300,
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+
+        if (state is HomeEventsError) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: 24,
+            ),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(
+                    Icons.error_outline,
+                    size: 48,
+                    color: Colors.grey,
+                  ),
+                  const SizedBox(height: 16),
+                  Text(
+                    state.message,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 16),
+                  FilledButton.tonal(
+                    onPressed: () {
+                      unawaited(cubit.fetchEvents());
+                    },
+                    child: const Text('Retry'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        if (state is HomeEventsSuccess) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                ),
+                child: SectionTitle(
+                  title: 'Explore Events',
+                  subtitle:
+                      'Discover public and '
+                      'invited music rooms',
+                  onSeeAllPressed: () {},
+                ),
+              ),
+              const SizedBox(height: 16),
+              _buildHorizontalList(
+                context,
+                state.exploreEvents,
+                exploreScrollController,
+                Icons.explore_off_outlined,
+                'No public events found.',
+              ),
+              const SizedBox(height: 32),
+              Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                ),
+                child: SectionTitle(
+                  title: "Friends' Events",
+                  subtitle: 'Events from people you follow',
+                  onSeeAllPressed: () {},
+                ),
+              ),
+              const SizedBox(height: 16),
+              _buildHorizontalList(
+                context,
+                state.friendsEvents,
+                friendsScrollController,
+                Icons.people_outline,
+                'None of your friends are currently hosting.',
+              ),
+              const SizedBox(height: 100),
+            ],
+          );
+        }
+
+        return const SizedBox.shrink();
+      },
     );
   }
 
@@ -357,55 +459,10 @@ class _HomePageState extends State<HomePage> {
           final event = events[index];
           return EventVerticalCard(
             event: event,
-            onTap: () => _enterRoom(context, event),
+            onTap: () => onEventTapped(context, event),
           );
         },
       ),
     );
-  }
-
-  Future<void> _enterRoom(BuildContext context, MyEventItemModel event) async {
-    if (event.status == 'UPCOMING' || event.status == 'ENDED') {
-      await Navigator.of(context).pushNamed(
-        RouteNames.preEvent,
-        arguments: event.id,
-      );
-      return;
-    }
-
-    // Get current user ID to decide between Host or Guest view
-    var currentUserId = _currentUserId(context);
-    if (currentUserId == null || currentUserId.isEmpty) {
-      final tokenStorage = InjectionContainer().tokenStorageService;
-      final userJson = await tokenStorage.getUserProfile();
-      if (userJson != null && userJson.isNotEmpty) {
-        try {
-          final parsed = jsonDecode(userJson);
-          if (parsed is Map<String, dynamic>) {
-            currentUserId = (parsed['id'] ?? parsed['userId']) as String?;
-          }
-        } on Exception catch (_) {}
-      }
-    }
-
-    if (!context.mounted) return;
-
-    if (currentUserId == event.hostId) {
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => HostMusicVotePage(eventId: event.id),
-        ),
-      );
-    } else {
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => GuestMusicVotePage(eventId: event.id),
-        ),
-      );
-    }
-  }
-
-  String? _currentUserId(BuildContext context) {
-    return context.read<AuthBloc>().state.currentUser?.id;
   }
 }

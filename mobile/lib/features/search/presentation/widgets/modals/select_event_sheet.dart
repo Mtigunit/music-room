@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/events/data/datasources/event_remote_datasource.dart';
+import 'package:music_room/features/events/domain/entities/my_event_item_model.dart';
 
 class SelectEventSheet extends StatefulWidget {
   const SelectEventSheet({super.key});

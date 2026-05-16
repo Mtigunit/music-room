@@ -4,8 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:music_room/core/widgets/app_snackbar.dart';
 import 'package:music_room/di/injection_container.dart';
-import 'package:music_room/features/events/data/datasources/event_remote_datasource.dart'
-    show MyEventItemModel;
+import 'package:music_room/features/events/domain/entities/my_event_item_model.dart';
 import 'package:music_room/features/playlist/domain/entities/playlist_entity.dart'
     show PlaylistEntity, TrackSearchEntity;
 import 'package:music_room/features/search/data/models/search_result_models.dart';

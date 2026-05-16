@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:music_room/core/config/app_config.dart';
 import 'package:music_room/core/network/api_client.dart';
-import 'package:music_room/features/events/data/datasources/event_remote_datasource.dart';
+import 'package:music_room/features/events/domain/entities/my_event_item_model.dart';
 
 abstract class IHomeRemoteDataSource {
   Future<List<MyEventItemModel>> fetchExploreEvents({

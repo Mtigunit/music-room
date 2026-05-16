@@ -16,6 +16,9 @@ class HomeEventsCubit extends Cubit<HomeEventsState> {
   String? _currentStatus;
   String? _currentSearch;
 
+  bool _isLoadingMoreExplore = false;
+  bool _isLoadingMoreFriends = false;
+
   Future<void> fetchEvents({
     String? tags,
     String? status,
@@ -66,11 +69,14 @@ class HomeEventsCubit extends Cubit<HomeEventsState> {
   }
 
   Future<void> loadMoreExplore() async {
+    if (_isLoadingMoreExplore) return;
+
     final currentState = state;
     if (currentState is! HomeEventsSuccess || !currentState.hasMoreExplore) {
       return;
     }
 
+    _isLoadingMoreExplore = true;
     final nextPage = currentState.explorePage + 1;
 
     try {
@@ -92,15 +98,20 @@ class HomeEventsCubit extends Cubit<HomeEventsState> {
       );
     } on Object {
       // Silently fail load more
+    } finally {
+      _isLoadingMoreExplore = false;
     }
   }
 
   Future<void> loadMoreFriends() async {
+    if (_isLoadingMoreFriends) return;
+
     final currentState = state;
     if (currentState is! HomeEventsSuccess || !currentState.hasMoreFriends) {
       return;
     }
 
+    _isLoadingMoreFriends = true;
     final nextPage = currentState.friendsPage + 1;
 
     try {
@@ -122,6 +133,8 @@ class HomeEventsCubit extends Cubit<HomeEventsState> {
       );
     } on Object {
       // Silently fail load more
+    } finally {
+      _isLoadingMoreFriends = false;
     }
   }
 
