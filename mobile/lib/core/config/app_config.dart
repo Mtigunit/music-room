@@ -44,6 +44,8 @@ class AppConfig {
   static const String verifyEmailUpdateEndpoint = 'users/me/email/verify';
   static const String trackSearchEndpoint = 'tracks/search';
   static const String eventsEndpoint = 'events';
+  static const String eventsExploreEndpoint = 'events/explore';
+  static const String eventsFriendsEndpoint = 'events/friends';
   static const String eventsInvitedEndpoint = 'events/invited';
   static const String eventsHostingEndpoint = 'events/hosting';
   static const String playlistsEndpoint = 'playlists';

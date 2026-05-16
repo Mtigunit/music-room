@@ -7,7 +7,7 @@ import 'package:music_room/core/widgets/empty_state_widget.dart';
 import 'package:music_room/core/widgets/premium_segmented_tab_bar.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
-import 'package:music_room/features/events/data/datasources/event_remote_datasource.dart';
+import 'package:music_room/features/events/domain/entities/my_event_item_model.dart';
 import 'package:music_room/features/events/presentation/pages/create_event_page.dart';
 import 'package:music_room/features/music_vote/data/models/my_event_item.dart';
 import 'package:music_room/features/music_vote/presentation/pages/guest_music_vote_page.dart';
@@ -93,7 +93,7 @@ class MyEventsPage extends StatelessWidget {
       hostId: selectedEvent.hostId,
       dateTime: selectedEvent.startDate,
       status: selectedEvent.status,
-      coverImageAsset: selectedEvent.coverImage,
+      coverImageAsset: selectedEvent.coverImage ?? selectedEvent.firstTrack,
     );
 
     unawaited(_enterRoom(context, uiEvent));
@@ -216,7 +216,7 @@ class _MyEventsBody extends StatelessWidget {
       status: model.status,
       // coverImageAsset is not used when a URL is available; the tile falls
       // back to the gradient + icon when null.
-      coverImageAsset: model.coverImage,
+      coverImageAsset: model.coverImage ?? model.firstTrack,
     );
   }
 
@@ -355,9 +355,9 @@ Future<void> _enterRoom(BuildContext context, MyEventItem event) async {
       try {
         final parsed = jsonDecode(userJson);
         if (parsed is Map<String, dynamic>) {
-          currentUserId = (parsed['id'] ?? parsed['userId']) as String?;
+          currentUserId = (parsed['id'] ?? parsed['userId'])?.toString();
         }
-      } on Exception catch (_) {}
+      } on Object catch (_) {}
     }
   }
 
