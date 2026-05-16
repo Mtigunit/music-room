@@ -119,25 +119,27 @@ class _HorizontalFilterListState extends State<HorizontalFilterList> {
               itemBuilder: (context, index) {
                 final isSelected = index == widget.selectedIndex;
 
-                return Material(
-                  color: Colors.transparent,
-                  borderRadius: BorderRadius.circular(widget.borderRadius),
-                  child: Ink(
-                    decoration: BoxDecoration(
-                      color: isSelected
-                          ? colorScheme.primary
-                          : colorScheme.onSurface.withValues(alpha: 0.06),
-                      borderRadius: BorderRadius.circular(
-                        widget.borderRadius,
-                      ),
-                      border: isSelected
-                          ? null
-                          : Border.all(
-                              color: colorScheme.onSurface.withValues(
-                                alpha: 0.12,
-                              ),
-                            ),
+                return AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeOutCubic,
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? colorScheme.primary
+                        : colorScheme.onSurface.withValues(alpha: 0.06),
+                    borderRadius: BorderRadius.circular(
+                      widget.borderRadius,
                     ),
+                    border: isSelected
+                        ? null
+                        : Border.all(
+                            color: colorScheme.onSurface.withValues(
+                              alpha: 0.12,
+                            ),
+                          ),
+                  ),
+                  child: Material(
+                    color: Colors.transparent,
+                    borderRadius: BorderRadius.circular(widget.borderRadius),
                     child: InkWell(
                       borderRadius: BorderRadius.circular(widget.borderRadius),
                       onTap: () => widget.onSelected?.call(index),
@@ -145,9 +147,7 @@ class _HorizontalFilterListState extends State<HorizontalFilterList> {
                       highlightColor: colorScheme.primary.withValues(
                         alpha: 0.08,
                       ),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        curve: Curves.easeOutCubic,
+                      child: Container(
                         padding: widget.itemPadding,
                         alignment: Alignment.center,
                         child: Text(
