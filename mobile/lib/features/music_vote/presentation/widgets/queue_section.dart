@@ -236,7 +236,11 @@ class _InviteFriendsButton extends StatelessWidget {
     final resolvedEventId = (eventId != null && eventId!.isNotEmpty)
         ? eventId!
         : (state.event?.id ?? '');
-    final resolvedEventName = eventName ?? state.event?.name ?? 'Live Event';
+    final resolvedEventName = (eventName?.isNotEmpty ?? false)
+        ? eventName!
+        : (state.event?.name.isNotEmpty ?? false)
+        ? state.event!.name
+        : 'Live Event';
 
     if (resolvedEventId.isEmpty) {
       TopToast.show(context, 'Unable to invite: event context missing');
