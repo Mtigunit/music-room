@@ -7,6 +7,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/widgets/top_toast.dart';
 import 'package:music_room/features/music_vote/data/models/event_detail_model.dart';
 import 'package:music_room/features/music_vote/data/models/event_track_model.dart';
+import 'package:music_room/features/music_vote/presentation/audio/room_audio_player.dart';
 import 'package:music_room/features/music_vote/presentation/state/music_vote_cubit.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/live_header.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/player_card.dart';
@@ -124,50 +125,92 @@ class _MusicVoteViewState extends State<MusicVoteView> {
 
   @override
   Widget build(BuildContext context) {
-    return BlocListener<MusicVoteCubit, MusicVoteState>(
-      listenWhen: (prev, curr) =>
-          prev.error != curr.error ||
-          prev.playbackStatus != curr.playbackStatus ||
-          prev.currentTrack?.id != curr.currentTrack?.id,
-      listener: (context, state) {
-        if (state.error != null && state.event != null) {
-          TopToast.show(context, state.error!);
-          context.read<MusicVoteCubit>().clearError();
-        }
-
-        final shouldKeepAwake =
-            state.playbackStatus == 'PLAYING' && state.currentTrack != null;
-        unawaited(_setWakeLock(shouldKeepAwake));
+    return RepositoryProvider<RoomAudioPlayer>(
+      create: (_) => RoomAudioPlayer(),
+      dispose: (player) {
+        unawaited(player.dispose());
       },
-      child: BlocBuilder<MusicVoteCubit, MusicVoteState>(
-        builder: (context, state) {
-          if (state.isLoading) {
-            return const MusicVoteSkeleton();
+      child: BlocListener<MusicVoteCubit, MusicVoteState>(
+        listenWhen: (prev, curr) =>
+            prev.error != curr.error ||
+            prev.playbackStatus != curr.playbackStatus ||
+            prev.currentTrack?.id != curr.currentTrack?.id,
+        listener: (context, state) {
+          if (state.error != null && state.event != null) {
+            TopToast.show(context, state.error!);
+            context.read<MusicVoteCubit>().clearError();
           }
 
-          if (state.error != null && state.event == null) {
-            return _ErrorScaffold(
+          final shouldKeepAwake =
+              state.playbackStatus == 'PLAYING' && state.currentTrack != null;
+          unawaited(_setWakeLock(shouldKeepAwake));
+
+          _syncAudioPlayer(context, state);
+        },
+        child: BlocBuilder<MusicVoteCubit, MusicVoteState>(
+          builder: (context, state) {
+            if (state.isLoading) {
+              return const MusicVoteSkeleton();
+            }
+
+            if (state.error != null && state.event == null) {
+              return _ErrorScaffold(
+                eventId: widget.eventId,
+                isHost: widget.isHost,
+                message: state.error!,
+                onRetry: widget.eventId != null && widget.eventId!.isNotEmpty
+                    ? () => context.read<MusicVoteCubit>().loadRoom(
+                        widget.eventId!,
+                      )
+                    : null,
+              );
+            }
+
+            return _LoadedScaffold(
               eventId: widget.eventId,
               isHost: widget.isHost,
-              message: state.error!,
-              onRetry: widget.eventId != null && widget.eventId!.isNotEmpty
-                  ? () => context.read<MusicVoteCubit>().loadRoom(
-                      widget.eventId!,
-                    )
-                  : null,
+              showMiniPlayer: _showMiniPlayer,
+              onHeroVisibility: _handleHeroVisibility,
+              state: state,
             );
-          }
-
-          return _LoadedScaffold(
-            eventId: widget.eventId,
-            isHost: widget.isHost,
-            showMiniPlayer: _showMiniPlayer,
-            onHeroVisibility: _handleHeroVisibility,
-            state: state,
-          );
-        },
+          },
+        ),
       ),
     );
+  }
+
+  /// Drives [RoomAudioPlayer] as a pure side effect of [state].
+  ///
+  /// Position is computed exclusively from `currentTrackStartedAt` and
+  /// `pausedPlaybackPositionMs`. The audio player's own position stream is
+  /// never read.
+  void _syncAudioPlayer(BuildContext context, MusicVoteState state) {
+    final player = context.read<RoomAudioPlayer>();
+    final track = state.currentTrack;
+    final status = state.playbackStatus;
+
+    if (track == null || status == null) {
+      unawaited(player.stop());
+      return;
+    }
+
+    if (status == 'PLAYING') {
+      final startedAt = track.currentTrackStartedAt;
+      final paused = track.pausedPlaybackPositionMs ?? 0;
+      final startPositionMs = startedAt != null
+          ? DateTime.now().difference(startedAt).inMilliseconds + paused
+          : paused;
+      unawaited(player.playTrack(track.providerTrackId, startPositionMs));
+      return;
+    }
+
+    if (status == 'PAUSED') {
+      final resumePositionMs = track.pausedPlaybackPositionMs ?? 0;
+      unawaited(() async {
+        await player.resume(resumePositionMs);
+        await player.pause();
+      }());
+    }
   }
 }
 
