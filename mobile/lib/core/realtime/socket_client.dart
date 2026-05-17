@@ -64,9 +64,11 @@ class SocketClient {
     _socket?.dispose();
 
     final extraHeaders = <String, dynamic>{};
+    final clientMeta = <String, dynamic>{};
     try {
       final clientHeaders = await _clientMetaService.getHeaders();
       extraHeaders.addAll(clientHeaders);
+      clientMeta.addAll(clientHeaders);
     } on Object catch (error) {
       if (AppConfig.isDebug) {
         debugPrint(
@@ -86,7 +88,10 @@ class SocketClient {
               'reconnection': true,
               'reconnectionAttempts': 50,
               'reconnectionDelay': 1000,
-              'auth': <String, dynamic>{'token': token},
+              'auth': <String, dynamic>{
+                'token': token,
+                'clientMeta': clientMeta,
+              },
               'extraHeaders': extraHeaders,
             },
           )
