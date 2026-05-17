@@ -710,6 +710,7 @@ export class EventsRepository {
       update: {
         addedById,
         status: TrackStatus.QUEUED,
+        voteScore: 0,
       },
       include: { track: true },
     });
