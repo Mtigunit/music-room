@@ -99,6 +99,14 @@ export class DelegationsService {
       }),
     );
 
+    const host = await this.userRepository.findById(hostId);
+    this.eventEmitter.emit(INTERNAL_EVENTS.DELEGATION_REVOKED, {
+      eventId,
+      delegateeId,
+      hostname: host?.username ?? null,
+      eventName: event.name,
+    });
+
     return { message: 'Delegation revoked successfully' };
   }
 
