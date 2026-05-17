@@ -664,7 +664,7 @@ export class EventsRepository {
 
   async findEventTrack(eventId: string, trackId: string) {
     return this.prisma.eventTrack.findFirst({
-      where: { eventId, trackId },
+      where: { eventId, trackId, status: { not: TrackStatus.ENDED } },
       include: { track: { select: { providerTrackId: true } } },
     });
   }
@@ -699,10 +699,15 @@ export class EventsRepository {
   }
 
   async createEventTrack(eventId: string, trackId: string, addedById: string) {
-    return await this.prisma.eventTrack.create({
-      data: {
+    return await this.prisma.eventTrack.upsert({
+      where: { eventId_trackId: { eventId, trackId } },
+      create: {
         eventId,
         trackId,
+        addedById,
+        status: TrackStatus.QUEUED,
+      },
+      update: {
         addedById,
         status: TrackStatus.QUEUED,
       },
