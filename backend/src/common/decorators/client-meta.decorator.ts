@@ -37,6 +37,9 @@ export const ClientMeta = createParamDecorator(
       interface WsClientLike {
         handshake?: {
           headers?: Record<string, string | string[] | undefined>;
+          auth?: {
+            clientMeta?: Record<string, unknown>;
+          };
           address?: string;
         };
       }
@@ -51,6 +54,38 @@ export const ClientMeta = createParamDecorator(
         client.handshake?.headers?.['x-app-version'],
       );
       ipAddress = client.handshake?.address;
+
+      if (!platform || !deviceModel || !deviceId || !appVersion) {
+        const clientMeta = client.handshake?.auth?.clientMeta;
+
+        if (clientMeta) {
+          const readMetaValue = (value: unknown): string | undefined => {
+            if (typeof value !== 'string') {
+              return undefined;
+            }
+
+            const trimmed = value.trim();
+            return trimmed.length > 0 ? trimmed : undefined;
+          };
+
+          platform =
+            platform ||
+            readMetaValue(clientMeta['x-platform']) ||
+            readMetaValue(clientMeta['platform']);
+          deviceModel =
+            deviceModel ||
+            readMetaValue(clientMeta['x-device-model']) ||
+            readMetaValue(clientMeta['deviceModel']);
+          deviceId =
+            deviceId ||
+            readMetaValue(clientMeta['x-device-id']) ||
+            readMetaValue(clientMeta['deviceId']);
+          appVersion =
+            appVersion ||
+            readMetaValue(clientMeta['x-app-version']) ||
+            readMetaValue(clientMeta['appVersion']);
+        }
+      }
     }
 
     // Graceful fallback logging for optional client metadata

@@ -27,6 +27,7 @@ class SocketClient {
   final AccessTokenProvider _tokenProvider;
   final ClientMetaService _clientMetaService;
   io.Socket? _socket;
+  Map<String, dynamic>? _lastClientMeta;
 
   // ── Public streams ────────────────────────────────────────────────────────
 
@@ -67,6 +68,8 @@ class SocketClient {
     try {
       final clientHeaders = await _clientMetaService.getHeaders();
       extraHeaders.addAll(clientHeaders);
+      final clientMeta = <String, dynamic>{}..addAll(clientHeaders);
+      _lastClientMeta = clientMeta;
     } on Object catch (error) {
       if (AppConfig.isDebug) {
         debugPrint(
@@ -86,7 +89,10 @@ class SocketClient {
               'reconnection': true,
               'reconnectionAttempts': 50,
               'reconnectionDelay': 1000,
-              'auth': <String, dynamic>{'token': token},
+              'auth': <String, dynamic>{
+                'token': token,
+                if (_lastClientMeta != null) 'clientMeta': _lastClientMeta,
+              },
               'extraHeaders': extraHeaders,
             },
           )
@@ -103,7 +109,13 @@ class SocketClient {
           })
           ..on('reconnect_attempt', (_) async {
             final refreshedToken = await _tokenProvider();
-            _socket?.auth = <String, dynamic>{'token': refreshedToken ?? ''};
+            // Preserve clientMeta on reconnect attempts so web clients
+            // (which send metadata via auth) continue to present it.
+            final meta = _lastClientMeta;
+            _socket?.auth = <String, dynamic>{
+              'token': refreshedToken ?? '',
+              'clientMeta': ?meta,
+            };
           })
           ..connect();
   }
@@ -118,10 +130,34 @@ class SocketClient {
       await connect();
       return;
     }
-
     final token = await _tokenProvider();
+
+    // Ensure we don't throw when attempting to refresh client metadata; the
+    // reconnect should still proceed even if client meta retrieval fails.
+    var meta = <String, dynamic>{};
+    if (_lastClientMeta != null) {
+      meta = _lastClientMeta!;
+    } else {
+      try {
+        final headers = await _clientMetaService.getHeaders();
+        meta = <String, dynamic>{}..addAll(headers);
+        _lastClientMeta = meta;
+      } on Object catch (error) {
+        if (AppConfig.isDebug) {
+          debugPrint(
+            '[SocketClient] Failed to load client metadata during reconnect: '
+            '$error',
+          );
+        }
+        meta = <String, dynamic>{};
+      }
+    }
+
     _socket!
-      ..auth = <String, dynamic>{'token': token ?? ''}
+      ..auth = <String, dynamic>{
+        'token': token ?? '',
+        if (meta.isNotEmpty) 'clientMeta': meta,
+      }
       ..connect();
   }
 
