@@ -596,15 +596,16 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
     }
 
     // Remove the previous track from the queue when the current track
-    // actually changes (i.e. a new song started, not just pause/resume).
+    // actually changes (i.e. a new song started, not just pause/resume,
+    // or the playlist finishes and is cleared).
     final previousTrack = state.currentTrack;
-    final trackChanged =
-        newTrack != null &&
+    final shouldRemovePrevious =
         previousTrack != null &&
-        previousTrack.id != newTrack.id;
+        ((newTrack != null && previousTrack.id != newTrack.id) ||
+            (newTrack == null && clearTrack));
 
     var updatedTracks = state.tracks;
-    if (trackChanged) {
+    if (shouldRemovePrevious) {
       updatedTracks = state.tracks
           .where((t) => t.id != previousTrack.id)
           .toList();
