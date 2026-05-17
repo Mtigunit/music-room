@@ -130,11 +130,34 @@ class SocketClient {
       await connect();
       return;
     }
-
     final token = await _tokenProvider();
-    final meta = _lastClientMeta ?? await _clientMetaService.getHeaders();
+
+    // Ensure we don't throw when attempting to refresh client metadata; the
+    // reconnect should still proceed even if client meta retrieval fails.
+    var meta = <String, dynamic>{};
+    if (_lastClientMeta != null) {
+      meta = _lastClientMeta!;
+    } else {
+      try {
+        final headers = await _clientMetaService.getHeaders();
+        meta = <String, dynamic>{}..addAll(headers);
+        _lastClientMeta = meta;
+      } on Object catch (error) {
+        if (AppConfig.isDebug) {
+          debugPrint(
+            '[SocketClient] Failed to load client metadata during reconnect: '
+            '$error',
+          );
+        }
+        meta = <String, dynamic>{};
+      }
+    }
+
     _socket!
-      ..auth = <String, dynamic>{'token': token ?? '', 'clientMeta': meta}
+      ..auth = <String, dynamic>{
+        'token': token ?? '',
+        if (meta.isNotEmpty) 'clientMeta': meta,
+      }
       ..connect();
   }
 
