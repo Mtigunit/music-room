@@ -39,6 +39,7 @@ class GuestMusicVotePage extends StatelessWidget {
         final cubit = MusicVoteCubit(
           repository: InjectionContainer().musicVoteRepository,
           socketClient: InjectionContainer().socketClient,
+          delegationGateway: InjectionContainer().delegationGateway,
           userId: userId,
         );
         final id = eventId;

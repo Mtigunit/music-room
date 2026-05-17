@@ -359,7 +359,8 @@ class _LoadedScaffold extends StatelessWidget {
               child: _MiniPlayerBar(
                 track: state.currentTrack!,
                 isPlaying: state.playbackStatus == 'PLAYING',
-                isHost: isHost,
+                canControlPlayback:
+                    isHost || (state.event?.isDelegated ?? false),
               ),
             ),
         ],
@@ -465,18 +466,20 @@ class _MiniPlayerBar extends StatelessWidget {
   const _MiniPlayerBar({
     required this.track,
     required this.isPlaying,
-    required this.isHost,
+    required this.canControlPlayback,
   });
 
   final EventTrackModel track;
   final bool isPlaying;
-  final bool isHost;
+
+  /// `true` when the local user is the host or has accepted a delegation.
+  final bool canControlPlayback;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final accent = colorScheme.primary;
-    final controlsEnabled = isHost;
+    final controlsEnabled = canControlPlayback;
 
     return SafeArea(
       top: false,

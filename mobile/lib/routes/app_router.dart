@@ -11,6 +11,8 @@ import 'package:music_room/features/profile/presentation/pages/profile_page.dart
 import 'package:music_room/routes/route_names.dart';
 
 class AppRouter {
+  static final GlobalKey<NavigatorState> navigatorKey =
+      GlobalKey<NavigatorState>();
   static const String initialRoute = RouteNames.onboarding;
 
   static Widget pageForRoute(String routeName) {

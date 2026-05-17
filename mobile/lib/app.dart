@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/services/onboarding_service.dart';
 import 'package:music_room/core/services/theme_preference_service.dart';
 import 'package:music_room/core/theme/app_theme.dart';
+import 'package:music_room/core/widgets/delegation_request_host.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
 import 'package:music_room/features/auth/presentation/state/auth_event.dart';
@@ -49,11 +50,19 @@ class _AppState extends State<App> {
           return BlocBuilder<AuthBloc, AuthState>(
             builder: (context, authState) {
               return MaterialApp(
+                navigatorKey: AppRouter.navigatorKey,
                 debugShowCheckedModeBanner: false,
                 onGenerateRoute: AppRouter.onGenerateRoute,
                 theme: AppTheme.lightTheme(),
                 darkTheme: AppTheme.darkTheme(),
                 themeMode: _resolveThemeMode(authState),
+                // Wrap the full app in a DelegationRequestHost so the
+                // delegation invite popup can surface globally, on top of
+                // any active route, without each feature having to wire
+                // its own socket listener.
+                builder: (context, child) => DelegationRequestHost(
+                  child: child ?? const SizedBox.shrink(),
+                ),
                 home: const _StartupRouteGate(),
               );
             },
@@ -141,6 +150,12 @@ class _StartupRouteGateState extends State<_StartupRouteGate> {
                       .fetchNotifications(),
                 );
               } on Exception catch (_) {}
+              // Attach the global delegation listener so any
+              // `event:delegate` socket message surfaces the request
+              // popup, regardless of the current screen.
+              try {
+                InjectionContainer().delegationGateway.attachSocketListeners();
+              } on Exception catch (_) {}
             }
 
             if (state is LogoutSuccess || state is AuthUnauthenticated) {
@@ -148,6 +163,9 @@ class _StartupRouteGateState extends State<_StartupRouteGate> {
               try {
                 InjectionContainer().notificationsService
                     .detachSocketListeners();
+              } on Exception catch (_) {}
+              try {
+                InjectionContainer().delegationGateway.detachSocketListeners();
               } on Exception catch (_) {}
               // After logout, navigate back to auth screen
               unawaited(

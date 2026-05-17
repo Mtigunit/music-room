@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/realtime/socket_client.dart';
 import 'package:music_room/core/realtime/socket_events.dart';
+import 'package:music_room/core/services/delegation_gateway.dart';
 import 'package:music_room/features/music_vote/data/models/event_detail_model.dart';
 import 'package:music_room/features/music_vote/data/models/event_track_model.dart';
 import 'package:music_room/features/music_vote/domain/repositories/music_vote_repository.dart';
@@ -88,9 +89,11 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
   MusicVoteCubit({
     required MusicVoteRepository repository,
     required SocketClient socketClient,
+    DelegationGateway? delegationGateway,
     String? userId,
   }) : _repository = repository,
        _socketClient = socketClient,
+       _delegationGateway = delegationGateway,
        _currentUserId = userId,
        super(const MusicVoteState()) {
     // Re-join the event room whenever the global socket (re)connects.
@@ -105,10 +108,22 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
     _socketDisconnectedSub = socketClient.onDisconnected.listen((_) {
       _hasJoinedLiveRoom = false;
     });
+
+    // When the local user accepts a delegation, the backend flips the
+    // event's `isDelegated` flag server-side. Re-fetch the event details
+    // so the UI unlocks playback controls (no extra round-trip required
+    // from the popup itself).
+    final gateway = _delegationGateway;
+    if (gateway != null) {
+      _delegationAcceptedSub = gateway.acceptedDelegations.listen(
+        _handleDelegationAccepted,
+      );
+    }
   }
 
   final MusicVoteRepository _repository;
   final SocketClient _socketClient;
+  final DelegationGateway? _delegationGateway;
 
   String? _activeEventId;
   bool _socketListenersAttached = false;
@@ -117,6 +132,7 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
   // ── Socket lifecycle subscriptions (reconnect in ConnectivityService) ──
   StreamSubscription<void>? _socketConnectedSub;
   StreamSubscription<void>? _socketDisconnectedSub;
+  StreamSubscription<DelegationInvite>? _delegationAcceptedSub;
 
   /// Tracks in-flight vote attempts: trackId → intended voteType ('up'|'none').
   /// The UI is NOT updated until the server confirms via [track:vote_updated].
@@ -136,6 +152,19 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
     return (event?.isHost ?? false) ||
         (hostId != null && hostId.isNotEmpty && hostId == _currentUserId);
   }
+
+  /// Whether the current user has playback delegation for this event.
+  ///
+  /// `isDelegated` is hydrated by `GET /events/{id}` on join; the backend
+  /// flips it to `true` once the delegatee accepts via socket. The cubit
+  /// re-reads it through `_canControlPlayback` so playback controls remain
+  /// scoped to host **or** delegated users.
+  bool get _isDelegated => state.event?.isDelegated ?? false;
+
+  /// Whether the current user is allowed to issue playback control events
+  /// (`play`, `pause`, `next`). Hosts always qualify; delegated guests
+  /// qualify once their delegation has been accepted on the backend.
+  bool get _canControlPlayback => _isHost || _isDelegated;
 
   /// Loads the event details and queued tracks concurrently.
   ///
@@ -721,7 +750,9 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
       return;
     }
     if (event.status != 'LIVE') {
-      return;
+      if (_isHost || event.status == 'ENDED') {
+        return;
+      }
     }
     final eventId = _activeEventId ?? event.id;
     if (eventId.isEmpty) {
@@ -772,6 +803,30 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
     }
   }
 
+  /// Re-fetches the event details and merges the latest snapshot into
+  /// the state. Used after the local user accepts a delegation so the
+  /// `isDelegated` flag flips to `true` and playback controls unlock.
+  Future<void> refreshEventDetails() async {
+    final eventId = _activeEventId ?? state.event?.id;
+    if (eventId == null || eventId.isEmpty) return;
+    try {
+      final event = await _repository.getEventDetails(eventId);
+      if (isClosed) return;
+      emit(state.copyWith(event: event));
+    } on Object catch (error) {
+      if (kDebugMode) {
+        debugPrint('⚠️ [MusicVoteCubit] refreshEventDetails failed: $error');
+      }
+    }
+  }
+
+  void _handleDelegationAccepted(DelegationInvite invite) {
+    final active = _activeEventId ?? state.event?.id;
+    if (active == null || active.isEmpty) return;
+    if (invite.eventId != active) return;
+    unawaited(refreshEventDetails());
+  }
+
   void _handleSocketException(dynamic payload) {
     debugPrint('📡 [MusicVoteCubit] ← exception: $payload');
 
@@ -809,9 +864,12 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
   // Playback controls (host-only)
   // ---------------------------------------------------------------------------
 
-  /// Emits `playback:play` for the current event. Host-only.
+  /// Emits `playback:play` for the current event.
+  ///
+  /// Allowed for the host AND any user the host has delegated to via
+  /// the delegation flow (gated by `EventDetailModel.isDelegated`).
   void play() {
-    if (!_isHost) return;
+    if (!_canControlPlayback) return;
     final eventId = _activeEventId ?? state.event?.id;
     if (eventId == null || eventId.isEmpty) return;
     if (!_socketClient.isConnected) return;
@@ -821,9 +879,11 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
     });
   }
 
-  /// Emits `playback:pause` for the current event. Host-only.
+  /// Emits `playback:pause` for the current event.
+  ///
+  /// Allowed for the host AND any delegated user.
   void pause() {
-    if (!_isHost) return;
+    if (!_canControlPlayback) return;
     final eventId = _activeEventId ?? state.event?.id;
     if (eventId == null || eventId.isEmpty) return;
     if (!_socketClient.isConnected) return;
@@ -833,12 +893,13 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
     });
   }
 
-  /// Emits `playback:next` for the current event. Host-only.
+  /// Emits `playback:next` for the current event.
   ///
-  /// The current `trackId` is forwarded as a staleness guard so the backend
-  /// can ignore concurrent skips from a stale client view.
+  /// Allowed for the host AND any delegated user. The current `trackId`
+  /// is forwarded as a staleness guard so the backend can ignore
+  /// concurrent skips from a stale client view.
   void next() {
-    if (!_isHost) return;
+    if (!_canControlPlayback) return;
     final eventId = _activeEventId ?? state.event?.id;
     if (eventId == null || eventId.isEmpty) return;
     if (!_socketClient.isConnected) return;
@@ -861,6 +922,9 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
     _autoAdvanceTimer?.cancel();
     _autoAdvanceTimer = null;
 
+    // Auto-advance is owned by the host to avoid every client emitting
+    // `next` at the end of a track. Delegated users explicitly tap the
+    // skip button if they want to advance early.
     if (!_isHost) return;
     if (state.playbackStatus != 'PLAYING') return;
 
@@ -900,6 +964,7 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
     _autoAdvanceTimer?.cancel();
     await _socketConnectedSub?.cancel();
     await _socketDisconnectedSub?.cancel();
+    await _delegationAcceptedSub?.cancel();
     if (eventId != null && eventId.isNotEmpty) {
       leaveEvent(eventId);
     }

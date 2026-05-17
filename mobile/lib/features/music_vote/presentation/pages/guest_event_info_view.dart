@@ -5,7 +5,9 @@ import 'package:flutter/services.dart';
 
 import 'package:intl/intl.dart';
 import 'package:music_room/core/config/app_config.dart';
+import 'package:music_room/core/realtime/socket_client.dart';
 import 'package:music_room/core/widgets/feature_chip.dart';
+import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/music_vote/data/models/event_detail_model.dart';
 import 'package:music_room/features/music_vote/data/models/event_track_model.dart';
 
@@ -223,7 +225,10 @@ class _GuestEventInfoViewState extends State<GuestEventInfoView> {
       ),
       bottomNavigationBar: widget.event.status == 'ENDED'
           ? const _EventEndedBottomBar()
-          : _WaitingForHostBottomBar(timeRemaining: _timeRemaining),
+          : _WaitingForHostBottomBar(
+              timeRemaining: _timeRemaining,
+              eventId: widget.event.id,
+            ),
     );
   }
 }
@@ -444,10 +449,42 @@ class _EventInfoSection extends StatelessWidget {
   }
 }
 
-class _WaitingForHostBottomBar extends StatelessWidget {
-  const _WaitingForHostBottomBar({required this.timeRemaining});
+class _WaitingForHostBottomBar extends StatefulWidget {
+  const _WaitingForHostBottomBar({
+    required this.timeRemaining,
+    required this.eventId,
+  });
 
   final Duration timeRemaining;
+  final String eventId;
+
+  @override
+  State<_WaitingForHostBottomBar> createState() =>
+      _WaitingForHostBottomBarState();
+}
+
+class _WaitingForHostBottomBarState extends State<_WaitingForHostBottomBar> {
+  late final SocketClient _socketClient;
+
+  @override
+  void initState() {
+    super.initState();
+    _socketClient = InjectionContainer().socketClient;
+    _socketClient.on('event:started', _onEventStarted);
+  }
+
+  @override
+  void dispose() {
+    _socketClient.off('event:started', _onEventStarted);
+    super.dispose();
+  }
+
+  void _onEventStarted(dynamic payload) {
+    debugPrint('📡 [_WaitingForHostBottomBar] Received: event:started');
+    _socketClient.emit('event:join', <String, dynamic>{
+      'eventId': widget.eventId,
+    });
+  }
 
   String _formatDuration(Duration duration) {
     String twoDigits(int n) => n.toString().padLeft(2, '0');
@@ -467,7 +504,7 @@ class _WaitingForHostBottomBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final hasCountdown = timeRemaining > Duration.zero;
+    final hasCountdown = widget.timeRemaining > Duration.zero;
 
     return Container(
       padding: EdgeInsets.fromLTRB(
@@ -489,7 +526,7 @@ class _WaitingForHostBottomBar extends StatelessWidget {
           ],
           Text(
             hasCountdown
-                ? 'Starts in: ${_formatDuration(timeRemaining)}'
+                ? 'Starts in: ${_formatDuration(widget.timeRemaining)}'
                 : 'Waiting for host to start...',
             style: TextStyle(
               color: hasCountdown

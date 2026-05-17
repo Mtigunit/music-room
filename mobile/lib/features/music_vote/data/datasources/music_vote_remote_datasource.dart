@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:music_room/core/config/app_config.dart';
 import 'package:music_room/core/network/api_client.dart';
 import 'package:music_room/features/music_vote/data/models/event_detail_model.dart';
+import 'package:music_room/features/music_vote/data/models/event_invited_user_model.dart';
 import 'package:music_room/features/music_vote/data/models/event_track_model.dart';
 
 /// Contract for the Music Vote (Live Room) remote data source.
@@ -27,6 +28,36 @@ abstract class IMusicVoteRemoteDataSource {
 
   /// POST /events/{eventId}/invites — invite a user to the event.
   Future<void> inviteUserToEvent(String eventId, String userId);
+
+  /// GET /events/{eventId}/invited?page=&limit= — list users invited to
+  /// the event. Returns the parsed paginated payload.
+  Future<EventInvitedUsersPage> getInvitedUsers(
+    String eventId, {
+    int page,
+    int limit,
+  });
+
+  /// POST /events/{eventId}/delegations — grant playback delegation to a
+  /// previously invited user. Returns the created `delegationId` so the
+  /// caller can cross-reference incoming socket events.
+  Future<String> createDelegation(String eventId, String delegateeId);
+}
+
+/// Page wrapper for [IMusicVoteRemoteDataSource.getInvitedUsers].
+class EventInvitedUsersPage {
+  const EventInvitedUsersPage({
+    required this.users,
+    required this.total,
+    required this.page,
+    required this.limit,
+    required this.totalPages,
+  });
+
+  final List<EventInvitedUserModel> users;
+  final int total;
+  final int page;
+  final int limit;
+  final int totalPages;
 }
 
 class MusicVoteRemoteDataSource implements IMusicVoteRemoteDataSource {
@@ -163,6 +194,95 @@ class MusicVoteRemoteDataSource implements IMusicVoteRemoteDataSource {
       throw DioException(
         requestOptions: RequestOptions(
           path: '${AppConfig.eventsEndpoint}/$eventId/tracks/$providerTrackId',
+        ),
+        error: e,
+      );
+    }
+  }
+
+  @override
+  Future<EventInvitedUsersPage> getInvitedUsers(
+    String eventId, {
+    int page = 1,
+    int limit = 20,
+  }) async {
+    try {
+      final response = await _apiClient.get<Map<String, dynamic>>(
+        '${AppConfig.eventsEndpoint}/$eventId/invited',
+        queryParameters: <String, dynamic>{'page': page, 'limit': limit},
+      );
+
+      if (response.statusCode == 200 && response.data != null) {
+        final data = response.data!;
+        final rawList = data['data'];
+        final rawPagination = data['pagination'] is Map<String, dynamic>
+            ? data['pagination'] as Map<String, dynamic>
+            : const <String, dynamic>{};
+
+        final users = rawList is List
+            ? rawList
+                  .whereType<Map<String, dynamic>>()
+                  .map(EventInvitedUserModel.fromJson)
+                  .toList(growable: false)
+            : const <EventInvitedUserModel>[];
+
+        return EventInvitedUsersPage(
+          users: users,
+          total: (rawPagination['total'] as num?)?.toInt() ?? users.length,
+          page: (rawPagination['page'] as num?)?.toInt() ?? page,
+          limit: (rawPagination['limit'] as num?)?.toInt() ?? limit,
+          totalPages: (rawPagination['totalPages'] as num?)?.toInt() ?? 1,
+        );
+      }
+
+      throw DioException(
+        requestOptions: response.requestOptions,
+        response: response,
+        type: DioExceptionType.badResponse,
+      );
+    } on DioException {
+      rethrow;
+    } on Object catch (e) {
+      throw DioException(
+        requestOptions: RequestOptions(
+          path: '${AppConfig.eventsEndpoint}/$eventId/invited',
+        ),
+        error: e,
+      );
+    }
+  }
+
+  @override
+  Future<String> createDelegation(String eventId, String delegateeId) async {
+    try {
+      final response = await _apiClient.post<Map<String, dynamic>>(
+        '${AppConfig.eventsEndpoint}/$eventId/delegations',
+        data: <String, dynamic>{'delegateeId': delegateeId},
+      );
+
+      final isSuccess =
+          response.statusCode == 200 || response.statusCode == 201;
+      if (isSuccess && response.data != null) {
+        final data = response.data!;
+        final delegationId = data['delegationId'];
+        if (delegationId is String && delegationId.isNotEmpty) {
+          return delegationId;
+        }
+        // Backend always returns a delegationId; treat its absence as a bad
+        // response so the caller can surface a clear error.
+      }
+
+      throw DioException(
+        requestOptions: response.requestOptions,
+        response: response,
+        type: DioExceptionType.badResponse,
+      );
+    } on DioException {
+      rethrow;
+    } on Object catch (e) {
+      throw DioException(
+        requestOptions: RequestOptions(
+          path: '${AppConfig.eventsEndpoint}/$eventId/delegations',
         ),
         error: e,
       );

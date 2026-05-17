@@ -75,6 +75,7 @@ class EventDetailModel {
     this.startDate,
     this.isInvited = false,
     this.isHost = false,
+    this.isDelegated = false,
   });
 
   factory EventDetailModel.fromJson(Map<String, dynamic> json) {
@@ -111,6 +112,7 @@ class EventDetailModel {
       startDate: _parseDate(json['startDate']),
       isInvited: json['isInvited'] as bool? ?? false,
       isHost: json['isHost'] as bool? ?? false,
+      isDelegated: json['isDelegated'] as bool? ?? false,
     );
   }
 
@@ -130,6 +132,7 @@ class EventDetailModel {
   final DateTime? startDate;
   final bool isInvited;
   final bool isHost;
+  final bool isDelegated;
 
   EventDetailModel copyWith({
     String? id,
@@ -148,6 +151,7 @@ class EventDetailModel {
     DateTime? startDate,
     bool? isInvited,
     bool? isHost,
+    bool? isDelegated,
     bool clearCurrentTrack = false,
   }) {
     return EventDetailModel(
@@ -169,6 +173,7 @@ class EventDetailModel {
       startDate: startDate ?? this.startDate,
       isInvited: isInvited ?? this.isInvited,
       isHost: isHost ?? this.isHost,
+      isDelegated: isDelegated ?? this.isDelegated,
     );
   }
 

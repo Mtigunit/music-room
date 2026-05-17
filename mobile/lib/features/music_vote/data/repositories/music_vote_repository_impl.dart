@@ -41,4 +41,22 @@ class MusicVoteRepositoryImpl implements MusicVoteRepository {
   Future<void> inviteUserToEvent(String eventId, String userId) async {
     await _remoteDataSource.inviteUserToEvent(eventId, userId);
   }
+
+  @override
+  Future<EventInvitedUsersPage> getInvitedUsers(
+    String eventId, {
+    int page = 1,
+    int limit = 20,
+  }) {
+    return _remoteDataSource.getInvitedUsers(
+      eventId,
+      page: page,
+      limit: limit,
+    );
+  }
+
+  @override
+  Future<String> createDelegation(String eventId, String delegateeId) {
+    return _remoteDataSource.createDelegation(eventId, delegateeId);
+  }
 }
