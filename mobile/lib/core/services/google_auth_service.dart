@@ -48,10 +48,13 @@ class GoogleAuthService {
       if (_webClientId.isEmpty && _iosClientId.isEmpty) {
         _initialization = _googleSignIn.initialize();
       } else {
+        const isWeb = kIsWeb;
         final isIos = defaultTargetPlatform == TargetPlatform.iOS;
         _initialization = _googleSignIn.initialize(
-          clientId: isIos && _iosClientId.isNotEmpty ? _iosClientId : null,
-          serverClientId: _webClientId.isNotEmpty ? _webClientId : null,
+          clientId: isWeb
+              ? _webClientId
+              : (isIos && _iosClientId.isNotEmpty ? _iosClientId : null),
+          serverClientId: isWeb ? null : _webClientId,
         );
       }
     }

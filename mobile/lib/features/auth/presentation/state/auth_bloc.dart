@@ -1,6 +1,8 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:music_room/core/network/api_client.dart';
 import 'package:music_room/features/auth/domain/repositories/auth_repository.dart';
 import 'package:music_room/features/auth/presentation/state/auth_event.dart';
@@ -19,6 +21,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthStarted>(_onAuthStarted);
     on<LoginRequested>(_onLoginRequested);
     on<GoogleLoginRequested>(_onGoogleLoginRequested);
+    on<_GoogleWebSignInReceived>(_onGoogleWebSignInReceived);
     on<SendOtpRequested>(_onSendOtpRequested);
     on<VerifyOtpRequested>(_onVerifyOtpRequested);
     on<SendPasswordResetOtpRequested>(_onSendPasswordResetOtpRequested);
@@ -31,16 +34,60 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     _sessionExpiredSubscription = apiClient.sessionExpired.listen((_) {
       add(const SessionExpiredRequested());
     });
+
+    if (kIsWeb) {
+      _googleAuthSubscription = GoogleSignIn.instance.authenticationEvents
+          .listen((event) {
+            if (event is GoogleSignInAuthenticationEventSignIn) {
+              final idToken = event.user.authentication.idToken;
+              if (idToken != null && idToken.isNotEmpty) {
+                add(_GoogleWebSignInReceived(idToken: idToken));
+              }
+            }
+          });
+    }
   }
 
   final AuthRepository _authRepository;
   final ProfileRepository _profileRepository;
   late final StreamSubscription<void> _sessionExpiredSubscription;
+  StreamSubscription<GoogleSignInAuthenticationEvent>? _googleAuthSubscription;
 
   @override
   Future<void> close() async {
     await _sessionExpiredSubscription.cancel();
+    await _googleAuthSubscription?.cancel();
     return super.close();
+  }
+
+  Future<void> _onGoogleWebSignInReceived(
+    _GoogleWebSignInReceived event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(const GoogleLoginLoading());
+
+    final (response, failure) = await _authRepository.loginWithGoogle(
+      idToken: event.idToken,
+    );
+
+    if (response != null) {
+      emit(
+        GoogleLoginSuccess(
+          accessToken: response.accessToken,
+          user: response.user,
+          isNewUser: response.isNewUser ?? false,
+        ),
+      );
+      emit(
+        AuthAuthenticated(
+          accessToken: response.accessToken,
+          user: response.user,
+        ),
+      );
+      unawaited(_syncThemePreference());
+    } else {
+      emit(GoogleLoginFailure(failure: failure!));
+    }
   }
 
   /// Handle Google OAuth login request
@@ -307,4 +354,13 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       // Theme preference falls back to system until the next successful sync.
     }
   }
+}
+
+class _GoogleWebSignInReceived extends AuthEvent {
+  const _GoogleWebSignInReceived({required this.idToken});
+
+  final String idToken;
+
+  @override
+  List<Object?> get props => [idToken];
 }

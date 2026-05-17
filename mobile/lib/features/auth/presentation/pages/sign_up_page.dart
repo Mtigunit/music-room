@@ -1,9 +1,11 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/widgets/app_button.dart';
 import 'package:music_room/core/widgets/app_snackbar.dart';
+import 'package:music_room/core/widgets/google_web_signin_button.dart';
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
 import 'package:music_room/features/auth/presentation/state/auth_event.dart';
 import 'package:music_room/features/auth/presentation/state/auth_state.dart';
@@ -358,18 +360,23 @@ class _SignUpPageState extends State<SignUpPage> {
                 const AuthDividerWithText(text: 'or continue with'),
                 const SizedBox(height: 16),
 
-                SocialLoginButton(
-                  provider: SocialProvider.google,
-                  isLoading: isGoogleLoading,
-                  isEnabled: !isAnyLoading,
-                  onPressed: () {
-                    if (isAnyLoading) {
-                      return;
-                    }
+                if (kIsWeb)
+                  googleWebSignInButton()
+                else
+                  SocialLoginButton(
+                    provider: SocialProvider.google,
+                    isLoading: isGoogleLoading,
+                    isEnabled: !isAnyLoading,
+                    onPressed: () {
+                      if (isAnyLoading) {
+                        return;
+                      }
 
-                    context.read<AuthBloc>().add(const GoogleLoginRequested());
-                  },
-                ),
+                      context.read<AuthBloc>().add(
+                        const GoogleLoginRequested(),
+                      );
+                    },
+                  ),
                 const SizedBox(height: 24),
 
                 Center(
