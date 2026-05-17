@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/widgets/app_snackbar.dart';
 import 'package:music_room/core/widgets/confirmation_dialog.dart';
 import 'package:music_room/di/injection_container.dart';
+import 'package:music_room/features/music_vote/data/models/event_delegated_user_model.dart';
 import 'package:music_room/features/music_vote/data/models/event_invited_user_model.dart';
 import 'package:music_room/features/music_vote/domain/repositories/music_vote_repository.dart';
 import 'package:music_room/features/music_vote/presentation/state/music_vote_cubit.dart';
@@ -37,84 +38,195 @@ class DelegationBottomSheet extends StatefulWidget {
 class _DelegationBottomSheetState extends State<DelegationBottomSheet> {
   late final MusicVoteRepository _repository;
 
-  bool _isLoading = true;
-  String? _error;
-  List<EventInvitedUserModel> _users = const <EventInvitedUserModel>[];
-  // Local "pending" / "sent" flags keyed by user id so the UI doesn't fire
-  // two delegation requests for the same user and gives feedback while the
-  // POST is in flight.
-  final Set<String> _pendingIds = <String>{};
-  final Set<String> _delegatedIds = <String>{};
+  bool _isLoadingInvited = true;
+  bool _isLoadingDelegated = true;
+  String? _errorInvited;
+  String? _errorDelegated;
+
+  List<EventInvitedUserModel> _invitedUsers = const <EventInvitedUserModel>[];
+  List<EventDelegatedUserModel> _delegatedUsers =
+      const <EventDelegatedUserModel>[];
+
+  // Keyed sets for individual user action states to support individual
+  // loading indicators.
+  final Set<String> _pendingDelegateIds = <String>{};
+  final Set<String> _pendingRevokeIds = <String>{};
+  final Set<String> _sentDelegateIds = <String>{};
 
   @override
   void initState() {
     super.initState();
     _repository = InjectionContainer().musicVoteRepository;
-    unawaited(_loadInvitedUsers());
+    unawaited(_loadData());
   }
 
-  Future<void> _loadInvitedUsers() async {
+  Future<void> _loadData() async {
     if (!mounted) return;
     setState(() {
-      _isLoading = true;
-      _error = null;
+      _isLoadingInvited = true;
+      _isLoadingDelegated = true;
+      _errorInvited = null;
+      _errorDelegated = null;
     });
+
+    await Future.wait([
+      _loadInvitedUsers(),
+      _loadDelegatedUsers(),
+    ]);
+  }
+
+  Future<void> _loadInvitedUsers({bool silent = false}) async {
+    if (!mounted) return;
+    if (!silent) {
+      setState(() {
+        _isLoadingInvited = true;
+        _errorInvited = null;
+      });
+    }
 
     try {
       final page = await _repository.getInvitedUsers(widget.eventId);
       if (!mounted) return;
       setState(() {
-        _users = page.users;
-        _isLoading = false;
+        _invitedUsers = page.users;
+        _isLoadingInvited = false;
       });
     } on DioException catch (error) {
       if (!mounted) return;
       setState(() {
-        _isLoading = false;
-        _error = _readableError(error);
+        _isLoadingInvited = false;
+        _errorInvited = _readableError(error);
       });
     } on Object {
       if (!mounted) return;
       setState(() {
-        _isLoading = false;
-        _error = 'Unable to load invited users.';
+        _isLoadingInvited = false;
+        _errorInvited = 'Unable to load invited users.';
       });
     }
   }
 
+  Future<void> _loadDelegatedUsers({bool silent = false}) async {
+    if (!mounted) return;
+    if (!silent) {
+      setState(() {
+        _isLoadingDelegated = true;
+        _errorDelegated = null;
+      });
+    }
+
+    try {
+      final delegated = await _repository.getDelegatedUsers(widget.eventId);
+      if (!mounted) return;
+      setState(() {
+        _delegatedUsers = delegated;
+        _isLoadingDelegated = false;
+      });
+    } on DioException catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingDelegated = false;
+        _errorDelegated = _readableError(error);
+      });
+    } on Object {
+      if (!mounted) return;
+      setState(() {
+        _isLoadingDelegated = false;
+        _errorDelegated = 'Unable to load delegated users.';
+      });
+    }
+  }
+
+  /// Filters out invited guests who are already delegated.
+  List<EventInvitedUserModel> get _availableInvitedUsers {
+    final delegatedIds = _delegatedUsers.map((u) => u.id).toSet();
+    return _invitedUsers.where((u) => !delegatedIds.contains(u.id)).toList();
+  }
+
   Future<void> _delegate(EventInvitedUserModel user) async {
-    // Defensive: prevent host from delegating themselves and prevent dupes.
     if (widget.hostId != null && widget.hostId == user.id) {
       AppSnackbar.showInfo(context, "You can't delegate yourself.");
       return;
     }
-    if (_pendingIds.contains(user.id) || _delegatedIds.contains(user.id)) {
+    if (_pendingDelegateIds.contains(user.id)) {
       return;
     }
 
-    setState(() => _pendingIds.add(user.id));
+    setState(() => _pendingDelegateIds.add(user.id));
 
     try {
       await _repository.createDelegation(widget.eventId, user.id);
       if (!mounted) return;
       setState(() {
-        _pendingIds.remove(user.id);
-        _delegatedIds.add(user.id);
+        _pendingDelegateIds.remove(user.id);
+        _sentDelegateIds.add(user.id);
       });
       AppSnackbar.showSuccess(
         context,
         'Delegation request sent to ${user.username}.',
       );
+      unawaited(_loadDelegatedUsers(silent: true));
     } on DioException catch (error) {
       if (!mounted) return;
-      setState(() => _pendingIds.remove(user.id));
+      setState(() => _pendingDelegateIds.remove(user.id));
       AppSnackbar.showError(context, _readableError(error));
     } on Object {
       if (!mounted) return;
-      setState(() => _pendingIds.remove(user.id));
+      setState(() => _pendingDelegateIds.remove(user.id));
       AppSnackbar.showError(
         context,
         'Could not delegate ${user.username}. Please try again.',
+      );
+    }
+  }
+
+  Future<void> _revokeDelegation(EventDelegatedUserModel user) async {
+    if (_pendingRevokeIds.contains(user.id)) {
+      return;
+    }
+
+    final confirmed = await showAppConfirmationDialog(
+      context: context,
+      title: 'Remove Delegation',
+      message:
+          'Are you sure you want to remove playback delegation from '
+          '${user.username}?',
+      confirmLabel: 'Remove',
+      icon: Icons.warning_amber_rounded,
+      variant: ConfirmationDialogVariant.destructive,
+    );
+
+    if (confirmed != true) return;
+
+    if (!mounted) return;
+    setState(() => _pendingRevokeIds.add(user.id));
+
+    try {
+      await _repository.removeDelegation(widget.eventId, user.id);
+      if (!mounted) return;
+      setState(() {
+        _pendingRevokeIds.remove(user.id);
+        _sentDelegateIds.remove(user.id);
+        // Instant local UI feedback
+        _delegatedUsers = _delegatedUsers
+            .where((u) => u.id != user.id)
+            .toList();
+      });
+      AppSnackbar.showSuccess(
+        context,
+        'Delegation removed from ${user.username}.',
+      );
+      unawaited(_loadDelegatedUsers(silent: true));
+    } on DioException catch (error) {
+      if (!mounted) return;
+      setState(() => _pendingRevokeIds.remove(user.id));
+      AppSnackbar.showError(context, _readableError(error));
+    } on Object {
+      if (!mounted) return;
+      setState(() => _pendingRevokeIds.remove(user.id));
+      AppSnackbar.showError(
+        context,
+        'Could not remove delegation for ${user.username}. Please try again.',
       );
     }
   }
@@ -172,8 +284,10 @@ class _DelegationBottomSheetState extends State<DelegationBottomSheet> {
     final isDark = theme.brightness == Brightness.dark;
     final sheetBg = isDark ? const Color(0xFF151520) : colorScheme.surface;
 
-    final delegatedCount = _delegatedIds.length;
-    final memberCount = _users.length;
+    final delegatedCount = _delegatedUsers.length;
+    final memberCount = _invitedUsers.length;
+    final isPageLoading = _isLoadingInvited && _isLoadingDelegated;
+    final hasAnyError = _errorInvited != null || _errorDelegated != null;
 
     return DraggableScrollableSheet(
       expand: false,
@@ -225,7 +339,7 @@ class _DelegationBottomSheetState extends State<DelegationBottomSheet> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      _isLoading
+                      isPageLoading
                           ? 'Loading invited users…'
                           : memberCount == 0
                           ? 'No one to delegate yet'
@@ -251,7 +365,7 @@ class _DelegationBottomSheetState extends State<DelegationBottomSheet> {
               const SizedBox(height: 16),
 
               // Stats
-              if (!_isLoading && _error == null)
+              if (!isPageLoading && !hasAnyError)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 20),
                   child: _StatsRow(
@@ -265,7 +379,7 @@ class _DelegationBottomSheetState extends State<DelegationBottomSheet> {
                     isDark: isDark,
                   ),
                 ),
-              if (!_isLoading && _error == null) const SizedBox(height: 12),
+              if (!isPageLoading && !hasAnyError) const SizedBox(height: 12),
 
               // Body: loading / error / empty / list
               Expanded(child: _buildBody(scrollController)),
@@ -278,31 +392,146 @@ class _DelegationBottomSheetState extends State<DelegationBottomSheet> {
   }
 
   Widget _buildBody(ScrollController scrollController) {
-    if (_isLoading) {
+    if (_isLoadingInvited && _isLoadingDelegated) {
       return const Center(child: CircularProgressIndicator());
     }
-    if (_error != null) {
-      return _ErrorState(message: _error!, onRetry: _loadInvitedUsers);
+
+    if (_errorInvited != null) {
+      return _ErrorState(
+        message: _errorInvited!,
+        onRetry: _loadData,
+      );
     }
-    if (_users.isEmpty) {
+    if (_errorDelegated != null) {
+      return _ErrorState(
+        message: _errorDelegated!,
+        onRetry: _loadData,
+      );
+    }
+
+    final availableInvited = _availableInvitedUsers;
+    final delegated = _delegatedUsers;
+
+    if (availableInvited.isEmpty && delegated.isEmpty) {
       return const _EmptyState();
     }
-    return ListView.separated(
+
+    return ListView(
       controller: scrollController,
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
-      itemCount: _users.length,
-      separatorBuilder: (_, _) => const SizedBox(height: 8),
-      itemBuilder: (context, index) {
-        final user = _users[index];
-        final isSelf = widget.hostId != null && widget.hostId == user.id;
-        return _DelegateUserRow(
-          user: user,
-          isHostSelf: isSelf,
-          isPending: _pendingIds.contains(user.id),
-          isDelegated: _delegatedIds.contains(user.id),
-          onDelegate: () => _delegate(user),
-        );
-      },
+      children: [
+        if (delegated.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.only(top: 8, bottom: 12),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.verified_user_rounded,
+                  size: 16,
+                  color: Theme.of(context).colorScheme.primary,
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'DELEGATED USERS (${delegated.length})',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.8,
+                    fontSize: 12,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ...delegated.map((user) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _DelegatedUserRow(
+                user: user,
+                isPending: _pendingRevokeIds.contains(user.id),
+                onRevoke: () => _revokeDelegation(user),
+              ),
+            );
+          }),
+          const SizedBox(height: 16),
+        ],
+
+        if (availableInvited.isNotEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.only(top: 8, bottom: 12),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.group_add_rounded,
+                  size: 16,
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.6),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'INVITED USERS AVAILABLE FOR DELEGATION '
+                  '(${availableInvited.length})',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.8,
+                    fontSize: 12,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.6),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          ...availableInvited.map((user) {
+            final isSelf = widget.hostId != null && widget.hostId == user.id;
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: _DelegateUserRow(
+                user: user,
+                isHostSelf: isSelf,
+                isPending: _pendingDelegateIds.contains(user.id),
+                isDelegated: _sentDelegateIds.contains(user.id),
+                onDelegate: () => _delegate(user),
+              ),
+            );
+          }),
+        ],
+
+        // Show a compact empty helper block for delegated section if empty
+        // but invited exists.
+        if (delegated.isEmpty) ...[
+          Padding(
+            padding: const EdgeInsets.only(top: 8, bottom: 12),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.verified_user_rounded,
+                  size: 16,
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.onSurface.withValues(alpha: 0.4),
+                ),
+                const SizedBox(width: 6),
+                Text(
+                  'DELEGATED USERS (0)',
+                  style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.8,
+                    fontSize: 12,
+                    color: Theme.of(
+                      context,
+                    ).colorScheme.onSurface.withValues(alpha: 0.4),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          _DelegatedEmptyState(colorScheme: Theme.of(context).colorScheme),
+          const SizedBox(height: 16),
+        ],
+      ],
     );
   }
 }
@@ -428,6 +657,210 @@ class _StatsRow extends StatelessWidget {
         const SizedBox(width: 10),
         stat('$total', 'Invited'),
       ],
+    );
+  }
+}
+
+class _DelegatedUserRow extends StatelessWidget {
+  const _DelegatedUserRow({
+    required this.user,
+    required this.isPending,
+    required this.onRevoke,
+  });
+
+  final EventDelegatedUserModel user;
+  final bool isPending;
+  final VoidCallback onRevoke;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+    final textTheme = theme.textTheme;
+    final isDark = theme.brightness == Brightness.dark;
+
+    final rowBg = isDark
+        ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.6)
+        : colorScheme.surface;
+    final activeBorder = colorScheme.primary.withValues(alpha: 0.5);
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: rowBg,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          width: 1.5,
+          color: activeBorder,
+        ),
+      ),
+      child: Row(
+        children: [
+          _UserAvatar(
+            username: user.username,
+            avatarUrl: user.avatarUrl,
+            primaryColor: colorScheme.primary,
+            isDelegated: true,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        user.username,
+                        style: textTheme.bodyMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 6,
+                        vertical: 2,
+                      ),
+                      decoration: BoxDecoration(
+                        color: colorScheme.primary.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        'Active',
+                        style: textTheme.bodySmall?.copyWith(
+                          color: colorScheme.primary,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 9,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Has playback controls permission',
+                  style: textTheme.bodySmall?.copyWith(
+                    color: colorScheme.onSurface.withValues(alpha: 0.55),
+                    fontWeight: FontWeight.w600,
+                    fontSize: 12,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          _RevokeButton(
+            isPending: isPending,
+            onPressed: onRevoke,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RevokeButton extends StatelessWidget {
+  const _RevokeButton({
+    required this.isPending,
+    required this.onPressed,
+  });
+
+  final bool isPending;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return GestureDetector(
+      onTap: isPending ? null : onPressed,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 220),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+        decoration: BoxDecoration(
+          color: colorScheme.error.withValues(alpha: 0.1),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+            color: colorScheme.error.withValues(alpha: 0.3),
+          ),
+        ),
+        child: isPending
+            ? SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: colorScheme.error,
+                ),
+              )
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    Icons.remove_circle_outline_rounded,
+                    size: 14,
+                    color: colorScheme.error,
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Remove',
+                    style: TextStyle(
+                      color: colorScheme.error,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 13,
+                    ),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+}
+
+class _DelegatedEmptyState extends StatelessWidget {
+  const _DelegatedEmptyState({required this.colorScheme});
+
+  final ColorScheme colorScheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: colorScheme.onSurface.withValues(alpha: 0.02),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: colorScheme.onSurface.withValues(alpha: 0.05),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.headset_off_rounded,
+            color: colorScheme.onSurface.withValues(alpha: 0.35),
+            size: 24,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'No users are currently delegated playback controls for this '
+              'party.',
+              style: TextStyle(
+                color: colorScheme.onSurface.withValues(alpha: 0.5),
+                fontSize: 13,
+                height: 1.4,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

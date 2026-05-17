@@ -1,4 +1,5 @@
 import 'package:music_room/features/music_vote/data/datasources/music_vote_remote_datasource.dart';
+import 'package:music_room/features/music_vote/data/models/event_delegated_user_model.dart';
 import 'package:music_room/features/music_vote/data/models/event_detail_model.dart';
 import 'package:music_room/features/music_vote/data/models/event_track_model.dart';
 import 'package:music_room/features/music_vote/domain/repositories/music_vote_repository.dart';
@@ -58,5 +59,15 @@ class MusicVoteRepositoryImpl implements MusicVoteRepository {
   @override
   Future<String> createDelegation(String eventId, String delegateeId) {
     return _remoteDataSource.createDelegation(eventId, delegateeId);
+  }
+
+  @override
+  Future<List<EventDelegatedUserModel>> getDelegatedUsers(String eventId) {
+    return _remoteDataSource.getDelegatedUsers(eventId);
+  }
+
+  @override
+  Future<void> removeDelegation(String eventId, String userId) {
+    return _remoteDataSource.removeDelegation(eventId, userId);
   }
 }

@@ -116,11 +116,25 @@ class _StartupRouteGateState extends State<_StartupRouteGate> {
 
     // If authenticated (and onboarded, or web), go directly to home
     if (isAuthenticated) {
+      unawaited(_restoreAuthenticatedSession());
       return RouteNames.home;
     }
 
     // Otherwise show auth page
     return RouteNames.auth;
+  }
+
+  Future<void> _restoreAuthenticatedSession() async {
+    unawaited(InjectionContainer().socketClient.reconnectWithAuth());
+
+    try {
+      InjectionContainer().notificationsService.attachSocketListeners();
+      unawaited(InjectionContainer().notificationsService.fetchNotifications());
+    } on Exception catch (_) {}
+
+    try {
+      InjectionContainer().delegationGateway.attachSocketListeners();
+    } on Exception catch (_) {}
   }
 
   @override
@@ -139,23 +153,7 @@ class _StartupRouteGateState extends State<_StartupRouteGate> {
             if (state is AuthAuthenticated ||
                 state is LoginSuccess ||
                 state is RegisterSuccess) {
-              unawaited(InjectionContainer().socketClient.reconnectWithAuth());
-              // Attach notifications listeners after socket reconnect attempt
-              try {
-                InjectionContainer().notificationsService
-                    .attachSocketListeners();
-                // Fetch notifications immediately after login
-                unawaited(
-                  InjectionContainer().notificationsService
-                      .fetchNotifications(),
-                );
-              } on Exception catch (_) {}
-              // Attach the global delegation listener so any
-              // `event:delegate` socket message surfaces the request
-              // popup, regardless of the current screen.
-              try {
-                InjectionContainer().delegationGateway.attachSocketListeners();
-              } on Exception catch (_) {}
+              unawaited(_restoreAuthenticatedSession());
             }
 
             if (state is LogoutSuccess || state is AuthUnauthenticated) {

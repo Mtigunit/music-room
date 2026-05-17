@@ -195,6 +195,13 @@ class _InviteFriendsButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final backgroundColor = isDark ? Colors.white : Colors.black;
+    final borderColor = isDark
+        ? Colors.black.withValues(alpha: 0.12)
+        : Colors.white.withValues(alpha: 0.18);
+    final foregroundColor = isDark ? Colors.black : Colors.white;
+
     return Semantics(
       button: true,
       label: 'Invite friends',
@@ -204,23 +211,28 @@ class _InviteFriendsButton extends StatelessWidget {
         child: Container(
           height: 52,
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: backgroundColor,
             borderRadius: BorderRadius.circular(14),
             border: Border.all(
-              color: Colors.black.withValues(alpha: 0.12),
+              color: borderColor,
               width: 1.5,
             ),
           ),
-          child: const Row(
+          child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.person_add_alt_1_outlined, size: 20),
-              SizedBox(width: 8),
+              Icon(
+                Icons.person_add_alt_1_outlined,
+                size: 20,
+                color: foregroundColor,
+              ),
+              const SizedBox(width: 8),
               Text(
                 'Invite',
                 style: TextStyle(
                   fontWeight: FontWeight.w700,
                   fontSize: 15,
+                  color: foregroundColor,
                 ),
               ),
             ],

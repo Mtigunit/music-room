@@ -31,6 +31,7 @@ enum SocketEvent {
   // Delegation
   delegate,
   delegationResponse,
+  delegateRemoved,
 }
 
 extension SocketEventName on SocketEvent {
@@ -94,6 +95,8 @@ extension SocketEventName on SocketEvent {
         return 'event:delegate';
       case SocketEvent.delegationResponse:
         return 'event:delegation-response';
+      case SocketEvent.delegateRemoved:
+        return 'event:delegate_removed';
     }
   }
 }

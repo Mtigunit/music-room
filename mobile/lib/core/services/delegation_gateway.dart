@@ -54,6 +54,8 @@ class DelegationGateway {
       StreamController<DelegationInvite>.broadcast();
   final StreamController<DelegationInvite> _acceptedController =
       StreamController<DelegationInvite>.broadcast();
+  final StreamController<Map<String, dynamic>> _removedController =
+      StreamController<Map<String, dynamic>>.broadcast();
 
   /// Tracks delegationIds that the UI has already surfaced so the same
   /// invite is never re-shown if the server re-emits.
@@ -77,25 +79,36 @@ class DelegationGateway {
   Stream<DelegationInvite> get acceptedDelegations =>
       _acceptedController.stream;
 
+  /// Fires whenever a delegation removal event is received from the host.
+  Stream<Map<String, dynamic>> get removedDelegations =>
+      _removedController.stream;
+
   /// Attaches the socket listener (idempotent).
   void attachSocketListeners() {
     if (_attached) return;
-    _socketClient.on(SocketEvent.delegate.value, _handleDelegate);
+    _socketClient
+      ..on(SocketEvent.delegate.value, _handleDelegate)
+      ..on(
+        SocketEvent.delegateRemoved.value,
+        _handleDelegateRemoved,
+      );
     _attached = true;
     if (kDebugMode) {
-      debugPrint('🛂 [DelegationGateway] Attached event:delegate listener');
+      debugPrint('🛂 [DelegationGateway] Attached delegation listeners');
     }
   }
 
   /// Detaches the socket listener (idempotent).
   void detachSocketListeners() {
     if (!_attached) return;
-    _socketClient.off(SocketEvent.delegate.value);
+    _socketClient
+      ..off(SocketEvent.delegate.value)
+      ..off(SocketEvent.delegateRemoved.value);
     _attached = false;
     _seenDelegationIds.clear();
     _invitesById.clear();
     if (kDebugMode) {
-      debugPrint('🛂 [DelegationGateway] Detached event:delegate listener');
+      debugPrint('🛂 [DelegationGateway] Detached delegation listeners');
     }
   }
 
@@ -106,6 +119,11 @@ class DelegationGateway {
   /// state regardless of accept/reject.
   void respond({required String delegationId, required bool accept}) {
     if (delegationId.isEmpty) return;
+
+    // Always clear the seen ID so a subsequent delegation invite/request
+    // with the same ID can be shown again.
+    _seenDelegationIds.remove(delegationId);
+
     if (!_socketClient.isConnected) {
       if (kDebugMode) {
         debugPrint(
@@ -167,9 +185,18 @@ class DelegationGateway {
     _incomingController.add(invite);
   }
 
+  void _handleDelegateRemoved(dynamic payload) {
+    if (kDebugMode) {
+      debugPrint('📡 [DelegationGateway] ← event:delegate_removed $payload');
+    }
+    if (payload is! Map<String, dynamic>) return;
+    _removedController.add(payload);
+  }
+
   Future<void> dispose() async {
     detachSocketListeners();
     await _incomingController.close();
     await _acceptedController.close();
+    await _removedController.close();
   }
 }

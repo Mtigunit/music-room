@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:music_room/core/config/app_config.dart';
 import 'package:music_room/core/network/api_client.dart';
+import 'package:music_room/features/music_vote/data/models/event_delegated_user_model.dart';
 import 'package:music_room/features/music_vote/data/models/event_detail_model.dart';
 import 'package:music_room/features/music_vote/data/models/event_invited_user_model.dart';
 import 'package:music_room/features/music_vote/data/models/event_track_model.dart';
@@ -41,6 +42,12 @@ abstract class IMusicVoteRemoteDataSource {
   /// previously invited user. Returns the created `delegationId` so the
   /// caller can cross-reference incoming socket events.
   Future<String> createDelegation(String eventId, String delegateeId);
+
+  /// GET /events/{eventId}/delegations — list active delegated users for an event.
+  Future<List<EventDelegatedUserModel>> getDelegatedUsers(String eventId);
+
+  /// DELETE /events/{eventId}/delegations/{userId} — revoke playback delegation.
+  Future<void> removeDelegation(String eventId, String userId);
 }
 
 /// Page wrapper for [IMusicVoteRemoteDataSource.getInvitedUsers].
@@ -314,6 +321,71 @@ class MusicVoteRemoteDataSource implements IMusicVoteRemoteDataSource {
       throw DioException(
         requestOptions: RequestOptions(
           path: '${AppConfig.eventsEndpoint}/$eventId/invites',
+        ),
+        error: e,
+      );
+    }
+  }
+
+  @override
+  Future<List<EventDelegatedUserModel>> getDelegatedUsers(
+    String eventId,
+  ) async {
+    try {
+      final response = await _apiClient.get<dynamic>(
+        '${AppConfig.eventsEndpoint}/$eventId/delegations',
+      );
+
+      if (response.statusCode == 200 && response.data != null) {
+        final rawData = response.data;
+        if (rawData is List) {
+          return rawData
+              .whereType<Map<String, dynamic>>()
+              .map(EventDelegatedUserModel.fromJson)
+              .toList();
+        }
+        return const <EventDelegatedUserModel>[];
+      }
+
+      throw DioException(
+        requestOptions: response.requestOptions,
+        response: response,
+        type: DioExceptionType.badResponse,
+      );
+    } on DioException {
+      rethrow;
+    } on Object catch (e) {
+      throw DioException(
+        requestOptions: RequestOptions(
+          path: '${AppConfig.eventsEndpoint}/$eventId/delegations',
+        ),
+        error: e,
+      );
+    }
+  }
+
+  @override
+  Future<void> removeDelegation(String eventId, String userId) async {
+    try {
+      final response = await _apiClient.delete<dynamic>(
+        '${AppConfig.eventsEndpoint}/$eventId/delegations/$userId',
+      );
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        return;
+      }
+
+      throw DioException(
+        requestOptions: response.requestOptions,
+        response: response,
+        type: DioExceptionType.badResponse,
+      );
+    } on DioException {
+      rethrow;
+    } on Object catch (e) {
+      throw DioException(
+        requestOptions: RequestOptions(
+          path: '${AppConfig.eventsEndpoint}/$eventId/delegations/$userId',
         ),
         error: e,
       );

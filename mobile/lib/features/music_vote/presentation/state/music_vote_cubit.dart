@@ -118,6 +118,9 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
       _delegationAcceptedSub = gateway.acceptedDelegations.listen(
         _handleDelegationAccepted,
       );
+      _delegationRemovedSub = gateway.removedDelegations.listen(
+        _handleDelegationRemoved,
+      );
     }
   }
 
@@ -133,6 +136,7 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
   StreamSubscription<void>? _socketConnectedSub;
   StreamSubscription<void>? _socketDisconnectedSub;
   StreamSubscription<DelegationInvite>? _delegationAcceptedSub;
+  StreamSubscription<Map<String, dynamic>>? _delegationRemovedSub;
 
   /// Tracks in-flight vote attempts: trackId → intended voteType ('up'|'none').
   /// The UI is NOT updated until the server confirms via [track:vote_updated].
@@ -828,6 +832,31 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
     unawaited(refreshEventDetails());
   }
 
+  void _handleDelegationRemoved(Map<String, dynamic> payload) {
+    if (isClosed) return;
+    final active = _activeEventId ?? state.event?.id;
+    if (active == null || active.isEmpty) return;
+
+    final eventId = payload['eventId'] as String? ?? '';
+    if (eventId != active) return;
+
+    // Immediately clear delegation permission and update UI in real-time
+    final currentEvent = state.event;
+    if (currentEvent != null) {
+      final msg =
+          payload['message'] as String? ?? 'Host removed delegation for you';
+      emit(
+        state.copyWith(
+          event: currentEvent.copyWith(isDelegated: false),
+          error: msg,
+        ),
+      );
+    }
+
+    // Refresh details from the server to guarantee perfect state sync
+    unawaited(refreshEventDetails());
+  }
+
   void _handleSocketException(dynamic payload) {
     debugPrint('📡 [MusicVoteCubit] ← exception: $payload');
 
@@ -966,6 +995,7 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
     await _socketConnectedSub?.cancel();
     await _socketDisconnectedSub?.cancel();
     await _delegationAcceptedSub?.cancel();
+    await _delegationRemovedSub?.cancel();
     if (eventId != null && eventId.isNotEmpty) {
       leaveEvent(eventId);
     }
