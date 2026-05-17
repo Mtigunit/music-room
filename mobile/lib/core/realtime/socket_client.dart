@@ -27,6 +27,7 @@ class SocketClient {
   final AccessTokenProvider _tokenProvider;
   final ClientMetaService _clientMetaService;
   io.Socket? _socket;
+  Map<String, dynamic>? _lastClientMeta;
 
   // ── Public streams ────────────────────────────────────────────────────────
 
@@ -64,11 +65,11 @@ class SocketClient {
     _socket?.dispose();
 
     final extraHeaders = <String, dynamic>{};
-    final clientMeta = <String, dynamic>{};
     try {
       final clientHeaders = await _clientMetaService.getHeaders();
       extraHeaders.addAll(clientHeaders);
-      clientMeta.addAll(clientHeaders);
+      final clientMeta = <String, dynamic>{}..addAll(clientHeaders);
+      _lastClientMeta = clientMeta;
     } on Object catch (error) {
       if (AppConfig.isDebug) {
         debugPrint(
@@ -90,7 +91,7 @@ class SocketClient {
               'reconnectionDelay': 1000,
               'auth': <String, dynamic>{
                 'token': token,
-                'clientMeta': clientMeta,
+                if (_lastClientMeta != null) 'clientMeta': _lastClientMeta,
               },
               'extraHeaders': extraHeaders,
             },
@@ -108,7 +109,13 @@ class SocketClient {
           })
           ..on('reconnect_attempt', (_) async {
             final refreshedToken = await _tokenProvider();
-            _socket?.auth = <String, dynamic>{'token': refreshedToken ?? ''};
+            // Preserve clientMeta on reconnect attempts so web clients
+            // (which send metadata via auth) continue to present it.
+            final meta = _lastClientMeta;
+            _socket?.auth = <String, dynamic>{
+              'token': refreshedToken ?? '',
+              'clientMeta': ?meta,
+            };
           })
           ..connect();
   }
@@ -125,8 +132,9 @@ class SocketClient {
     }
 
     final token = await _tokenProvider();
+    final meta = _lastClientMeta ?? await _clientMetaService.getHeaders();
     _socket!
-      ..auth = <String, dynamic>{'token': token ?? ''}
+      ..auth = <String, dynamic>{'token': token ?? '', 'clientMeta': meta}
       ..connect();
   }
 
