@@ -7,6 +7,7 @@ FROM node:${NODE_VERSION} AS builder
 WORKDIR /app
 
 ENV YOUTUBE_DL_SKIP_DOWNLOAD=true
+ENV YOUTUBE_DL_SKIP_PYTHON_CHECK=1
 
 COPY package*.json ./
 COPY prisma ./prisma
