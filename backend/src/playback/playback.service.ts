@@ -1,10 +1,29 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import youtubedl, { Payload } from 'youtube-dl-exec';
+import { create as createYoutubeDl, Payload } from 'youtube-dl-exec';
+import * as fs from 'fs';
+import * as path from 'path';
 import { AudioStreamResponseDto } from './dto/audio-stream-response.dto';
 
 export interface YtDlpResponse extends Payload {
   url: string;
 }
+
+const localBinaryPath = path.join(
+  __dirname,
+  '..',
+  '..',
+  'node_modules',
+  'youtube-dl-exec',
+  'bin',
+  'yt-dlp',
+);
+
+const binaryToUse =
+  fs.existsSync(localBinaryPath) || fs.existsSync(`${localBinaryPath}.exe`)
+    ? localBinaryPath
+    : 'yt-dlp';
+
+const youtubedl = createYoutubeDl(binaryToUse);
 
 @Injectable()
 export class PlaybackService {

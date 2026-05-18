@@ -1,9 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { PlaybackService } from './playback.service';
 import { NotFoundException } from '@nestjs/common';
-import youtubedl from 'youtube-dl-exec';
 
-jest.mock('youtube-dl-exec');
+const mockYoutubedl = jest.fn();
+(global as any).mockYoutubedl = mockYoutubedl;
+
+jest.mock('youtube-dl-exec', () => ({
+  create: jest.fn(() => (global as any).mockYoutubedl),
+}));
+
+import { PlaybackService } from './playback.service';
 
 describe('PlaybackService', () => {
   let service: PlaybackService;
@@ -26,7 +31,7 @@ describe('PlaybackService', () => {
       const mockUrl = 'https://mock.audio.stream/url';
       const mockTitle = 'Mock Video Title';
       const mockDuration = 120;
-      (youtubedl as jest.Mock).mockResolvedValue({
+      mockYoutubedl.mockResolvedValue({
         url: mockUrl,
         title: mockTitle,
         duration: mockDuration,
@@ -39,7 +44,7 @@ describe('PlaybackService', () => {
         title: mockTitle,
         duration: mockDuration,
       });
-      expect(youtubedl).toHaveBeenCalledWith(
+      expect(mockYoutubedl).toHaveBeenCalledWith(
         'https://www.youtube.com/watch?v=zUJuVsSR5n4',
         {
           dumpSingleJson: true,
@@ -51,7 +56,7 @@ describe('PlaybackService', () => {
     });
 
     it('should throw NotFoundException when youtubedl fails', async () => {
-      (youtubedl as jest.Mock).mockRejectedValue(new Error('YtDlp Error'));
+      mockYoutubedl.mockRejectedValue(new Error('YtDlp Error'));
 
       await expect(service.getDirectAudioUrl('zUJuVsSR5n4')).rejects.toThrow(
         NotFoundException,
@@ -59,7 +64,7 @@ describe('PlaybackService', () => {
     });
 
     it('should throw NotFoundException when youtubedl returns no url', async () => {
-      (youtubedl as jest.Mock).mockResolvedValue({});
+      mockYoutubedl.mockResolvedValue({});
 
       await expect(service.getDirectAudioUrl('zUJuVsSR5n4')).rejects.toThrow(
         NotFoundException,
@@ -67,7 +72,7 @@ describe('PlaybackService', () => {
     });
 
     it('should throw NotFoundException when youtubedl returns a string', async () => {
-      (youtubedl as jest.Mock).mockResolvedValue('some raw output string');
+      mockYoutubedl.mockResolvedValue('some raw output string');
 
       await expect(service.getDirectAudioUrl('zUJuVsSR5n4')).rejects.toThrow(
         NotFoundException,

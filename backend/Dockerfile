@@ -2,10 +2,11 @@
 # syntax=docker/dockerfile:1
 ARG NODE_VERSION=22-alpine
 
-# ── Build stage ──────────────────────────────────────
 FROM node:${NODE_VERSION} AS builder
 
 WORKDIR /app
+
+ENV YOUTUBE_DL_SKIP_DOWNLOAD=true
 
 COPY package*.json ./
 COPY prisma ./prisma
