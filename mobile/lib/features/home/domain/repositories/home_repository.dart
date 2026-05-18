@@ -4,7 +4,7 @@ abstract class HomeRepository {
   Future<List<MyEventItemModel>> fetchExploreEvents({
     int page = 1,
     int limit = 20,
-    String? tags,
+    List<String>? tags,
     String? status,
     String? search,
   });
@@ -12,7 +12,7 @@ abstract class HomeRepository {
   Future<List<MyEventItemModel>> fetchFriendsEvents({
     int page = 1,
     int limit = 20,
-    String? tags,
+    List<String>? tags,
     String? status,
     String? search,
   });

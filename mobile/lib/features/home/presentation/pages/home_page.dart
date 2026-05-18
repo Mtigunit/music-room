@@ -13,7 +13,7 @@ import 'package:music_room/features/home/presentation/state/home_events_cubit.da
 import 'package:music_room/features/home/presentation/state/home_events_state.dart';
 import 'package:music_room/features/home/presentation/widgets/event_see_all_sheet.dart';
 import 'package:music_room/features/home/presentation/widgets/event_vertical_card.dart';
-import 'package:music_room/features/home/presentation/widgets/genre_filter_list.dart';
+import 'package:music_room/features/home/presentation/widgets/home_filter_bottom_sheet.dart';
 import 'package:music_room/features/home/presentation/widgets/home_header.dart';
 import 'package:music_room/features/home/presentation/widgets/home_search_bar.dart';
 import 'package:music_room/features/home/presentation/widgets/section_title.dart';
@@ -30,14 +30,10 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  int _selectedGenreIndex = 0;
-  int _selectedStatusIndex = 0;
+  String? _selectedStatus;
+  List<String> _selectedTags = [];
 
   static const List<String> statuses = ['All', 'Live', 'Upcoming', 'Ended'];
-  List<String> get _tagLabels => [
-    'All',
-    ...EventTag.values.map((e) => e.label),
-  ];
 
   final ScrollController _exploreScrollController = ScrollController();
   final ScrollController _friendsScrollController = ScrollController();
@@ -92,7 +88,7 @@ class _HomePageState extends State<HomePage> {
           return SafeArea(
             child: Scaffold(
               backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-              floatingActionButton: FloatingActionButton.extended(
+              floatingActionButton: FloatingActionButton(
                 heroTag: null,
                 onPressed: () {
                   unawaited(
@@ -107,11 +103,8 @@ class _HomePageState extends State<HomePage> {
                 },
                 backgroundColor: Theme.of(context).colorScheme.primary,
                 foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                icon: const Icon(Icons.add),
-                label: const Text(
-                  'Create Event',
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
+                shape: const CircleBorder(),
+                child: const Icon(Icons.add, size: 28),
               ),
               body: RefreshIndicator(
                 onRefresh: () => _cubit.fetchEvents(),
@@ -121,34 +114,65 @@ class _HomePageState extends State<HomePage> {
                     SliverToBoxAdapter(
                       child: _HeaderAndFilters(
                         cubit: _cubit,
-                        selectedStatusIndex: _selectedStatusIndex,
-                        onStatusSelected: (index) {
-                          setState(() {
-                            _selectedStatusIndex = index;
-                          });
-                          final status = statuses[index];
-                          unawaited(
-                            _cubit.fetchEvents(
-                              status: status == 'All' ? '' : status,
-                            ),
-                          );
-                        },
-                        selectedGenreIndex: _selectedGenreIndex,
-                        onGenreSelected: (index) {
-                          setState(() {
-                            _selectedGenreIndex = index;
-                          });
-                          final tag = index == 0
-                              ? ''
-                              : EventTag.values[index - 1].backendValue;
-                          unawaited(
-                            _cubit.fetchEvents(
-                              tags: tag,
-                            ),
-                          );
-                        },
+                        selectedStatus: _selectedStatus,
+                        selectedTags: _selectedTags,
                         statuses: statuses,
-                        tagLabels: _tagLabels,
+                        tags: EventTag.values,
+                        onStatusSelected: (status) {
+                          setState(() {
+                            _selectedStatus = status == 'All' ? null : status;
+                          });
+                          unawaited(
+                            _cubit.fetchEvents(
+                              status: _selectedStatus,
+                              clearStatus: _selectedStatus == null,
+                              tags: _selectedTags.isEmpty
+                                  ? null
+                                  : _selectedTags,
+                              clearTags: _selectedTags.isEmpty,
+                            ),
+                          );
+                        },
+                        onTagsUpdated: (tagsList) {
+                          setState(() {
+                            _selectedTags = tagsList;
+                          });
+                          unawaited(
+                            _cubit.fetchEvents(
+                              status: _selectedStatus,
+                              clearStatus: _selectedStatus == null,
+                              tags: _selectedTags.isEmpty
+                                  ? null
+                                  : _selectedTags,
+                              clearTags: _selectedTags.isEmpty,
+                            ),
+                          );
+                        },
+                        onFilterTap: () async {
+                          final result = await HomeFilterBottomSheet.show(
+                            context,
+                            initialStatus: _selectedStatus,
+                            initialTags: _selectedTags,
+                          );
+                          if (result != null) {
+                            if (!context.mounted) return;
+                            setState(() {
+                              _selectedStatus = result['status'] as String?;
+                              _selectedTags = (result['tags'] as List<dynamic>)
+                                  .cast<String>();
+                            });
+                            unawaited(
+                              _cubit.fetchEvents(
+                                status: _selectedStatus,
+                                clearStatus: _selectedStatus == null,
+                                tags: _selectedTags.isEmpty
+                                    ? null
+                                    : _selectedTags,
+                                clearTags: _selectedTags.isEmpty,
+                              ),
+                            );
+                          }
+                        },
                       ),
                     ),
                     SliverToBoxAdapter(
@@ -218,21 +242,23 @@ class _HomePageState extends State<HomePage> {
 class _HeaderAndFilters extends StatelessWidget {
   const _HeaderAndFilters({
     required this.cubit,
-    required this.selectedStatusIndex,
+    required this.selectedStatus,
+    required this.selectedTags,
     required this.onStatusSelected,
-    required this.selectedGenreIndex,
-    required this.onGenreSelected,
+    required this.onTagsUpdated,
+    required this.onFilterTap,
     required this.statuses,
-    required this.tagLabels,
+    required this.tags,
   });
 
   final HomeEventsCubit cubit;
-  final int selectedStatusIndex;
-  final ValueChanged<int> onStatusSelected;
-  final int selectedGenreIndex;
-  final ValueChanged<int> onGenreSelected;
+  final String? selectedStatus;
+  final List<String> selectedTags;
+  final ValueChanged<String> onStatusSelected;
+  final ValueChanged<List<String>> onTagsUpdated;
+  final VoidCallback onFilterTap;
   final List<String> statuses;
-  final List<String> tagLabels;
+  final List<EventTag> tags;
 
   @override
   Widget build(BuildContext context) {
@@ -241,8 +267,10 @@ class _HeaderAndFilters extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 24),
+          // ignore: prefer_const_constructors
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24),
+            // ignore: prefer_const_constructors
             child: HomeHeader(),
           ),
           const SizedBox(height: 24),
@@ -260,51 +288,564 @@ class _HeaderAndFilters extends StatelessWidget {
               },
             ),
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 16),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Text(
-              'STATUS',
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.5),
-                letterSpacing: 1.2,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              clipBehavior: Clip.none,
+              child: Row(
+                children: [
+                  _buildIconButton(context, Icons.tune, onFilterTap),
+                  const SizedBox(width: 12),
+                  _buildStatusDropdown(context),
+                  const SizedBox(width: 12),
+                  _buildTagsDropdown(context),
+                ],
               ),
             ),
           ),
-          const SizedBox(height: 12),
-          HorizontalFilterList(
-            items: statuses,
-            selectedIndex: selectedStatusIndex,
-            onSelected: onStatusSelected,
-            listPadding: const EdgeInsets.symmetric(horizontal: 24),
-          ),
           const SizedBox(height: 24),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
-            child: Text(
-              'TAGS',
+        ],
+      ),
+    );
+  }
+
+  Widget _buildIconButton(
+    BuildContext context,
+    IconData icon,
+    VoidCallback onTap,
+  ) {
+    final theme = Theme.of(context);
+    final numFilters = (selectedStatus != null ? 1 : 0) + selectedTags.length;
+    final isActive = numFilters > 0;
+
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 150),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: isActive ? theme.colorScheme.primary : Colors.transparent,
+          border: Border.all(
+            color: isActive ? Colors.transparent : theme.colorScheme.primary,
+            width: 1.5,
+          ),
+          borderRadius: BorderRadius.circular(32),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              icon,
+              size: 18,
+              color: isActive
+                  ? theme.colorScheme.onPrimary
+                  : theme.colorScheme.primary,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              'Filter',
               style: TextStyle(
-                fontSize: 12,
+                color: isActive
+                    ? theme.colorScheme.onPrimary
+                    : theme.colorScheme.primary,
                 fontWeight: FontWeight.bold,
-                color: Theme.of(
-                  context,
-                ).colorScheme.onSurface.withValues(alpha: 0.5),
-                letterSpacing: 1.2,
+                fontSize: 14,
               ),
             ),
+            if (isActive) ...[
+              const SizedBox(width: 6),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.onPrimary.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$numFilters',
+                  style: TextStyle(
+                    color: theme.colorScheme.onPrimary,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusDropdown(BuildContext context) {
+    final theme = Theme.of(context);
+    final isActive = selectedStatus != null;
+    final label = selectedStatus ?? 'Status';
+
+    return Theme(
+      data: theme.copyWith(
+        hoverColor: theme.colorScheme.primary.withValues(alpha: 0.08),
+        splashColor: theme.colorScheme.primary.withValues(alpha: 0.12),
+        highlightColor: Colors.transparent,
+      ),
+      child: PopupMenuButton<String>(
+        initialValue: selectedStatus ?? 'All',
+        onSelected: onStatusSelected,
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(20),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+          side: BorderSide(
+            color: theme.colorScheme.primary.withValues(alpha: 0.15),
+            width: 1.5,
+          ),
+        ),
+        offset: const Offset(0, 48),
+        elevation: 3,
+        shadowColor: theme.colorScheme.primary.withValues(alpha: 0.08),
+        surfaceTintColor: theme.colorScheme.surface,
+        constraints: const BoxConstraints(minWidth: 160, maxWidth: 180),
+        itemBuilder: (context) => [
+          _buildStatusMenuItem(
+            context,
+            'All',
+            Icons.filter_alt_outlined,
+            theme,
+          ),
+          _buildStatusMenuItem(
+            context,
+            'Live',
+            Icons.sensors,
+            theme,
+            isLive: true,
+          ),
+          _buildStatusMenuItem(
+            context,
+            'Upcoming',
+            Icons.upcoming_outlined,
+            theme,
+          ),
+          _buildStatusMenuItem(
+            context,
+            'Ended',
+            Icons.check_circle_outline,
+            theme,
+          ),
+        ],
+        child: _buildFilterChipLabel(context, label, isActive),
+      ),
+    );
+  }
+
+  PopupMenuItem<String> _buildStatusMenuItem(
+    BuildContext context,
+    String value,
+    IconData icon,
+    ThemeData theme, {
+    bool isLive = false,
+  }) {
+    final isSelected =
+        selectedStatus == (value == 'All' ? null : value) ||
+        (selectedStatus == null && value == 'All');
+    return PopupMenuItem<String>(
+      value: value,
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 20,
+            color: isSelected
+                ? theme.colorScheme.primary
+                : (isLive
+                      ? Colors.redAccent
+                      : theme.colorScheme.onSurface.withValues(alpha: 0.6)),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            value,
+            style: TextStyle(
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+              color: isSelected
+                  ? theme.colorScheme.primary
+                  : theme.colorScheme.onSurface,
+            ),
+          ),
+          if (isSelected) ...[
+            const Spacer(),
+            Icon(Icons.check, size: 16, color: theme.colorScheme.primary),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTagsDropdown(BuildContext context) {
+    final theme = Theme.of(context);
+    final isActive = selectedTags.isNotEmpty;
+    final label = isActive
+        ? (selectedTags.length == 1
+              ? tags
+                    .firstWhere((t) => t.backendValue == selectedTags.first)
+                    .label
+              : '${selectedTags.length} Tags')
+        : 'Tags';
+
+    return Theme(
+      data: theme.copyWith(
+        hoverColor: Colors.transparent,
+        splashColor: Colors.transparent,
+        highlightColor: Colors.transparent,
+      ),
+      child: PopupMenuButton<List<String>>(
+        color: theme.colorScheme.surface,
+        borderRadius: BorderRadius.circular(24),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(24),
+          side: BorderSide(
+            color: theme.colorScheme.primary.withValues(alpha: 0.15),
+            width: 1.5,
+          ),
+        ),
+        offset: const Offset(0, 48),
+        constraints: const BoxConstraints(maxWidth: 320),
+        elevation: 3,
+        shadowColor: theme.colorScheme.primary.withValues(alpha: 0.08),
+        surfaceTintColor: theme.colorScheme.surface,
+        itemBuilder: (context) {
+          return [
+            PopupMenuItem<List<String>>(
+              enabled: false,
+              child: _TagsGridPopupContent(
+                initialTags: selectedTags,
+                tags: tags,
+                onTagsChanged: (newTags) {
+                  Navigator.pop(context, newTags);
+                },
+              ),
+            ),
+          ];
+        },
+        onSelected: onTagsUpdated,
+        child: _buildFilterChipLabel(context, label, isActive),
+      ),
+    );
+  }
+
+  Widget _buildFilterChipLabel(
+    BuildContext context,
+    String label,
+    bool isActive,
+  ) {
+    final theme = Theme.of(context);
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 150),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: BoxDecoration(
+        color: isActive ? theme.colorScheme.primary : Colors.transparent,
+        border: Border.all(
+          color: isActive ? Colors.transparent : theme.colorScheme.primary,
+          width: 1.5,
+        ),
+        borderRadius: BorderRadius.circular(32),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+              color: isActive
+                  ? theme.colorScheme.onPrimary
+                  : theme.colorScheme.primary,
+            ),
+          ),
+          const SizedBox(width: 4),
+          Icon(
+            Icons.keyboard_arrow_down,
+            size: 18,
+            color: isActive
+                ? theme.colorScheme.onPrimary
+                : theme.colorScheme.primary,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _TagsGridPopupContent extends StatefulWidget {
+  const _TagsGridPopupContent({
+    required this.initialTags,
+    required this.tags,
+    required this.onTagsChanged,
+  });
+
+  final List<String> initialTags;
+  final List<EventTag> tags;
+  final ValueChanged<List<String>> onTagsChanged;
+
+  @override
+  State<_TagsGridPopupContent> createState() => _TagsGridPopupContentState();
+}
+
+class _TagsGridPopupContentState extends State<_TagsGridPopupContent> {
+  late Set<String> _selectedTags;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedTags = widget.initialTags.toSet();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                'Filter by Tags',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              TextButton(
+                onPressed: () {
+                  setState(() {
+                    _selectedTags.clear();
+                  });
+                  widget.onTagsChanged([]);
+                },
+                style: TextButton.styleFrom(
+                  padding: EdgeInsets.zero,
+                  minimumSize: const Size(50, 30),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: const Text('Clear'),
+              ),
+            ],
           ),
           const SizedBox(height: 12),
-          HorizontalFilterList(
-            items: tagLabels,
-            selectedIndex: selectedGenreIndex,
-            onSelected: onGenreSelected,
-            listPadding: const EdgeInsets.symmetric(horizontal: 24),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: widget.tags.map((tag) {
+              final isSelected = _selectedTags.contains(tag.backendValue);
+              return GestureDetector(
+                onTap: () {
+                  setState(() {
+                    if (isSelected) {
+                      _selectedTags.remove(tag.backendValue);
+                    } else {
+                      _selectedTags.add(tag.backendValue);
+                    }
+                  });
+                  widget.onTagsChanged(_selectedTags.toList());
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 6,
+                  ),
+                  decoration: BoxDecoration(
+                    color: isSelected
+                        ? theme.colorScheme.primary
+                        : Colors.transparent,
+                    border: Border.all(
+                      color: isSelected
+                          ? Colors.transparent
+                          : theme.colorScheme.primary,
+                      width: 1.2,
+                    ),
+                    borderRadius: BorderRadius.circular(32),
+                  ),
+                  child: Text(
+                    tag.label,
+                    style: TextStyle(
+                      color: isSelected
+                          ? theme.colorScheme.onPrimary
+                          : theme.colorScheme.primary,
+                      fontSize: 12,
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.w500,
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
           ),
-          const SizedBox(height: 32),
+        ],
+      ),
+    );
+  }
+}
+
+class _TagsOnlySheet extends StatefulWidget {
+  const _TagsOnlySheet({required this.initialTags, required this.tags});
+  final List<String> initialTags;
+  final List<EventTag> tags;
+
+  @override
+  State<_TagsOnlySheet> createState() => _TagsOnlySheetState();
+}
+
+class _TagsOnlySheetState extends State<_TagsOnlySheet> {
+  late Set<String> _selectedTags;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedTags = widget.initialTags.toSet();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final size = MediaQuery.sizeOf(context);
+
+    return Container(
+      height: size.height * 0.75,
+      decoration: BoxDecoration(
+        color: theme.scaffoldBackgroundColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(
+        children: [
+          const SizedBox(height: 12),
+          Container(
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.2),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Filter by Tags',
+            style: theme.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Divider(height: 1),
+          Expanded(
+            child: ListView(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+              children: [
+                Wrap(
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: widget.tags.map((tag) {
+                    final isSelected = _selectedTags.contains(tag.backendValue);
+                    return FilterChip(
+                      label: Text(tag.label),
+                      selected: isSelected,
+                      onSelected: (selected) {
+                        setState(() {
+                          if (selected) {
+                            _selectedTags.add(tag.backendValue);
+                          } else {
+                            _selectedTags.remove(tag.backendValue);
+                          }
+                        });
+                      },
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(32),
+                      ),
+                      backgroundColor: Colors.transparent,
+                      side: BorderSide(
+                        color: isSelected
+                            ? Colors.transparent
+                            : theme.colorScheme.primary,
+                      ),
+                      selectedColor: theme.colorScheme.primary,
+                      labelStyle: TextStyle(
+                        color: isSelected
+                            ? theme.colorScheme.onPrimary
+                            : theme.colorScheme.primary,
+                        fontWeight: isSelected
+                            ? FontWeight.bold
+                            : FontWeight.normal,
+                      ),
+                      checkmarkColor: theme.colorScheme.onPrimary,
+                    );
+                  }).toList(),
+                ),
+              ],
+            ),
+          ),
+          Container(
+            padding: EdgeInsets.only(
+              left: 24,
+              right: 24,
+              top: 16,
+              bottom: MediaQuery.paddingOf(context).bottom + 16,
+            ),
+            decoration: BoxDecoration(
+              color: theme.scaffoldBackgroundColor,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 10,
+                  offset: const Offset(0, -5),
+                ),
+              ],
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () {
+                      setState(() {
+                        _selectedTags.clear();
+                      });
+                    },
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(32),
+                      ),
+                    ),
+                    child: const Text(
+                      'Clear',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  flex: 2,
+                  child: FilledButton(
+                    onPressed: () {
+                      Navigator.pop(context, _selectedTags.toList());
+                    },
+                    style: FilledButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(32),
+                      ),
+                    ),
+                    child: const Text(
+                      'Show Results',
+                      style: TextStyle(fontWeight: FontWeight.bold),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ],
       ),
     );
