@@ -17,7 +17,6 @@ export class PlaybackService {
 
       const output = await youtubedl(url, {
         dumpSingleJson: true,
-        noCheckCertificates: true,
         noWarnings: true,
         preferFreeFormats: true,
         format: 'bestaudio/best',

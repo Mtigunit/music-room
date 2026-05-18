@@ -43,7 +43,6 @@ describe('PlaybackService', () => {
         'https://www.youtube.com/watch?v=zUJuVsSR5n4',
         {
           dumpSingleJson: true,
-          noCheckCertificates: true,
           noWarnings: true,
           preferFreeFormats: true,
           format: 'bestaudio/best',
