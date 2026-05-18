@@ -1,4 +1,9 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  NotFoundException,
+  RequestTimeoutException,
+} from '@nestjs/common';
 import { create as createYoutubeDl, Payload } from 'youtube-dl-exec';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -31,15 +36,25 @@ export class PlaybackService {
 
   async getDirectAudioUrl(youtubeId: string): Promise<AudioStreamResponseDto> {
     const url = `https://www.youtube.com/watch?v=${youtubeId}`;
+    let timeoutId: NodeJS.Timeout | null = null;
+
     try {
       this.logger.log(`Extracting audio stream for YouTube ID: ${youtubeId}`);
 
-      const output = await youtubedl(url, {
+      const youtubedlPromise = youtubedl(url, {
         dumpSingleJson: true,
         noWarnings: true,
         preferFreeFormats: true,
         format: 'bestaudio/best',
       });
+
+      const timeoutPromise = new Promise<never>((_, reject) => {
+        timeoutId = setTimeout(() => {
+          reject(new Error('YtDlp extraction timed out'));
+        }, 10000); // 10 seconds timeout limit
+      });
+
+      const output = await Promise.race([youtubedlPromise, timeoutPromise]);
 
       if (typeof output === 'string') {
         throw new Error(
@@ -66,7 +81,17 @@ export class PlaybackService {
         `Failed to extract audio for YouTube ID: ${youtubeId}`,
         error,
       );
+      if (
+        error instanceof Error &&
+        error.message === 'YtDlp extraction timed out'
+      ) {
+        throw new RequestTimeoutException('Audio extraction timed out');
+      }
       throw new NotFoundException('Video not found or unavailable');
+    } finally {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
     }
   }
 }

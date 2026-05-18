@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, RequestTimeoutException } from '@nestjs/common';
 
 const mockYoutubedl = jest.fn();
 (global as any).mockYoutubedl = mockYoutubedl;
@@ -77,6 +77,22 @@ describe('PlaybackService', () => {
       await expect(service.getDirectAudioUrl('zUJuVsSR5n4')).rejects.toThrow(
         NotFoundException,
       );
+    });
+
+    it('should throw RequestTimeoutException when youtubedl times out', async () => {
+      jest.useFakeTimers();
+
+      const pendingPromise = new Promise(() => {}); // never resolves
+      mockYoutubedl.mockReturnValue(pendingPromise);
+
+      const promise = service.getDirectAudioUrl('zUJuVsSR5n4');
+
+      // Fast-forward time by 10 seconds
+      jest.advanceTimersByTime(10000);
+
+      await expect(promise).rejects.toThrow(RequestTimeoutException);
+
+      jest.useRealTimers();
     });
   });
 });
