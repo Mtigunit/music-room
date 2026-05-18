@@ -1,6 +1,7 @@
 import 'package:music_room/features/music_vote/data/datasources/music_vote_remote_datasource.dart';
 import 'package:music_room/features/music_vote/data/models/event_delegated_user_model.dart';
 import 'package:music_room/features/music_vote/data/models/event_detail_model.dart';
+import 'package:music_room/features/music_vote/data/models/event_invited_users_page.dart';
 import 'package:music_room/features/music_vote/data/models/event_track_model.dart';
 import 'package:music_room/features/music_vote/domain/repositories/music_vote_repository.dart';
 

@@ -150,7 +150,9 @@ class DelegationGateway {
 
     final invite = _invitesById.remove(delegationId);
     if (accept && invite != null) {
-      _acceptedController.add(invite);
+      if (!_acceptedController.isClosed) {
+        _acceptedController.add(invite);
+      }
     }
   }
 
@@ -182,7 +184,9 @@ class DelegationGateway {
     }
 
     _invitesById[invite.delegationId] = invite;
-    _incomingController.add(invite);
+    if (!_incomingController.isClosed) {
+      _incomingController.add(invite);
+    }
   }
 
   void _handleDelegateRemoved(dynamic payload) {
@@ -190,7 +194,9 @@ class DelegationGateway {
       debugPrint('📡 [DelegationGateway] ← event:delegate_removed $payload');
     }
     if (payload is! Map<String, dynamic>) return;
-    _removedController.add(payload);
+    if (!_removedController.isClosed) {
+      _removedController.add(payload);
+    }
   }
 
   Future<void> dispose() async {

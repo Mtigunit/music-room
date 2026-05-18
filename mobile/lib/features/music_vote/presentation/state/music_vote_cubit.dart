@@ -336,22 +336,22 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
 
   /// Transitions the event from LIVE → ENDED.
   ///
-  Future<void> endEvent(String eventId) async {
-    if (state.isEndingEvent) return;
+  Future<bool> endEvent(String eventId) async {
+    if (state.isEndingEvent) return false;
     emit(state.copyWith(isEndingEvent: true, clearError: true));
 
     _activeEventId = eventId;
     _attachSocketListeners();
 
     if (!_socketClient.isConnected) {
-      if (isClosed) return;
+      if (isClosed) return false;
       emit(
         state.copyWith(
           isEndingEvent: false,
           error: 'Unable to connect to live updates.',
         ),
       );
-      return;
+      return false;
     }
 
     try {
@@ -361,14 +361,16 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
       _socketClient.emit(SocketEvent.eventEnd.value, <String, dynamic>{
         'eventId': eventId,
       });
+      return true;
     } on Object {
-      if (isClosed) return;
+      if (isClosed) return false;
       emit(
         state.copyWith(
           isEndingEvent: false,
           error: 'Unable to end event.',
         ),
       );
+      return false;
     }
   }
 

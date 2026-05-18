@@ -4,6 +4,7 @@ import 'package:music_room/core/network/api_client.dart';
 import 'package:music_room/features/music_vote/data/models/event_delegated_user_model.dart';
 import 'package:music_room/features/music_vote/data/models/event_detail_model.dart';
 import 'package:music_room/features/music_vote/data/models/event_invited_user_model.dart';
+import 'package:music_room/features/music_vote/data/models/event_invited_users_page.dart';
 import 'package:music_room/features/music_vote/data/models/event_track_model.dart';
 
 /// Contract for the Music Vote (Live Room) remote data source.
@@ -48,23 +49,6 @@ abstract class IMusicVoteRemoteDataSource {
 
   /// DELETE /events/{eventId}/delegations/{userId} — revoke playback delegation.
   Future<void> removeDelegation(String eventId, String userId);
-}
-
-/// Page wrapper for [IMusicVoteRemoteDataSource.getInvitedUsers].
-class EventInvitedUsersPage {
-  const EventInvitedUsersPage({
-    required this.users,
-    required this.total,
-    required this.page,
-    required this.limit,
-    required this.totalPages,
-  });
-
-  final List<EventInvitedUserModel> users;
-  final int total;
-  final int page;
-  final int limit;
-  final int totalPages;
 }
 
 class MusicVoteRemoteDataSource implements IMusicVoteRemoteDataSource {

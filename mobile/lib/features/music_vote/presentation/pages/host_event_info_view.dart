@@ -5,18 +5,15 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:music_room/core/config/app_config.dart';
-import 'package:music_room/core/widgets/app_snackbar.dart';
 import 'package:music_room/core/widgets/dynamic_search_bottom_sheet.dart';
 import 'package:music_room/core/widgets/feature_chip.dart';
 import 'package:music_room/core/widgets/track_search_list_tile.dart';
 import 'package:music_room/di/injection_container.dart';
-import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
-import 'package:music_room/features/auth/presentation/state/auth_state.dart';
 import 'package:music_room/features/events/presentation/state/track_search_cubit.dart';
 import 'package:music_room/features/music_vote/data/models/event_detail_model.dart';
 import 'package:music_room/features/music_vote/data/models/event_track_model.dart';
 import 'package:music_room/features/music_vote/presentation/state/music_vote_cubit.dart';
-import 'package:music_room/features/music_vote/presentation/widgets/event_user_invite_bottom_sheet.dart';
+import 'package:music_room/features/music_vote/presentation/widgets/event_actions_row.dart';
 
 class HostEventInfoView extends StatelessWidget {
   const HostEventInfoView({
@@ -113,7 +110,7 @@ class HostEventInfoView extends StatelessWidget {
               SliverToBoxAdapter(
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
-                  child: _EventActionsRow(
+                  child: EventActionsRow(
                     event: event,
                     colorScheme: colorScheme,
                   ),
@@ -204,35 +201,7 @@ class HostEventInfoView extends StatelessWidget {
   }
 }
 
-class _EventActionsRow extends StatelessWidget {
-  const _EventActionsRow({required this.event, required this.colorScheme});
-
-  final EventDetailModel event;
-  final ColorScheme colorScheme;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          flex: 3,
-          child: _AddTracksButton(
-            eventId: event.id,
-            colorScheme: colorScheme,
-          ),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          flex: 2,
-          child: _InviteUsersButton(
-            event: event,
-            colorScheme: colorScheme,
-          ),
-        ),
-      ],
-    );
-  }
-}
+// EventActionsRow has been extracted to a separate widget file.
 
 class _StatusBadge extends StatelessWidget {
   const _StatusBadge({required this.colorScheme, required this.status});
@@ -450,8 +419,12 @@ class _EventInfoSection extends StatelessWidget {
   }
 }
 
-class _AddTracksButton extends StatelessWidget {
-  const _AddTracksButton({required this.eventId, required this.colorScheme});
+class AddTracksButton extends StatelessWidget {
+  const AddTracksButton({
+    required this.eventId,
+    required this.colorScheme,
+    super.key,
+  });
   final String eventId;
   final ColorScheme colorScheme;
 
@@ -511,94 +484,7 @@ class _AddTracksButton extends StatelessWidget {
   }
 }
 
-class _InviteUsersButton extends StatelessWidget {
-  const _InviteUsersButton({required this.event, required this.colorScheme});
-
-  final EventDetailModel event;
-  final ColorScheme colorScheme;
-
-  String? _currentUserId(BuildContext context) {
-    final authState = context.read<AuthBloc>().state;
-    if (authState is AuthAuthenticated) return authState.user.id;
-    if (authState is LoginSuccess) return authState.user.id;
-    if (authState is RegisterSuccess) return authState.user.id;
-    if (authState is GoogleLoginSuccess) return authState.user.id;
-    return null;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final isDark = Theme.of(context).brightness == Brightness.dark;
-    final backgroundColor = isDark ? Colors.white : Colors.black;
-    final borderColor = isDark
-        ? Colors.black.withValues(alpha: 0.12)
-        : Colors.white.withValues(alpha: 0.18);
-    final foregroundColor = isDark ? Colors.black : Colors.white;
-
-    return Semantics(
-      button: true,
-      label: 'Invite users',
-      child: InkWell(
-        onTap: () => _showInviteSheet(context),
-        borderRadius: BorderRadius.circular(14),
-        child: Container(
-          height: 52,
-          decoration: BoxDecoration(
-            color: backgroundColor,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: borderColor,
-              width: 1.5,
-            ),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.person_add_alt_1_outlined,
-                size: 20,
-                color: foregroundColor,
-              ),
-              const SizedBox(width: 8),
-              Text(
-                'Invite',
-                style: TextStyle(
-                  fontWeight: FontWeight.w700,
-                  fontSize: 15,
-                  color: foregroundColor,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _showInviteSheet(BuildContext context) {
-    final currentUserId = _currentUserId(context);
-
-    if (event.id.isEmpty) {
-      AppSnackbar.showInfo(context, 'Unable to invite: event context missing');
-      return;
-    }
-
-    unawaited(
-      showModalBottomSheet<void>(
-        context: context,
-        isScrollControlled: true,
-        useSafeArea: true,
-        barrierColor: Colors.black.withValues(alpha: 0.7),
-        backgroundColor: Colors.transparent,
-        builder: (_) => EventUserInviteBottomSheet(
-          eventId: event.id,
-          eventName: event.name,
-          currentUserId: currentUserId,
-        ),
-      ),
-    );
-  }
-}
+// InviteUsersButton has been extracted to a separate widget file.
 
 class _PreEventAddTrackSheet extends StatelessWidget {
   const _PreEventAddTrackSheet({

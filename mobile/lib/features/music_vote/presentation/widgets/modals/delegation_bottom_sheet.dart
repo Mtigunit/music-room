@@ -779,17 +779,24 @@ class _RevokeButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return GestureDetector(
-      onTap: isPending ? null : onPressed,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
-        decoration: BoxDecoration(
-          color: colorScheme.error.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(
-            color: colorScheme.error.withValues(alpha: 0.3),
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 220),
+      decoration: BoxDecoration(
+        color: colorScheme.error.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: colorScheme.error.withValues(alpha: 0.3),
+        ),
+      ),
+      child: TextButton(
+        onPressed: isPending ? null : onPressed,
+        style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 9),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
           ),
+          minimumSize: Size.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
         child: isPending
             ? SizedBox(
@@ -992,19 +999,26 @@ class _DelegateButton extends StatelessWidget {
         ? 'Sent ✓'
         : 'Delegate';
 
-    return GestureDetector(
-      onTap: disabled ? null : onPressed,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 220),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
-        decoration: BoxDecoration(
-          color: bg,
-          borderRadius: BorderRadius.circular(12),
-          border: isDelegated
-              ? Border.all(
-                  color: colorScheme.primary.withValues(alpha: 0.4),
-                )
-              : null,
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 220),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(12),
+        border: isDelegated
+            ? Border.all(
+                color: colorScheme.primary.withValues(alpha: 0.4),
+              )
+            : null,
+      ),
+      child: TextButton(
+        onPressed: disabled ? null : onPressed,
+        style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+          minimumSize: Size.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         ),
         child: isPending
             ? SizedBox(
@@ -1282,8 +1296,8 @@ class _EndEventTile extends StatelessWidget {
     );
 
     if (confirmed == true && context.mounted) {
-      await cubit.endEvent(eventId);
-      if (context.mounted) {
+      final success = await cubit.endEvent(eventId);
+      if (success && context.mounted) {
         Navigator.of(context).pop(); // close the delegation sheet
       }
     }
