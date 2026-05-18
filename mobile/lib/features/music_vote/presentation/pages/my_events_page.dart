@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:music_room/core/widgets/app_scaffold.dart';
 import 'package:music_room/core/widgets/empty_state_widget.dart';
 import 'package:music_room/core/widgets/premium_segmented_tab_bar.dart';
 import 'package:music_room/di/injection_container.dart';
@@ -13,9 +14,7 @@ import 'package:music_room/features/music_vote/data/models/my_event_item.dart';
 import 'package:music_room/features/music_vote/presentation/pages/guest_music_vote_page.dart';
 import 'package:music_room/features/music_vote/presentation/pages/host_music_vote_page.dart';
 import 'package:music_room/features/music_vote/presentation/state/my_events_cubit.dart';
-import 'package:music_room/features/music_vote/presentation/state/public_events_cubit.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/my_event_list_tile.dart';
-import 'package:music_room/features/music_vote/presentation/widgets/public_events_bottom_sheet.dart';
 import 'package:music_room/routes/route_names.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
@@ -41,12 +40,16 @@ class MyEventsPage extends StatelessWidget {
           final colorScheme = Theme.of(context).colorScheme;
 
           return Scaffold(
-            floatingActionButton: FloatingActionButton(
+            floatingActionButton: FloatingActionButton.extended(
               heroTag: null,
-              onPressed: () => _openDiscoverSheet(context),
+              onPressed: () => _navigateToCreate(context),
               backgroundColor: colorScheme.primary,
               foregroundColor: colorScheme.onPrimary,
-              child: const Icon(Icons.public),
+              icon: const Icon(Icons.add),
+              label: const Text(
+                'Create Event',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
             ),
             body: VisibilityDetector(
               key: const Key('my-events-page'),
@@ -63,40 +66,17 @@ class MyEventsPage extends StatelessWidget {
     );
   }
 
-  Future<void> _openDiscoverSheet(BuildContext context) async {
-    final selectedEvent = await showModalBottomSheet<MyEventItemModel>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      barrierColor: Colors.black.withValues(alpha: 0.7),
-      backgroundColor: Colors.transparent,
-      builder: (_) => BlocProvider(
-        create: (_) {
-          final cubit = PublicEventsCubit(
-            eventRepository: InjectionContainer().eventRepository,
-          );
-          unawaited(cubit.fetchPublicEvents());
-          return cubit;
-        },
-        child: const PublicEventsBottomSheet(),
+  void _navigateToCreate(BuildContext context) {
+    unawaited(
+      Navigator.of(context).push<void>(
+        MaterialPageRoute<void>(
+          builder: (_) => const AppScaffold(
+            initialIndex: AppTabs.events,
+            foregroundPage: CreateEventPage(),
+          ),
+        ),
       ),
     );
-
-    if (!context.mounted) return;
-
-    if (selectedEvent == null) return;
-
-    final uiEvent = MyEventItem(
-      id: selectedEvent.id,
-      name: selectedEvent.name,
-      hostName: selectedEvent.hostName,
-      hostId: selectedEvent.hostId,
-      dateTime: selectedEvent.startDate,
-      status: selectedEvent.status,
-      coverImageAsset: selectedEvent.coverImage ?? selectedEvent.firstTrack,
-    );
-
-    unawaited(_enterRoom(context, uiEvent));
   }
 }
 
@@ -224,7 +204,10 @@ class _MyEventsBody extends StatelessWidget {
     unawaited(
       Navigator.of(context).push<void>(
         MaterialPageRoute<void>(
-          builder: (_) => const CreateEventPage(),
+          builder: (_) => const AppScaffold(
+            initialIndex: AppTabs.events,
+            foregroundPage: CreateEventPage(),
+          ),
         ),
       ),
     );

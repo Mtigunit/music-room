@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
+import 'package:music_room/core/widgets/responsive_layout.dart';
 import 'package:music_room/features/events/domain/entities/event_location.dart';
 
 // ---------------------------------------------------------------------------
@@ -33,7 +34,9 @@ class Step4Access extends StatefulWidget {
     required this.onEndDateChanged,
     required this.onEndTimeChanged,
     required this.onSubmit,
+    required this.canSubmit,
     required this.isSubmitting,
+    this.submitErrorText,
     super.key,
   });
 
@@ -57,6 +60,8 @@ class Step4Access extends StatefulWidget {
   final ValueChanged<DateTime?> onEndDateChanged;
   final ValueChanged<TimeOfDay?> onEndTimeChanged;
   final VoidCallback onSubmit;
+  final bool canSubmit;
+  final String? submitErrorText;
   final bool isSubmitting;
 
   @override
@@ -90,7 +95,23 @@ class _Step4AccessState extends State<Step4Access> {
         widget.allowedLocation!.latitude,
         widget.allowedLocation!.longitude,
       );
+    } else {
+      if (widget.isRestricted) {
+        unawaited(_fetchGpsLocation());
+      } else {
+        unawaited(_autoFetchIfPermitted());
+      }
     }
+  }
+
+  Future<void> _autoFetchIfPermitted() async {
+    try {
+      final permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.whileInUse ||
+          permission == LocationPermission.always) {
+        await _fetchGpsLocation();
+      }
+    } on Exception catch (_) {}
   }
 
   @override
@@ -256,6 +277,11 @@ class _Step4AccessState extends State<Step4Access> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final width = MediaQuery.sizeOf(context).width;
+    final size = ResponsiveLayout.resolveSize(width);
+    final isCompact = size == ScreenSize.compact;
+    final horizontalPadding = isCompact ? 16.0 : 24.0;
+    final sectionGap = isCompact ? 20.0 : 24.0;
     final isPrivate = widget.visibility == 'Private';
     final isEveryone = widget.votingRule == 'Everyone' && !isPrivate;
     final isInvitedOnly = widget.votingRule == 'Invited Only' || isPrivate;
@@ -263,7 +289,10 @@ class _Step4AccessState extends State<Step4Access> {
     final radius = widget.allowedRadius.clamp(10.0, 500.0);
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      padding: EdgeInsets.symmetric(
+        horizontal: horizontalPadding,
+        vertical: 16,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -273,7 +302,7 @@ class _Step4AccessState extends State<Step4Access> {
               color: theme.colorScheme.onSurface.withValues(alpha: 0.75),
             ),
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: sectionGap),
 
           // ── Visibility cards ──────────────────────────────────
           _buildSelectionCard(
@@ -298,7 +327,7 @@ class _Step4AccessState extends State<Step4Access> {
             },
             theme: theme,
           ),
-          const SizedBox(height: 20),
+          SizedBox(height: isCompact ? 16 : 20),
 
           // ── Voting permissions card ───────────────────────────
           Container(
@@ -385,16 +414,36 @@ class _Step4AccessState extends State<Step4Access> {
               ],
             ),
           ),
-          const SizedBox(height: 28),
+          SizedBox(height: isCompact ? 24 : 28),
+
+          if (widget.submitErrorText != null) ...[
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: theme.colorScheme.errorContainer.withValues(alpha: 0.5),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                widget.submitErrorText!,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onErrorContainer,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+          ],
 
           // ── Create Event button ────────────────────────────────────────
           ElevatedButton(
-            onPressed: widget.isSubmitting ? null : widget.onSubmit,
+            onPressed: widget.isSubmitting || !widget.canSubmit
+                ? null
+                : widget.onSubmit,
             style: ElevatedButton.styleFrom(
               backgroundColor: theme.colorScheme.primary,
               foregroundColor: theme.colorScheme.onPrimary,
               elevation: 0,
-              padding: const EdgeInsets.symmetric(vertical: 16),
+              padding: EdgeInsets.symmetric(vertical: isCompact ? 14 : 16),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
@@ -405,8 +454,8 @@ class _Step4AccessState extends State<Step4Access> {
             ),
             child: widget.isSubmitting
                 ? SizedBox(
-                    width: 22,
-                    height: 22,
+                    width: isCompact ? 20 : 22,
+                    height: isCompact ? 20 : 22,
                     child: CircularProgressIndicator(
                       strokeWidth: 2.5,
                       color: theme.colorScheme.onPrimary,
@@ -414,7 +463,7 @@ class _Step4AccessState extends State<Step4Access> {
                   )
                 : const Text('Create Event'),
           ),
-          const SizedBox(height: 32),
+          SizedBox(height: isCompact ? 24 : 32),
         ],
       ),
     );
@@ -424,6 +473,10 @@ class _Step4AccessState extends State<Step4Access> {
   // GoogleMap + center-pin overlay + Circle geofence
   // ------------------------------------------------------------------
   Widget _buildMapSection(ThemeData theme, double radius) {
+    final width = MediaQuery.sizeOf(context).width;
+    final size = ResponsiveLayout.resolveSize(width);
+    final isCompact = size == ScreenSize.compact;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -445,7 +498,7 @@ class _Step4AccessState extends State<Step4Access> {
         ClipRRect(
           borderRadius: BorderRadius.circular(16),
           child: SizedBox(
-            height: 280,
+            height: isCompact ? 240 : 280,
             child: Stack(
               children: [
                 GoogleMap(
@@ -580,6 +633,10 @@ class _Step4AccessState extends State<Step4Access> {
   // Condensed 2-field date + time pickers
   // ------------------------------------------------------------------
   Widget _buildDateTimeSection(ThemeData theme) {
+    final width = MediaQuery.sizeOf(context).width;
+    final size = ResponsiveLayout.resolveSize(width);
+    final isCompact = size == ScreenSize.compact;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -590,7 +647,7 @@ class _Step4AccessState extends State<Step4Access> {
             color: theme.colorScheme.onSurface,
           ),
         ),
-        const SizedBox(height: 10),
+        SizedBox(height: isCompact ? 8 : 10),
         _buildPickerButton(
           context,
           label: _formatDateTime(
@@ -603,7 +660,7 @@ class _Step4AccessState extends State<Step4Access> {
           onTap: () => _pickDateTime(context, isStart: true),
           theme: theme,
         ),
-        const SizedBox(height: 10),
+        SizedBox(height: isCompact ? 8 : 10),
         _buildPickerButton(
           context,
           label: _formatDateTime(

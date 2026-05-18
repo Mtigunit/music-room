@@ -7,6 +7,7 @@ import 'package:music_room/features/events/data/models/event_model.dart';
 import 'package:music_room/features/events/data/models/track_model.dart';
 import 'package:music_room/features/events/domain/entities/event_location.dart';
 import 'package:music_room/features/events/domain/entities/event_tag.dart';
+import 'package:music_room/features/events/presentation/validation/create_event_form_validator.dart';
 
 abstract class CreateEventState {}
 
@@ -51,88 +52,48 @@ class CreateEventCubit extends Cubit<CreateEventState> {
     required DateTime scheduledStartTime,
     List<String> playlistIds = const [],
   }) async {
-    final trimmedName = name.trim();
-    if (trimmedName.isEmpty) {
-      emit(CreateEventError('Event name is required.'));
-      return;
-    }
+    final input = CreateEventFormInput(
+      name: name,
+      description: description,
+      selectedTags: selectedTags,
+      selectedTracks: selectedTracks,
+      visibility: visibility,
+      votingRule: votingRule,
+      isRestricted: isRestricted,
+      allowedLocation: allowedLocation,
+      allowedRadius: allowedRadius,
+      startDate: startDate,
+      startTime: startTime,
+      endDate: endDate,
+      endTime: endTime,
+      scheduledStartTime: scheduledStartTime,
+      playlistIds: playlistIds,
+    );
 
-    final tags = selectedTags.toSet().toList(growable: false);
-    if (tags.isEmpty) {
-      emit(CreateEventError('Please select at least one tag.'));
-      return;
-    }
-
-    if (tags.length > 3) {
-      emit(CreateEventError('Please select up to 3 tags.'));
-      return;
-    }
-
-    final mappedVisibility = _mapVisibility(visibility);
-    if (mappedVisibility == null) {
-      emit(CreateEventError('Invalid event visibility.'));
-      return;
-    }
-
-    var policies = <EventPolicyModel>[];
-    double? locationLat;
-    double? locationLng;
-    final isPrivate = mappedVisibility == 'PRIVATE';
-    final invitingOnly = votingRule == 'Invited Only' || isPrivate;
-
-    if (isRestricted) {
-      if (allowedLocation == null) {
-        emit(CreateEventError('Please set a location for restricted access.'));
-        return;
-      }
-
-      final startAt = _combineDateAndTime(startDate, startTime);
-      final endAt = _combineDateAndTime(endDate, endTime);
-
-      if (startAt == null || endAt == null) {
-        emit(
-          CreateEventError(
-            'Please select both start and end date/time for access rules.',
-          ),
-        );
-        return;
-      }
-
-      if (!endAt.isAfter(startAt)) {
-        emit(CreateEventError('End time must be after start time.'));
-        return;
-      }
-
-      locationLat = allowedLocation.latitude;
-      locationLng = allowedLocation.longitude;
-
-      policies = [
-        EventPolicyModel(
-          policyType: 'GEOFENCE',
-          config: {'distance': allowedRadius.round()},
+    final validation = CreateEventFormValidator.validateForSubmit(input);
+    if (!validation.isValid) {
+      emit(
+        CreateEventError(
+          validation.firstError ?? 'Please check event details.',
         ),
-        EventPolicyModel(
-          policyType: 'TIME_WINDOW',
-          config: {
-            'startDate': startAt.toUtc().toIso8601String(),
-            'endDate': endAt.toUtc().toIso8601String(),
-          },
-        ),
-      ];
+      );
+      return;
     }
+
+    final preparedPayload = CreateEventFormValidator.preparePayload(input);
 
     final event = EventModel(
-      name: trimmedName,
-      tags: tags,
-      visibility: mappedVisibility,
-      invitingOnly: invitingOnly,
-      description: description.trim().isEmpty ? null : description.trim(),
-      locationLat: locationLat,
-      locationLng: locationLng,
-      playlistIds: playlistIds.isEmpty ? null : playlistIds,
-      tracks: selectedTracks.isEmpty ? null : selectedTracks,
-      policies: policies,
-      startDate: scheduledStartTime.toUtc().toIso8601String(),
+      name: preparedPayload.name,
+      tags: preparedPayload.tags,
+      visibility: preparedPayload.visibility,
+      invitingOnly: preparedPayload.invitingOnly,
+      description: preparedPayload.description,
+      locationLat: preparedPayload.locationLat,
+      locationLng: preparedPayload.locationLng,
+      playlistIds: preparedPayload.playlistIds,
+      tracks: preparedPayload.tracks,
+      policies: preparedPayload.policies,
+      startDate: preparedPayload.startDate,
     );
 
     emit(CreateEventSubmitting());
@@ -149,32 +110,6 @@ class CreateEventCubit extends Cubit<CreateEventState> {
     } on Object {
       emit(CreateEventError('Unable to create event right now.'));
     }
-  }
-
-  String? _mapVisibility(String visibility) {
-    final normalized = visibility.trim().toLowerCase();
-    if (normalized == 'public') {
-      return 'PUBLIC';
-    }
-    if (normalized == 'private') {
-      return 'PRIVATE';
-    }
-
-    return null;
-  }
-
-  DateTime? _combineDateAndTime(DateTime? date, TimeOfDay? time) {
-    if (date == null || time == null) {
-      return null;
-    }
-
-    return DateTime(
-      date.year,
-      date.month,
-      date.day,
-      time.hour,
-      time.minute,
-    );
   }
 
   String _extractDioMessage(DioException exception) {

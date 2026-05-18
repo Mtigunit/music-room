@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/widgets/confirmation_dialog.dart';
@@ -22,11 +24,13 @@ class AppScaffold extends StatefulWidget {
   const AppScaffold({
     super.key,
     this.initialIndex = 0,
+    this.foregroundPage,
   }) : assert(
          initialIndex >= 0 && initialIndex <= 3,
          'initialIndex must be between 0 and 3',
        );
   final int initialIndex;
+  final Widget? foregroundPage;
 
   @override
   State<AppScaffold> createState() => AppScaffoldState();
@@ -49,9 +53,31 @@ class AppScaffoldState extends State<AppScaffold> {
   }
 
   void _onItemTapped(int index) {
+    if (widget.foregroundPage != null) {
+      unawaited(
+        Navigator.of(context).pushReplacement<void, void>(
+          MaterialPageRoute<void>(
+            builder: (_) => AppScaffold(initialIndex: index),
+          ),
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _currentIndex = index;
     });
+  }
+
+  Widget _buildBodyContent() {
+    if (widget.foregroundPage != null) {
+      return widget.foregroundPage!;
+    }
+
+    return IndexedStack(
+      index: _currentIndex,
+      children: _pages,
+    );
   }
 
   void switchTab(int index) {
@@ -81,10 +107,7 @@ class AppScaffoldState extends State<AppScaffold> {
     final notificationsService = InjectionContainer().notificationsService;
 
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _pages,
-      ),
+      body: _buildBodyContent(),
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: Theme.of(context).scaffoldBackgroundColor,
@@ -245,10 +268,7 @@ class AppScaffoldState extends State<AppScaffold> {
 
           // Page content
           Expanded(
-            child: IndexedStack(
-              index: _currentIndex,
-              children: _pages,
-            ),
+            child: _buildBodyContent(),
           ),
         ],
       ),

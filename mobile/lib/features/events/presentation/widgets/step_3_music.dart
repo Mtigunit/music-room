@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/widgets/dynamic_search_bottom_sheet.dart';
+import 'package:music_room/core/widgets/responsive_layout.dart';
 import 'package:music_room/core/widgets/track_search_list_tile.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/events/data/models/track_model.dart';
@@ -10,12 +11,16 @@ class Step3Music extends StatelessWidget {
   const Step3Music({
     required this.selectedTracks,
     required this.onTracksChanged,
+    required this.canContinue,
     required this.onNext,
+    this.errorText,
     super.key,
   });
 
   final List<TrackModel> selectedTracks;
   final ValueChanged<List<TrackModel>> onTracksChanged;
+  final bool canContinue;
+  final String? errorText;
   final VoidCallback onNext;
 
   @override
@@ -27,6 +32,8 @@ class Step3Music extends StatelessWidget {
       child: _Step3MusicBody(
         selectedTracks: selectedTracks,
         onTracksChanged: onTracksChanged,
+        canContinue: canContinue,
+        errorText: errorText,
         onNext: onNext,
       ),
     );
@@ -37,11 +44,15 @@ class _Step3MusicBody extends StatefulWidget {
   const _Step3MusicBody({
     required this.selectedTracks,
     required this.onTracksChanged,
+    required this.canContinue,
     required this.onNext,
+    this.errorText,
   });
 
   final List<TrackModel> selectedTracks;
   final ValueChanged<List<TrackModel>> onTracksChanged;
+  final bool canContinue;
+  final String? errorText;
   final VoidCallback onNext;
 
   @override
@@ -85,21 +96,29 @@ class _Step3MusicBodyState extends State<_Step3MusicBody> {
       backgroundColor: Colors.transparent,
       builder: (ctx) => StatefulBuilder(
         builder: (context, setModalState) {
-          return DynamicSearchBottomSheet(
-            title: 'Import Playlist',
-            subtitle: 'Choose from your saved collections',
-            searchHintText: 'Search playlists or tags...',
-            onSearchChanged: (val) {
-              setModalState(() => _playlistSearchQuery = val);
-            },
-            content: _PlaylistImportResults(
-              searchQuery: _playlistSearchQuery,
-              onPlaylistSelected: (name) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(content: Text('Importing $name...')),
-                );
-                Navigator.of(context).pop();
-              },
+          return SafeArea(
+            top: false,
+            child: Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.viewInsetsOf(context).bottom,
+              ),
+              child: DynamicSearchBottomSheet(
+                title: 'Import Playlist',
+                subtitle: 'Choose from your saved collections',
+                searchHintText: 'Search playlists or tags...',
+                onSearchChanged: (val) {
+                  setModalState(() => _playlistSearchQuery = val);
+                },
+                content: _PlaylistImportResults(
+                  searchQuery: _playlistSearchQuery,
+                  onPlaylistSelected: (name) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Importing $name...')),
+                    );
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ),
             ),
           );
         },
@@ -119,24 +138,32 @@ class _Step3MusicBodyState extends State<_Step3MusicBody> {
         value: searchCubit,
         child: StatefulBuilder(
           builder: (context, setModalState) {
-            return DynamicSearchBottomSheet(
-              title: 'Search Tracks',
-              subtitle: 'Find a specific song for your event',
-              searchHintText: 'Search for songs, artists, or albums...',
-              onSearchChanged: searchCubit.searchTracks,
-              onActionPressed: () => Navigator.of(context).pop(),
-              content: BlocBuilder<TrackSearchCubit, TrackSearchState>(
-                builder: (context, state) {
-                  return _TrackSearchResults(
-                    state: state,
-                    selectedTracks: widget.selectedTracks,
-                    onAddTrack: (track) {
-                      _handleAddTrack(track);
-                      // Refresh modal to show check icon
-                      setModalState(() {});
+            return SafeArea(
+              top: false,
+              child: Padding(
+                padding: EdgeInsets.only(
+                  bottom: MediaQuery.viewInsetsOf(context).bottom,
+                ),
+                child: DynamicSearchBottomSheet(
+                  title: 'Search Tracks',
+                  subtitle: 'Find a specific song for your event',
+                  searchHintText: 'Search for songs, artists, or albums...',
+                  onSearchChanged: searchCubit.searchTracks,
+                  onActionPressed: () => Navigator.of(context).pop(),
+                  content: BlocBuilder<TrackSearchCubit, TrackSearchState>(
+                    builder: (context, state) {
+                      return _TrackSearchResults(
+                        state: state,
+                        selectedTracks: widget.selectedTracks,
+                        onAddTrack: (track) {
+                          _handleAddTrack(track);
+                          // Refresh modal to show check icon
+                          setModalState(() {});
+                        },
+                      );
                     },
-                  );
-                },
+                  ),
+                ),
               ),
             );
           },
@@ -148,10 +175,18 @@ class _Step3MusicBodyState extends State<_Step3MusicBody> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final width = MediaQuery.sizeOf(context).width;
+    final size = ResponsiveLayout.resolveSize(width);
+    final isCompact = size == ScreenSize.compact;
+    final horizontalPadding = isCompact ? 16.0 : 24.0;
+    final sectionGap = isCompact ? 20.0 : 24.0;
     final selectedCount = widget.selectedTracks.length;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      padding: EdgeInsets.symmetric(
+        horizontal: horizontalPadding,
+        vertical: 16,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -161,7 +196,7 @@ class _Step3MusicBodyState extends State<_Step3MusicBody> {
               color: theme.colorScheme.onSurface.withValues(alpha: 0.75),
             ),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: isCompact ? 14 : 16),
           Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -174,7 +209,9 @@ class _Step3MusicBodyState extends State<_Step3MusicBody> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: theme.colorScheme.primary,
                     foregroundColor: theme.colorScheme.onPrimary,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    padding: EdgeInsets.symmetric(
+                      vertical: isCompact ? 14 : 16,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
@@ -197,7 +234,9 @@ class _Step3MusicBodyState extends State<_Step3MusicBody> {
                     overflow: TextOverflow.ellipsis,
                   ),
                   style: OutlinedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    padding: EdgeInsets.symmetric(
+                      vertical: isCompact ? 14 : 16,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
                     ),
@@ -215,7 +254,7 @@ class _Step3MusicBodyState extends State<_Step3MusicBody> {
               ),
             ],
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: sectionGap),
 
           Text(
             'SELECTED TRACKS ($selectedCount)',
@@ -225,7 +264,7 @@ class _Step3MusicBodyState extends State<_Step3MusicBody> {
               color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
             ),
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: sectionGap),
 
           if (widget.selectedTracks.isEmpty)
             Center(
@@ -300,14 +339,24 @@ class _Step3MusicBodyState extends State<_Step3MusicBody> {
                 );
               },
             ),
-          const SizedBox(height: 32),
+          if (widget.errorText != null) ...[
+            const SizedBox(height: 12),
+            Text(
+              widget.errorText!,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.error,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+          SizedBox(height: isCompact ? 24 : 32),
 
           ElevatedButton(
-            onPressed: widget.onNext,
+            onPressed: widget.canContinue ? widget.onNext : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: theme.colorScheme.primary,
               foregroundColor: theme.colorScheme.onPrimary,
-              padding: const EdgeInsets.symmetric(vertical: 16),
+              padding: EdgeInsets.symmetric(vertical: isCompact ? 14 : 16),
               elevation: 0,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
@@ -319,7 +368,7 @@ class _Step3MusicBodyState extends State<_Step3MusicBody> {
             ),
             child: const Text('Continue'),
           ),
-          const SizedBox(height: 32),
+          SizedBox(height: isCompact ? 24 : 32),
         ],
       ),
     );

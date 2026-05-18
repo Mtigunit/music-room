@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:music_room/core/widgets/responsive_layout.dart';
 import 'package:music_room/features/events/presentation/widgets/image_helper/image_helper.dart';
 
 class Step1Details extends StatelessWidget {
@@ -13,7 +14,9 @@ class Step1Details extends StatelessWidget {
     required this.onDescriptionChanged,
     required this.onCoverChanged,
     required this.onScheduledStartTimeChanged,
+    required this.canContinue,
     required this.onNext,
+    this.nameError,
     super.key,
   });
   final String eventName;
@@ -24,6 +27,8 @@ class Step1Details extends StatelessWidget {
   final ValueChanged<String> onDescriptionChanged;
   final ValueChanged<XFile?> onCoverChanged;
   final ValueChanged<DateTime> onScheduledStartTimeChanged;
+  final bool canContinue;
+  final String? nameError;
   final VoidCallback onNext;
 
   Future<void> _pickImage() async {
@@ -77,9 +82,18 @@ class Step1Details extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final width = MediaQuery.sizeOf(context).width;
+    final size = ResponsiveLayout.resolveSize(width);
+    final isCompact = size == ScreenSize.compact;
+    final horizontalPadding = isCompact ? 16.0 : 24.0;
+    final sectionSpacing = isCompact ? 20.0 : 24.0;
+    final fieldVerticalPadding = isCompact ? 14.0 : 16.0;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+      padding: EdgeInsets.symmetric(
+        horizontal: horizontalPadding,
+        vertical: 16,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -97,6 +111,7 @@ class Step1Details extends StatelessWidget {
             onChanged: onNameChanged,
             decoration: InputDecoration(
               hintText: 'e.g. Late Night Vibes',
+              errorText: nameError,
               hintStyle: TextStyle(
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.3),
               ),
@@ -114,13 +129,13 @@ class Step1Details extends StatelessWidget {
                 borderRadius: BorderRadius.circular(16),
                 borderSide: BorderSide(color: theme.colorScheme.primary),
               ),
-              contentPadding: const EdgeInsets.symmetric(
+              contentPadding: EdgeInsets.symmetric(
                 horizontal: 16,
-                vertical: 16,
+                vertical: fieldVerticalPadding,
               ),
             ),
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: sectionSpacing),
 
           Text(
             'DESCRIPTION (OPTIONAL)',
@@ -175,9 +190,9 @@ class Step1Details extends StatelessWidget {
             onTap: () => _selectDateTime(context),
             borderRadius: BorderRadius.circular(16),
             child: Container(
-              padding: const EdgeInsets.symmetric(
+              padding: EdgeInsets.symmetric(
                 horizontal: 16,
-                vertical: 16,
+                vertical: fieldVerticalPadding,
               ),
               decoration: BoxDecoration(
                 color: theme.colorScheme.surface,
@@ -229,7 +244,7 @@ class Step1Details extends StatelessWidget {
           GestureDetector(
             onTap: _pickImage,
             child: Container(
-              height: 180,
+              height: isCompact ? 160 : 180,
               decoration: BoxDecoration(
                 color: theme.colorScheme.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(16),
@@ -282,10 +297,10 @@ class Step1Details extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 32),
+          SizedBox(height: isCompact ? 24 : 32),
 
           ElevatedButton(
-            onPressed: eventName.isNotEmpty ? onNext : null,
+            onPressed: canContinue ? onNext : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: theme.colorScheme.primary,
               disabledBackgroundColor: theme.colorScheme.onSurface.withValues(
@@ -295,7 +310,7 @@ class Step1Details extends StatelessWidget {
               disabledForegroundColor: theme.colorScheme.onSurface.withValues(
                 alpha: 0.38,
               ),
-              padding: const EdgeInsets.symmetric(vertical: 16),
+              padding: EdgeInsets.symmetric(vertical: isCompact ? 14 : 16),
               elevation: 0,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
@@ -307,7 +322,7 @@ class Step1Details extends StatelessWidget {
             ),
             child: const Text('Continue'),
           ),
-          const SizedBox(height: 32),
+          SizedBox(height: isCompact ? 24 : 32),
         ],
       ),
     );

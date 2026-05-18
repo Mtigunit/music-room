@@ -6,11 +6,13 @@ import 'package:image_picker/image_picker.dart';
 
 import 'package:music_room/core/widgets/app_back_button.dart';
 import 'package:music_room/core/widgets/app_snackbar.dart';
+import 'package:music_room/core/widgets/responsive_layout.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/events/data/models/track_model.dart';
 import 'package:music_room/features/events/domain/entities/event_location.dart';
 import 'package:music_room/features/events/domain/entities/event_tag.dart';
 import 'package:music_room/features/events/presentation/state/create_event_cubit.dart';
+import 'package:music_room/features/events/presentation/validation/create_event_form_validator.dart';
 import 'package:music_room/features/events/presentation/widgets/step_1_details.dart';
 import 'package:music_room/features/events/presentation/widgets/step_2_genre.dart';
 import 'package:music_room/features/events/presentation/widgets/step_3_music.dart';
@@ -51,6 +53,9 @@ class _CreateEventPageState extends State<CreateEventPage> {
   TimeOfDay? endTime;
   DateTime scheduledStartTime = DateTime.now();
 
+  bool _showValidationErrors = false;
+  Map<String, String> _validationErrors = {};
+
   @override
   void initState() {
     super.initState();
@@ -71,14 +76,32 @@ class _CreateEventPageState extends State<CreateEventPage> {
     // across steps regardless of which text field was last focused.
     FocusManager.instance.primaryFocus?.unfocus();
 
-    if (_currentStep < _totalSteps - 1) {
-      unawaited(
-        _pageController.nextPage(
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        ),
+    if (_currentStep >= _totalSteps - 1) return;
+
+    final stepValidation = CreateEventFormValidator.validateStep(
+      _currentInput(),
+      _currentStep,
+    );
+    if (!stepValidation.isValid) {
+      setState(() {
+        _showValidationErrors = true;
+        _validationErrors = CreateEventFormValidator.validateForSubmit(
+          _currentInput(),
+        ).errors;
+      });
+      AppSnackbar.showError(
+        context,
+        stepValidation.firstError ?? 'Please check this step.',
       );
+      return;
     }
+
+    unawaited(
+      _pageController.nextPage(
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      ),
+    );
   }
 
   void _prevStep() {
@@ -96,6 +119,21 @@ class _CreateEventPageState extends State<CreateEventPage> {
 
   void _submitEvent() {
     FocusManager.instance.primaryFocus?.unfocus();
+
+    final submitValidation = CreateEventFormValidator.validateForSubmit(
+      _currentInput(),
+    );
+    if (!submitValidation.isValid) {
+      setState(() {
+        _showValidationErrors = true;
+        _validationErrors = submitValidation.errors;
+      });
+      AppSnackbar.showError(
+        context,
+        submitValidation.firstError ?? 'Please check event details.',
+      );
+      return;
+    }
 
     unawaited(
       _createEventCubit.submitEvent(
@@ -118,6 +156,61 @@ class _CreateEventPageState extends State<CreateEventPage> {
     );
   }
 
+  CreateEventFormInput _currentInput() {
+    return CreateEventFormInput(
+      name: eventName,
+      description: eventDescription,
+      selectedTags: selectedGenres,
+      selectedTracks: selectedTracks,
+      visibility: visibility,
+      votingRule: votingRule,
+      isRestricted: isRestricted,
+      allowedLocation: allowedLocation,
+      allowedRadius: allowedRadius,
+      startDate: startDate,
+      startTime: startTime,
+      endDate: endDate,
+      endTime: endTime,
+      scheduledStartTime: scheduledStartTime,
+    );
+  }
+
+  void _setFieldState(VoidCallback updater) {
+    setState(() {
+      updater();
+      if (_showValidationErrors) {
+        _validationErrors = CreateEventFormValidator.validateForSubmit(
+          _currentInput(),
+        ).errors;
+      }
+    });
+  }
+
+  String? _step4ValidationError(CreateEventFormInput input) {
+    const keys = [
+      CreateEventValidationField.visibility,
+      CreateEventValidationField.allowedLocation,
+      CreateEventValidationField.allowedRadius,
+      CreateEventValidationField.accessWindow,
+    ];
+
+    final sourceErrors = _showValidationErrors
+        ? _validationErrors
+        : CreateEventFormValidator.validateStep(
+            input,
+            CreateEventFormValidator.accessStep,
+          ).errors;
+
+    for (final key in keys) {
+      final error = sourceErrors[key];
+      if (error != null) {
+        return error;
+      }
+    }
+
+    return null;
+  }
+
   TextStyle _stepLabelStyle(int index, ThemeData theme) {
     final isPastOrCurrent = index <= _currentStep;
     return theme.textTheme.labelSmall!.copyWith(
@@ -128,9 +221,38 @@ class _CreateEventPageState extends State<CreateEventPage> {
     );
   }
 
+  double _contentMaxWidth(ScreenSize size) {
+    return switch (size) {
+      ScreenSize.compact => double.infinity,
+      ScreenSize.medium => 860,
+      ScreenSize.expanded => 980,
+    };
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final width = MediaQuery.sizeOf(context).width;
+    final size = ResponsiveLayout.resolveSize(width);
+    final isCompact = size == ScreenSize.compact;
+    final horizontalPadding = isCompact ? 16.0 : 24.0;
+    final sideSlotWidth = isCompact ? 48.0 : 60.0;
+    final formInput = _currentInput();
+    final step1Valid = CreateEventFormValidator.validateStep(
+      formInput,
+      CreateEventFormValidator.detailsStep,
+    ).isValid;
+    final step2Valid = CreateEventFormValidator.validateStep(
+      formInput,
+      CreateEventFormValidator.genreStep,
+    ).isValid;
+    final step3Valid = CreateEventFormValidator.validateStep(
+      formInput,
+      CreateEventFormValidator.musicStep,
+    ).isValid;
+    final submitValidation = CreateEventFormValidator.validateForSubmit(
+      formInput,
+    );
 
     return BlocProvider.value(
       value: _createEventCubit,
@@ -142,11 +264,11 @@ class _CreateEventPageState extends State<CreateEventPage> {
           automaticallyImplyLeading: false,
           titleSpacing: 0,
           title: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
+            padding: EdgeInsets.symmetric(horizontal: isCompact ? 4 : 8),
             child: Row(
               children: [
                 SizedBox(
-                  width: 60,
+                  width: sideSlotWidth,
                   child: Align(
                     alignment: Alignment.centerLeft,
                     child: AppBackButton(
@@ -160,30 +282,43 @@ class _CreateEventPageState extends State<CreateEventPage> {
                   child: Text(
                     'Create Event',
                     textAlign: TextAlign.center,
-                    style: theme.textTheme.titleLarge?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: theme.colorScheme.onSurface,
-                    ),
+                    style:
+                        (isCompact
+                                ? theme.textTheme.titleMedium
+                                : theme.textTheme.titleLarge)
+                            ?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: theme.colorScheme.onSurface,
+                            ),
                   ),
                 ),
                 SizedBox(
-                  width: 60,
+                  width: sideSlotWidth,
                   child: Text(
                     '${_currentStep + 1} / $_totalSteps',
                     textAlign: TextAlign.right,
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: theme.colorScheme.primary,
-                    ),
+                    style:
+                        (isCompact
+                                ? theme.textTheme.titleSmall
+                                : theme.textTheme.titleMedium)
+                            ?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: theme.colorScheme.primary,
+                            ),
                   ),
                 ),
               ],
             ),
           ),
           bottom: PreferredSize(
-            preferredSize: const Size.fromHeight(60),
+            preferredSize: Size.fromHeight(isCompact ? 56 : 60),
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(24, 24, 24, 16),
+              padding: EdgeInsets.fromLTRB(
+                horizontalPadding,
+                isCompact ? 16 : 24,
+                horizontalPadding,
+                16,
+              ),
               child: Column(
                 children: [
                   Row(
@@ -208,12 +343,51 @@ class _CreateEventPageState extends State<CreateEventPage> {
                   ),
                   const SizedBox(height: 8),
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Details', style: _stepLabelStyle(0, theme)),
-                      Text('Genre', style: _stepLabelStyle(1, theme)),
-                      Text('Music', style: _stepLabelStyle(2, theme)),
-                      Text('Access', style: _stepLabelStyle(3, theme)),
+                      Expanded(
+                        child: Center(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              'Details',
+                              style: _stepLabelStyle(0, theme),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Center(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              'Genre',
+                              style: _stepLabelStyle(1, theme),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Center(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              'Music',
+                              style: _stepLabelStyle(2, theme),
+                            ),
+                          ),
+                        ),
+                      ),
+                      Expanded(
+                        child: Center(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            child: Text(
+                              'Access',
+                              style: _stepLabelStyle(3, theme),
+                            ),
+                          ),
+                        ),
+                      ),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -226,104 +400,124 @@ class _CreateEventPageState extends State<CreateEventPage> {
           child: Column(
             children: [
               Expanded(
-                child: PageView(
-                  controller: _pageController,
-                  physics: const NeverScrollableScrollPhysics(),
-                  onPageChanged: (index) {
-                    setState(() {
-                      _currentStep = index;
-                    });
-                  },
-                  children: [
-                    Step1Details(
-                      eventName: eventName,
-                      eventDescription: eventDescription,
-                      eventCover: eventCover,
-                      scheduledStartTime: scheduledStartTime,
-                      onNameChanged: (val) => setState(() => eventName = val),
-                      onDescriptionChanged: (val) =>
-                          setState(() => eventDescription = val),
-                      onCoverChanged: (file) =>
-                          setState(() => eventCover = file),
-                      onScheduledStartTimeChanged: (val) =>
-                          setState(() => scheduledStartTime = val),
-                      onNext: _nextStep,
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      maxWidth: _contentMaxWidth(size),
                     ),
-                    Step2Genre(
-                      selectedGenres: selectedGenres,
-                      onGenresChanged: (val) =>
-                          setState(() => selectedGenres = val),
-                      onNext: _nextStep,
-                    ),
-                    Step3Music(
-                      selectedTracks: selectedTracks,
-                      onTracksChanged: (val) =>
-                          setState(() => selectedTracks = val),
-                      onNext: _nextStep,
-                    ),
-                    BlocConsumer<CreateEventCubit, CreateEventState>(
-                      listenWhen: (_, state) =>
-                          state is CreateEventError ||
-                          state is CreateEventSuccess,
-                      listener: (context, state) {
-                        if (state is CreateEventError) {
-                          AppSnackbar.showError(context, state.message);
-                          return;
-                        }
+                    child: PageView(
+                      controller: _pageController,
+                      physics: const NeverScrollableScrollPhysics(),
+                      onPageChanged: (index) {
+                        setState(() {
+                          _currentStep = index;
+                        });
+                      },
+                      children: [
+                        Step1Details(
+                          eventName: eventName,
+                          eventDescription: eventDescription,
+                          eventCover: eventCover,
+                          scheduledStartTime: scheduledStartTime,
+                          onNameChanged: (val) =>
+                              _setFieldState(() => eventName = val),
+                          onDescriptionChanged: (val) =>
+                              _setFieldState(() => eventDescription = val),
+                          onCoverChanged: (file) =>
+                              _setFieldState(() => eventCover = file),
+                          onScheduledStartTimeChanged: (val) =>
+                              _setFieldState(() => scheduledStartTime = val),
+                          canContinue: step1Valid,
+                          nameError:
+                              _validationErrors[CreateEventValidationField
+                                  .name],
+                          onNext: _nextStep,
+                        ),
+                        Step2Genre(
+                          selectedGenres: selectedGenres,
+                          onGenresChanged: (val) =>
+                              _setFieldState(() => selectedGenres = val),
+                          canContinue: step2Valid,
+                          errorText:
+                              _validationErrors[CreateEventValidationField
+                                  .tags],
+                          onNext: _nextStep,
+                        ),
+                        Step3Music(
+                          selectedTracks: selectedTracks,
+                          onTracksChanged: (val) =>
+                              _setFieldState(() => selectedTracks = val),
+                          canContinue: step3Valid,
+                          errorText:
+                              _validationErrors[CreateEventValidationField
+                                  .tracks],
+                          onNext: _nextStep,
+                        ),
+                        BlocConsumer<CreateEventCubit, CreateEventState>(
+                          listenWhen: (_, state) =>
+                              state is CreateEventError ||
+                              state is CreateEventSuccess,
+                          listener: (context, state) {
+                            if (state is CreateEventError) {
+                              AppSnackbar.showError(context, state.message);
+                              return;
+                            }
 
-                        if (state is CreateEventSuccess) {
-                          unawaited(
-                            Navigator.of(context).pushReplacementNamed(
-                              RouteNames.preEvent,
-                              arguments: state.eventId,
-                            ),
-                          );
-                        }
-                      },
-                      builder: (context, state) {
-                        return Step4Access(
-                          visibility: visibility,
-                          votingRule: votingRule,
-                          isRestricted: isRestricted,
-                          allowedLocation: allowedLocation,
-                          allowedRadius: allowedRadius,
-                          startDate: startDate,
-                          startTime: startTime,
-                          endDate: endDate,
-                          endTime: endTime,
-                          onVisibilityChanged: (val) {
-                            setState(() {
-                              visibility = val;
-                              // If Private, force Everyone can vote to false
-                              // which means force Invited Only to true
-                              if (val == 'Private' &&
-                                  votingRule == 'Everyone') {
-                                votingRule = 'Invited Only';
-                              }
-                            });
+                            if (state is CreateEventSuccess) {
+                              unawaited(
+                                Navigator.of(context).pushReplacementNamed(
+                                  RouteNames.preEvent,
+                                  arguments: state.eventId,
+                                ),
+                              );
+                            }
                           },
-                          onVotingRuleChanged: (val) =>
-                              setState(() => votingRule = val),
-                          onRestrictedChanged: (val) =>
-                              setState(() => isRestricted = val),
-                          onLocationChanged: (val) =>
-                              setState(() => allowedLocation = val),
-                          onRadiusChanged: (val) =>
-                              setState(() => allowedRadius = val),
-                          onStartDateChanged: (val) =>
-                              setState(() => startDate = val),
-                          onStartTimeChanged: (val) =>
-                              setState(() => startTime = val),
-                          onEndDateChanged: (val) =>
-                              setState(() => endDate = val),
-                          onEndTimeChanged: (val) =>
-                              setState(() => endTime = val),
-                          onSubmit: _submitEvent,
-                          isSubmitting: state is CreateEventSubmitting,
-                        );
-                      },
+                          builder: (context, state) {
+                            return Step4Access(
+                              visibility: visibility,
+                              votingRule: votingRule,
+                              isRestricted: isRestricted,
+                              allowedLocation: allowedLocation,
+                              allowedRadius: allowedRadius,
+                              startDate: startDate,
+                              startTime: startTime,
+                              endDate: endDate,
+                              endTime: endTime,
+                              onVisibilityChanged: (val) {
+                                _setFieldState(() {
+                                  visibility = val;
+                                  if (val == 'Private' &&
+                                      votingRule == 'Everyone') {
+                                    votingRule = 'Invited Only';
+                                  }
+                                });
+                              },
+                              onVotingRuleChanged: (val) =>
+                                  _setFieldState(() => votingRule = val),
+                              onRestrictedChanged: (val) =>
+                                  _setFieldState(() => isRestricted = val),
+                              onLocationChanged: (val) =>
+                                  _setFieldState(() => allowedLocation = val),
+                              onRadiusChanged: (val) =>
+                                  _setFieldState(() => allowedRadius = val),
+                              onStartDateChanged: (val) =>
+                                  _setFieldState(() => startDate = val),
+                              onStartTimeChanged: (val) =>
+                                  _setFieldState(() => startTime = val),
+                              onEndDateChanged: (val) =>
+                                  _setFieldState(() => endDate = val),
+                              onEndTimeChanged: (val) =>
+                                  _setFieldState(() => endTime = val),
+                              onSubmit: _submitEvent,
+                              canSubmit: submitValidation.isValid,
+                              submitErrorText: _step4ValidationError(formInput),
+                              isSubmitting: state is CreateEventSubmitting,
+                            );
+                          },
+                        ),
+                      ],
                     ),
-                  ],
+                  ),
                 ),
               ),
             ],
