@@ -4,7 +4,11 @@ import 'package:flutter/material.dart';
 class TopToast {
   static OverlayEntry? _currentEntry;
 
-  static void show(BuildContext context, String message) {
+  static void show(
+    BuildContext context,
+    String message, {
+    bool isError = true,
+  }) {
     _currentEntry?.remove();
     _currentEntry = null;
 
@@ -14,6 +18,7 @@ class TopToast {
     overlayEntry = OverlayEntry(
       builder: (context) => _TopToastWidget(
         message: message,
+        isError: isError,
         onDismiss: () {
           overlayEntry.remove();
           _currentEntry = null;
@@ -30,10 +35,12 @@ class _TopToastWidget extends StatefulWidget {
   const _TopToastWidget({
     required this.message,
     required this.onDismiss,
+    this.isError = true,
   });
 
   final String message;
   final VoidCallback onDismiss;
+  final bool isError;
 
   @override
   State<_TopToastWidget> createState() => _TopToastWidgetState();
@@ -112,8 +119,15 @@ class _TopToastWidgetState extends State<_TopToastWidget>
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               decoration: BoxDecoration(
-                color: Colors.red.shade600,
+                color: widget.isError
+                    ? Colors.red.shade600
+                    : const Color(0xFF1B1B22),
                 borderRadius: BorderRadius.circular(12),
+                border: widget.isError
+                    ? null
+                    : Border.all(
+                        color: Colors.white.withValues(alpha: 0.1),
+                      ),
                 boxShadow: const [
                   BoxShadow(
                     color: Colors.black26,
@@ -124,8 +138,8 @@ class _TopToastWidgetState extends State<_TopToastWidget>
               ),
               child: Row(
                 children: [
-                  const Icon(
-                    Icons.error_outline,
+                  Icon(
+                    widget.isError ? Icons.error_outline : Icons.info_outline,
                     color: Colors.white,
                     size: 24,
                   ),

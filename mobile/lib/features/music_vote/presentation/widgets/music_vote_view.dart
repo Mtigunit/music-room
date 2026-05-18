@@ -127,12 +127,18 @@ class _MusicVoteViewState extends State<MusicVoteView> {
     return BlocListener<MusicVoteCubit, MusicVoteState>(
       listenWhen: (prev, curr) =>
           prev.error != curr.error ||
+          prev.successMessage != curr.successMessage ||
           prev.playbackStatus != curr.playbackStatus ||
           prev.currentTrack?.id != curr.currentTrack?.id,
       listener: (context, state) {
         if (state.error != null && state.event != null) {
           TopToast.show(context, state.error!);
           context.read<MusicVoteCubit>().clearError();
+        }
+
+        if (state.successMessage != null && state.event != null) {
+          TopToast.show(context, state.successMessage!, isError: false);
+          context.read<MusicVoteCubit>().clearSuccessMessage();
         }
 
         final shouldKeepAwake =

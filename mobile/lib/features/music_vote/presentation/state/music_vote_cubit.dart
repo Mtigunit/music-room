@@ -23,6 +23,7 @@ class MusicVoteState {
     this.isStartingEvent = false,
     this.isEndingEvent = false,
     this.error,
+    this.successMessage,
     this.event,
     this.tracks = const [],
     this.listenerCount,
@@ -36,6 +37,7 @@ class MusicVoteState {
   final bool isStartingEvent;
   final bool isEndingEvent;
   final String? error;
+  final String? successMessage;
   final EventDetailModel? event;
   final List<EventTrackModel> tracks;
   final int? listenerCount;
@@ -54,6 +56,7 @@ class MusicVoteState {
     bool? isStartingEvent,
     bool? isEndingEvent,
     String? error,
+    String? successMessage,
     EventDetailModel? event,
     List<EventTrackModel>? tracks,
     int? listenerCount,
@@ -61,6 +64,7 @@ class MusicVoteState {
     EventTrackModel? currentTrack,
     String? playbackStatus,
     bool clearError = false,
+    bool clearSuccessMessage = false,
     bool clearCurrentTrack = false,
   }) {
     return MusicVoteState(
@@ -69,6 +73,9 @@ class MusicVoteState {
       isStartingEvent: isStartingEvent ?? this.isStartingEvent,
       isEndingEvent: isEndingEvent ?? this.isEndingEvent,
       error: clearError ? null : (error ?? this.error),
+      successMessage: clearSuccessMessage
+          ? null
+          : (successMessage ?? this.successMessage),
       event: event ?? this.event,
       tracks: tracks ?? this.tracks,
       listenerCount: listenerCount ?? this.listenerCount,
@@ -810,6 +817,12 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
     }
   }
 
+  void clearSuccessMessage() {
+    if (!isClosed) {
+      emit(state.copyWith(clearSuccessMessage: true));
+    }
+  }
+
   /// Re-fetches the event details and merges the latest snapshot into
   /// the state. Used after the local user accepts a delegation so the
   /// `isDelegated` flag flips to `true` and playback controls unlock.
@@ -850,7 +863,7 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
       emit(
         state.copyWith(
           event: currentEvent.copyWith(isDelegated: false),
-          error: msg,
+          successMessage: msg,
         ),
       );
     }
