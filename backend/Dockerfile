@@ -18,6 +18,8 @@ RUN npx prisma generate && npm run build && npm prune --omit=dev
 # ── Production stage ─────────────────────────────────
 FROM node:${NODE_VERSION}
 
+RUN apk add --no-cache python3 yt-dlp
+
 WORKDIR /app
 
 COPY package*.json ./
