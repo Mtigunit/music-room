@@ -136,7 +136,8 @@ class _PlayerCardState extends State<PlayerCard> {
           prev.listenerCount != curr.listenerCount ||
           prev.event?.coverImage != curr.event?.coverImage ||
           prev.event?.tags != curr.event?.tags ||
-          prev.event?.status != curr.event?.status,
+          prev.event?.status != curr.event?.status ||
+          prev.event?.isDelegated != curr.event?.isDelegated,
       builder: (context, state) {
         _syncWithState(state);
         return _buildCard(context, state);
@@ -150,6 +151,10 @@ class _PlayerCardState extends State<PlayerCard> {
     final track = state.currentTrack;
     final event = state.event;
     final isPlaying = state.playbackStatus == 'PLAYING';
+    // Playback controls are visible to the host AND to any user who has
+    // accepted a delegation for this event (server confirms via the
+    // `isDelegated` field on `GET /events/{id}`).
+    final canControlPlayback = widget.isHost || (event?.isDelegated ?? false);
     final durationMs = track?.durationMs ?? 0;
     final progress = durationMs > 0
         ? (_progressMs / durationMs).clamp(0.0, 1.0)
@@ -199,7 +204,7 @@ class _PlayerCardState extends State<PlayerCard> {
                     ),
                   ),
                 ),
-                if (widget.isHost) ...[
+                if (canControlPlayback) ...[
                   Positioned(
                     left: 16,
                     bottom: 16,

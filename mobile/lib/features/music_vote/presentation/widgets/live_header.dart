@@ -3,13 +3,16 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/widgets/app_back_button.dart';
-import 'package:music_room/core/widgets/invite_bottom_sheet.dart';
 import 'package:music_room/features/music_vote/presentation/state/music_vote_cubit.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/modals/delegation_bottom_sheet.dart';
 
 /// The top header for the Live Room page.
 ///
-/// Displays: back button · centered room title · menu button.
+/// Displays: back button · centered room title · single action icon.
+///
+/// The trailing action is contextual:
+/// - **Host**: a settings icon that opens the delegation bottom sheet.
+/// - **Guest**: a leave icon that opens the "leave event?" confirmation.
 class LiveHeader extends StatelessWidget {
   const LiveHeader({
     super.key,
@@ -73,12 +76,13 @@ class LiveHeader extends StatelessWidget {
               ),
               SizedBox(
                 width: 40,
-                child: _HeaderMenuButton(
-                  isHost: isHost,
-                  colorScheme: colorScheme,
-                  onInvite: () => _showInviteSheet(context),
-                  onManage: () => _showManageRoomSheet(context),
-                  onLeave: () => _showLeaveConfirmation(context),
+                child: _HeaderActionButton(
+                  icon: isHost ? Icons.settings_rounded : Icons.logout_rounded,
+                  tooltip: isHost ? 'Room settings' : 'Leave room',
+                  iconColor: isHost ? Colors.white : colorScheme.error,
+                  onTap: isHost
+                      ? () => _showDelegationSheet(context)
+                      : () => _showLeaveConfirmation(context),
                 ),
               ),
             ],
@@ -101,35 +105,11 @@ class LiveHeader extends StatelessWidget {
     return 'Room $shortId';
   }
 
-  void _showInviteSheet(BuildContext context) {
-    final resolvedEventId = (eventId != null && eventId!.isNotEmpty)
-        ? eventId!
-        : 'room-1';
-    final shareLink = 'musicroom.app/join/$resolvedEventId';
-    final friends = <InviteFriendData>[];
-
-    unawaited(
-      showModalBottomSheet<void>(
-        context: context,
-        isScrollControlled: true,
-        useSafeArea: true,
-        barrierColor: Colors.black.withValues(alpha: 0.7),
-        backgroundColor: Colors.transparent,
-        builder: (_) => InviteBottomSheet(
-          eventId: resolvedEventId,
-          shareLink: shareLink,
-          friends: friends,
-          onCopyLink: () {},
-          onShareTapped: (action) {},
-          onFriendInviteChanged: (change) {},
-        ),
-      ),
-    );
-  }
-
-  void _showManageRoomSheet(BuildContext context) {
+  void _showDelegationSheet(BuildContext context) {
     if (eventId == null || eventId!.isEmpty) return;
     final resolvedEventId = eventId!;
+    final cubit = context.read<MusicVoteCubit>();
+    final event = cubit.state.event;
 
     unawaited(
       showModalBottomSheet<void>(
@@ -139,8 +119,12 @@ class LiveHeader extends StatelessWidget {
         barrierColor: Colors.black.withValues(alpha: 0.7),
         backgroundColor: Colors.transparent,
         builder: (_) => BlocProvider.value(
-          value: context.read<MusicVoteCubit>(),
-          child: DelegationBottomSheet(eventId: resolvedEventId),
+          value: cubit,
+          child: DelegationBottomSheet(
+            eventId: resolvedEventId,
+            eventName: event?.name ?? eventName,
+            hostId: event?.hostId,
+          ),
         ),
       ),
     );
@@ -186,83 +170,46 @@ class LiveHeader extends StatelessWidget {
   }
 }
 
-enum _HeaderMenuAction { invite, manage, leave }
-
-class _HeaderMenuButton extends StatelessWidget {
-  const _HeaderMenuButton({
-    required this.isHost,
-    required this.colorScheme,
-    required this.onInvite,
-    required this.onManage,
-    required this.onLeave,
+/// Single circular icon button used by [LiveHeader] for the trailing
+/// action. Replaces the previous "more" popup menu so a single tap
+/// triggers the contextual action directly.
+class _HeaderActionButton extends StatelessWidget {
+  const _HeaderActionButton({
+    required this.icon,
+    required this.tooltip,
+    required this.iconColor,
+    required this.onTap,
   });
 
-  final bool isHost;
-  final ColorScheme colorScheme;
-  final VoidCallback onInvite;
-  final VoidCallback onManage;
-  final VoidCallback onLeave;
+  final IconData icon;
+  final String tooltip;
+  final Color iconColor;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final entries = <PopupMenuEntry<_HeaderMenuAction>>[];
-    if (isHost) {
-      entries
-        ..add(
-          const PopupMenuItem(
-            value: _HeaderMenuAction.invite,
-            child: Text('Invite guests'),
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.transparent,
+        shape: const CircleBorder(),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: onTap,
+          customBorder: const CircleBorder(),
+          child: Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.black.withValues(alpha: 0.15),
+              border: Border.all(
+                color: Colors.white.withValues(alpha: 0.8),
+                width: 1.2,
+              ),
+            ),
+            child: Icon(icon, size: 18, color: iconColor),
           ),
-        )
-        ..add(
-          const PopupMenuItem(
-            value: _HeaderMenuAction.manage,
-            child: Text('Manage room'),
-          ),
-        );
-    } else {
-      entries.add(
-        PopupMenuItem(
-          value: _HeaderMenuAction.leave,
-          textStyle: TextStyle(color: colorScheme.error),
-          child: const Text('Leave room'),
-        ),
-      );
-    }
-
-    return PopupMenuButton<_HeaderMenuAction>(
-      tooltip: 'Room options',
-      color: colorScheme.surface,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      onSelected: (action) {
-        switch (action) {
-          case _HeaderMenuAction.invite:
-            onInvite();
-            return;
-          case _HeaderMenuAction.manage:
-            onManage();
-            return;
-          case _HeaderMenuAction.leave:
-            onLeave();
-            return;
-        }
-      },
-      itemBuilder: (context) => entries,
-      child: Container(
-        width: 36,
-        height: 36,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: Colors.black.withValues(alpha: 0.15),
-          border: Border.all(
-            color: Colors.white.withValues(alpha: 0.8),
-            width: 1.2,
-          ),
-        ),
-        child: const Icon(
-          Icons.more_horiz,
-          size: 18,
-          color: Colors.white,
         ),
       ),
     );

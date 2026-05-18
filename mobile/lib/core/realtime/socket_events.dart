@@ -27,6 +27,11 @@ enum SocketEvent {
   playbackNext,
   exception,
   notificationNew,
+
+  // Delegation
+  delegate,
+  delegationResponse,
+  delegateRemoved,
 }
 
 extension SocketEventName on SocketEvent {
@@ -86,6 +91,12 @@ extension SocketEventName on SocketEvent {
         return 'exception';
       case SocketEvent.notificationNew:
         return 'notification:new';
+      case SocketEvent.delegate:
+        return 'event:delegate';
+      case SocketEvent.delegationResponse:
+        return 'event:delegation-response';
+      case SocketEvent.delegateRemoved:
+        return 'event:delegate_removed';
     }
   }
 }

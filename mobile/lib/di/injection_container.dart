@@ -5,6 +5,7 @@ import 'package:music_room/core/network/api_client.dart';
 import 'package:music_room/core/realtime/socket_client.dart';
 import 'package:music_room/core/services/client_meta_service.dart';
 import 'package:music_room/core/services/connectivity_service.dart';
+import 'package:music_room/core/services/delegation_gateway.dart';
 import 'package:music_room/core/services/google_auth_service.dart';
 import 'package:music_room/core/services/google_link_status_service.dart';
 import 'package:music_room/core/services/notifications_service.dart';
@@ -67,6 +68,7 @@ class InjectionContainer {
   late ThemePreferenceService _themePreferenceService;
   late GoogleLinkStatusService _googleLinkStatusService;
   late NotificationsService _notificationsService;
+  late DelegationGateway _delegationGateway;
   late IHomeRemoteDataSource _homeRemoteDataSource;
   late HomeRepository _homeRepository;
 
@@ -112,6 +114,7 @@ class InjectionContainer {
       apiClient: _apiClient,
       socketClient: _socketClient,
     );
+    _delegationGateway = DelegationGateway(socketClient: _socketClient);
 
     // Data Sources
     _authRemoteDataSource = AuthRemoteDataSource(apiClient: _apiClient);
@@ -182,6 +185,7 @@ class InjectionContainer {
   GoogleLinkStatusService get googleLinkStatusService =>
       _googleLinkStatusService;
   NotificationsService get notificationsService => _notificationsService;
+  DelegationGateway get delegationGateway => _delegationGateway;
   IHomeRemoteDataSource get homeRemoteDataSource => _homeRemoteDataSource;
   HomeRepository get homeRepository => _homeRepository;
 

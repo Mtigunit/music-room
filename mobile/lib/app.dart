@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/services/onboarding_service.dart';
 import 'package:music_room/core/services/theme_preference_service.dart';
 import 'package:music_room/core/theme/app_theme.dart';
+import 'package:music_room/core/widgets/delegation_request_host.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
 import 'package:music_room/features/auth/presentation/state/auth_event.dart';
@@ -49,11 +50,19 @@ class _AppState extends State<App> {
           return BlocBuilder<AuthBloc, AuthState>(
             builder: (context, authState) {
               return MaterialApp(
+                navigatorKey: AppRouter.navigatorKey,
                 debugShowCheckedModeBanner: false,
                 onGenerateRoute: AppRouter.onGenerateRoute,
                 theme: AppTheme.lightTheme(),
                 darkTheme: AppTheme.darkTheme(),
                 themeMode: _resolveThemeMode(authState),
+                // Wrap the full app in a DelegationRequestHost so the
+                // delegation invite popup can surface globally, on top of
+                // any active route, without each feature having to wire
+                // its own socket listener.
+                builder: (context, child) => DelegationRequestHost(
+                  child: child ?? const SizedBox.shrink(),
+                ),
                 home: const _StartupRouteGate(),
               );
             },
@@ -107,11 +116,25 @@ class _StartupRouteGateState extends State<_StartupRouteGate> {
 
     // If authenticated (and onboarded, or web), go directly to home
     if (isAuthenticated) {
+      unawaited(_restoreAuthenticatedSession());
       return RouteNames.home;
     }
 
     // Otherwise show auth page
     return RouteNames.auth;
+  }
+
+  Future<void> _restoreAuthenticatedSession() async {
+    unawaited(InjectionContainer().socketClient.reconnectWithAuth());
+
+    try {
+      InjectionContainer().notificationsService.attachSocketListeners();
+      unawaited(InjectionContainer().notificationsService.fetchNotifications());
+    } on Exception catch (_) {}
+
+    try {
+      InjectionContainer().delegationGateway.attachSocketListeners();
+    } on Exception catch (_) {}
   }
 
   @override
@@ -129,18 +152,9 @@ class _StartupRouteGateState extends State<_StartupRouteGate> {
           listener: (context, state) {
             if (state is AuthAuthenticated ||
                 state is LoginSuccess ||
+                state is GoogleLoginSuccess ||
                 state is RegisterSuccess) {
-              unawaited(InjectionContainer().socketClient.reconnectWithAuth());
-              // Attach notifications listeners after socket reconnect attempt
-              try {
-                InjectionContainer().notificationsService
-                    .attachSocketListeners();
-                // Fetch notifications immediately after login
-                unawaited(
-                  InjectionContainer().notificationsService
-                      .fetchNotifications(),
-                );
-              } on Exception catch (_) {}
+              unawaited(_restoreAuthenticatedSession());
             }
 
             if (state is LogoutSuccess || state is AuthUnauthenticated) {
@@ -148,6 +162,9 @@ class _StartupRouteGateState extends State<_StartupRouteGate> {
               try {
                 InjectionContainer().notificationsService
                     .detachSocketListeners();
+              } on Exception catch (_) {}
+              try {
+                InjectionContainer().delegationGateway.detachSocketListeners();
               } on Exception catch (_) {}
               // After logout, navigate back to auth screen
               unawaited(
