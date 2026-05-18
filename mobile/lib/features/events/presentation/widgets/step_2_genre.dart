@@ -1,16 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:music_room/core/widgets/genre_selection_grid.dart';
+import 'package:music_room/core/widgets/responsive_layout.dart';
 import 'package:music_room/features/events/domain/entities/event_tag.dart';
 
 class Step2Genre extends StatelessWidget {
   const Step2Genre({
     required this.selectedGenres,
     required this.onGenresChanged,
+    required this.canContinue,
     required this.onNext,
+    this.errorText,
     super.key,
   });
   final List<EventTag> selectedGenres;
   final ValueChanged<List<EventTag>> onGenresChanged;
+  final bool canContinue;
+  final String? errorText;
   final VoidCallback onNext;
 
   static const List<EventTag> availableGenres = EventTag.values;
@@ -35,10 +40,15 @@ class Step2Genre extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final width = MediaQuery.sizeOf(context).width;
+    final size = ResponsiveLayout.resolveSize(width);
+    final isCompact = size == ScreenSize.compact;
+    final horizontalPadding = isCompact ? 16.0 : 24.0;
+    final sectionGap = isCompact ? 20.0 : 24.0;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(
-        horizontal: 24,
+      padding: EdgeInsets.symmetric(
+        horizontal: horizontalPadding,
         vertical: 16,
       ),
       child: Column(
@@ -50,7 +60,7 @@ class Step2Genre extends StatelessWidget {
               color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
             ),
           ),
-          const SizedBox(height: 24),
+          SizedBox(height: sectionGap),
           GenreSelectionGrid(
             genres: availableGenres
                 .map((tag) => tag.label)
@@ -65,7 +75,7 @@ class Step2Genre extends StatelessWidget {
               _toggleGenre(genre);
             },
           ),
-          const SizedBox(height: 32),
+          SizedBox(height: isCompact ? 24 : 32),
           if (selectedGenres.isNotEmpty)
             Text(
               '${selectedGenres.length}/3 tags selected',
@@ -83,13 +93,23 @@ class Step2Genre extends StatelessWidget {
               ),
             ),
           ],
-          const SizedBox(height: 32),
+          if (errorText != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              errorText!,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.error,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+          SizedBox(height: isCompact ? 24 : 32),
           ElevatedButton(
-            onPressed: onNext,
+            onPressed: canContinue ? onNext : null,
             style: ElevatedButton.styleFrom(
               backgroundColor: theme.colorScheme.primary,
               foregroundColor: theme.colorScheme.onPrimary,
-              padding: const EdgeInsets.symmetric(vertical: 16),
+              padding: EdgeInsets.symmetric(vertical: isCompact ? 14 : 16),
               elevation: 0,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
@@ -101,7 +121,7 @@ class Step2Genre extends StatelessWidget {
             ),
             child: const Text('Continue'),
           ),
-          const SizedBox(height: 32),
+          SizedBox(height: isCompact ? 24 : 32),
         ],
       ),
     );
