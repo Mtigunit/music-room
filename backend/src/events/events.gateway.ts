@@ -547,6 +547,31 @@ export class EventsGateway implements OnGatewayDisconnect {
     }
   }
 
+  @OnEvent(INTERNAL_EVENTS.DELEGATION_REVOKED)
+  async handleDelegationRevoked(payload: {
+    eventId: string;
+    delegateeId: string;
+    hostname: string | null;
+    eventName: string | null;
+  }) {
+    const roomName = `event_${payload.eventId}`;
+    const sockets = await this.server.in(roomName).fetchSockets();
+
+    for (const socket of sockets) {
+      if (
+        (socket.data as { user?: { id: string } }).user?.id ===
+        payload.delegateeId
+      ) {
+        socket.emit(WS_EVENTS.DELEGATION_REMOVED, {
+          eventId: payload.eventId,
+          hostname: payload.hostname,
+          eventName: payload.eventName,
+          message: 'Host removed delegation for you',
+        });
+      }
+    }
+  }
+
   @SubscribeMessage(WS_EVENTS.DELEGATION_RESPONSE)
   @UsePipes(
     new ValidationPipe({

@@ -1,5 +1,6 @@
 export const INTERNAL_EVENTS = {
   DELEGATION_INVITE_SENT: 'delegation.invite_sent',
+  DELEGATION_REVOKED: 'delegation.revoked',
 };
 
 export const MAX_VOTES_PER_EVENT = 100;
@@ -27,6 +28,7 @@ export const WS_EVENTS = {
   USER_JOINED: 'event:user_joined',
   EVENT_COUNT: 'event:count',
   DELEGATE: 'event:delegate',
+  DELEGATION_REMOVED: 'event:delegate_removed',
 
   PLAYBACK_STATUS: 'playback:status',
 
