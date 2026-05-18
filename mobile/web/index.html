@@ -31,7 +31,28 @@
 
   <title>mobile</title>
   <link rel="manifest" href="manifest.json">
-  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDIulbTgv0SuA3-Wrv62DtGKdjDVRKd4_U" async defer></script>
+  <script src="config.js"></script>
+  <script>
+    (function() {
+      // Google Maps API key placeholder to be replaced at build/deploy time
+      // or injected dynamically at runtime via window.GOOGLE_MAPS_API_KEY.
+      var apiKey = 'GOOGLE_MAPS_API_KEY_PLACEHOLDER';
+      
+      if (window.GOOGLE_MAPS_API_KEY && window.GOOGLE_MAPS_API_KEY !== 'GOOGLE_MAPS_API_KEY_PLACEHOLDER') {
+        apiKey = window.GOOGLE_MAPS_API_KEY;
+      }
+      
+      if (apiKey && apiKey !== 'GOOGLE_MAPS_API_KEY_PLACEHOLDER') {
+        var script = document.createElement('script');
+        script.src = 'https://maps.googleapis.com/maps/api/js?key=' + apiKey;
+        script.async = true;
+        script.defer = true;
+        document.head.appendChild(script);
+      } else {
+        console.warn('Google Maps API key is missing. Ensure GOOGLE_MAPS_API_KEY_PLACEHOLDER is replaced or window.GOOGLE_MAPS_API_KEY is set.');
+      }
+    })();
+  </script>
 </head>
 <body>
   <!--

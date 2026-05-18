@@ -54,6 +54,9 @@ class AppScaffoldState extends State<AppScaffold> {
 
   void _onItemTapped(int index) {
     if (widget.foregroundPage != null) {
+      if (index == _currentIndex) {
+        return;
+      }
       unawaited(
         Navigator.of(context).pushReplacement<void, void>(
           MaterialPageRoute<void>(
