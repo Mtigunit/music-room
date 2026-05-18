@@ -104,10 +104,6 @@ class _DelegationRequestSheet extends StatelessWidget {
     final isDark = theme.brightness == Brightness.dark;
 
     final sheetBg = isDark ? const Color(0xFF15151F) : colorScheme.surface;
-    final hostname = invite.hostname.isNotEmpty ? invite.hostname : 'The host';
-    final eventName = invite.eventName.isNotEmpty
-        ? invite.eventName
-        : 'an event';
 
     return ClipRRect(
       borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
@@ -148,154 +144,214 @@ class _DelegationRequestSheet extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                // Drag handle
-                Center(
-                  child: Container(
-                    width: 38,
-                    height: 4,
-                    decoration: BoxDecoration(
-                      color: colorScheme.onSurface.withValues(alpha: 0.18),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 22),
-
-                // Hero icon
-                Center(
-                  child: Container(
-                    width: 72,
-                    height: 72,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          colorScheme.primary,
-                          colorScheme.primary.withValues(alpha: 0.6),
-                        ],
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: colorScheme.primary.withValues(alpha: 0.35),
-                          blurRadius: 24,
-                          offset: const Offset(0, 8),
-                        ),
-                      ],
-                    ),
-                    child: const Icon(
-                      Icons.headset_mic_rounded,
-                      color: Colors.white,
-                      size: 34,
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 18),
-
-                // Title
-                Text(
-                  'Delegation request',
-                  textAlign: TextAlign.center,
-                  style: textTheme.titleLarge?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    fontSize: 22,
-                  ),
+                _DelegationHeader(
+                  colorScheme: colorScheme,
+                  textTheme: textTheme,
                 ),
                 const SizedBox(height: 10),
-
-                // Body
-                RichText(
-                  textAlign: TextAlign.center,
-                  text: TextSpan(
-                    style: textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurface.withValues(alpha: 0.75),
-                      height: 1.45,
-                      fontSize: 15,
-                    ),
-                    children: <InlineSpan>[
-                      TextSpan(
-                        text: hostname,
-                        style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                          color: colorScheme.onSurface,
-                        ),
-                      ),
-                      const TextSpan(
-                        text: ' wants to give you music control for ',
-                      ),
-                      TextSpan(
-                        text: '“$eventName”',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                          color: colorScheme.onSurface,
-                        ),
-                      ),
-                      const TextSpan(
-                        text: '. Accept to play, pause and skip tracks.',
-                      ),
-                    ],
-                  ),
+                _DelegationBodyText(
+                  invite: invite,
+                  colorScheme: colorScheme,
+                  textTheme: textTheme,
                 ),
                 const SizedBox(height: 26),
-
-                // Actions
-                Row(
-                  children: [
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: () => Navigator.of(context).pop(false),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          side: BorderSide(
-                            color: colorScheme.onSurface.withValues(
-                              alpha: 0.18,
-                            ),
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                          foregroundColor: colorScheme.onSurface.withValues(
-                            alpha: 0.85,
-                          ),
-                        ),
-                        child: const Text(
-                          'Reject',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: FilledButton(
-                        onPressed: () => Navigator.of(context).pop(true),
-                        style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          backgroundColor: colorScheme.primary,
-                          foregroundColor: Colors.white,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(14),
-                          ),
-                        ),
-                        child: const Text(
-                          'Accept',
-                          style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w800,
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
+                _DelegationActionRow(
+                  colorScheme: colorScheme,
                 ),
               ],
             ),
           ),
         ),
       ),
+    );
+  }
+}
+
+class _DelegationHeader extends StatelessWidget {
+  const _DelegationHeader({
+    required this.colorScheme,
+    required this.textTheme,
+  });
+
+  final ColorScheme colorScheme;
+  final TextTheme textTheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        // Drag handle
+        Center(
+          child: Container(
+            width: 38,
+            height: 4,
+            decoration: BoxDecoration(
+              color: colorScheme.onSurface.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+        ),
+        const SizedBox(height: 22),
+
+        // Hero icon
+        Center(
+          child: Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  colorScheme.primary,
+                  colorScheme.primary.withValues(alpha: 0.6),
+                ],
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: colorScheme.primary.withValues(alpha: 0.35),
+                  blurRadius: 24,
+                  offset: const Offset(0, 8),
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.headset_mic_rounded,
+              color: Colors.white,
+              size: 34,
+            ),
+          ),
+        ),
+        const SizedBox(height: 18),
+
+        // Title
+        Text(
+          'Delegation request',
+          textAlign: TextAlign.center,
+          style: textTheme.titleLarge?.copyWith(
+            fontWeight: FontWeight.w800,
+            fontSize: 22,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DelegationBodyText extends StatelessWidget {
+  const _DelegationBodyText({
+    required this.invite,
+    required this.colorScheme,
+    required this.textTheme,
+  });
+
+  final DelegationInvite invite;
+  final ColorScheme colorScheme;
+  final TextTheme textTheme;
+
+  @override
+  Widget build(BuildContext context) {
+    final hostname = invite.hostname.isNotEmpty ? invite.hostname : 'The host';
+    final eventName = invite.eventName.isNotEmpty
+        ? invite.eventName
+        : 'an event';
+
+    return RichText(
+      textAlign: TextAlign.center,
+      text: TextSpan(
+        style: textTheme.bodyMedium?.copyWith(
+          color: colorScheme.onSurface.withValues(alpha: 0.75),
+          height: 1.45,
+          fontSize: 15,
+        ),
+        children: <InlineSpan>[
+          TextSpan(
+            text: hostname,
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              color: colorScheme.onSurface,
+            ),
+          ),
+          const TextSpan(
+            text: ' wants to give you music control for ',
+          ),
+          TextSpan(
+            text: '“$eventName”',
+            style: TextStyle(
+              fontWeight: FontWeight.w800,
+              color: colorScheme.onSurface,
+            ),
+          ),
+          const TextSpan(
+            text: '. Accept to play, pause and skip tracks.',
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DelegationActionRow extends StatelessWidget {
+  const _DelegationActionRow({
+    required this.colorScheme,
+  });
+
+  final ColorScheme colorScheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: OutlinedButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            style: OutlinedButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              side: BorderSide(
+                color: colorScheme.onSurface.withValues(
+                  alpha: 0.18,
+                ),
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+              foregroundColor: colorScheme.onSurface.withValues(
+                alpha: 0.85,
+              ),
+            ),
+            child: const Text(
+              'Reject',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: FilledButton.styleFrom(
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              backgroundColor: colorScheme.primary,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(14),
+              ),
+            ),
+            child: const Text(
+              'Accept',
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

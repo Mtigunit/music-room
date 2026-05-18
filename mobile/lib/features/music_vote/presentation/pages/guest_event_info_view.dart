@@ -481,6 +481,10 @@ class _WaitingForHostBottomBarState extends State<_WaitingForHostBottomBar> {
 
   void _onEventStarted(dynamic payload) {
     debugPrint('📡 [_WaitingForHostBottomBar] Received: event:started');
+    if (payload is Map<String, dynamic>) {
+      final incomingEventId = payload['eventId'] as String?;
+      if (incomingEventId != widget.eventId) return;
+    }
     _socketClient.emit('event:join', <String, dynamic>{
       'eventId': widget.eventId,
     });

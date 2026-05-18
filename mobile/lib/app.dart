@@ -152,6 +152,7 @@ class _StartupRouteGateState extends State<_StartupRouteGate> {
           listener: (context, state) {
             if (state is AuthAuthenticated ||
                 state is LoginSuccess ||
+                state is GoogleLoginSuccess ||
                 state is RegisterSuccess) {
               unawaited(_restoreAuthenticatedSession());
             }
