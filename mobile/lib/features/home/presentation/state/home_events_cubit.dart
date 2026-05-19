@@ -12,7 +12,7 @@ class HomeEventsCubit extends Cubit<HomeEventsState> {
 
   static const int _limit = 20;
 
-  String? _currentTags;
+  List<String>? _currentTags;
   String? _currentStatus;
   String? _currentSearch;
 
@@ -22,13 +22,27 @@ class HomeEventsCubit extends Cubit<HomeEventsState> {
   int _requestEpoch = 0;
 
   Future<void> fetchEvents({
-    String? tags,
+    List<String>? tags,
+    bool clearTags = false,
     String? status,
+    bool clearStatus = false,
     String? search,
   }) async {
-    _currentTags = tags ?? _currentTags;
-    _currentStatus = status ?? _currentStatus;
-    _currentSearch = search ?? _currentSearch;
+    if (clearTags) {
+      _currentTags = null;
+    } else if (tags != null) {
+      _currentTags = List<String>.of(tags);
+    }
+
+    if (clearStatus) {
+      _currentStatus = null;
+    } else if (status != null) {
+      _currentStatus = status;
+    }
+
+    if (search != null) {
+      _currentSearch = search;
+    }
 
     final epoch = ++_requestEpoch;
     emit(HomeEventsLoading());

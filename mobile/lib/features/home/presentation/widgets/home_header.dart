@@ -1,49 +1,114 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:music_room/core/config/app_config.dart';
 import 'package:music_room/core/widgets/app_scaffold.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/home/presentation/widgets/show_notification_panel.dart';
 import 'package:music_room/routes/route_names.dart';
 
-class HomeHeader extends StatelessWidget {
+class HomeHeader extends StatefulWidget {
   const HomeHeader({
     super.key,
     this.greeting = 'Good evening',
-    this.username = 'djnova',
   });
 
   final String greeting;
-  final String username;
+
+  @override
+  State<HomeHeader> createState() => _HomeHeaderState();
+}
+
+class _HomeHeaderState extends State<HomeHeader> {
+  String _username = 'djnova';
+  String? _avatarUrl;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_loadProfile());
+  }
+
+  @override
+  void didUpdateWidget(covariant HomeHeader oldWidget) {
+    super.didUpdateWidget(oldWidget);
+  }
+
+  Future<void> _loadProfile() async {
+    try {
+      // Load cached username instantly
+      final authRepo = InjectionContainer().authRepository;
+      final storedUser = await authRepo.getStoredUserProfile();
+      if (storedUser != null && storedUser.username != null) {
+        if (mounted) {
+          setState(() {
+            _username = storedUser.username!;
+          });
+        }
+      }
+
+      // Load user profile (which contains avatarUrl)
+      final profileDS = InjectionContainer().profileRemoteDataSource;
+      final userProfile = await profileDS.getMyProfile();
+      debugPrint('HomeHeader loaded user profile successfully.');
+      if (mounted) {
+        setState(() {
+          _username = userProfile.username;
+          _avatarUrl = userProfile.avatarUrl;
+        });
+      }
+    } on Object catch (e) {
+      debugPrint('Error loading profile in HomeHeader: $e');
+    }
+  }
+
+  String? _resolveImageUrl(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return null;
+    }
+
+    if (value.startsWith('http')) {
+      return value;
+    }
+
+    final baseUrl = AppConfig.apiBaseUrl.replaceAll(RegExp(r'/+$'), '');
+    final normalizedPath = value.replaceAll(RegExp('^/+'), '');
+    return '$baseUrl/$normalizedPath';
+  }
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final resolvedAvatarUrl = _resolveImageUrl(_avatarUrl)?.trim();
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              greeting,
-              style: textTheme.bodyLarge?.copyWith(
-                color: colorScheme.onSurface.withValues(alpha: 0.5),
-                fontSize: 14,
+        Expanded(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                widget.greeting,
+                style: textTheme.bodyLarge?.copyWith(
+                  color: colorScheme.onSurface.withValues(alpha: 0.5),
+                  fontSize: 14,
+                ),
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              username,
-              style: textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                letterSpacing: -0.5,
+              const SizedBox(height: 4),
+              Text(
+                _username,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: -0.5,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         Row(
           children: [
@@ -120,16 +185,27 @@ class HomeHeader extends StatelessWidget {
                         );
                       }
                     },
-                    child: const SizedBox(
+                    child: Container(
                       width: 48,
                       height: 48,
-                      child: Center(
-                        child: CircleAvatar(
-                          radius: 20,
-                          backgroundImage: AssetImage(
-                            'assets/images/step3.webp',
-                          ),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: colorScheme.primaryContainer,
+                        border: Border.all(
+                          color: colorScheme.onSurface.withValues(alpha: 0.1),
                         ),
+                      ),
+                      child: ClipOval(
+                        child:
+                            resolvedAvatarUrl != null &&
+                                resolvedAvatarUrl.isNotEmpty
+                            ? Image.network(
+                                resolvedAvatarUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder: (context, error, stackTrace) =>
+                                    _buildAvatarFallback(colorScheme),
+                              )
+                            : _buildAvatarFallback(colorScheme),
                       ),
                     ),
                   ),
@@ -139,6 +215,19 @@ class HomeHeader extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+
+  Widget _buildAvatarFallback(ColorScheme colorScheme) {
+    return Center(
+      child: Text(
+        _username.isNotEmpty ? _username[0].toUpperCase() : '?',
+        style: TextStyle(
+          color: colorScheme.primary,
+          fontWeight: FontWeight.bold,
+          fontSize: 18,
+        ),
+      ),
     );
   }
 }

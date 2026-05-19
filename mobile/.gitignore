@@ -48,5 +48,5 @@ app.*.map.json
 assets/.env
 !assets/.env.example
 
-# Local Web configuration
+# Web configuration and API keys
 web/config.js

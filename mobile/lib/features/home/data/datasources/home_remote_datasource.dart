@@ -7,7 +7,7 @@ abstract class IHomeRemoteDataSource {
   Future<List<MyEventItemModel>> fetchExploreEvents({
     int page = 1,
     int limit = 20,
-    String? tags,
+    List<String>? tags,
     String? status,
     String? search,
   });
@@ -15,7 +15,7 @@ abstract class IHomeRemoteDataSource {
   Future<List<MyEventItemModel>> fetchFriendsEvents({
     int page = 1,
     int limit = 20,
-    String? tags,
+    List<String>? tags,
     String? status,
     String? search,
   });
@@ -30,7 +30,7 @@ class HomeRemoteDataSource implements IHomeRemoteDataSource {
   Future<List<MyEventItemModel>> fetchExploreEvents({
     int page = 1,
     int limit = 20,
-    String? tags,
+    List<String>? tags,
     String? status,
     String? search,
   }) async {
@@ -40,11 +40,14 @@ class HomeRemoteDataSource implements IHomeRemoteDataSource {
         'limit': limit,
       };
 
-      final normalizedTags = tags?.trim().toLowerCase();
-      if (normalizedTags != null &&
-          normalizedTags.isNotEmpty &&
-          normalizedTags != 'all') {
-        queryParameters['tags'] = tags!.trim().toUpperCase();
+      if (tags != null && tags.isNotEmpty) {
+        final filteredTags = tags
+            .map((t) => t.trim().toUpperCase())
+            .where((t) => t.isNotEmpty)
+            .toList();
+        if (filteredTags.isNotEmpty) {
+          queryParameters['tags'] = filteredTags;
+        }
       }
 
       final normalizedStatus = status?.trim().toLowerCase();
@@ -77,7 +80,7 @@ class HomeRemoteDataSource implements IHomeRemoteDataSource {
   Future<List<MyEventItemModel>> fetchFriendsEvents({
     int page = 1,
     int limit = 20,
-    String? tags,
+    List<String>? tags,
     String? status,
     String? search,
   }) async {
@@ -87,11 +90,14 @@ class HomeRemoteDataSource implements IHomeRemoteDataSource {
         'limit': limit,
       };
 
-      final normalizedTags = tags?.trim().toLowerCase();
-      if (normalizedTags != null &&
-          normalizedTags.isNotEmpty &&
-          normalizedTags != 'all') {
-        queryParameters['tags'] = tags!.trim().toUpperCase();
+      if (tags != null && tags.isNotEmpty) {
+        final filteredTags = tags
+            .map((t) => t.trim().toUpperCase())
+            .where((t) => t.isNotEmpty)
+            .toList();
+        if (filteredTags.isNotEmpty) {
+          queryParameters['tags'] = filteredTags;
+        }
       }
 
       final normalizedStatus = status?.trim().toLowerCase();
