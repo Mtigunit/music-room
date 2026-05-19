@@ -1,4 +1,13 @@
-// Note: Copy this file to config.js and replace the placeholder with your local Google Maps API Key.
+// Note: Copy this file to config.js and replace the placeholder with your Google Maps API Key.
 // config.js is git-ignored and safe from being committed.
+//
+// IMPORTANT SECURITY REQUIREMENTS FOR PRODUCTION DEPLOYMENT:
+// 1. Ensure you "use a referrer-restricted key" in your Google Cloud Console.
+// 2. Restrict the API key to allowed HTTP referrers (your production and dev domains).
+//    Required Referrer Entries Example:
+//    - localhost:* (for development)
+//    - *.yourdomain.com/* (for production deployment)
+// 3. Restrict the API Key scope to only the required APIs (e.g., Maps JavaScript API).
+// Do not commit actual restricted or unrestricted keys to the repository.
 
 window.GOOGLE_MAPS_API_KEY = "YOUR_GOOGLE_MAPS_API_KEY_HERE";

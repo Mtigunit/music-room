@@ -80,30 +80,35 @@ class _HomeHeaderState extends State<HomeHeader> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final resolvedAvatarUrl = _resolveImageUrl(_avatarUrl)?.trim();
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              widget.greeting,
-              style: textTheme.bodyLarge?.copyWith(
-                color: colorScheme.onSurface.withValues(alpha: 0.5),
-                fontSize: 14,
+        Expanded(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                widget.greeting,
+                style: textTheme.bodyLarge?.copyWith(
+                  color: colorScheme.onSurface.withValues(alpha: 0.5),
+                  fontSize: 14,
+                ),
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              _username,
-              style: textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.bold,
-                letterSpacing: -0.5,
+              const SizedBox(height: 4),
+              Text(
+                _username,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: -0.5,
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         Row(
           children: [
@@ -191,9 +196,11 @@ class _HomeHeaderState extends State<HomeHeader> {
                         ),
                       ),
                       child: ClipOval(
-                        child: _avatarUrl != null && _avatarUrl!.isNotEmpty
+                        child:
+                            resolvedAvatarUrl != null &&
+                                resolvedAvatarUrl.isNotEmpty
                             ? Image.network(
-                                _resolveImageUrl(_avatarUrl)!,
+                                resolvedAvatarUrl,
                                 fit: BoxFit.cover,
                                 errorBuilder: (context, error, stackTrace) {
                                   return Center(
