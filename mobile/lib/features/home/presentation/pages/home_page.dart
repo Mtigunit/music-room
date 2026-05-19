@@ -320,59 +320,70 @@ class _HeaderAndFilters extends StatelessWidget {
     final numFilters = (selectedStatus != null ? 1 : 0) + selectedTags.length;
     final isActive = numFilters > 0;
 
-    return GestureDetector(
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 150),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: isActive ? theme.colorScheme.primary : Colors.transparent,
-          border: Border.all(
-            color: isActive ? Colors.transparent : theme.colorScheme.primary,
-            width: 1.5,
-          ),
-          borderRadius: BorderRadius.circular(32),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              icon,
-              size: 18,
-              color: isActive
-                  ? theme.colorScheme.onPrimary
-                  : theme.colorScheme.primary,
+    return Material(
+      color: Colors.transparent,
+      borderRadius: BorderRadius.circular(32),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(32),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+          decoration: BoxDecoration(
+            color: isActive ? theme.colorScheme.primary : Colors.transparent,
+            border: Border.all(
+              color: isActive ? Colors.transparent : theme.colorScheme.primary,
+              width: 1.5,
             ),
-            const SizedBox(width: 8),
-            Text(
-              'Filter',
-              style: TextStyle(
+            borderRadius: BorderRadius.circular(32),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                icon,
+                size: 18,
                 color: isActive
                     ? theme.colorScheme.onPrimary
                     : theme.colorScheme.primary,
-                fontWeight: FontWeight.bold,
-                fontSize: 14,
               ),
-            ),
-            if (isActive) ...[
-              const SizedBox(width: 6),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.onPrimary.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(10),
+              const SizedBox(width: 8),
+              Text(
+                'Filter',
+                style: TextStyle(
+                  color: isActive
+                      ? theme.colorScheme.onPrimary
+                      : theme.colorScheme.primary,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 14,
                 ),
-                child: Text(
-                  '$numFilters',
-                  style: TextStyle(
-                    color: theme.colorScheme.onPrimary,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12,
+              ),
+              if (isActive) ...[
+                const SizedBox(width: 6),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.onPrimary.withValues(
+                      alpha: 0.2,
+                    ),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    '$numFilters',
+                    style: TextStyle(
+                      color: theme.colorScheme.onPrimary,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                    ),
                   ),
                 ),
-              ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );
@@ -486,7 +497,10 @@ class _HeaderAndFilters extends StatelessWidget {
     final label = isActive
         ? (selectedTags.length == 1
               ? tags
-                    .firstWhere((t) => t.backendValue == selectedTags.first)
+                    .firstWhere(
+                      (t) => t.backendValue == selectedTags.first,
+                      orElse: () => EventTag.pop,
+                    )
                     .label
               : '${selectedTags.length} Tags')
         : 'Tags';
