@@ -35,7 +35,7 @@ class HorizontalFilterList extends StatelessWidget {
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(32),
             ),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            padding: itemPadding,
             backgroundColor: theme.colorScheme.surfaceContainerHighest
                 .withValues(alpha: 0.3),
             selectedColor: theme.colorScheme.primary,
@@ -51,3 +51,5 @@ class HorizontalFilterList extends StatelessWidget {
     );
   }
 }
+
+typedef GenreFilterList = HorizontalFilterList;

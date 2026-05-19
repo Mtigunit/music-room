@@ -31,7 +31,7 @@ class HomeEventsCubit extends Cubit<HomeEventsState> {
     if (clearTags) {
       _currentTags = null;
     } else if (tags != null) {
-      _currentTags = tags;
+      _currentTags = List<String>.of(tags);
     }
 
     if (clearStatus) {

@@ -640,48 +640,38 @@ class _TagsGridPopupContentState extends State<_TagsGridPopupContent> {
             runSpacing: 8,
             children: widget.tags.map((tag) {
               final isSelected = _selectedTags.contains(tag.backendValue);
-              return GestureDetector(
-                onTap: () {
+              return FilterChip(
+                label: Text(tag.label),
+                selected: isSelected,
+                onSelected: (selected) {
                   setState(() {
-                    if (isSelected) {
-                      _selectedTags.remove(tag.backendValue);
-                    } else {
+                    if (selected) {
                       _selectedTags.add(tag.backendValue);
+                    } else {
+                      _selectedTags.remove(tag.backendValue);
                     }
                   });
                   widget.onTagsChanged(_selectedTags.toList());
                 },
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: isSelected
-                        ? theme.colorScheme.primary
-                        : Colors.transparent,
-                    border: Border.all(
-                      color: isSelected
-                          ? Colors.transparent
-                          : theme.colorScheme.primary,
-                      width: 1.2,
-                    ),
-                    borderRadius: BorderRadius.circular(32),
-                  ),
-                  child: Text(
-                    tag.label,
-                    style: TextStyle(
-                      color: isSelected
-                          ? theme.colorScheme.onPrimary
-                          : theme.colorScheme.primary,
-                      fontSize: 12,
-                      fontWeight: isSelected
-                          ? FontWeight.bold
-                          : FontWeight.w500,
-                    ),
-                  ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(32),
                 ),
+                backgroundColor: Colors.transparent,
+                side: BorderSide(
+                  color: isSelected
+                      ? Colors.transparent
+                      : theme.colorScheme.primary,
+                  width: 1.2,
+                ),
+                selectedColor: theme.colorScheme.primary,
+                labelStyle: TextStyle(
+                  color: isSelected
+                      ? theme.colorScheme.onPrimary
+                      : theme.colorScheme.primary,
+                  fontSize: 12,
+                  fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                ),
+                checkmarkColor: theme.colorScheme.onPrimary,
               );
             }).toList(),
           ),

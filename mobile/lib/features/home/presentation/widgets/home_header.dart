@@ -32,7 +32,6 @@ class _HomeHeaderState extends State<HomeHeader> {
   @override
   void didUpdateWidget(covariant HomeHeader oldWidget) {
     super.didUpdateWidget(oldWidget);
-    unawaited(_loadProfile());
   }
 
   Future<void> _loadProfile() async {
@@ -51,11 +50,7 @@ class _HomeHeaderState extends State<HomeHeader> {
       // Load user profile (which contains avatarUrl)
       final profileDS = InjectionContainer().profileRemoteDataSource;
       final userProfile = await profileDS.getMyProfile();
-      debugPrint(
-        'HomeHeader loaded user profile: id: ${userProfile.id}, '
-        'username: ${userProfile.username}, '
-        'avatarUrl: ${userProfile.avatarUrl}',
-      );
+      debugPrint('HomeHeader loaded user profile successfully.');
       if (mounted) {
         setState(() {
           _username = userProfile.username;
