@@ -41,9 +41,13 @@ class HomeRemoteDataSource implements IHomeRemoteDataSource {
       };
 
       if (tags != null && tags.isNotEmpty) {
-        queryParameters['tags'] = tags
+        final filteredTags = tags
             .map((t) => t.trim().toUpperCase())
+            .where((t) => t.isNotEmpty)
             .toList();
+        if (filteredTags.isNotEmpty) {
+          queryParameters['tags'] = filteredTags;
+        }
       }
 
       final normalizedStatus = status?.trim().toLowerCase();
@@ -87,9 +91,13 @@ class HomeRemoteDataSource implements IHomeRemoteDataSource {
       };
 
       if (tags != null && tags.isNotEmpty) {
-        queryParameters['tags'] = tags
+        final filteredTags = tags
             .map((t) => t.trim().toUpperCase())
+            .where((t) => t.isNotEmpty)
             .toList();
+        if (filteredTags.isNotEmpty) {
+          queryParameters['tags'] = filteredTags;
+        }
       }
 
       final normalizedStatus = status?.trim().toLowerCase();

@@ -202,33 +202,10 @@ class _HomeHeaderState extends State<HomeHeader> {
                             ? Image.network(
                                 resolvedAvatarUrl,
                                 fit: BoxFit.cover,
-                                errorBuilder: (context, error, stackTrace) {
-                                  return Center(
-                                    child: Text(
-                                      _username.isNotEmpty
-                                          ? _username[0].toUpperCase()
-                                          : '?',
-                                      style: TextStyle(
-                                        color: colorScheme.primary,
-                                        fontWeight: FontWeight.bold,
-                                        fontSize: 18,
-                                      ),
-                                    ),
-                                  );
-                                },
+                                errorBuilder: (context, error, stackTrace) =>
+                                    _buildAvatarFallback(colorScheme),
                               )
-                            : Center(
-                                child: Text(
-                                  _username.isNotEmpty
-                                      ? _username[0].toUpperCase()
-                                      : '?',
-                                  style: TextStyle(
-                                    color: colorScheme.primary,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 18,
-                                  ),
-                                ),
-                              ),
+                            : _buildAvatarFallback(colorScheme),
                       ),
                     ),
                   ),
@@ -238,6 +215,19 @@ class _HomeHeaderState extends State<HomeHeader> {
           ],
         ),
       ],
+    );
+  }
+
+  Widget _buildAvatarFallback(ColorScheme colorScheme) {
+    return Center(
+      child: Text(
+        _username.isNotEmpty ? _username[0].toUpperCase() : '?',
+        style: TextStyle(
+          color: colorScheme.primary,
+          fontWeight: FontWeight.bold,
+          fontSize: 18,
+        ),
+      ),
     );
   }
 }

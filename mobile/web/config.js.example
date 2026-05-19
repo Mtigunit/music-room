@@ -5,8 +5,8 @@
 // 1. Ensure you "use a referrer-restricted key" in your Google Cloud Console.
 // 2. Restrict the API key to allowed HTTP referrers (your production and dev domains).
 //    Required Referrer Entries Example:
-//    - localhost:* (for development)
-//    - *.yourdomain.com/* (for production deployment)
+//    - http://localhost:* (for development)
+//    - https://*.yourdomain.com/* (for production deployment)
 // 3. Restrict the API Key scope to only the required APIs (e.g., Maps JavaScript API).
 // Do not commit actual restricted or unrestricted keys to the repository.
 
