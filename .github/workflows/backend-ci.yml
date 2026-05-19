@@ -53,6 +53,7 @@ jobs:
       - name: Build
         run: npm run build
 
+#  # TODO: Re-enable deployment once deployment environment configuration is finalized
 #  deploy:
 #    name: Deploy to Production
 #    needs: build-and-test
