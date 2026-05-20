@@ -28,6 +28,7 @@ environment:
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
 dependencies:
+  audio_session: ^0.1.21
   connectivity_plus: ^7.1.1
   crypto: ^3.0.3
   cupertino_icons: ^1.0.9
@@ -45,6 +46,7 @@ dependencies:
   image_picker: ^1.2.1
   intl: ^0.20.2
   json_annotation: ^4.8.1
+  just_audio: ^0.9.40
   package_info_plus: ^10.1.0
   shared_preferences: ^2.5.3
   socket_io_client: ^3.0.2
