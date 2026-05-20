@@ -25,6 +25,10 @@ class ApiClient {
   final ClientMetaService _clientMetaService;
   final ApiRateLimiter _rateLimiter;
 
+  /// Expose pre-configured Dio instance for specialized services
+  /// like StreamUrlService.
+  Dio get dio => _dio;
+
   // Stream controller for session expiration events
   final StreamController<void> _sessionExpiredController =
       StreamController<void>.broadcast();
