@@ -6,7 +6,6 @@ FROM node:${NODE_VERSION} AS builder
 
 WORKDIR /app
 
-ENV YOUTUBE_DL_SKIP_DOWNLOAD=true
 ENV YOUTUBE_DL_SKIP_PYTHON_CHECK=true
 
 COPY package*.json ./
@@ -20,7 +19,7 @@ RUN npx prisma generate && npm run build && npm prune --omit=dev
 # ── Production stage ─────────────────────────────────
 FROM node:${NODE_VERSION}
 
-RUN apk add --no-cache python3 yt-dlp ca-certificates
+RUN apk add --no-cache python3 ca-certificates
 
 WORKDIR /app
 

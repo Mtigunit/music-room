@@ -5,7 +5,8 @@ const mockYoutubedl = jest.fn();
 (global as any).mockYoutubedl = mockYoutubedl;
 
 jest.mock('youtube-dl-exec', () => ({
-  create: jest.fn(() => (global as any).mockYoutubedl),
+  __esModule: true,
+  default: (global as any).mockYoutubedl,
 }));
 
 import { PlaybackService } from './playback.service';
