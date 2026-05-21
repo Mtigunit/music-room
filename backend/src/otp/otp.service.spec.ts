@@ -18,6 +18,7 @@ describe('OtpService', () => {
       incr: jest.fn(),
       exists: jest.fn(),
       expire: jest.fn(),
+      ttl: jest.fn().mockResolvedValue(-1),
     };
 
     const module: TestingModule = await Test.createTestingModule({

@@ -47,8 +47,9 @@ export class OtpService {
     const rateLimitKey = `otp:rate:${purpose}:${identifier}`;
     const redis = this.redisService.getClient();
     const currentCount = await redis.incr(rateLimitKey);
+    const ttl = await redis.ttl(rateLimitKey);
 
-    if (currentCount === 1) {
+    if (ttl === -1) {
       await redis.expire(rateLimitKey, RATE_LIMIT_WINDOW_SECONDS);
     }
 
