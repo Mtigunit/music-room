@@ -18,6 +18,7 @@ describe('OtpService', () => {
       incr: jest.fn(),
       exists: jest.fn(),
       expire: jest.fn(),
+      ttl: jest.fn().mockResolvedValue(-1),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -56,8 +57,7 @@ describe('OtpService', () => {
 
   describe('sendOtp', () => {
     it('should generate and send an OTP', async () => {
-      redisClient.get.mockResolvedValue(null);
-      redisClient.exists.mockResolvedValue(0);
+      redisClient.incr.mockResolvedValue(1);
 
       await otpService.sendOtp('test@example.com');
 
@@ -81,8 +81,7 @@ describe('OtpService', () => {
     });
 
     it('should support email_update with targetEmail and data', async () => {
-      redisClient.get.mockResolvedValue(null);
-      redisClient.exists.mockResolvedValue(0);
+      redisClient.incr.mockResolvedValue(1);
 
       await otpService.sendOtp('user-id', 'email_update', 'new@email.com', {
         newEmail: 'new@email.com',
@@ -108,7 +107,7 @@ describe('OtpService', () => {
     });
 
     it('should throw BadRequestException when rate limit is exceeded', async () => {
-      redisClient.get.mockResolvedValue('5'); // Already at max
+      redisClient.incr.mockResolvedValue(6); // Max is 5, so 6 is exceeded
 
       await expect(otpService.sendOtp('test@example.com')).rejects.toThrow(
         BadRequestException,
@@ -121,9 +120,9 @@ describe('OtpService', () => {
   describe('verifyOtp', () => {
     it('should verify OTP and return data if present', async () => {
       redisClient.get
-        .mockResolvedValueOnce('0') // attempts
         .mockResolvedValueOnce('123456') // stored code
         .mockResolvedValueOnce(JSON.stringify({ foo: 'bar' })); // stored data
+      redisClient.incr.mockResolvedValue(1); // 1st attempt
 
       const result = await otpService.verifyOtp(
         'id123',
@@ -143,14 +142,27 @@ describe('OtpService', () => {
     });
 
     it('should throw BadRequestException for wrong code', async () => {
-      redisClient.get
-        .mockResolvedValueOnce('0') // attempts
-        .mockResolvedValueOnce('654321'); // stored code
+      redisClient.get.mockResolvedValueOnce('654321'); // stored code
+      redisClient.incr.mockResolvedValue(1); // 1st attempt
 
       await expect(otpService.verifyOtp('id123', '123456')).rejects.toThrow(
         BadRequestException,
       );
       expect(redisClient.incr).toHaveBeenCalled();
+    });
+
+    it('should throw BadRequestException when brute-force limit is exceeded', async () => {
+      redisClient.get.mockResolvedValueOnce('123456'); // stored code
+      redisClient.incr.mockResolvedValue(6); // 6th attempt (max is 5)
+
+      await expect(otpService.verifyOtp('id123', '123456')).rejects.toThrow(
+        BadRequestException,
+      );
+      expect(redisClient.del).toHaveBeenCalledWith(
+        'otp:email_verification:id123',
+        'otp:attempts:email_verification:id123',
+        'otp:data:email_verification:id123',
+      );
     });
   });
 });

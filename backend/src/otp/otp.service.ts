@@ -44,12 +44,16 @@ export class OtpService {
     targetEmail?: string,
     data?: OtpData,
   ): Promise<void> {
-    // Rate limiting
     const rateLimitKey = `otp:rate:${purpose}:${identifier}`;
     const redis = this.redisService.getClient();
-    const currentCount = await redis.get(rateLimitKey);
+    const currentCount = await redis.incr(rateLimitKey);
+    const ttl = await redis.ttl(rateLimitKey);
 
-    if (currentCount && parseInt(currentCount, 10) >= RATE_LIMIT_MAX) {
+    if (ttl === -1) {
+      await redis.expire(rateLimitKey, RATE_LIMIT_WINDOW_SECONDS);
+    }
+
+    if (currentCount > RATE_LIMIT_MAX) {
       throw new BadRequestException(
         'Too many OTP requests. Please try again later.',
       );
@@ -70,14 +74,6 @@ export class OtpService {
       await redis.set(dataKey, JSON.stringify(data), 'EX', OTP_TTL_SECONDS);
     }
 
-    // Increment rate limit counter
-    const exists = await redis.exists(rateLimitKey);
-    await redis.incr(rateLimitKey);
-
-    if (!exists) {
-      await redis.expire(rateLimitKey, RATE_LIMIT_WINDOW_SECONDS);
-    }
-
     // Send email
     const emailToUse = targetEmail || identifier;
     await this.mailService.sendOtpEmail(emailToUse, code, purpose);
@@ -96,10 +92,16 @@ export class OtpService {
     const attemptsKey = `otp:attempts:${purpose}:${identifier}`;
     const dataKey = `otp:data:${purpose}:${identifier}`;
 
-    // Check brute-force attempts
-    const attempts = await redis.get(attemptsKey);
+    const storedCode = await redis.get(otpKey);
 
-    if (attempts && parseInt(attempts, 10) >= MAX_VERIFY_ATTEMPTS) {
+    if (!storedCode) {
+      throw new BadRequestException('OTP expired or not found');
+    }
+
+    // Increment attempts atomically
+    const attempts = await redis.incr(attemptsKey);
+
+    if (attempts > MAX_VERIFY_ATTEMPTS) {
       // Delete the OTP — force user to request a new one
       await redis.del(otpKey, attemptsKey, dataKey);
       throw new BadRequestException(
@@ -107,15 +109,8 @@ export class OtpService {
       );
     }
 
-    const storedCode = await redis.get(otpKey);
-
-    if (!storedCode) {
-      throw new BadRequestException('OTP expired or not found');
-    }
-
     // Timing-safe comparison to prevent timing attacks
     if (!this.safeCompare(code, storedCode)) {
-      await redis.incr(attemptsKey);
       throw new BadRequestException('Invalid OTP');
     }
 
