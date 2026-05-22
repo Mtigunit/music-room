@@ -42,8 +42,8 @@ final class GoogleAuthService {
 
       isInitialized = true;
       completer.complete();
-    } catch (error, stackTrace) {
-      completer.completeError(error, stackTrace);
+    } catch (error) {
+      completer.complete();
       rethrow;
     } finally {
       if (identical(_initializing, completer)) {
