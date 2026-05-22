@@ -81,17 +81,26 @@ final class GoogleAuthService {
     }
   }
 
-  Future<LoginResponse> authenticateWeb(
-    String idToken,
-  ) async {
-    try {
-      return await _exchangeTokenWithBackend(idToken);
-    } on Object catch (e) {
-      if (e is GoogleAuthException) {
-        rethrow;
-      }
+  Future<LoginResponse> authenticateWeb(String idToken) async {
+    final token = idToken.trim();
 
-      throw GoogleAuthException(e.toString());
+    if (token.isEmpty) {
+      throw ArgumentError.value(
+        idToken,
+        'idToken',
+        'must not be empty or whitespace',
+      );
+    }
+
+    try {
+      return await _exchangeTokenWithBackend(token);
+    } on GoogleAuthException {
+      rethrow;
+    } catch (e, stackTrace) {
+      Error.throwWithStackTrace(
+        GoogleAuthException('Authentication failed: $e'),
+        stackTrace,
+      );
     }
   }
 
