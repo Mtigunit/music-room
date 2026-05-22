@@ -77,13 +77,18 @@ class AuthRepositoryImpl implements AuthRepository {
     try {
       final response = await _googleAuthService.authenticateMobile();
 
-      await _tokenStorage.saveToken(
-        response.accessToken,
-      );
+      try {
+        await _tokenStorage.saveToken(
+          response.accessToken,
+        );
 
-      await _tokenStorage.saveUserProfile(
-        jsonEncode(response.user.toJson()),
-      );
+        await _tokenStorage.saveUserProfile(
+          jsonEncode(response.user.toJson()),
+        );
+      } on Object {
+        await _tokenStorage.clearAll();
+        rethrow;
+      }
 
       return (response, null);
     } on GoogleAuthException catch (e) {
@@ -110,13 +115,18 @@ class AuthRepositoryImpl implements AuthRepository {
         idToken,
       );
 
-      await _tokenStorage.saveToken(
-        response.accessToken,
-      );
+      try {
+        await _tokenStorage.saveToken(
+          response.accessToken,
+        );
 
-      await _tokenStorage.saveUserProfile(
-        jsonEncode(response.user.toJson()),
-      );
+        await _tokenStorage.saveUserProfile(
+          jsonEncode(response.user.toJson()),
+        );
+      } on Object {
+        await _tokenStorage.clearAll();
+        rethrow;
+      }
 
       return (response, null);
     } on GoogleAuthException catch (e) {
