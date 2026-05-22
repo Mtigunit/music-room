@@ -17,7 +17,7 @@ class GoogleWebSignInButton extends StatefulWidget {
 }
 
 class _GoogleWebSignInButtonState extends State<GoogleWebSignInButton> {
-  bool _isReady = false;
+  bool _isInitializing = false;
   bool _hasInitError = false;
   bool _isSubmitting = false;
   StreamSubscription<GoogleSignInAuthenticationEvent>? _subscription;
@@ -31,6 +31,16 @@ class _GoogleWebSignInButtonState extends State<GoogleWebSignInButton> {
   Future<void> _initAndListen() async {
     final googleAuthService = InjectionContainer().googleAuthService;
     StreamSubscription<GoogleSignInAuthenticationEvent>? subscription;
+
+    if (mounted) {
+      setState(() {
+        _isInitializing = true;
+        _hasInitError = false;
+      });
+    }
+
+    await _subscription?.cancel();
+    _subscription = null;
 
     try {
       await googleAuthService.initialize();
@@ -54,8 +64,8 @@ class _GoogleWebSignInButtonState extends State<GoogleWebSignInButton> {
 
       if (mounted) {
         setState(() {
-          _isReady = true;
           _hasInitError = false;
+          _isInitializing = false;
         });
       }
     } on Exception catch (error, stackTrace) {
@@ -68,8 +78,8 @@ class _GoogleWebSignInButtonState extends State<GoogleWebSignInButton> {
 
       if (mounted) {
         setState(() {
-          _isReady = false;
           _hasInitError = true;
+          _isInitializing = false;
         });
       }
     }
@@ -115,13 +125,12 @@ class _GoogleWebSignInButtonState extends State<GoogleWebSignInButton> {
 
     final textColor = isDarkMode ? Colors.white : Colors.black87;
 
-    if (!_isReady && !_hasInitError) {
-      return const SizedBox(
-        height: 56,
-        child: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
+    if (_isInitializing) {
+      return _buildLoadingState();
+    }
+
+    if (_hasInitError) {
+      return _buildErrorState();
     }
 
     return Center(
@@ -203,6 +212,77 @@ class _GoogleWebSignInButtonState extends State<GoogleWebSignInButton> {
                         ),
                       ),
                     ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildLoadingState() {
+    return const SizedBox(
+      height: 56,
+      child: Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+  }
+
+  Widget _buildErrorState() {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
+    final borderColor = isDarkMode
+        ? Colors.redAccent.shade100
+        : Colors.red.shade300;
+    final backgroundColor = isDarkMode
+        ? const Color(0xFF2A1717)
+        : const Color(0xFFFFF6F6);
+    final textColor = isDarkMode
+        ? Colors.redAccent.shade100
+        : Colors.red.shade700;
+
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(
+          maxWidth: 420,
+        ),
+        child: SizedBox(
+          width: double.infinity,
+          child: Material(
+            color: backgroundColor,
+            borderRadius: BorderRadius.circular(14),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              decoration: BoxDecoration(
+                color: backgroundColor,
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(
+                  color: borderColor,
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.error_outline_rounded,
+                    color: textColor,
+                    size: 22,
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(
+                      'Google sign-in unavailable',
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w500,
+                        color: textColor,
+                      ),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: _initAndListen,
+                    child: const Text('Retry'),
+                  ),
                 ],
               ),
             ),
