@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
@@ -11,10 +10,10 @@ import 'package:music_room/core/widgets/app_snackbar.dart';
 import 'package:music_room/core/widgets/form_input_decoration.dart';
 import 'package:music_room/core/widgets/form_section_label.dart';
 import 'package:music_room/core/widgets/genre_selection_grid.dart';
+import 'package:music_room/core/widgets/responsive_layout.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
 import 'package:music_room/features/auth/presentation/state/auth_state.dart';
-import 'package:music_room/features/auth/presentation/widgets/auth_page_layout.dart';
 import 'package:music_room/features/auth/presentation/widgets/auth_screen_header.dart';
 import 'package:music_room/features/events/presentation/widgets/selection_card.dart';
 import 'package:music_room/features/playlist/domain/types/playlist_tags.dart';
@@ -38,6 +37,8 @@ class _PostRegistrationProfilePageState
   final Set<String> _selectedGenres = <String>{};
   String _selectedTheme = 'SYSTEM';
   XFile? _pickedAvatar;
+  Uint8List? _pickedAvatarBytes;
+  String? _pickedAvatarName;
   String? _avatarUrl;
   bool _isUploadingAvatar = false;
   bool _isSaving = false;
@@ -67,194 +68,196 @@ class _PostRegistrationProfilePageState
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    return ResponsiveLayout(
+      builder: (context, screenSize) {
+        final layout = _ProfileLayout(screenSize);
+        final theme = Theme.of(context);
+        final colorScheme = theme.colorScheme;
 
-    return Scaffold(
-      body: SafeArea(
-        child: AuthPageLayout(
-          showBrandPanel: false,
-          child: Form(
-            key: _formKey,
-            child: BlocListener<AuthBloc, AuthState>(
-              listener: (context, state) {
-                _prefillUsernameFromAuthState(state);
-              },
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  BlocBuilder<AuthBloc, AuthState>(
-                    builder: (context, state) {
-                      final username = _usernameFromAuthState(state);
-                      return Column(
+        return Scaffold(
+          body: SafeArea(
+            child: Form(
+              key: _formKey,
+              child: BlocListener<AuthBloc, AuthState>(
+                listener: (context, state) {
+                  _prefillUsernameFromAuthState(state);
+                },
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: layout.horizontalPadding,
+                    vertical: layout.verticalPadding,
+                  ),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: layout.contentMaxWidth,
+                      ),
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const AuthScreenHeader(
-                            title: 'Complete your profile',
-                            subtitle:
-                                'Add a few details to personalize '
-                                'your experience.',
-                          ),
-                          if (username != null) ...[
-                            const SizedBox(height: 8),
-                            Text(
-                              'Welcome, @$username',
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: colorScheme.primary,
-                              ),
-                            ),
-                          ],
+                          _buildHeader(context, layout, theme, colorScheme),
+                          SizedBox(height: layout.headerSpacing),
+                          _buildResponsiveContent(context, layout, theme),
                         ],
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 24),
-                  _buildProfileCard(context),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _usernameController,
-                    textInputAction: TextInputAction.next,
-                    decoration: FormInputDecoration.build(
-                      theme,
-                      labelText: null,
-                      hintText: 'Username',
-                    ),
-                    validator: _validateUsername,
-                  ),
-                  const SizedBox(height: 12),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _bioController,
-                    maxLines: 4,
-                    maxLength: 150,
-                    decoration: FormInputDecoration.build(
-                      theme,
-                      labelText: null,
-                      hintText: 'Tell people what you are into',
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _locationController,
-                    decoration: FormInputDecoration.build(
-                      theme,
-                      labelText: null,
-                      hintText: 'City or region',
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  const FormSectionLabel(text: 'Favorite genres'),
-                  const SizedBox(height: 10),
-                  GenreSelectionGrid(
-                    genres: PlaylistTag.all
-                        .map((tag) => tag.displayLabel)
-                        .toList(growable: false),
-                    selectedGenres: _selectedGenres
-                        .map(
-                          (value) => PlaylistTag.fromValue(value)?.displayLabel,
-                        )
-                        .whereType<String>()
-                        .toList(growable: false),
-                    maxSelection: 4,
-                    onGenreTapped: _toggleGenre,
-                  ),
-                  const SizedBox(height: 20),
-                  const FormSectionLabel(text: 'Theme preference'),
-                  const SizedBox(height: 10),
-                  _ThemeOptionCard(
-                    title: 'System',
-                    subtitle: 'Match the device appearance.',
-                    icon: Icons.brightness_auto_rounded,
-                    isSelected: _selectedTheme == 'SYSTEM',
-                    onTap: () => setState(() => _selectedTheme = 'SYSTEM'),
-                  ),
-                  const SizedBox(height: 10),
-                  _ThemeOptionCard(
-                    title: 'Light',
-                    subtitle: 'Use the lighter visual mode.',
-                    icon: Icons.light_mode_rounded,
-                    isSelected: _selectedTheme == 'LIGHT',
-                    onTap: () => setState(() => _selectedTheme = 'LIGHT'),
-                  ),
-                  const SizedBox(height: 10),
-                  _ThemeOptionCard(
-                    title: 'Dark',
-                    subtitle: 'Use the darker visual mode.',
-                    icon: Icons.dark_mode_rounded,
-                    isSelected: _selectedTheme == 'DARK',
-                    onTap: () => setState(() => _selectedTheme = 'DARK'),
-                  ),
-                  const SizedBox(height: 24),
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final isCompact = constraints.maxWidth < 520;
-
-                      if (isCompact) {
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            AppButton(
-                              onPressed: _isBusy ? null : _saveProfile,
-                              isLoading: _isSaving,
-                              label: 'Save and continue',
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                            ),
-                            const SizedBox(height: 12),
-                            AppButton(
-                              onPressed: _isBusy ? null : _skip,
-                              variant: AppButtonVariant.text,
-                              label: 'Skip for now',
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                            ),
-                          ],
-                        );
-                      }
-
-                      return Row(
-                        children: [
-                          Expanded(
-                            child: AppButton(
-                              onPressed: _isBusy ? null : _saveProfile,
-                              isLoading: _isSaving,
-                              label: 'Save and continue',
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: AppButton(
-                              onPressed: _isBusy ? null : _skip,
-                              variant: AppButtonVariant.outlined,
-                              label: 'Skip for now',
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ],
+                ),
               ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
-  Widget _buildProfileCard(BuildContext context) {
+  Widget _buildHeader(
+    BuildContext context,
+    _ProfileLayout layout,
+    ThemeData theme,
+    ColorScheme colorScheme,
+  ) {
+    return BlocBuilder<AuthBloc, AuthState>(
+      builder: (context, state) {
+        final username = _usernameFromAuthState(state);
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            AuthScreenHeader(
+              title: 'Complete your profile',
+              subtitle: 'Add a few details to personalize your experience.',
+              titleFontSize: layout.titleFontSize,
+              subtitleTopSpacing: layout.welcomeSpacing,
+              bottomSpacing: 0,
+            ),
+            if (username != null) ...[
+              SizedBox(height: layout.welcomeSpacing),
+              Text(
+                'Welcome, @$username',
+                style: theme.textTheme.titleMedium?.copyWith(
+                  fontSize: layout.welcomeFontSize,
+                  fontWeight: FontWeight.w700,
+                  color: colorScheme.primary,
+                ),
+              ),
+            ],
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildResponsiveContent(
+    BuildContext context,
+    _ProfileLayout layout,
+    ThemeData theme,
+  ) {
+    return switch (layout.screenSize) {
+      ScreenSize.compact => _buildCompactContent(context, layout, theme),
+      ScreenSize.medium => _buildCompactContent(context, layout, theme),
+      ScreenSize.expanded => _buildExpandedContent(context, layout, theme),
+    };
+  }
+
+  Widget _buildCompactContent(
+    BuildContext context,
+    _ProfileLayout layout,
+    ThemeData theme,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildProfileCard(context, layout),
+        SizedBox(height: layout.sectionGap),
+        _buildUsernameField(theme),
+        SizedBox(height: layout.fieldGap),
+        _buildBioField(theme),
+        SizedBox(height: layout.fieldGap),
+        _buildLocationField(theme),
+        SizedBox(height: layout.sectionGap),
+        _buildGenresSection(layout),
+        SizedBox(height: layout.sectionGap),
+        _buildThemeSection(layout),
+        SizedBox(height: layout.sectionGap),
+        _buildActions(layout),
+      ],
+    );
+  }
+
+  Widget _buildExpandedContent(
+    BuildContext context,
+    _ProfileLayout layout,
+    ThemeData theme,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              flex: 4,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildProfileCard(context, layout),
+                  SizedBox(height: layout.sectionGap),
+                  _buildThemeSection(layout),
+                ],
+              ),
+            ),
+            SizedBox(width: layout.columnsGap),
+            Expanded(
+              flex: 8,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: _buildUsernameField(theme)),
+                      SizedBox(width: layout.fieldGap),
+                      Expanded(child: _buildLocationField(theme)),
+                    ],
+                  ),
+                  SizedBox(height: layout.fieldGap),
+                  _buildBioField(theme),
+                  SizedBox(height: layout.sectionGap),
+                  _buildGenresSection(layout),
+                ],
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: layout.sectionGap),
+        Align(
+          alignment: Alignment.centerRight,
+          child: SizedBox(
+            width: layout.actionsMaxWidth,
+            child: _buildActions(layout),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildProfileCard(
+    BuildContext context,
+    _ProfileLayout layout,
+  ) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
     return InkWell(
       onTap: _isBusy ? null : _pickAvatar,
-      borderRadius: BorderRadius.circular(20),
+      borderRadius: BorderRadius.circular(layout.cardRadius),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(layout.cardPadding),
         decoration: BoxDecoration(
           color: colorScheme.surface,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(layout.cardRadius),
           border: Border.all(
             color: colorScheme.onSurface.withValues(alpha: 0.1),
           ),
@@ -263,28 +266,30 @@ class _PostRegistrationProfilePageState
           children: [
             Builder(
               builder: (context) {
-                final avatarImage = _avatarUrl != null
-                    ? NetworkImage(_avatarUrl!) as ImageProvider<Object>?
-                    : (_pickedAvatar != null
-                          ? (kIsWeb
-                                    ? NetworkImage(_pickedAvatar!.path)
-                                    : FileImage(File(_pickedAvatar!.path)))
-                                as ImageProvider<Object>?
-                          : null);
+                final ImageProvider<Object>? avatarImage;
+
+                if (_avatarUrl != null) {
+                  avatarImage = NetworkImage(_avatarUrl!);
+                } else if (_pickedAvatarBytes != null) {
+                  avatarImage = MemoryImage(_pickedAvatarBytes!);
+                } else {
+                  avatarImage = null;
+                }
 
                 return CircleAvatar(
-                  radius: 28,
+                  radius: layout.avatarRadius,
                   backgroundColor: colorScheme.primary.withValues(alpha: 0.12),
                   backgroundImage: avatarImage,
                   child: avatarImage == null
                       ? Icon(
                           Icons.add_a_photo_rounded,
                           color: colorScheme.primary,
+                          size: layout.avatarIconSize,
                         )
                       : (_isUploadingAvatar
                             ? SizedBox(
-                                width: 20,
-                                height: 20,
+                                width: layout.avatarLoaderSize,
+                                height: layout.avatarLoaderSize,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2.2,
                                   valueColor: AlwaysStoppedAnimation<Color>(
@@ -296,7 +301,7 @@ class _PostRegistrationProfilePageState
                 );
               },
             ),
-            const SizedBox(width: 14),
+            SizedBox(width: layout.cardInnerGap),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -305,30 +310,176 @@ class _PostRegistrationProfilePageState
                     'Profile photo',
                     style: theme.textTheme.titleMedium?.copyWith(
                       fontWeight: FontWeight.w700,
+                      fontSize: layout.sectionTitleFontSize,
                     ),
                   ),
-                  const SizedBox(height: 4),
+                  SizedBox(height: layout.cardCopyGap),
                   Text(
                     _avatarUrl != null
                         ? 'Photo uploaded'
-                        : (_pickedAvatar == null
+                        : (_pickedAvatarName == null
                               ? 'Tap to add a photo later from your profile.'
-                              : 'Photo selected: ${_pickedAvatar!.name}'),
+                              : 'Photo selected: ${_pickedAvatarName!}'),
                     style: theme.textTheme.bodyMedium?.copyWith(
                       color: colorScheme.onSurfaceVariant,
+                      fontSize: layout.bodyFontSize,
                     ),
                   ),
                 ],
               ),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: layout.cardInnerGap),
             Icon(
               Icons.chevron_right_rounded,
               color: colorScheme.onSurfaceVariant,
+              size: layout.chevronSize,
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildUsernameField(ThemeData theme) {
+    return TextFormField(
+      controller: _usernameController,
+      textInputAction: TextInputAction.next,
+      decoration: FormInputDecoration.build(
+        theme,
+        labelText: null,
+        hintText: 'Username',
+      ),
+      validator: _validateUsername,
+    );
+  }
+
+  Widget _buildBioField(ThemeData theme) {
+    return TextFormField(
+      controller: _bioController,
+      maxLines: 4,
+      maxLength: 150,
+      decoration: FormInputDecoration.build(
+        theme,
+        labelText: null,
+        hintText: 'Tell people what you are into',
+      ),
+    );
+  }
+
+  Widget _buildLocationField(ThemeData theme) {
+    return TextFormField(
+      controller: _locationController,
+      decoration: FormInputDecoration.build(
+        theme,
+        labelText: null,
+        hintText: 'City or region',
+      ),
+    );
+  }
+
+  Widget _buildGenresSection(_ProfileLayout layout) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const FormSectionLabel(text: 'Favorite genres'),
+        SizedBox(height: layout.sectionLabelGap),
+        GenreSelectionGrid(
+          genres: PlaylistTag.all
+              .map((tag) => tag.displayLabel)
+              .toList(growable: false),
+          selectedGenres: _selectedGenres
+              .map(
+                (value) => PlaylistTag.fromValue(value)?.displayLabel,
+              )
+              .whereType<String>()
+              .toList(growable: false),
+          maxSelection: 4,
+          spacing: layout.genreSpacing,
+          runSpacing: layout.genreRunSpacing,
+          onGenreTapped: _toggleGenre,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildThemeSection(_ProfileLayout layout) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const FormSectionLabel(text: 'Theme preference'),
+        SizedBox(height: layout.sectionLabelGap),
+        _ThemeOptionCard(
+          title: 'System',
+          subtitle: 'Match the device appearance.',
+          icon: Icons.brightness_auto_rounded,
+          isSelected: _selectedTheme == 'SYSTEM',
+          onTap: () => setState(() => _selectedTheme = 'SYSTEM'),
+        ),
+        SizedBox(height: layout.themeOptionGap),
+        _ThemeOptionCard(
+          title: 'Light',
+          subtitle: 'Use the lighter visual mode.',
+          icon: Icons.light_mode_rounded,
+          isSelected: _selectedTheme == 'LIGHT',
+          onTap: () => setState(() => _selectedTheme = 'LIGHT'),
+        ),
+        SizedBox(height: layout.themeOptionGap),
+        _ThemeOptionCard(
+          title: 'Dark',
+          subtitle: 'Use the darker visual mode.',
+          icon: Icons.dark_mode_rounded,
+          isSelected: _selectedTheme == 'DARK',
+          onTap: () => setState(() => _selectedTheme = 'DARK'),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActions(_ProfileLayout layout) {
+    final isCompact = layout.screenSize == ScreenSize.compact;
+
+    if (isCompact) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AppButton(
+            onPressed: _isBusy ? null : _saveProfile,
+            isLoading: _isSaving,
+            label: 'Save and continue',
+            padding: const EdgeInsets.symmetric(vertical: 14),
+          ),
+          SizedBox(height: layout.actionGap),
+          AppButton(
+            onPressed: _isBusy ? null : _skip,
+            variant: AppButtonVariant.outlined,
+            label: 'Skip for now',
+            padding: const EdgeInsets.symmetric(vertical: 14),
+          ),
+        ],
+      );
+    }
+
+    return Row(
+      children: [
+        Expanded(
+          child: AppButton(
+            onPressed: _isBusy ? null : _saveProfile,
+            isLoading: _isSaving,
+            label: 'Save and continue',
+            padding: const EdgeInsets.symmetric(vertical: 14),
+          ),
+        ),
+        SizedBox(width: layout.actionGap),
+        Expanded(
+          child: AppButton(
+            onPressed: _isBusy ? null : _skip,
+            variant: AppButtonVariant.outlined,
+
+            label: 'Skip for now',
+            padding: const EdgeInsets.symmetric(vertical: 14),
+          ),
+        ),
+      ],
     );
   }
 
@@ -348,15 +499,19 @@ class _PostRegistrationProfilePageState
       return;
     }
 
+    // Read bytes immediately so we can show a preview without importing dart:io
+    final bytes = await avatar.readAsBytes();
+    final avatarName = avatar.name;
+
     setState(() {
       _pickedAvatar = avatar;
+      _pickedAvatarBytes = bytes;
+      _pickedAvatarName = avatarName;
       _isUploadingAvatar = true;
       _avatarUrl = null;
     });
 
     try {
-      final bytes = await avatar.readAsBytes();
-      final avatarName = avatar.name;
       final profileRepository = InjectionContainer().profileRepository;
       final updated = await profileRepository.uploadMyAvatar(
         bytes,
@@ -368,6 +523,8 @@ class _PostRegistrationProfilePageState
       setState(() {
         _avatarUrl = updated.profile.avatarUrl;
         _pickedAvatar = null;
+        _pickedAvatarBytes = null;
+        _pickedAvatarName = null;
         _isUploadingAvatar = false;
       });
 
@@ -437,7 +594,12 @@ class _PostRegistrationProfilePageState
         await profileRepository.updateMyProfile(request);
       }
 
-      if (_pickedAvatar != null) {
+      if (_pickedAvatarBytes != null) {
+        await profileRepository.uploadMyAvatar(
+          _pickedAvatarBytes!,
+          _pickedAvatarName ?? 'avatar',
+        );
+      } else if (_pickedAvatar != null) {
         final bytes = await _pickedAvatar!.readAsBytes();
         await profileRepository.uploadMyAvatar(
           bytes,
@@ -568,6 +730,176 @@ class _PostRegistrationProfilePageState
 
     return null;
   }
+}
+
+class _ProfileLayout {
+  const _ProfileLayout(this.screenSize);
+
+  final ScreenSize screenSize;
+
+  bool get isCompact => screenSize == ScreenSize.compact;
+
+  double get horizontalPadding => switch (screenSize) {
+    ScreenSize.compact => 16,
+    ScreenSize.medium => 24,
+    ScreenSize.expanded => 32,
+  };
+
+  double get verticalPadding => switch (screenSize) {
+    ScreenSize.compact => 16,
+    ScreenSize.medium => 24,
+    ScreenSize.expanded => 28,
+  };
+
+  double get contentMaxWidth => switch (screenSize) {
+    ScreenSize.compact => double.infinity,
+    ScreenSize.medium => 980,
+    ScreenSize.expanded => 1240,
+  };
+
+  double get headerSpacing => switch (screenSize) {
+    ScreenSize.compact => 20,
+    ScreenSize.medium => 24,
+    ScreenSize.expanded => 28,
+  };
+
+  double get sectionGap => switch (screenSize) {
+    ScreenSize.compact => 16,
+    ScreenSize.medium => 20,
+    ScreenSize.expanded => 24,
+  };
+
+  double get fieldGap => switch (screenSize) {
+    ScreenSize.compact => 12,
+    ScreenSize.medium => 14,
+    ScreenSize.expanded => 16,
+  };
+
+  double get columnsGap => switch (screenSize) {
+    ScreenSize.compact => 0,
+    ScreenSize.medium => 24,
+    ScreenSize.expanded => 32,
+  };
+
+  double get actionGap => switch (screenSize) {
+    ScreenSize.compact => 12,
+    ScreenSize.medium => 14,
+    ScreenSize.expanded => 16,
+  };
+
+  double get sectionLabelGap => switch (screenSize) {
+    ScreenSize.compact => 10,
+    ScreenSize.medium => 12,
+    ScreenSize.expanded => 12,
+  };
+
+  double get themeOptionGap => switch (screenSize) {
+    ScreenSize.compact => 10,
+    ScreenSize.medium => 12,
+    ScreenSize.expanded => 12,
+  };
+
+  double get genreSpacing => switch (screenSize) {
+    ScreenSize.compact => 10,
+    ScreenSize.medium => 12,
+    ScreenSize.expanded => 14,
+  };
+
+  double get genreRunSpacing => switch (screenSize) {
+    ScreenSize.compact => 10,
+    ScreenSize.medium => 12,
+    ScreenSize.expanded => 14,
+  };
+
+  double get titleFontSize => switch (screenSize) {
+    ScreenSize.compact => 28,
+    ScreenSize.medium => 32,
+    ScreenSize.expanded => 36,
+  };
+
+  double get subtitleFontSize => switch (screenSize) {
+    ScreenSize.compact => 16,
+    ScreenSize.medium => 17,
+    ScreenSize.expanded => 18,
+  };
+
+  double get welcomeSpacing => switch (screenSize) {
+    ScreenSize.compact => 8,
+    ScreenSize.medium => 10,
+    ScreenSize.expanded => 12,
+  };
+
+  double get welcomeFontSize => switch (screenSize) {
+    ScreenSize.compact => 16,
+    ScreenSize.medium => 17,
+    ScreenSize.expanded => 18,
+  };
+
+  double get cardPadding => switch (screenSize) {
+    ScreenSize.compact => 16,
+    ScreenSize.medium => 18,
+    ScreenSize.expanded => 20,
+  };
+
+  double get cardRadius => switch (screenSize) {
+    ScreenSize.compact => 20,
+    ScreenSize.medium => 20,
+    ScreenSize.expanded => 22,
+  };
+
+  double get cardInnerGap => switch (screenSize) {
+    ScreenSize.compact => 12,
+    ScreenSize.medium => 14,
+    ScreenSize.expanded => 16,
+  };
+
+  double get cardCopyGap => switch (screenSize) {
+    ScreenSize.compact => 4,
+    ScreenSize.medium => 4,
+    ScreenSize.expanded => 6,
+  };
+
+  double get bodyFontSize => switch (screenSize) {
+    ScreenSize.compact => 14,
+    ScreenSize.medium => 15,
+    ScreenSize.expanded => 15,
+  };
+
+  double get sectionTitleFontSize => switch (screenSize) {
+    ScreenSize.compact => 16,
+    ScreenSize.medium => 16,
+    ScreenSize.expanded => 17,
+  };
+
+  double get avatarRadius => switch (screenSize) {
+    ScreenSize.compact => 28,
+    ScreenSize.medium => 30,
+    ScreenSize.expanded => 32,
+  };
+
+  double get avatarIconSize => switch (screenSize) {
+    ScreenSize.compact => 24,
+    ScreenSize.medium => 24,
+    ScreenSize.expanded => 26,
+  };
+
+  double get avatarLoaderSize => switch (screenSize) {
+    ScreenSize.compact => 20,
+    ScreenSize.medium => 22,
+    ScreenSize.expanded => 22,
+  };
+
+  double get chevronSize => switch (screenSize) {
+    ScreenSize.compact => 22,
+    ScreenSize.medium => 22,
+    ScreenSize.expanded => 24,
+  };
+
+  double get actionsMaxWidth => switch (screenSize) {
+    ScreenSize.compact => double.infinity,
+    ScreenSize.medium => 520,
+    ScreenSize.expanded => 560,
+  };
 }
 
 class _ThemeOptionCard extends StatelessWidget {
