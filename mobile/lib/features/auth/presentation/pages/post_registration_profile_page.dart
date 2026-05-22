@@ -15,6 +15,7 @@ import 'package:music_room/features/auth/presentation/widgets/auth_screen_header
 import 'package:music_room/features/auth/presentation/widgets/post_registration_profile_actions.dart';
 import 'package:music_room/features/auth/presentation/widgets/post_registration_profile_card.dart';
 import 'package:music_room/features/auth/presentation/widgets/post_registration_profile_form_sections.dart';
+import 'package:music_room/features/auth/presentation/widgets/post_registration_profile_theme_section.dart';
 import 'package:music_room/features/playlist/domain/types/playlist_tags.dart';
 import 'package:music_room/features/profile/domain/entities/profile_entity.dart';
 import 'package:music_room/routes/route_names.dart';
@@ -150,12 +151,17 @@ class _PostRegistrationProfilePageState
                                   bioController: _bioController,
                                   locationController: _locationController,
                                   selectedGenres: _selectedGenres,
-                                  selectedTheme: _selectedTheme,
                                   onGenreTapped: _toggleGenre,
+                                  usernameValidator: _validateUsername,
+                                ),
+                                SizedBox(height: layout.sectionGap),
+                                PostRegistrationProfileThemeSection(
+                                  layout: layout,
+                                  theme: theme,
+                                  selectedTheme: _selectedTheme,
                                   onThemeChanged: (value) {
                                     setState(() => _selectedTheme = value);
                                   },
-                                  usernameValidator: _validateUsername,
                                 ),
                                 SizedBox(height: layout.sectionGap),
                                 ProfileActionsWidget(
@@ -176,14 +182,33 @@ class _PostRegistrationProfilePageState
                                   children: [
                                     Expanded(
                                       flex: 4,
-                                      child: ProfileCardWidget(
-                                        layout: layout,
-                                        theme: theme,
-                                        avatarUrl: _avatarUrl,
-                                        pickedAvatarBytes: _pickedAvatarBytes,
-                                        pickedAvatarName: _pickedAvatarName,
-                                        isUploadingAvatar: _isUploadingAvatar,
-                                        onTap: _isBusy ? null : _pickAvatar,
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          ProfileCardWidget(
+                                            layout: layout,
+                                            theme: theme,
+                                            avatarUrl: _avatarUrl,
+                                            pickedAvatarBytes:
+                                                _pickedAvatarBytes,
+                                            pickedAvatarName: _pickedAvatarName,
+                                            isUploadingAvatar:
+                                                _isUploadingAvatar,
+                                            onTap: _isBusy ? null : _pickAvatar,
+                                          ),
+                                          SizedBox(height: layout.sectionGap),
+                                          PostRegistrationProfileThemeSection(
+                                            layout: layout,
+                                            theme: theme,
+                                            selectedTheme: _selectedTheme,
+                                            onThemeChanged: (value) {
+                                              setState(
+                                                () => _selectedTheme = value,
+                                              );
+                                            },
+                                          ),
+                                        ],
                                       ),
                                     ),
                                     SizedBox(width: layout.columnsGap),
@@ -196,13 +221,7 @@ class _PostRegistrationProfilePageState
                                         bioController: _bioController,
                                         locationController: _locationController,
                                         selectedGenres: _selectedGenres,
-                                        selectedTheme: _selectedTheme,
                                         onGenreTapped: _toggleGenre,
-                                        onThemeChanged: (value) {
-                                          setState(
-                                            () => _selectedTheme = value,
-                                          );
-                                        },
                                         usernameValidator: _validateUsername,
                                       ),
                                     ),

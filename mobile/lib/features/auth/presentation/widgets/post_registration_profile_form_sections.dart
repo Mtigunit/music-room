@@ -4,7 +4,6 @@ import 'package:music_room/core/widgets/form_section_label.dart';
 import 'package:music_room/core/widgets/genre_selection_grid.dart';
 import 'package:music_room/core/widgets/responsive_layout.dart';
 import 'package:music_room/features/auth/presentation/layouts/post_registration_profile_layout.dart';
-import 'package:music_room/features/events/presentation/widgets/selection_card.dart';
 import 'package:music_room/features/playlist/domain/types/playlist_tags.dart';
 
 class ProfileFormSections extends StatelessWidget {
@@ -15,9 +14,7 @@ class ProfileFormSections extends StatelessWidget {
     required this.bioController,
     required this.locationController,
     required this.selectedGenres,
-    required this.selectedTheme,
     required this.onGenreTapped,
-    required this.onThemeChanged,
     this.usernameValidator,
     super.key,
   });
@@ -28,9 +25,7 @@ class ProfileFormSections extends StatelessWidget {
   final TextEditingController bioController;
   final TextEditingController locationController;
   final Set<String> selectedGenres;
-  final String selectedTheme;
   final ValueChanged<String> onGenreTapped;
-  final ValueChanged<String> onThemeChanged;
   final FormFieldValidator<String>? usernameValidator;
 
   @override
@@ -53,41 +48,26 @@ class ProfileFormSections extends StatelessWidget {
         _buildLocationField(),
         SizedBox(height: layout.sectionGap),
         _buildGenresSection(),
-        SizedBox(height: layout.sectionGap),
-        _buildThemeSection(),
       ],
     );
   }
 
   Widget _buildExpandedContent() {
-    return Row(
+    return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          flex: 4,
-          child: _buildThemeSection(),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: _buildUsernameField()),
+            SizedBox(width: layout.fieldGap),
+            Expanded(child: _buildLocationField()),
+          ],
         ),
-        SizedBox(width: layout.columnsGap),
-        Expanded(
-          flex: 8,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(child: _buildUsernameField()),
-                  SizedBox(width: layout.fieldGap),
-                  Expanded(child: _buildLocationField()),
-                ],
-              ),
-              SizedBox(height: layout.fieldGap),
-              _buildBioField(),
-              SizedBox(height: layout.sectionGap),
-              _buildGenresSection(),
-            ],
-          ),
-        ),
+        SizedBox(height: layout.fieldGap),
+        _buildBioField(),
+        SizedBox(height: layout.sectionGap),
+        _buildGenresSection(),
       ],
     );
   }
@@ -146,80 +126,22 @@ class ProfileFormSections extends StatelessWidget {
           maxSelection: 4,
           spacing: layout.genreSpacing,
           runSpacing: layout.genreRunSpacing,
-          onGenreTapped: (displayLabel) {
-            final tag = PlaylistTag.all.firstWhere(
-              (value) => value.displayLabel == displayLabel,
-              orElse: () => PlaylistTag.pop,
-            );
-
-            if (tag.displayLabel != displayLabel) {
-              return;
-            }
-
-            onGenreTapped(tag.value);
-          },
+          onGenreTapped: _handleGenreTapped,
         ),
       ],
     );
   }
 
-  Widget _buildThemeSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const FormSectionLabel(text: 'Theme preference'),
-        SizedBox(height: layout.sectionLabelGap),
-        _ThemeOptionCard(
-          title: 'System',
-          subtitle: 'Match the device appearance.',
-          icon: Icons.brightness_auto_rounded,
-          isSelected: selectedTheme == 'SYSTEM',
-          onTap: () => onThemeChanged('SYSTEM'),
-        ),
-        SizedBox(height: layout.themeOptionGap),
-        _ThemeOptionCard(
-          title: 'Light',
-          subtitle: 'Use the lighter visual mode.',
-          icon: Icons.light_mode_rounded,
-          isSelected: selectedTheme == 'LIGHT',
-          onTap: () => onThemeChanged('LIGHT'),
-        ),
-        SizedBox(height: layout.themeOptionGap),
-        _ThemeOptionCard(
-          title: 'Dark',
-          subtitle: 'Use the darker visual mode.',
-          icon: Icons.dark_mode_rounded,
-          isSelected: selectedTheme == 'DARK',
-          onTap: () => onThemeChanged('DARK'),
-        ),
-      ],
+  void _handleGenreTapped(String displayLabel) {
+    final tag = PlaylistTag.all.firstWhere(
+      (value) => value.displayLabel == displayLabel,
+      orElse: () => PlaylistTag.pop,
     );
-  }
-}
 
-class _ThemeOptionCard extends StatelessWidget {
-  const _ThemeOptionCard({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.isSelected,
-    required this.onTap,
-  });
+    if (tag.displayLabel != displayLabel) {
+      return;
+    }
 
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return SelectionCard(
-      title: title,
-      subtitle: subtitle,
-      icon: icon,
-      isSelected: isSelected,
-      onTap: onTap,
-    );
+    onGenreTapped(tag.value);
   }
 }
