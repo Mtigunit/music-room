@@ -43,7 +43,7 @@ final class GoogleAuthService {
       isInitialized = true;
       completer.complete();
     } catch (error) {
-      completer.complete();
+      completer.completeError(error);
       rethrow;
     } finally {
       if (identical(_initializing, completer)) {
