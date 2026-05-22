@@ -1,4 +1,4 @@
-// Note: Copy this file to config.js and replace the placeholder with your Google Maps API Key.
+// Note: Copy this file to config.js and replace the placeholders with your web API credentials.
 // config.js is git-ignored and safe from being committed.
 //
 // IMPORTANT SECURITY REQUIREMENTS FOR PRODUCTION DEPLOYMENT:
@@ -11,3 +11,4 @@
 // Do not commit actual restricted or unrestricted keys to the repository.
 
 window.GOOGLE_MAPS_API_KEY = "YOUR_GOOGLE_MAPS_API_KEY_HERE";
+window.GOOGLE_SIGNIN_CLIENT_ID = "YOUR_GOOGLE_SIGNIN_CLIENT_ID_HERE";
