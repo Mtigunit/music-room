@@ -32,6 +32,7 @@ export class FriendInfoDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(255)
   location?: string;
 }
 
@@ -44,6 +45,7 @@ export class PrivateInfoDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(255)
   physicalAddress?: string;
 }
 
