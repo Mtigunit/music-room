@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:music_room/core/widgets/app_button.dart';
 
-enum SocialProvider { google, facebook }
+enum SocialProvider { google }
 
 class SocialLoginButton extends StatelessWidget {
   const SocialLoginButton({
@@ -17,31 +17,13 @@ class SocialLoginButton extends StatelessWidget {
   final bool isLoading;
   final bool isEnabled;
 
-  String get _label {
-    switch (provider) {
-      case SocialProvider.google:
-        return 'Continue with Google';
-      case SocialProvider.facebook:
-        return 'Continue with Facebook';
-    }
-  }
+  String get _label => 'Continue with Google';
 
-  Widget get _icon {
-    switch (provider) {
-      case SocialProvider.google:
-        return Image.asset(
-          'assets/images/google_logo.png',
-          width: 22,
-          height: 22,
-        );
-      case SocialProvider.facebook:
-        return const Icon(
-          Icons.facebook,
-          color: Color(0xFF1877F2),
-          size: 24,
-        );
-    }
-  }
+  Widget get _icon => Image.asset(
+    'assets/images/google_logo.png',
+    width: 22,
+    height: 22,
+  );
 
   @override
   Widget build(BuildContext context) {

@@ -31,6 +31,19 @@ class GoogleLoginRequested extends AuthEvent {
   const GoogleLoginRequested();
 }
 
+/// Web variant of Google login that receives an ID token produced by the
+/// browser Google Sign-In flow and sends it to the backend.
+class GoogleLoginRequestedWeb extends AuthEvent {
+  const GoogleLoginRequestedWeb({
+    required this.idToken,
+  });
+
+  final String idToken;
+
+  @override
+  List<Object?> get props => [idToken];
+}
+
 /// Event to request OTP code to be sent to email
 class SendOtpRequested extends AuthEvent {
   const SendOtpRequested({required this.email});

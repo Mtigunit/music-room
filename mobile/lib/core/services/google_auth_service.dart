@@ -1,119 +1,190 @@
+import 'dart:async';
+
+import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
-enum GoogleAuthErrorType {
-  cancelled,
-  missingIdToken,
-  network,
-  unknown,
+import 'package:music_room/core/config/app_config.dart';
+import 'package:music_room/features/auth/data/models/auth_model.dart';
+
+final class GoogleAuthService {
+  GoogleAuthService({
+    required Dio dio,
+  }) : _dio = dio;
+
+  final Dio _dio;
+
+  late final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
+
+  bool isInitialized = false;
+  Completer<void>? _initializing;
+
+  Future<void> initialize() async {
+    if (isInitialized) {
+      return;
+    }
+
+    final initializing = _initializing;
+    if (initializing != null) {
+      await initializing.future;
+      return;
+    }
+
+    final completer = Completer<void>();
+    _initializing = completer;
+
+    try {
+      await _googleSignIn.initialize(
+        clientId: kIsWeb ? dotenv.env['GOOGLE_WEB_CLIENT_ID'] : null,
+        serverClientId: dotenv.env['GOOGLE_SERVER_CLIENT_ID'],
+      );
+
+      isInitialized = true;
+      completer.complete();
+    } catch (error) {
+      completer.completeError(error);
+      rethrow;
+    } finally {
+      if (identical(_initializing, completer)) {
+        _initializing = null;
+      }
+    }
+  }
+
+  Future<LoginResponse> authenticateMobile() async {
+    if (kIsWeb) {
+      throw const GoogleAuthException(
+        'authenticateMobile cannot be used on Web.',
+      );
+    }
+
+    try {
+      await initialize();
+
+      final account = await _googleSignIn.authenticate();
+      final auth = account.authentication;
+
+      final idToken = auth.idToken;
+
+      if (idToken == null || idToken.isEmpty) {
+        throw const MissingGoogleIdTokenException();
+      }
+
+      return _exchangeTokenWithBackend(idToken);
+    } on Object catch (e) {
+      if (e is GoogleAuthException) {
+        rethrow;
+      }
+
+      throw GoogleAuthException(e.toString());
+    }
+  }
+
+  Future<LoginResponse> authenticateWeb(String idToken) async {
+    final token = idToken.trim();
+
+    if (token.isEmpty) {
+      throw ArgumentError.value(
+        idToken,
+        'idToken',
+        'must not be empty or whitespace',
+      );
+    }
+
+    try {
+      return await _exchangeTokenWithBackend(token);
+    } on GoogleAuthException {
+      rethrow;
+    } catch (e, stackTrace) {
+      Error.throwWithStackTrace(
+        GoogleAuthException('Authentication failed: $e'),
+        stackTrace,
+      );
+    }
+  }
+
+  Future<LoginResponse> _exchangeTokenWithBackend(
+    String idToken,
+  ) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        AppConfig.googleAuthEndpoint,
+        data: {
+          'idToken': idToken,
+        },
+      );
+
+      final data = response.data;
+
+      if (data == null) {
+        throw const GoogleAuthException(
+          'Invalid backend response.',
+        );
+      }
+
+      final parsed = LoginResponse.fromJson(data);
+
+      return parsed;
+    } on DioException catch (e) {
+      final data = e.response?.data;
+      final message = data is Map<String, dynamic>
+          ? data['message']?.toString()
+          : null;
+
+      throw GoogleAuthException(
+        message ?? 'Backend authentication failed.',
+      );
+    }
+  }
+
+  Future<void> signOut() async {
+    await _googleSignIn.signOut();
+  }
+
+  /// Returns a raw Google ID token without exchanging it with the backend.
+  /// Useful for linking flows where the backend expects the original idToken.
+  Future<String> fetchIdToken() async {
+    try {
+      await initialize();
+
+      final account = kIsWeb
+          ? await _googleSignIn.attemptLightweightAuthentication()
+          : await _googleSignIn.authenticate();
+
+      if (account == null) {
+        throw const GoogleAuthCancelledException();
+      }
+
+      final auth = account.authentication;
+      final idToken = auth.idToken;
+
+      if (idToken == null || idToken.isEmpty) {
+        throw const MissingGoogleIdTokenException();
+      }
+
+      return idToken;
+    } on Object catch (e) {
+      if (e is GoogleAuthException) rethrow;
+      throw GoogleAuthException(e.toString());
+    }
+  }
 }
 
 class GoogleAuthException implements Exception {
-  const GoogleAuthException({
-    required this.type,
-    required this.message,
-  });
+  const GoogleAuthException(this.message);
 
-  final GoogleAuthErrorType type;
   final String message;
 
   @override
   String toString() => message;
 }
 
-class GoogleAuthTokens {
-  const GoogleAuthTokens({
-    required this.idToken,
-    this.accessToken,
-  });
-
-  final String idToken;
-  final String? accessToken;
+class GoogleAuthCancelledException extends GoogleAuthException {
+  const GoogleAuthCancelledException() : super('Google sign-in cancelled.');
 }
 
-class GoogleAuthService {
-  GoogleAuthService({GoogleSignIn? googleSignIn})
-    : _googleSignIn = googleSignIn ?? GoogleSignIn.instance;
-
-  final GoogleSignIn _googleSignIn;
-
-  static String get _iosClientId => dotenv.env['GOOGLE_IOS_CLIENT_ID'] ?? '';
-  static String get _webClientId => dotenv.env['GOOGLE_WEB_CLIENT_ID'] ?? '';
-
-  Future<void>? _initialization;
-
-  Future<void> initialize() {
-    if (_initialization == null) {
-      if (_webClientId.isEmpty && _iosClientId.isEmpty) {
-        _initialization = _googleSignIn.initialize();
-      } else {
-        final isIos = defaultTargetPlatform == TargetPlatform.iOS;
-        _initialization = _googleSignIn.initialize(
-          clientId: isIos && _iosClientId.isNotEmpty ? _iosClientId : null,
-          serverClientId: _webClientId.isNotEmpty ? _webClientId : null,
-        );
-      }
-    }
-
-    return _initialization!;
-  }
-
-  Future<GoogleAuthTokens> authenticate() async {
-    await initialize();
-
-    try {
-      final account = await _googleSignIn.authenticate();
-
-      // `authenticate()` returns a non-null account when successful.
-
-      final auth = account.authentication;
-      final idToken = auth.idToken;
-
-      if (idToken == null || idToken.isEmpty) {
-        throw const GoogleAuthException(
-          type: GoogleAuthErrorType.missingIdToken,
-          message:
-              'Google sign-in did not return an ID token. '
-              'Check OAuth client configuration.',
-        );
-      }
-
-      return GoogleAuthTokens(
-        idToken: idToken,
-      );
-    } on GoogleAuthException {
-      rethrow;
-    } on Exception catch (e) {
-      final errorText = e.toString().toLowerCase();
-
-      if (errorText.contains('cancel') || errorText.contains('canceled')) {
-        throw const GoogleAuthException(
-          type: GoogleAuthErrorType.cancelled,
-          message: 'Google sign-in was cancelled.',
-        );
-      }
-
-      if (errorText.contains('network') ||
-          errorText.contains('socket') ||
-          errorText.contains('connection')) {
-        throw const GoogleAuthException(
-          type: GoogleAuthErrorType.network,
-          message:
-              'Google sign-in failed due to a network issue. '
-              'Please check your connection.',
-        );
-      }
-
-      throw GoogleAuthException(
-        type: GoogleAuthErrorType.unknown,
-        message: 'Google sign-in failed: $e',
-      );
-    }
-  }
-
-  Future<void> signOut() async {
-    await initialize();
-    await _googleSignIn.signOut();
-  }
+class MissingGoogleIdTokenException extends GoogleAuthException {
+  const MissingGoogleIdTokenException()
+    : super('Google did not return a valid ID token.');
 }

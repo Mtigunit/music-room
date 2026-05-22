@@ -163,8 +163,8 @@ class ProfileRepositoryImpl implements ProfileRepository {
 
   @override
   Future<ProfilePageData> linkMyGoogleAccount(String userId) async {
-    final tokens = await _googleAuthService.authenticate();
-    await _remoteDataSource.linkGoogleAccount(idToken: tokens.idToken);
+    final idToken = await _googleAuthService.fetchIdToken();
+    await _remoteDataSource.linkGoogleAccount(idToken: idToken);
     await _googleLinkStatusService.saveStatusForUser(
       userId,
       GoogleLinkStatus.linked,

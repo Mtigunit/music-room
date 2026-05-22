@@ -19,6 +19,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<AuthStarted>(_onAuthStarted);
     on<LoginRequested>(_onLoginRequested);
     on<GoogleLoginRequested>(_onGoogleLoginRequested);
+    on<GoogleLoginRequestedWeb>(_onGoogleLoginRequestedWeb);
     on<SendOtpRequested>(_onSendOtpRequested);
     on<VerifyOtpRequested>(_onVerifyOtpRequested);
     on<SendPasswordResetOtpRequested>(_onSendPasswordResetOtpRequested);
@@ -69,6 +70,40 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
       unawaited(_syncThemePreference());
     } else {
       emit(GoogleLoginFailure(failure: failure!));
+    }
+  }
+
+  Future<void> _onGoogleLoginRequestedWeb(
+    GoogleLoginRequestedWeb event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(const GoogleLoginLoading());
+
+    final (response, failure) = await _authRepository.loginWithGoogleWeb(
+      event.idToken,
+    );
+
+    if (response != null) {
+      emit(
+        GoogleLoginSuccess(
+          accessToken: response.accessToken,
+          user: response.user,
+          isNewUser: response.isNewUser ?? false,
+        ),
+      );
+      emit(
+        AuthAuthenticated(
+          accessToken: response.accessToken,
+          user: response.user,
+        ),
+      );
+      unawaited(_syncThemePreference());
+    } else {
+      emit(
+        GoogleLoginFailure(
+          failure: failure!,
+        ),
+      );
     }
   }
 
