@@ -124,6 +124,13 @@ class AuthRepositoryImpl implements AuthRepository {
         null,
         Failure(message: e.message),
       );
+    } on Object catch (e) {
+      return (
+        null,
+        Failure(
+          message: 'Unexpected Google authentication error: $e',
+        ),
+      );
     }
   }
 
