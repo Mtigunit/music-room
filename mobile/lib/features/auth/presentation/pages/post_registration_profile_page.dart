@@ -499,23 +499,29 @@ class _PostRegistrationProfilePageState
       return;
     }
 
-    // Read bytes immediately so we can show a preview without importing dart:io
-    final bytes = await avatar.readAsBytes();
-    final avatarName = avatar.name;
-
     setState(() {
       _pickedAvatar = avatar;
-      _pickedAvatarBytes = bytes;
-      _pickedAvatarName = avatarName;
+      _pickedAvatarBytes = null;
+      _pickedAvatarName = avatar.name;
       _isUploadingAvatar = true;
       _avatarUrl = null;
     });
 
     try {
+      final bytes = await avatar.readAsBytes();
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _pickedAvatarBytes = bytes;
+      });
+
       final profileRepository = InjectionContainer().profileRepository;
       final updated = await profileRepository.uploadMyAvatar(
         bytes,
-        avatarName,
+        avatar.name,
       );
 
       if (!mounted) return;
@@ -531,12 +537,22 @@ class _PostRegistrationProfilePageState
       AppSnackbar.showSuccess(context, 'Avatar uploaded.');
     } on DioException catch (error) {
       if (mounted) {
-        setState(() => _isUploadingAvatar = false);
+        setState(() {
+          _pickedAvatar = null;
+          _pickedAvatarBytes = null;
+          _pickedAvatarName = null;
+          _isUploadingAvatar = false;
+        });
         AppSnackbar.showError(context, _mapSaveError(error));
       }
     } on Object {
       if (mounted) {
-        setState(() => _isUploadingAvatar = false);
+        setState(() {
+          _pickedAvatar = null;
+          _pickedAvatarBytes = null;
+          _pickedAvatarName = null;
+          _isUploadingAvatar = false;
+        });
         AppSnackbar.showError(context, 'Unable to upload avatar. Try again.');
       }
     }
