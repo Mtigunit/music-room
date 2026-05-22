@@ -146,7 +146,18 @@ class ProfileFormSections extends StatelessWidget {
           maxSelection: 4,
           spacing: layout.genreSpacing,
           runSpacing: layout.genreRunSpacing,
-          onGenreTapped: onGenreTapped,
+          onGenreTapped: (displayLabel) {
+            final tag = PlaylistTag.all.firstWhere(
+              (value) => value.displayLabel == displayLabel,
+              orElse: () => PlaylistTag.pop,
+            );
+
+            if (tag.displayLabel != displayLabel) {
+              return;
+            }
+
+            onGenreTapped(tag.value);
+          },
         ),
       ],
     );

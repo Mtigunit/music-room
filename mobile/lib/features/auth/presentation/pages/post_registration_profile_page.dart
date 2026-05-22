@@ -294,6 +294,9 @@ class _PostRegistrationProfilePageState
       if (mounted) {
         setState(() {
           _avatarUrl = previousAvatarUrl;
+          _pickedAvatar = null;
+          _pickedAvatarBytes = null;
+          _pickedAvatarName = null;
           _isUploadingAvatar = false;
         });
         AppSnackbar.showError(context, _mapSaveError(error));
@@ -302,6 +305,9 @@ class _PostRegistrationProfilePageState
       if (mounted) {
         setState(() {
           _avatarUrl = previousAvatarUrl;
+          _pickedAvatar = null;
+          _pickedAvatarBytes = null;
+          _pickedAvatarName = null;
           _isUploadingAvatar = false;
         });
         AppSnackbar.showError(context, 'Unable to upload avatar. Try again.');
