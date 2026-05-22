@@ -10,6 +10,10 @@ abstract class AuthRepository {
 
   Future<(LoginResponse?, Failure?)> loginWithGoogle();
 
+  Future<(LoginResponse?, Failure?)> loginWithGoogleWeb(
+    String idToken,
+  );
+
   Future<(bool, Failure?)> sendOtp(String email);
 
   Future<(VerifyOtpResponse?, Failure?)> verifyOtp(

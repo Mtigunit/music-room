@@ -75,20 +75,55 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<(LoginResponse?, Failure?)> loginWithGoogle() async {
     try {
-      final googleTokens = await _googleAuthService.authenticate();
-      final response = await _remoteDataSource.loginWithGoogle(
-        idToken: googleTokens.idToken,
+      final response = await _googleAuthService.authenticateMobile();
+
+      await _tokenStorage.saveToken(
+        response.accessToken,
       );
 
-      await _tokenStorage.saveToken(response.accessToken);
-      await _tokenStorage.saveUserProfile(jsonEncode(response.user.toJson()));
+      await _tokenStorage.saveUserProfile(
+        jsonEncode(response.user.toJson()),
+      );
+
       return (response, null);
     } on GoogleAuthException catch (e) {
-      return (null, Failure(message: e.message));
-    } on DioException catch (e) {
-      return (null, _handleDioException(e));
+      return (
+        null,
+        Failure(message: e.message),
+      );
     } on Object catch (e) {
-      return (null, Failure(message: 'An unexpected error occurred: $e'));
+      return (
+        null,
+        Failure(
+          message: 'Unexpected Google authentication error: $e',
+        ),
+      );
+    }
+  }
+
+  @override
+  Future<(LoginResponse?, Failure?)> loginWithGoogleWeb(
+    String idToken,
+  ) async {
+    try {
+      final response = await _googleAuthService.authenticateWeb(
+        idToken,
+      );
+
+      await _tokenStorage.saveToken(
+        response.accessToken,
+      );
+
+      await _tokenStorage.saveUserProfile(
+        jsonEncode(response.user.toJson()),
+      );
+
+      return (response, null);
+    } on GoogleAuthException catch (e) {
+      return (
+        null,
+        Failure(message: e.message),
+      );
     }
   }
 

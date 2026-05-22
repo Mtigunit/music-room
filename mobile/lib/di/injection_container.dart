@@ -83,7 +83,6 @@ class InjectionContainer {
       prefs: sharedPreferences,
     );
     _searchQueryService = SearchQueryService();
-    _googleAuthService = GoogleAuthService();
     _clientMetaService = ClientMetaService(
       sharedPreferences: sharedPreferences,
     );
@@ -100,6 +99,9 @@ class InjectionContainer {
       dio: dio,
       tokenStorage: _tokenStorageService,
       clientMetaService: _clientMetaService,
+    );
+    _googleAuthService = GoogleAuthService(
+      dio: dio,
     );
     // SocketClient must be created before ConnectivityService because
     // ConnectivityService owns the socket reconnection lifecycle.

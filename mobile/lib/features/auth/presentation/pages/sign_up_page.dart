@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/widgets/app_button.dart';
@@ -11,6 +12,7 @@ import 'package:music_room/features/auth/presentation/widgets/auth_divider_with_
 import 'package:music_room/features/auth/presentation/widgets/auth_page_layout.dart';
 import 'package:music_room/features/auth/presentation/widgets/auth_screen_header.dart';
 import 'package:music_room/features/auth/presentation/widgets/auth_text_input_field.dart';
+import 'package:music_room/features/auth/presentation/widgets/google_web_signin_button.dart';
 import 'package:music_room/features/auth/presentation/widgets/show_otp_modal.dart';
 import 'package:music_room/features/auth/presentation/widgets/social_login_button.dart';
 import 'package:music_room/routes/route_names.dart';
@@ -358,18 +360,29 @@ class _SignUpPageState extends State<SignUpPage> {
                 const AuthDividerWithText(text: 'or continue with'),
                 const SizedBox(height: 16),
 
-                SocialLoginButton(
-                  provider: SocialProvider.google,
-                  isLoading: isGoogleLoading,
-                  isEnabled: !isAnyLoading,
-                  onPressed: () {
-                    if (isAnyLoading) {
-                      return;
-                    }
+                if (kIsWeb)
+                  GoogleWebSignInButton(
+                    onIdToken: (idToken) async {
+                      context.read<AuthBloc>().add(
+                        GoogleLoginRequestedWeb(idToken: idToken),
+                      );
+                    },
+                  )
+                else
+                  SocialLoginButton(
+                    provider: SocialProvider.google,
+                    isLoading: isGoogleLoading,
+                    isEnabled: !isAnyLoading,
+                    onPressed: () {
+                      if (isAnyLoading) {
+                        return;
+                      }
 
-                    context.read<AuthBloc>().add(const GoogleLoginRequested());
-                  },
-                ),
+                      context.read<AuthBloc>().add(
+                        const GoogleLoginRequested(),
+                      );
+                    },
+                  ),
                 const SizedBox(height: 24),
 
                 Center(
