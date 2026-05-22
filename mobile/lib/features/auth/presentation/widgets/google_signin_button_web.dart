@@ -18,6 +18,7 @@ class GoogleWebSignInButton extends StatefulWidget {
 
 class _GoogleWebSignInButtonState extends State<GoogleWebSignInButton> {
   bool _isReady = false;
+  bool _hasInitError = false;
   bool _isSubmitting = false;
   StreamSubscription<GoogleSignInAuthenticationEvent>? _subscription;
 
@@ -29,27 +30,48 @@ class _GoogleWebSignInButtonState extends State<GoogleWebSignInButton> {
 
   Future<void> _initAndListen() async {
     final googleAuthService = InjectionContainer().googleAuthService;
-    await googleAuthService.initialize();
+    StreamSubscription<GoogleSignInAuthenticationEvent>? subscription;
 
-    if (!mounted) return;
+    try {
+      await googleAuthService.initialize();
 
-    _subscription = GoogleSignIn.instance.authenticationEvents.listen((
-      event,
-    ) async {
       if (!mounted) return;
-      if (event is GoogleSignInAuthenticationEventSignIn) {
-        final auth = event.user.authentication;
-        final idToken = auth.idToken;
-        if (idToken != null && idToken.isNotEmpty) {
-          await _handleIdToken(idToken);
-        }
-      }
-    });
 
-    if (mounted) {
-      setState(() {
-        _isReady = true;
+      subscription = GoogleSignIn.instance.authenticationEvents.listen((
+        event,
+      ) async {
+        if (!mounted) return;
+        if (event is GoogleSignInAuthenticationEventSignIn) {
+          final auth = event.user.authentication;
+          final idToken = auth.idToken;
+          if (idToken != null && idToken.isNotEmpty) {
+            await _handleIdToken(idToken);
+          }
+        }
       });
+
+      _subscription = subscription;
+
+      if (mounted) {
+        setState(() {
+          _isReady = true;
+          _hasInitError = false;
+        });
+      }
+    } on Exception catch (error, stackTrace) {
+      debugPrint(
+        '[GoogleWebSignInButton] Initialization failed: $error',
+      );
+      debugPrintStack(stackTrace: stackTrace);
+
+      await subscription?.cancel();
+
+      if (mounted) {
+        setState(() {
+          _isReady = false;
+          _hasInitError = true;
+        });
+      }
     }
   }
 
@@ -93,7 +115,7 @@ class _GoogleWebSignInButtonState extends State<GoogleWebSignInButton> {
 
     final textColor = isDarkMode ? Colors.white : Colors.black87;
 
-    if (!_isReady) {
+    if (!_isReady && !_hasInitError) {
       return const SizedBox(
         height: 56,
         child: Center(
