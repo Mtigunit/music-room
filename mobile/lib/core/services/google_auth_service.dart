@@ -18,18 +18,38 @@ final class GoogleAuthService {
   late final GoogleSignIn _googleSignIn = GoogleSignIn.instance;
 
   bool isInitialized = false;
+  Completer<void>? _initializing;
 
   Future<void> initialize() async {
     if (isInitialized) {
       return;
     }
 
-    await _googleSignIn.initialize(
-      clientId: kIsWeb ? dotenv.env['GOOGLE_WEB_CLIENT_ID'] : null,
-      serverClientId: dotenv.env['GOOGLE_SERVER_CLIENT_ID'],
-    );
+    final initializing = _initializing;
+    if (initializing != null) {
+      await initializing.future;
+      return;
+    }
 
-    isInitialized = true;
+    final completer = Completer<void>();
+    _initializing = completer;
+
+    try {
+      await _googleSignIn.initialize(
+        clientId: kIsWeb ? dotenv.env['GOOGLE_WEB_CLIENT_ID'] : null,
+        serverClientId: dotenv.env['GOOGLE_SERVER_CLIENT_ID'],
+      );
+
+      isInitialized = true;
+      completer.complete();
+    } catch (error, stackTrace) {
+      completer.completeError(error, stackTrace);
+      rethrow;
+    } finally {
+      if (identical(_initializing, completer)) {
+        _initializing = null;
+      }
+    }
   }
 
   Future<LoginResponse> authenticateMobile() async {
