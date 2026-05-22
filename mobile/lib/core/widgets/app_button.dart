@@ -196,7 +196,9 @@ class AppButton extends StatelessWidget {
                 side: WidgetStatePropertyAll(
                   borderSide ??
                       BorderSide(
-                        color: colorScheme.outlineVariant,
+                        color: colorScheme.outlineVariant.withValues(
+                          alpha: 0.2,
+                        ),
                       ),
                 ),
                 backgroundColor: WidgetStatePropertyAll(
