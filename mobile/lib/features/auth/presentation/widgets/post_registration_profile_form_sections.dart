@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:music_room/core/utils/tag_genre_normalizer.dart';
 import 'package:music_room/core/widgets/form_input_decoration.dart';
 import 'package:music_room/core/widgets/form_section_label.dart';
 import 'package:music_room/core/widgets/genre_selection_grid.dart';
 import 'package:music_room/core/widgets/responsive_layout.dart';
 import 'package:music_room/features/auth/presentation/layouts/post_registration_profile_layout.dart';
-import 'package:music_room/features/playlist/domain/types/playlist_tags.dart';
 
 class ProfileFormSections extends StatelessWidget {
   const ProfileFormSections({
@@ -88,7 +88,7 @@ class ProfileFormSections extends StatelessWidget {
   Widget _buildBioField() {
     return TextFormField(
       controller: bioController,
-      maxLines: 4,
+      maxLines: 3,
       maxLength: 150,
       decoration: FormInputDecoration.build(
         theme,
@@ -116,14 +116,8 @@ class ProfileFormSections extends StatelessWidget {
         const FormSectionLabel(text: 'Favorite genres'),
         SizedBox(height: layout.sectionLabelGap),
         GenreSelectionGrid(
-          genres: PlaylistTag.all
-              .map((tag) => tag.displayLabel)
-              .toList(growable: false),
-          selectedGenres: selectedGenres
-              .map((value) => PlaylistTag.fromValue(value)?.displayLabel)
-              .whereType<String>()
-              .toList(growable: false),
-          maxSelection: 4,
+          genres: TagGenreNormalizer.allDisplayLabels,
+          selectedGenres: TagGenreNormalizer.toDisplayLabels(selectedGenres),
           spacing: layout.genreSpacing,
           runSpacing: layout.genreRunSpacing,
           onGenreTapped: _handleGenreTapped,
@@ -133,15 +127,11 @@ class ProfileFormSections extends StatelessWidget {
   }
 
   void _handleGenreTapped(String displayLabel) {
-    final tag = PlaylistTag.all.firstWhere(
-      (value) => value.displayLabel == displayLabel,
-      orElse: () => PlaylistTag.pop,
-    );
-
-    if (tag.displayLabel != displayLabel) {
+    final tagValue = TagGenreNormalizer.toValue(displayLabel);
+    if (tagValue == null) {
       return;
     }
 
-    onGenreTapped(tag.value);
+    onGenreTapped(tagValue);
   }
 }
