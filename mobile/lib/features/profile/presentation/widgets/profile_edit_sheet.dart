@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:music_room/core/utils/tag_genre_normalizer.dart';
 import 'package:music_room/core/widgets/app_back_button.dart';
 import 'package:music_room/core/widgets/app_button.dart';
 import 'package:music_room/core/widgets/confirmation_dialog.dart';
@@ -9,7 +10,6 @@ import 'package:music_room/core/widgets/form_toggle_row.dart';
 import 'package:music_room/core/widgets/genre_selection_grid.dart';
 import 'package:music_room/core/widgets/responsive_layout.dart';
 import 'package:music_room/features/events/presentation/widgets/selection_card.dart';
-import 'package:music_room/features/playlist/domain/types/playlist_tags.dart';
 import 'package:music_room/features/profile/domain/entities/profile_entity.dart';
 import 'package:music_room/features/profile/presentation/pages/email_update_page.dart';
 import 'package:music_room/features/profile/presentation/state/profile_bloc.dart';
@@ -373,27 +373,23 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
                           const FormSectionLabel(text: 'FAVORITE GENRES'),
                           const SizedBox(height: 10),
                           GenreSelectionGrid(
-                            genres: PlaylistTag.all
-                                .map((tag) => tag.displayLabel)
-                                .toList(growable: false),
-                            selectedGenres: _favoriteGenres
-                                .map(
-                                  (value) => PlaylistTag.fromValue(
-                                    value,
-                                  )?.displayLabel,
-                                )
-                                .whereType<String>()
-                                .toList(growable: false),
+                            genres: TagGenreNormalizer.allDisplayLabels,
+                            selectedGenres: TagGenreNormalizer.toDisplayLabels(
+                              _favoriteGenres,
+                            ),
                             onGenreTapped: (displayLabel) {
-                              final tag = PlaylistTag.all.firstWhere(
-                                (item) => item.displayLabel == displayLabel,
+                              final tagValue = TagGenreNormalizer.toValue(
+                                displayLabel,
                               );
+                              if (tagValue == null) {
+                                return;
+                              }
 
                               setState(() {
-                                if (_favoriteGenres.contains(tag.value)) {
-                                  _favoriteGenres.remove(tag.value);
+                                if (_favoriteGenres.contains(tagValue)) {
+                                  _favoriteGenres.remove(tagValue);
                                 } else {
-                                  _favoriteGenres.add(tag.value);
+                                  _favoriteGenres.add(tagValue);
                                 }
                               });
                             },
@@ -857,10 +853,7 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
     final rawGenres =
         source?['favoriteGenres'] ?? source?['genres'] ?? source?['tags'];
     if (rawGenres is List<dynamic>) {
-      return rawGenres
-          .whereType<String>()
-          .map((item) => item.toUpperCase())
-          .toList(growable: false);
+      return TagGenreNormalizer.normalizeValues(rawGenres);
     }
     return const <String>[];
   }

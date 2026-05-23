@@ -2,11 +2,11 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:music_room/core/models/tag_option.dart';
 import 'package:music_room/features/events/data/datasources/event_remote_datasource.dart';
 import 'package:music_room/features/events/data/models/event_model.dart';
 import 'package:music_room/features/events/data/models/track_model.dart';
 import 'package:music_room/features/events/domain/entities/event_location.dart';
-import 'package:music_room/features/events/domain/entities/event_tag.dart';
 import 'package:music_room/features/events/presentation/validation/create_event_form_validator.dart';
 
 abstract class CreateEventState {}
@@ -38,7 +38,7 @@ class CreateEventCubit extends Cubit<CreateEventState> {
     required String name,
     required String description,
     required XFile? coverImage,
-    required List<EventTag> selectedTags,
+    required List<TagOption<String>> selectedTags,
     required List<TrackModel> selectedTracks,
     required String visibility,
     required String votingRule,

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:music_room/features/events/domain/entities/event_tag.dart';
+import 'package:music_room/core/utils/tag_genre_normalizer.dart';
 
 class HomeFilterBottomSheet extends StatefulWidget {
   const HomeFilterBottomSheet({
@@ -132,7 +132,7 @@ class _HomeFilterBottomSheetState extends State<HomeFilterBottomSheet> {
                 Wrap(
                   spacing: 12,
                   runSpacing: 12,
-                  children: EventTag.values.map((tag) {
+                  children: TagGenreNormalizer.allTags.map((tag) {
                     final isSelected = _selectedTags.contains(tag.backendValue);
                     return FilterChip(
                       label: Text(tag.label),

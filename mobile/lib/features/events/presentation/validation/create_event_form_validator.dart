@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:music_room/core/models/tag_option.dart';
 import 'package:music_room/features/events/data/models/event_model.dart';
 import 'package:music_room/features/events/data/models/track_model.dart';
 import 'package:music_room/features/events/domain/entities/event_location.dart';
-import 'package:music_room/features/events/domain/entities/event_tag.dart';
 
 class CreateEventValidationField {
   static const name = 'name';
@@ -35,7 +35,7 @@ class CreateEventFormInput {
 
   final String name;
   final String description;
-  final List<EventTag> selectedTags;
+  final List<TagOption<String>> selectedTags;
   final List<TrackModel> selectedTracks;
   final String visibility;
   final String votingRule;
@@ -83,7 +83,7 @@ class CreateEventPreparedPayload {
 
   final String name;
   final String? description;
-  final List<EventTag> tags;
+  final List<TagOption<String>> tags;
   final String visibility;
   final bool invitingOnly;
   final double? locationLat;

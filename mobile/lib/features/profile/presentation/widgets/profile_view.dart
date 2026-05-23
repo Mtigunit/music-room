@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:music_room/core/config/app_config.dart';
+import 'package:music_room/core/utils/tag_genre_normalizer.dart';
 import 'package:music_room/core/widgets/app_back_button.dart';
 import 'package:music_room/core/widgets/app_button.dart';
 import 'package:music_room/core/widgets/responsive_layout.dart';
@@ -1970,12 +1971,7 @@ String? _profileGenres(UserProfileEntity profile) {
       preferences['tags'];
 
   if (rawGenres is List<dynamic>) {
-    final genres = rawGenres
-        .whereType<String>()
-        .map((genre) => genre.trim())
-        .where((genre) => genre.isNotEmpty)
-        .take(3)
-        .toList(growable: false);
+    final genres = TagGenreNormalizer.toDisplayLabels(rawGenres, limit: 3);
 
     if (genres.isNotEmpty) {
       return genres.join(' · ');

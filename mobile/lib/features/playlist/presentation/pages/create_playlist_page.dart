@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:music_room/core/utils/tag_genre_normalizer.dart';
 import 'package:music_room/core/widgets/app_back_button.dart';
 import 'package:music_room/core/widgets/app_button.dart';
 import 'package:music_room/core/widgets/app_snackbar.dart';
@@ -13,7 +14,6 @@ import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/events/presentation/widgets/selection_card.dart';
 import 'package:music_room/features/playlist/data/datasources/playlist_remote_datasource.dart';
 import 'package:music_room/features/playlist/domain/entities/playlist_entity.dart';
-import 'package:music_room/features/playlist/domain/types/playlist_tags.dart';
 
 class CreatePlaylistPage extends StatefulWidget {
   const CreatePlaylistPage({
@@ -59,7 +59,7 @@ class _CreatePlaylistPageState extends State<CreatePlaylistPage> {
       text: widget.playlist?.description ?? '',
     );
     _selectedVisibility = widget.playlist?.visibility;
-    _selectedGenres = List<String>.from(
+    _selectedGenres = TagGenreNormalizer.normalizeValues(
       widget.playlist?.tags ?? widget.initialGenres,
     );
     _isEditAccessEnabled =
@@ -401,53 +401,28 @@ class _CreatePlaylistPageState extends State<CreatePlaylistPage> {
                           const SizedBox(height: 10),
 
                           GenreSelectionGrid(
-                            genres: PlaylistTag.all
-                                .map(
-                                  (
-                                    tag,
-                                  ) => tag.displayLabel,
-                                )
-                                .toList(
-                                  growable: false,
-                                ),
-                            selectedGenres: _selectedGenres
-                                .map(
-                                  (
-                                    value,
-                                  ) => PlaylistTag.fromValue(
-                                    value,
-                                  )?.displayLabel,
-                                )
-                                .whereType<String>()
-                                .toList(
-                                  growable: false,
-                                ),
-                            onGenreTapped:
-                                (
-                                  displayLabel,
-                                ) {
-                                  final tag = PlaylistTag.all.firstWhere(
-                                    (
-                                      item,
-                                    ) => item.displayLabel == displayLabel,
-                                  );
+                            genres: TagGenreNormalizer.allDisplayLabels,
+                            selectedGenres: TagGenreNormalizer.toDisplayLabels(
+                              _selectedGenres,
+                            ),
+                            onGenreTapped: (displayLabel) {
+                              final tagValue = TagGenreNormalizer.toValue(
+                                displayLabel,
+                              );
+                              if (tagValue == null) {
+                                return;
+                              }
 
-                                  setState(() {
-                                    if (_selectedGenres.contains(
-                                      tag.value,
-                                    )) {
-                                      _selectedGenres.remove(
-                                        tag.value,
-                                      );
-                                    } else {
-                                      _selectedGenres.add(
-                                        tag.value,
-                                      );
-                                    }
+                              setState(() {
+                                if (_selectedGenres.contains(tagValue)) {
+                                  _selectedGenres.remove(tagValue);
+                                } else {
+                                  _selectedGenres.add(tagValue);
+                                }
 
-                                    _genreError = null;
-                                  });
-                                },
+                                _genreError = null;
+                              });
+                            },
                           ),
 
                           if (widget.isEditing)

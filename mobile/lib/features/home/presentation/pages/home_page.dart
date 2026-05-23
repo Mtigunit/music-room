@@ -3,10 +3,11 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:music_room/core/models/tag_option.dart';
+import 'package:music_room/core/utils/tag_genre_normalizer.dart';
 import 'package:music_room/core/widgets/app_scaffold.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
-import 'package:music_room/features/events/domain/entities/event_tag.dart';
 import 'package:music_room/features/events/domain/entities/my_event_item_model.dart';
 import 'package:music_room/features/events/presentation/pages/create_event_page.dart';
 import 'package:music_room/features/home/presentation/state/home_events_cubit.dart';
@@ -117,7 +118,7 @@ class _HomePageState extends State<HomePage> {
                         selectedStatus: _selectedStatus,
                         selectedTags: _selectedTags,
                         statuses: statuses,
-                        tags: EventTag.values,
+                        tags: TagGenreNormalizer.allTags,
                         onStatusSelected: (status) {
                           setState(() {
                             _selectedStatus = status == 'All' ? null : status;
@@ -258,7 +259,7 @@ class _HeaderAndFilters extends StatelessWidget {
   final ValueChanged<List<String>> onTagsUpdated;
   final VoidCallback onFilterTap;
   final List<String> statuses;
-  final List<EventTag> tags;
+  final List<TagOption<String>> tags;
 
   @override
   Widget build(BuildContext context) {
@@ -499,7 +500,7 @@ class _HeaderAndFilters extends StatelessWidget {
               ? tags
                     .firstWhere(
                       (t) => t.backendValue == selectedTags.first,
-                      orElse: () => EventTag.pop,
+                      orElse: () => tags.first,
                     )
                     .label
               : '${selectedTags.length} Tags')
@@ -598,7 +599,7 @@ class _TagsGridPopupContent extends StatefulWidget {
   });
 
   final List<String> initialTags;
-  final List<EventTag> tags;
+  final List<TagOption<String>> tags;
   final ValueChanged<List<String>> onTagsChanged;
 
   @override
@@ -698,7 +699,7 @@ class _TagsGridPopupContentState extends State<_TagsGridPopupContent> {
 class _TagsOnlySheet extends StatefulWidget {
   const _TagsOnlySheet({required this.initialTags, required this.tags});
   final List<String> initialTags;
-  final List<EventTag> tags;
+  final List<TagOption<String>> tags;
 
   @override
   State<_TagsOnlySheet> createState() => _TagsOnlySheetState();

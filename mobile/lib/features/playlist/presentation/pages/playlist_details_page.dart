@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/theme/app_theme.dart';
+import 'package:music_room/core/utils/tag_genre_normalizer.dart';
 import 'package:music_room/core/widgets/app_back_button.dart';
 import 'package:music_room/core/widgets/app_snackbar.dart';
 import 'package:music_room/core/widgets/empty_state_widget.dart';
@@ -13,7 +14,6 @@ import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
 import 'package:music_room/features/auth/presentation/state/auth_state.dart';
 import 'package:music_room/features/playlist/data/datasources/playlist_remote_datasource.dart';
 import 'package:music_room/features/playlist/domain/entities/playlist_entity.dart';
-import 'package:music_room/features/playlist/domain/types/playlist_tags.dart';
 import 'package:music_room/features/playlist/presentation/pages/create_playlist_page.dart';
 import 'package:music_room/features/playlist/presentation/state/playlist_bloc.dart';
 import 'package:music_room/features/playlist/presentation/state/playlist_event.dart';
@@ -1125,10 +1125,7 @@ class _HeroInfo extends StatelessWidget {
   Widget build(BuildContext context) {
     final description = details.description?.trim();
     final isPublic = details.visibility == 'PUBLIC';
-    final tags = details.tags
-        .map(PlaylistTag.fromValue)
-        .whereType<PlaylistTag>()
-        .toList(growable: false);
+    final tags = TagGenreNormalizer.toDisplayLabels(details.tags);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1181,7 +1178,7 @@ class _HeroInfo extends StatelessWidget {
                 fontWeight: FontWeight.w400,
               ),
             ),
-            ...tags.map((tag) => _TagChip(label: tag.displayLabel)),
+            ...tags.map((tag) => _TagChip(label: tag)),
           ],
         ),
 
