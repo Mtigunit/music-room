@@ -1,4 +1,20 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+
+class _InstantPageTransitionsBuilder extends PageTransitionsBuilder {
+  const _InstantPageTransitionsBuilder();
+
+  @override
+  Widget buildTransitions<T>(
+    PageRoute<T> route,
+    BuildContext context,
+    Animation<double> animation,
+    Animation<double> secondaryAnimation,
+    Widget child,
+  ) {
+    return child;
+  }
+}
 
 class AppTheme {
   // 1. Core Brand Color (Stays the same in both themes)
@@ -72,6 +88,7 @@ class AppTheme {
         primaryContainer: primaryColor.withValues(alpha: 0.15),
         onPrimaryContainer: primaryColor,
       ),
+      pageTransitionsTheme: _pageTransitionsTheme(),
 
       textTheme: const TextTheme(
         displaySmall: TextStyle(
@@ -132,6 +149,7 @@ class AppTheme {
         primaryContainer: primaryColor.withValues(alpha: 0.3),
         onPrimaryContainer: const Color(0xFFD8B4FE),
       ),
+      pageTransitionsTheme: _pageTransitionsTheme(),
 
       textTheme: const TextTheme(
         displaySmall: TextStyle(
@@ -173,6 +191,23 @@ class AppTheme {
           fontWeight: FontWeight.w600,
         ),
       ),
+    );
+  }
+
+  static PageTransitionsTheme _pageTransitionsTheme() {
+    if (!kIsWeb) {
+      return const PageTransitionsTheme();
+    }
+
+    return const PageTransitionsTheme(
+      builders: <TargetPlatform, PageTransitionsBuilder>{
+        TargetPlatform.android: _InstantPageTransitionsBuilder(),
+        TargetPlatform.iOS: _InstantPageTransitionsBuilder(),
+        TargetPlatform.fuchsia: _InstantPageTransitionsBuilder(),
+        TargetPlatform.linux: _InstantPageTransitionsBuilder(),
+        TargetPlatform.macOS: _InstantPageTransitionsBuilder(),
+        TargetPlatform.windows: _InstantPageTransitionsBuilder(),
+      },
     );
   }
 }
