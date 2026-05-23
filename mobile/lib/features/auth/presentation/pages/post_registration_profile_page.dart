@@ -1,22 +1,21 @@
 import 'dart:async';
-import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:music_room/core/widgets/app_button.dart';
 import 'package:music_room/core/widgets/app_snackbar.dart';
-import 'package:music_room/core/widgets/form_input_decoration.dart';
-import 'package:music_room/core/widgets/form_section_label.dart';
-import 'package:music_room/core/widgets/genre_selection_grid.dart';
+import 'package:music_room/core/widgets/responsive_layout.dart';
 import 'package:music_room/di/injection_container.dart';
+import 'package:music_room/features/auth/presentation/layouts/post_registration_profile_layout.dart';
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
 import 'package:music_room/features/auth/presentation/state/auth_state.dart';
-import 'package:music_room/features/auth/presentation/widgets/auth_page_layout.dart';
 import 'package:music_room/features/auth/presentation/widgets/auth_screen_header.dart';
-import 'package:music_room/features/events/presentation/widgets/selection_card.dart';
+import 'package:music_room/features/auth/presentation/widgets/post_registration_profile_actions.dart';
+import 'package:music_room/features/auth/presentation/widgets/post_registration_profile_card.dart';
+import 'package:music_room/features/auth/presentation/widgets/post_registration_profile_form_sections.dart';
+import 'package:music_room/features/auth/presentation/widgets/post_registration_profile_theme_section.dart';
 import 'package:music_room/features/playlist/domain/types/playlist_tags.dart';
 import 'package:music_room/features/profile/domain/entities/profile_entity.dart';
 import 'package:music_room/routes/route_names.dart';
@@ -38,6 +37,8 @@ class _PostRegistrationProfilePageState
   final Set<String> _selectedGenres = <String>{};
   String _selectedTheme = 'SYSTEM';
   XFile? _pickedAvatar;
+  Uint8List? _pickedAvatarBytes;
+  String? _pickedAvatarName;
   String? _avatarUrl;
   bool _isUploadingAvatar = false;
   bool _isSaving = false;
@@ -67,268 +68,191 @@ class _PostRegistrationProfilePageState
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
+    return ResponsiveLayout(
+      builder: (context, screenSize) {
+        final layout = ProfileLayout(screenSize);
+        final theme = Theme.of(context);
+        final colorScheme = theme.colorScheme;
+        final isCompact = layout.isCompact;
 
-    return Scaffold(
-      body: SafeArea(
-        child: AuthPageLayout(
-          showBrandPanel: false,
-          child: Form(
-            key: _formKey,
-            child: BlocListener<AuthBloc, AuthState>(
-              listener: (context, state) {
-                _prefillUsernameFromAuthState(state);
-              },
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  BlocBuilder<AuthBloc, AuthState>(
-                    builder: (context, state) {
-                      final username = _usernameFromAuthState(state);
-                      return Column(
+        return Scaffold(
+          body: SafeArea(
+            child: Form(
+              key: _formKey,
+              child: BlocListener<AuthBloc, AuthState>(
+                listener: (context, state) {
+                  _prefillUsernameFromAuthState(state);
+                },
+                child: SingleChildScrollView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: layout.horizontalPadding,
+                    vertical: layout.verticalPadding,
+                  ),
+                  child: Center(
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxWidth: layout.contentMaxWidth,
+                      ),
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const AuthScreenHeader(
-                            title: 'Complete your profile',
-                            subtitle:
-                                'Add a few details to personalize '
-                                'your experience.',
+                          BlocBuilder<AuthBloc, AuthState>(
+                            builder: (context, state) {
+                              final username = _usernameFromAuthState(state);
+
+                              return Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  AuthScreenHeader(
+                                    title: 'Complete your profile',
+                                    subtitle:
+                                        'Add a few details to personalize your '
+                                        'experience.',
+                                    titleFontSize: layout.titleFontSize,
+                                    subtitleTopSpacing: layout.welcomeSpacing,
+                                    bottomSpacing: 0,
+                                  ),
+                                  if (username != null) ...[
+                                    SizedBox(height: layout.welcomeSpacing),
+                                    Text(
+                                      'Welcome, @$username',
+                                      style: theme.textTheme.titleMedium
+                                          ?.copyWith(
+                                            fontSize: layout.welcomeFontSize,
+                                            fontWeight: FontWeight.w700,
+                                            color: colorScheme.primary,
+                                          ),
+                                    ),
+                                  ],
+                                ],
+                              );
+                            },
                           ),
-                          if (username != null) ...[
-                            const SizedBox(height: 8),
-                            Text(
-                              'Welcome, @$username',
-                              style: theme.textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.w700,
-                                color: colorScheme.primary,
-                              ),
-                            ),
-                          ],
-                        ],
-                      );
-                    },
-                  ),
-                  const SizedBox(height: 24),
-                  _buildProfileCard(context),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _usernameController,
-                    textInputAction: TextInputAction.next,
-                    decoration: FormInputDecoration.build(
-                      theme,
-                      labelText: null,
-                      hintText: 'Username',
-                    ),
-                    validator: _validateUsername,
-                  ),
-                  const SizedBox(height: 12),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _bioController,
-                    maxLines: 4,
-                    maxLength: 150,
-                    decoration: FormInputDecoration.build(
-                      theme,
-                      labelText: null,
-                      hintText: 'Tell people what you are into',
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  TextFormField(
-                    controller: _locationController,
-                    decoration: FormInputDecoration.build(
-                      theme,
-                      labelText: null,
-                      hintText: 'City or region',
-                    ),
-                  ),
-                  const SizedBox(height: 20),
-                  const FormSectionLabel(text: 'Favorite genres'),
-                  const SizedBox(height: 10),
-                  GenreSelectionGrid(
-                    genres: PlaylistTag.all
-                        .map((tag) => tag.displayLabel)
-                        .toList(growable: false),
-                    selectedGenres: _selectedGenres
-                        .map(
-                          (value) => PlaylistTag.fromValue(value)?.displayLabel,
-                        )
-                        .whereType<String>()
-                        .toList(growable: false),
-                    maxSelection: 4,
-                    onGenreTapped: _toggleGenre,
-                  ),
-                  const SizedBox(height: 20),
-                  const FormSectionLabel(text: 'Theme preference'),
-                  const SizedBox(height: 10),
-                  _ThemeOptionCard(
-                    title: 'System',
-                    subtitle: 'Match the device appearance.',
-                    icon: Icons.brightness_auto_rounded,
-                    isSelected: _selectedTheme == 'SYSTEM',
-                    onTap: () => setState(() => _selectedTheme = 'SYSTEM'),
-                  ),
-                  const SizedBox(height: 10),
-                  _ThemeOptionCard(
-                    title: 'Light',
-                    subtitle: 'Use the lighter visual mode.',
-                    icon: Icons.light_mode_rounded,
-                    isSelected: _selectedTheme == 'LIGHT',
-                    onTap: () => setState(() => _selectedTheme = 'LIGHT'),
-                  ),
-                  const SizedBox(height: 10),
-                  _ThemeOptionCard(
-                    title: 'Dark',
-                    subtitle: 'Use the darker visual mode.',
-                    icon: Icons.dark_mode_rounded,
-                    isSelected: _selectedTheme == 'DARK',
-                    onTap: () => setState(() => _selectedTheme = 'DARK'),
-                  ),
-                  const SizedBox(height: 24),
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final isCompact = constraints.maxWidth < 520;
-
-                      if (isCompact) {
-                        return Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            AppButton(
-                              onPressed: _isBusy ? null : _saveProfile,
-                              isLoading: _isSaving,
-                              label: 'Save and continue',
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                            ),
-                            const SizedBox(height: 12),
-                            AppButton(
-                              onPressed: _isBusy ? null : _skip,
-                              variant: AppButtonVariant.text,
-                              label: 'Skip for now',
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                            ),
-                          ],
-                        );
-                      }
-
-                      return Row(
-                        children: [
-                          Expanded(
-                            child: AppButton(
-                              onPressed: _isBusy ? null : _saveProfile,
-                              isLoading: _isSaving,
-                              label: 'Save and continue',
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: AppButton(
-                              onPressed: _isBusy ? null : _skip,
-                              variant: AppButtonVariant.outlined,
-                              label: 'Skip for now',
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                            ),
-                          ),
-                        ],
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildProfileCard(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return InkWell(
-      onTap: _isBusy ? null : _pickAvatar,
-      borderRadius: BorderRadius.circular(20),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: colorScheme.surface,
-          borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: colorScheme.onSurface.withValues(alpha: 0.1),
-          ),
-        ),
-        child: Row(
-          children: [
-            Builder(
-              builder: (context) {
-                final avatarImage = _avatarUrl != null
-                    ? NetworkImage(_avatarUrl!) as ImageProvider<Object>?
-                    : (_pickedAvatar != null
-                          ? (kIsWeb
-                                    ? NetworkImage(_pickedAvatar!.path)
-                                    : FileImage(File(_pickedAvatar!.path)))
-                                as ImageProvider<Object>?
-                          : null);
-
-                return CircleAvatar(
-                  radius: 28,
-                  backgroundColor: colorScheme.primary.withValues(alpha: 0.12),
-                  backgroundImage: avatarImage,
-                  child: avatarImage == null
-                      ? Icon(
-                          Icons.add_a_photo_rounded,
-                          color: colorScheme.primary,
-                        )
-                      : (_isUploadingAvatar
-                            ? SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.2,
-                                  valueColor: AlwaysStoppedAnimation<Color>(
-                                    colorScheme.primary,
+                          SizedBox(height: layout.headerSpacing),
+                          if (isCompact)
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                ProfileCardWidget(
+                                  layout: layout,
+                                  theme: theme,
+                                  avatarUrl: _avatarUrl,
+                                  pickedAvatarBytes: _pickedAvatarBytes,
+                                  pickedAvatarName: _pickedAvatarName,
+                                  isUploadingAvatar: _isUploadingAvatar,
+                                  onTap: _isBusy ? null : _pickAvatar,
+                                ),
+                                SizedBox(height: layout.sectionGap),
+                                ProfileFormSections(
+                                  layout: layout,
+                                  theme: theme,
+                                  usernameController: _usernameController,
+                                  bioController: _bioController,
+                                  locationController: _locationController,
+                                  selectedGenres: _selectedGenres,
+                                  onGenreTapped: _toggleGenre,
+                                  usernameValidator: _validateUsername,
+                                ),
+                                SizedBox(height: layout.sectionGap),
+                                PostRegistrationProfileThemeSection(
+                                  layout: layout,
+                                  theme: theme,
+                                  selectedTheme: _selectedTheme,
+                                  onThemeChanged: (value) {
+                                    setState(() => _selectedTheme = value);
+                                  },
+                                ),
+                                SizedBox(height: layout.sectionGap),
+                                ProfileActionsWidget(
+                                  layout: layout,
+                                  isSaving: _isSaving,
+                                  isBusy: _isBusy,
+                                  onSave: _saveProfile,
+                                  onSkip: _skip,
+                                ),
+                              ],
+                            )
+                          else
+                            Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      flex: 4,
+                                      child: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          ProfileCardWidget(
+                                            layout: layout,
+                                            theme: theme,
+                                            avatarUrl: _avatarUrl,
+                                            pickedAvatarBytes:
+                                                _pickedAvatarBytes,
+                                            pickedAvatarName: _pickedAvatarName,
+                                            isUploadingAvatar:
+                                                _isUploadingAvatar,
+                                            onTap: _isBusy ? null : _pickAvatar,
+                                          ),
+                                          SizedBox(height: layout.sectionGap),
+                                          PostRegistrationProfileThemeSection(
+                                            layout: layout,
+                                            theme: theme,
+                                            selectedTheme: _selectedTheme,
+                                            onThemeChanged: (value) {
+                                              setState(
+                                                () => _selectedTheme = value,
+                                              );
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    SizedBox(width: layout.columnsGap),
+                                    Expanded(
+                                      flex: 8,
+                                      child: ProfileFormSections(
+                                        layout: layout,
+                                        theme: theme,
+                                        usernameController: _usernameController,
+                                        bioController: _bioController,
+                                        locationController: _locationController,
+                                        selectedGenres: _selectedGenres,
+                                        onGenreTapped: _toggleGenre,
+                                        usernameValidator: _validateUsername,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                SizedBox(height: layout.sectionGap),
+                                Align(
+                                  alignment: Alignment.centerRight,
+                                  child: SizedBox(
+                                    width: layout.actionsMaxWidth,
+                                    child: ProfileActionsWidget(
+                                      layout: layout,
+                                      isSaving: _isSaving,
+                                      isBusy: _isBusy,
+                                      onSave: _saveProfile,
+                                      onSkip: _skip,
+                                    ),
                                   ),
                                 ),
-                              )
-                            : null),
-                );
-              },
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Profile photo',
-                    style: theme.textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
+                              ],
+                            ),
+                        ],
+                      ),
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _avatarUrl != null
-                        ? 'Photo uploaded'
-                        : (_pickedAvatar == null
-                              ? 'Tap to add a photo later from your profile.'
-                              : 'Photo selected: ${_pickedAvatar!.name}'),
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
+                ),
               ),
             ),
-            const SizedBox(width: 12),
-            Icon(
-              Icons.chevron_right_rounded,
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -348,38 +272,63 @@ class _PostRegistrationProfilePageState
       return;
     }
 
+    final previousAvatarUrl = _avatarUrl;
+
     setState(() {
       _pickedAvatar = avatar;
+      _pickedAvatarBytes = null;
+      _pickedAvatarName = avatar.name;
       _isUploadingAvatar = true;
-      _avatarUrl = null;
     });
 
     try {
       final bytes = await avatar.readAsBytes();
-      final avatarName = avatar.name;
+
+      if (!mounted) {
+        return;
+      }
+
+      setState(() {
+        _pickedAvatarBytes = bytes;
+      });
+
       final profileRepository = InjectionContainer().profileRepository;
       final updated = await profileRepository.uploadMyAvatar(
         bytes,
-        avatarName,
+        avatar.name,
       );
 
       if (!mounted) return;
 
       setState(() {
-        _avatarUrl = updated.profile.avatarUrl;
+        _avatarUrl = updated.profile.avatarUrl ?? previousAvatarUrl;
         _pickedAvatar = null;
+        _pickedAvatarBytes = null;
+        _pickedAvatarName = null;
         _isUploadingAvatar = false;
       });
 
       AppSnackbar.showSuccess(context, 'Avatar uploaded.');
     } on DioException catch (error) {
       if (mounted) {
-        setState(() => _isUploadingAvatar = false);
+        setState(() {
+          _avatarUrl = previousAvatarUrl;
+          _pickedAvatar = null;
+          _pickedAvatarBytes = null;
+          _pickedAvatarName = null;
+          _isUploadingAvatar = false;
+        });
         AppSnackbar.showError(context, _mapSaveError(error));
       }
     } on Object {
       if (mounted) {
-        setState(() => _isUploadingAvatar = false);
+        setState(() {
+          _avatarUrl = previousAvatarUrl;
+          _pickedAvatar = null;
+          _pickedAvatarBytes = null;
+          _pickedAvatarName = null;
+          _isUploadingAvatar = false;
+        });
         AppSnackbar.showError(context, 'Unable to upload avatar. Try again.');
       }
     }
@@ -437,7 +386,12 @@ class _PostRegistrationProfilePageState
         await profileRepository.updateMyProfile(request);
       }
 
-      if (_pickedAvatar != null) {
+      if (_pickedAvatarBytes != null) {
+        await profileRepository.uploadMyAvatar(
+          _pickedAvatarBytes!,
+          _pickedAvatarName ?? 'avatar',
+        );
+      } else if (_pickedAvatar != null) {
         final bytes = await _pickedAvatar!.readAsBytes();
         await profileRepository.uploadMyAvatar(
           bytes,
@@ -567,32 +521,5 @@ class _PostRegistrationProfilePageState
     }
 
     return null;
-  }
-}
-
-class _ThemeOptionCard extends StatelessWidget {
-  const _ThemeOptionCard({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.isSelected,
-    required this.onTap,
-  });
-
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final bool isSelected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return SelectionCard(
-      title: title,
-      subtitle: subtitle,
-      icon: icon,
-      isSelected: isSelected,
-      onTap: onTap,
-    );
   }
 }
