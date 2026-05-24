@@ -46,15 +46,29 @@ class AppConfig {
   static const String linkGoogleAccountEndpoint = 'users/link-google';
 
   static String? get googleWebClientId {
-    return _googleWebClientIdOverride.isEmpty
-        ? null
-        : _googleWebClientIdOverride;
+    if (_googleWebClientIdOverride.isNotEmpty) {
+      return _googleWebClientIdOverride;
+    }
+
+    final envValue = dotenv.env['GOOGLE_WEB_CLIENT_ID']?.trim();
+    if (envValue != null && envValue.isNotEmpty) {
+      return envValue;
+    }
+
+    return null;
   }
 
   static String? get googleServerClientId {
-    return _googleServerClientIdOverride.isEmpty
-        ? null
-        : _googleServerClientIdOverride;
+    if (_googleServerClientIdOverride.isNotEmpty) {
+      return _googleServerClientIdOverride;
+    }
+
+    final envValue = dotenv.env['GOOGLE_SERVER_CLIENT_ID']?.trim();
+    if (envValue != null && envValue.isNotEmpty) {
+      return envValue;
+    }
+
+    return googleWebClientId;
   }
 
   static const String searchUsersEndpoint = 'users/search';

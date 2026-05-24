@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:google_sign_in_web/web_only.dart' as web;
+import 'package:music_room/core/config/app_config.dart';
 import 'package:music_room/di/injection_container.dart';
 
 class GoogleWebSignInButton extends StatefulWidget {
@@ -21,6 +22,7 @@ class _GoogleWebSignInButtonState extends State<GoogleWebSignInButton> {
   bool _hasInitError = false;
   bool _isSubmitting = false;
   StreamSubscription<GoogleSignInAuthenticationEvent>? _subscription;
+  static const Duration _initializationTimeout = Duration(seconds: 10);
 
   @override
   void initState() {
@@ -32,18 +34,24 @@ class _GoogleWebSignInButtonState extends State<GoogleWebSignInButton> {
     final googleAuthService = InjectionContainer().googleAuthService;
     StreamSubscription<GoogleSignInAuthenticationEvent>? subscription;
 
-    if (mounted) {
-      setState(() {
-        _isInitializing = true;
-        _hasInitError = false;
-      });
-    }
-
-    await _subscription?.cancel();
-    _subscription = null;
-
     try {
-      await googleAuthService.initialize();
+      if (AppConfig.googleWebClientId == null) {
+        throw StateError(
+          'Missing GOOGLE_WEB_CLIENT_ID. Check mobile/assets/.env or dart-define configuration.',
+        );
+      }
+
+      if (mounted) {
+        setState(() {
+          _isInitializing = true;
+          _hasInitError = false;
+        });
+      }
+
+      await _subscription?.cancel();
+      _subscription = null;
+
+      await googleAuthService.initialize().timeout(_initializationTimeout);
 
       if (!mounted) return;
 
