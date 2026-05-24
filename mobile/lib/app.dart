@@ -167,12 +167,15 @@ class _StartupRouteGateState extends State<_StartupRouteGate> {
                 InjectionContainer().delegationGateway.detachSocketListeners();
               } on Exception catch (_) {}
               // After logout, navigate back to auth screen
-              unawaited(
-                Navigator.of(context).pushNamedAndRemoveUntil(
-                  RouteNames.auth,
-                  (_) => false,
-                ),
-              );
+              final navigator = AppRouter.navigatorKey.currentState;
+              if (navigator != null) {
+                unawaited(
+                  navigator.pushNamedAndRemoveUntil(
+                    RouteNames.auth,
+                    (_) => false,
+                  ),
+                );
+              }
             }
           },
           child: AppRouter.pageForRoute(snapshot.data!),

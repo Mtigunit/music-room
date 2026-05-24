@@ -29,12 +29,26 @@ jobs:
         working-directory: mobile
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
 
-      - uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
         with:
           flutter-version: 3.41.2
           cache: true
+
+      - name: Create .env file
+        env:
+          ENV_FILE: ${{ secrets.ENV_FILE }}
+        run: |
+          mkdir -p assets
+
+          if [ -n "$ENV_FILE" ]; then
+            printf '%s' "$ENV_FILE" > assets/.env
+          else
+            touch assets/.env
+          fi
 
       - name: Install dependencies
         run: flutter pub get --enforce-lockfile
@@ -51,12 +65,26 @@ jobs:
         working-directory: mobile
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
 
-      - uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
         with:
           flutter-version: 3.41.2
           cache: true
+
+      - name: Create .env file
+        env:
+          ENV_FILE: ${{ secrets.ENV_FILE }}
+        run: |
+          mkdir -p assets
+
+          if [ -n "$ENV_FILE" ]; then
+            printf '%s' "$ENV_FILE" > assets/.env
+          else
+            touch assets/.env
+          fi
 
       - name: Install dependencies
         run: flutter pub get --enforce-lockfile
@@ -73,12 +101,26 @@ jobs:
         working-directory: mobile
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
 
-      - uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
         with:
           flutter-version: 3.41.2
           cache: true
+
+      - name: Create .env file
+        env:
+          ENV_FILE: ${{ secrets.ENV_FILE }}
+        run: |
+          mkdir -p assets
+
+          if [ -n "$ENV_FILE" ]; then
+            printf '%s' "$ENV_FILE" > assets/.env
+          else
+            touch assets/.env
+          fi
 
       - name: Install dependencies
         run: flutter pub get --enforce-lockfile
@@ -100,12 +142,26 @@ jobs:
         working-directory: mobile
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
 
-      - uses: subosito/flutter-action@v2
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
         with:
           flutter-version: 3.41.2
           cache: true
+
+      - name: Create .env file
+        env:
+          ENV_FILE: ${{ secrets.ENV_FILE }}
+        run: |
+          mkdir -p assets
+
+          if [ -n "$ENV_FILE" ]; then
+            printf '%s' "$ENV_FILE" > assets/.env
+          else
+            touch assets/.env
+          fi
 
       - name: Verify lockfile is present
         run: test -f pubspec.lock
@@ -115,9 +171,45 @@ jobs:
           flutter pub get --enforce-lockfile
           git diff --exit-code -- pubspec.lock
 
+  web-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    defaults:
+      run:
+        working-directory: mobile
+
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
+        with:
+          persist-credentials: false
+
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2
+        with:
+          flutter-version: 3.41.2
+          cache: true
+
+      - name: Create .env file
+        env:
+          ENV_FILE: ${{ secrets.ENV_FILE }}
+        run: |
+          mkdir -p assets
+
+          if [ -n "$ENV_FILE" ]; then
+            printf '%s' "$ENV_FILE" > assets/.env
+          else
+            touch assets/.env
+          fi
+
+      - name: Install dependencies
+        run: flutter pub get --enforce-lockfile
+
+      - name: Build web
+        run: flutter build web --release
+
   pr-summary:
     if: ${{ always() && github.event_name == 'pull_request' }}
-    needs: [format, analyze, test, lockfile]
+    needs: [format, analyze, test, lockfile, web-build]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -131,6 +223,7 @@ jobs:
           ANALYZE_RESULT: ${{ needs.analyze.result }}
           TEST_RESULT: ${{ needs.test.result }}
           LOCKFILE_RESULT: ${{ needs.lockfile.result }}
+          WEB_BUILD_RESULT: ${{ needs.web-build.result }}
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         with:
           script: |
@@ -140,6 +233,7 @@ jobs:
               ['Analyze', process.env.ANALYZE_RESULT],
               ['Test', process.env.TEST_RESULT],
               ['Lockfile', process.env.LOCKFILE_RESULT],
+              ['Web build', process.env.WEB_BUILD_RESULT],
             ];
 
             const icon = (result) => {

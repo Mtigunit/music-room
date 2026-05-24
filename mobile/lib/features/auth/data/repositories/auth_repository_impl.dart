@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
+import 'package:music_room/core/config/app_config.dart';
 import 'package:music_room/core/error/failure.dart';
 import 'package:music_room/core/services/google_auth_service.dart';
 import 'package:music_room/core/services/token_storage_service.dart';
@@ -248,13 +250,20 @@ class AuthRepositoryImpl implements AuthRepository {
 
   @override
   Future<void> logout() async {
-    try {
-      await _googleAuthService.signOut();
-    } on Object {
-      // Always clear local session even if Google sign-out fails.
+    await _tokenStorage.clearAll();
+
+    if (kIsWeb && AppConfig.googleWebClientId == null) {
+      return;
     }
 
-    await _tokenStorage.clearAll();
+    unawaited(
+      _googleAuthService
+          .signOut()
+          .timeout(
+            const Duration(seconds: 3),
+          )
+          .catchError((_) {}),
+    );
   }
 
   @override
