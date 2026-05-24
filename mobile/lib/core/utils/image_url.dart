@@ -6,10 +6,13 @@ import 'package:music_room/core/config/app_config.dart';
 /// when it already starts with `http`, otherwise joins it with
 /// `AppConfig.apiBaseUrl`.
 String? resolveImageUrl(String? value) {
-  if (value == null || value.trim().isEmpty) return null;
-  if (value.startsWith('http')) return value;
+  if (value == null) return null;
+
+  final trimmed = value.trim();
+  if (trimmed.isEmpty) return null;
+  if (trimmed.startsWith('http')) return trimmed;
 
   final base = AppConfig.apiBaseUrl.replaceAll(RegExp(r'/+$'), '');
-  final path = value.replaceAll(RegExp('^/+'), '');
+  final path = trimmed.replaceAll(RegExp('^/+'), '');
   return '$base/$path';
 }
