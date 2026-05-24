@@ -19,6 +19,7 @@ import 'package:music_room/features/profile/presentation/pages/email_update_page
 import 'package:music_room/features/profile/presentation/state/profile_bloc.dart';
 import 'package:music_room/features/profile/presentation/state/profile_event.dart';
 import 'package:music_room/features/profile/presentation/state/profile_state.dart';
+import 'package:music_room/features/profile/presentation/widgets/logout_all_button.dart';
 
 class ProfileEditSheet extends StatefulWidget {
   const ProfileEditSheet({required this.profile, super.key});
@@ -579,32 +580,8 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
                             ),
                           ),
                           const SizedBox(height: 20),
-                          BlocBuilder<AuthBloc, AuthState>(
-                            buildWhen: (previous, current) =>
-                                current is LogoutLoading ||
-                                current is LogoutFailure ||
-                                current is LogoutSuccess ||
-                                current is AuthUnauthenticated,
-                            builder: (context, authState) {
-                              final isLogoutLoading =
-                                  authState is LogoutLoading;
-
-                              return SizedBox(
-                                width: double.infinity,
-                                child: AppButton(
-                                  onPressed: isLogoutLoading
-                                      ? null
-                                      : _handleLogoutFromAllDevices,
-                                  isLoading: isLogoutLoading,
-                                  label: 'Log out from all devices',
-                                  backgroundColor: theme.colorScheme.error,
-                                  foregroundColor: theme.colorScheme.onError,
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 14,
-                                  ),
-                                ),
-                              );
-                            },
+                          LogoutAllButton(
+                            onLogout: _handleLogoutFromAllDevices,
                           ),
                         ],
                       ),
