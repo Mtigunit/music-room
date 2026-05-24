@@ -2,6 +2,13 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class AppConfig {
+  static const String _googleWebClientIdOverride = String.fromEnvironment(
+    'GOOGLE_WEB_CLIENT_ID',
+  );
+  static const String _googleServerClientIdOverride = String.fromEnvironment(
+    'GOOGLE_SERVER_CLIENT_ID',
+  );
+
   // API Configuration
   // Use .env file or --dart-define=API_BASE_URL=... to override
   // Defaults are selected per platform to avoid localhost networking issues.
@@ -36,6 +43,18 @@ class AppConfig {
   static const String myProfileEndpoint = 'users/me';
   static const String userDetailEndpoint = 'users';
   static const String linkGoogleAccountEndpoint = 'users/link-google';
+
+  static String? get googleWebClientId {
+    return _googleWebClientIdOverride.isEmpty
+        ? null
+        : _googleWebClientIdOverride;
+  }
+
+  static String? get googleServerClientId {
+    return _googleServerClientIdOverride.isEmpty
+        ? null
+        : _googleServerClientIdOverride;
+  }
 
   static const String searchUsersEndpoint = 'users/search';
 

@@ -102,26 +102,26 @@ class _StartupRouteGateState extends State<_StartupRouteGate> {
   }
 
   Future<String> _resolveInitialRoute() async {
-    // On web, skip onboarding entirely — users arrive via URL.
-    if (!kIsWeb) {
-      final hasSeenOnboarding = await OnboardingService().hasSeenOnboarding();
-      if (!hasSeenOnboarding) {
-        return AppRouter.initialRoute;
-      }
+    late final bool hasSeenOnboarding;
+    if (kIsWeb) {
+      hasSeenOnboarding = true;
+    } else {
+      hasSeenOnboarding = await OnboardingService().hasSeenOnboarding();
     }
-
-    // Check if user is already authenticated
     final tokenStorage = InjectionContainer().tokenStorageService;
     final isAuthenticated = await tokenStorage.isAuthenticated();
 
-    // If authenticated (and onboarded, or web), go directly to home
-    if (isAuthenticated) {
+    final resolvedRoute = AppRouter.resolveStartupRoute(
+      isWeb: kIsWeb,
+      hasSeenOnboarding: hasSeenOnboarding,
+      isAuthenticated: isAuthenticated,
+    );
+
+    if (resolvedRoute == RouteNames.home) {
       unawaited(_restoreAuthenticatedSession());
-      return RouteNames.home;
     }
 
-    // Otherwise show auth page
-    return RouteNames.auth;
+    return resolvedRoute;
   }
 
   Future<void> _restoreAuthenticatedSession() async {
@@ -157,7 +157,7 @@ class _StartupRouteGateState extends State<_StartupRouteGate> {
               unawaited(_restoreAuthenticatedSession());
             }
 
-            if (state is LogoutSuccess || state is AuthUnauthenticated) {
+            if (state is LogoutSuccess) {
               InjectionContainer().socketClient.disconnect();
               try {
                 InjectionContainer().notificationsService
