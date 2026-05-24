@@ -328,19 +328,16 @@ class _ProfileViewState extends State<ProfileView> {
     return DefaultTabController(
       length: 2,
       initialIndex: _selectedTabIndex,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: PremiumSegmentedTabBar(
-          onTap: (index) {
-            setState(() {
-              _selectedTabIndex = index;
-            });
-          },
-          tabs: [
-            Tab(text: _roomTabLabel),
-            Tab(text: _playlistTabLabel),
-          ],
-        ),
+      child: PremiumSegmentedTabBar(
+        onTap: (index) {
+          setState(() {
+            _selectedTabIndex = index;
+          });
+        },
+        tabs: [
+          Tab(text: _roomTabLabel),
+          Tab(text: _playlistTabLabel),
+        ],
       ),
     );
   }
@@ -935,8 +932,6 @@ class _PremiumCard extends StatelessWidget {
   }
 }
 
-// Replaced by PremiumSegmentedTabBar for consistent styling across app.
-
 class _HostedEventsSection extends StatelessWidget {
   const _HostedEventsSection({
     required this.events,
@@ -1439,43 +1434,46 @@ class _EmptyStateCard extends StatelessWidget {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: colorScheme.onSurface.withValues(alpha: 0.08),
+    return SizedBox(
+      width: double.infinity,
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: colorScheme.surface,
+          borderRadius: BorderRadius.circular(22),
+          border: Border.all(
+            color: colorScheme.onSurface.withValues(alpha: 0.08),
+          ),
         ),
-      ),
-      child: Column(
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: colorScheme.primaryContainer,
-              borderRadius: BorderRadius.circular(18),
+        child: Column(
+          children: [
+            Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                color: colorScheme.primaryContainer,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              child: Icon(icon, color: colorScheme.primary),
             ),
-            child: Icon(icon, color: colorScheme.primary),
-          ),
-          const SizedBox(height: 14),
-          Text(
-            title,
-            textAlign: TextAlign.center,
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w800,
+            const SizedBox(height: 14),
+            Text(
+              title,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.titleMedium?.copyWith(
+                fontWeight: FontWeight.w800,
+              ),
             ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            message,
-            textAlign: TextAlign.center,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: colorScheme.onSurface.withValues(alpha: 0.68),
+            const SizedBox(height: 8),
+            Text(
+              message,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: colorScheme.onSurface.withValues(alpha: 0.68),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
