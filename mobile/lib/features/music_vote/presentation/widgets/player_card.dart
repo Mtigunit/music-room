@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/utils/tag_genre_normalizer.dart';
+import 'package:music_room/core/widgets/app_brand_icon.dart';
 import 'package:music_room/features/music_vote/presentation/state/music_vote_cubit.dart';
 
 /// The hero player section.
@@ -323,13 +324,7 @@ class _HeroImage extends StatelessWidget {
           ],
         ),
       ),
-      child: Center(
-        child: Icon(
-          Icons.music_note_rounded,
-          size: 72,
-          color: Colors.white.withValues(alpha: 0.75),
-        ),
-      ),
+      child: const Center(child: AppBrandIcon(size: 72)),
     );
   }
 }

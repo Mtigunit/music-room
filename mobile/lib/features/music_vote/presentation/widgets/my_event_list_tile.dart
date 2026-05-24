@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:music_room/core/widgets/app_brand_icon.dart';
 import 'package:music_room/features/music_vote/data/models/my_event_item.dart';
 
 /// A compact, horizontal list-tile for the "My Events" dashboard.
@@ -210,11 +211,13 @@ class _GradientPlaceholder extends StatelessWidget {
         ),
       ),
       child: Center(
-        child: Icon(
-          event.isLive ? Icons.headphones : Icons.music_note,
-          color: Colors.white.withValues(alpha: 0.85),
-          size: 32,
-        ),
+        child: event.isLive
+            ? Icon(
+                Icons.headphones,
+                color: Colors.white.withValues(alpha: 0.85),
+                size: 32,
+              )
+            : const AppBrandIcon(size: 32),
       ),
     );
   }

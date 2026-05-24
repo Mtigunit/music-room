@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:music_room/core/widgets/app_brand_icon.dart';
 import 'package:music_room/core/widgets/dynamic_search_bottom_sheet.dart';
 import 'package:music_room/core/widgets/top_toast.dart';
 import 'package:music_room/core/widgets/track_search_list_tile.dart';
@@ -676,11 +677,7 @@ class _QueueTrackThumbnail extends StatelessWidget {
     return Container(
       color: colorScheme.primary.withValues(alpha: 0.2),
       alignment: Alignment.center,
-      child: Icon(
-        Icons.music_note,
-        size: 26,
-        color: colorScheme.primary,
-      ),
+      child: const AppBrandIcon(size: 26),
     );
   }
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:music_room/core/widgets/app_brand_icon.dart';
 import 'package:music_room/core/widgets/dynamic_search_bottom_sheet.dart';
 import 'package:music_room/core/widgets/responsive_layout.dart';
 import 'package:music_room/core/widgets/track_search_list_tile.dart';
@@ -303,10 +304,7 @@ class _Step3MusicBodyState extends State<_Step3MusicBody> {
                           width: 48,
                           height: 48,
                           color: theme.colorScheme.primaryContainer,
-                          child: Icon(
-                            Icons.music_note,
-                            color: theme.colorScheme.primary,
-                          ),
+                          child: const Center(child: AppBrandIcon(size: 20)),
                         );
                       },
                     ),

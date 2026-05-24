@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:music_room/core/widgets/app_brand_icon.dart';
 import 'package:music_room/core/widgets/top_toast.dart';
 import 'package:music_room/features/music_vote/data/models/event_detail_model.dart';
 import 'package:music_room/features/music_vote/data/models/event_track_model.dart';
@@ -597,11 +598,7 @@ class _MiniArtwork extends StatelessWidget {
       width: 40,
       height: 40,
       color: accent.withValues(alpha: 0.2),
-      child: Icon(
-        Icons.music_note_rounded,
-        color: accent,
-        size: 20,
-      ),
+      child: const Center(child: AppBrandIcon(size: 20)),
     );
   }
 }

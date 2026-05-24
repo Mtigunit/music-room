@@ -1,6 +1,8 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:music_room/core/services/onboarding_service.dart';
+import 'package:music_room/core/widgets/app_brand_icon.dart';
 import 'package:music_room/core/widgets/app_button.dart';
 import 'package:music_room/core/widgets/feature_chip.dart';
 import 'package:music_room/core/widgets/page_indicator.dart';
@@ -73,11 +75,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                 color: colorScheme.primary,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Icon(
-                Icons.music_note,
-                color: colorScheme.onPrimary,
-                size: 20,
-              ),
+              child: const AppBrandIcon(size: 20),
             ),
             const SizedBox(width: 8),
             Text(

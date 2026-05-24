@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:music_room/core/widgets/app_brand_icon.dart';
 import 'package:music_room/core/widgets/dynamic_search_bottom_sheet.dart';
 import 'package:music_room/features/playlist/data/datasources/playlist_remote_datasource.dart';
 import 'package:music_room/features/playlist/domain/entities/playlist_entity.dart';
@@ -232,17 +233,11 @@ class _TrackSearchResultTile extends StatelessWidget {
                       ? Image.network(
                           track.thumbnailUrl!,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, _, _) => const Icon(
-                            Icons.music_note,
-                            color: Colors.white,
-                            size: 24,
+                          errorBuilder: (_, _, _) => const Center(
+                            child: AppBrandIcon(),
                           ),
                         )
-                      : const Icon(
-                          Icons.music_note,
-                          color: Colors.white,
-                          size: 24,
-                        ),
+                      : const Center(child: AppBrandIcon()),
                 ),
               ),
               const SizedBox(width: 12),

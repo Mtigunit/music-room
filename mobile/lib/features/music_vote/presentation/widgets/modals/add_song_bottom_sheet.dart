@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:music_room/core/widgets/app_back_button.dart';
+import 'package:music_room/core/widgets/app_brand_icon.dart';
 
 class _MockTrack {
   const _MockTrack({
@@ -270,11 +271,7 @@ class _SearchTrackItemState extends State<_SearchTrackItem> {
               width: 52,
               height: 52,
               color: Color(widget.track.colorHex),
-              child: const Icon(
-                Icons.music_note,
-                color: Colors.white,
-                size: 24,
-              ),
+              child: const Center(child: AppBrandIcon()),
             ),
           ),
           const SizedBox(width: 12),

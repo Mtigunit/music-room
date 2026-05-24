@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:music_room/core/widgets/app_brand_icon.dart';
 
 /// A decorative gradient panel shown on the left side of auth screens
 /// when the viewport is wide enough for a split-panel layout.
@@ -77,11 +78,7 @@ class AuthBrandPanel extends StatelessWidget {
                       color: Colors.white.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(20),
                     ),
-                    child: const Icon(
-                      Icons.music_note_rounded,
-                      color: Colors.white,
-                      size: 44,
-                    ),
+                    child: const Center(child: AppBrandIcon(size: 44)),
                   ),
                   const SizedBox(height: 28),
 
