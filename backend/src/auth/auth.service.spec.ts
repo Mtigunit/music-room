@@ -138,6 +138,16 @@ describe('AuthService', () => {
         { email: 'test@example.com' },
       );
     });
+
+    it('should handle emit exceptions gracefully and resolve successfully', async () => {
+      eventEmitter.emit.mockImplementationOnce(() => {
+        throw new Error('Emit failed');
+      });
+
+      await expect(
+        authService.sendPasswordResetOtp('test@example.com'),
+      ).resolves.not.toThrow();
+    });
   });
 
   describe('handlePasswordResetRequest', () => {

@@ -51,7 +51,15 @@ export class AuthService {
   }
 
   sendPasswordResetOtp(email: string): Promise<void> {
-    this.eventEmitter.emit(PASSWORD_RESET_REQUEST_EVENT, { email });
+    try {
+      this.eventEmitter.emit(PASSWORD_RESET_REQUEST_EVENT, { email });
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      this.logger.error(
+        `Failed to emit password reset request event for ${email}: ${errorMessage}`,
+        err instanceof Error ? err.stack : undefined,
+      );
+    }
     return Promise.resolve();
   }
 
