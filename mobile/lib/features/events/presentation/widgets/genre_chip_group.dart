@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:music_room/features/playlist/domain/types/playlist_tags.dart';
+import 'package:music_room/core/models/tag_option.dart';
+import 'package:music_room/core/utils/tag_genre_normalizer.dart';
 
 class GenreChipGroup extends StatelessWidget {
   const GenreChipGroup({
@@ -11,7 +12,7 @@ class GenreChipGroup extends StatelessWidget {
   final List<String> selectedGenres;
   final ValueChanged<List<String>> onGenresChanged;
 
-  void _toggleGenre(PlaylistTag tag) {
+  void _toggleGenre(TagOption<String> tag) {
     final newlySelected = List<String>.from(selectedGenres);
     if (newlySelected.contains(tag.value)) {
       newlySelected.remove(tag.value);
@@ -31,10 +32,12 @@ class GenreChipGroup extends StatelessWidget {
         Wrap(
           spacing: 12,
           runSpacing: 12,
-          children: PlaylistTag.all.map((tag) {
+          children: TagGenreNormalizer.allTags.map((tag) {
             final isSelected = selectedGenres.contains(tag.value);
+            final displayLabel =
+                TagGenreNormalizer.toDisplayLabel(tag) ?? tag.displayLabel;
             return ChoiceChip(
-              label: Text(tag.displayLabel),
+              label: Text(displayLabel),
               selected: isSelected,
               showCheckmark: false,
               onSelected: (_) => _toggleGenre(tag),

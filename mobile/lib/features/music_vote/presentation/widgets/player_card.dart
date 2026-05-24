@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:music_room/core/utils/tag_genre_normalizer.dart';
 import 'package:music_room/features/music_vote/presentation/state/music_vote_cubit.dart';
 
 /// The hero player section.
@@ -163,10 +164,8 @@ class _PlayerCardState extends State<PlayerCard> {
     final size = MediaQuery.of(context).size;
     final heroHeight = (size.height * 0.42).clamp(240.0, 360.0);
     final trackTitle = track?.title ?? 'No Track Playing';
-    final rawTag = (event?.tags.isNotEmpty ?? false)
-        ? event!.tags.first
-        : 'short wave';
-    final genreTag = rawTag.isNotEmpty ? rawTag : 'short wave';
+    final rawTag = (event?.tags.isNotEmpty ?? false) ? event!.tags.first : null;
+    final genreTag = TagGenreNormalizer.toDisplayLabel(rawTag) ?? 'short wave';
     final listenerCount = state.listenerCount ?? 0;
     final statusLabel = event?.status == 'LIVE' ? 'Live' : 'Offline';
     final trackArt = track?.thumbnailUrl ?? '';

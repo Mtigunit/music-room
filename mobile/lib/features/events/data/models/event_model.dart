@@ -1,5 +1,5 @@
+import 'package:music_room/core/models/tag_option.dart';
 import 'package:music_room/features/events/data/models/track_model.dart';
-import 'package:music_room/features/events/domain/entities/event_tag.dart';
 
 class EventPolicyModel {
   EventPolicyModel({
@@ -34,7 +34,7 @@ class EventModel {
   });
 
   final String name;
-  final List<EventTag> tags;
+  final List<TagOption<String>> tags;
   final String visibility;
   final bool invitingOnly;
   final String? description;

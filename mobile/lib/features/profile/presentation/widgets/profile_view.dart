@@ -1,11 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:music_room/core/config/app_config.dart';
+import 'package:music_room/core/utils/image_url.dart';
+import 'package:music_room/core/utils/tag_genre_normalizer.dart';
 import 'package:music_room/core/widgets/app_back_button.dart';
 import 'package:music_room/core/widgets/app_button.dart';
+import 'package:music_room/core/widgets/premium_segmented_tab_bar.dart';
 import 'package:music_room/core/widgets/responsive_layout.dart';
+import 'package:music_room/features/music_vote/data/models/my_event_item.dart';
+import 'package:music_room/features/music_vote/presentation/widgets/my_event_list_tile.dart';
 import 'package:music_room/features/playlist/domain/entities/playlist_entity.dart';
-import 'package:music_room/features/playlist/presentation/widgets/playlist_collage_image.dart';
+import 'package:music_room/features/profile/domain/entities/hosted_event_entity.dart';
 import 'package:music_room/features/profile/domain/entities/profile_entity.dart';
+import 'package:music_room/features/profile/presentation/widgets/media_card.dart';
 
 class ProfileView extends StatefulWidget {
   const ProfileView({
@@ -29,7 +34,7 @@ class ProfileView extends StatefulWidget {
   final VoidCallback? onFollowProfile;
   final VoidCallback? onEditProfile;
   final VoidCallback? onChangeAvatar;
-  final void Function(ProfileRoomEntity room)? onOpenRoom;
+  final void Function(HostedEventEntity room)? onOpenRoom;
   final void Function(PlaylistEntity playlist)? onOpenPlaylist;
   final VoidCallback? onLogout;
   final VoidCallback? onGoogleAccountAction;
@@ -234,7 +239,7 @@ class _ProfileViewState extends State<ProfileView> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const SizedBox(height: 52),
+                        const SizedBox(height: 38),
                         _buildSegmentedControl(),
                         const SizedBox(height: 16),
                         _buildTabContent(),
@@ -320,15 +325,23 @@ class _ProfileViewState extends State<ProfileView> {
   }
 
   Widget _buildSegmentedControl() {
-    return _SegmentedControl(
-      firstLabel: _roomTabLabel,
-      secondLabel: _playlistTabLabel,
-      selectedIndex: _selectedTabIndex,
-      onChanged: (index) {
-        setState(() {
-          _selectedTabIndex = index;
-        });
-      },
+    return DefaultTabController(
+      length: 2,
+      initialIndex: _selectedTabIndex,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: PremiumSegmentedTabBar(
+          onTap: (index) {
+            setState(() {
+              _selectedTabIndex = index;
+            });
+          },
+          tabs: [
+            Tab(text: _roomTabLabel),
+            Tab(text: _playlistTabLabel),
+          ],
+        ),
+      ),
     );
   }
 
@@ -338,11 +351,11 @@ class _ProfileViewState extends State<ProfileView> {
       switchInCurve: Curves.easeOutCubic,
       switchOutCurve: Curves.easeInCubic,
       child: _selectedTabIndex == 0
-          ? _RoomsSection(
+          ? _HostedEventsSection(
               key: const ValueKey<String>('rooms'),
-              rooms: widget.data.hostedRooms,
+              events: widget.data.hostedRooms,
               isOwnProfile: _isOwnProfile,
-              onOpenRoom: widget.onOpenRoom,
+              onOpenEvent: widget.onOpenRoom,
             )
           : _PlaylistsSection(
               key: const ValueKey<String>('playlists'),
@@ -653,7 +666,7 @@ class _ProfileAvatar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final imageUrl = _resolveImageUrl(avatarUrl);
+    final imageUrl = resolveImageUrl(avatarUrl);
 
     final avatar = Container(
       width: size,
@@ -922,329 +935,59 @@ class _PremiumCard extends StatelessWidget {
   }
 }
 
-// class _RelationshipRow extends StatelessWidget {
-//   const _RelationshipRow({required this.profile});
+// Replaced by PremiumSegmentedTabBar for consistent styling across app.
 
-//   final UserProfileEntity profile;
-
-//   @override
-//   Widget build(BuildContext context) {
-//     // final badges = <Widget>[];
-//     // if (profile.isFollowing) {
-//     //   badges.add(
-//     //     const _RelationshipChip(
-//     //       label: 'Following',
-//     //       icon: Icons.favorite_rounded,
-//     //     ),
-//     //   );
-//     // }
-//     // if (profile.isFollowedBy) {
-//     //   badges.add(
-//     //     const _RelationshipChip(
-//     //       label: 'Follows you',
-//     //       icon: Icons.person_rounded,
-//     //     ),
-//     //   );
-//     // }
-//     // if (profile.isFriend) {
-//     //   badges.add(
-//     //     const _RelationshipChip(label: 'Friend', icon: Icons.groups_rounded),
-//     //   );
-//     // }
-
-//     // if (badges.isEmpty) {
-//     //   return const SizedBox.shrink();
-//     // }
-
-//     return Wrap(
-//       spacing: 8,
-//       runSpacing: 8,
-//       children: badges,
-//     );
-//   }
-// }
-
-// class _RelationshipChip extends StatelessWidget {
-//   const _RelationshipChip({required this.label, required this.icon});
-
-//   final String label;
-//   final IconData icon;
-
-//   @override
-//   Widget build(BuildContext context) {
-//     final colorScheme = Theme.of(context).colorScheme;
-
-//     return Container(
-//       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-//       decoration: BoxDecoration(
-//         color: colorScheme.surface,
-//         borderRadius: BorderRadius.circular(999),
-//         border: Border.all(
-//           color: colorScheme.onSurface.withValues(alpha: 0.08),
-//         ),
-//       ),
-//       child: Row(
-//         mainAxisSize: MainAxisSize.min,
-//         children: [
-//           Icon(icon, size: 16, color: colorScheme.primary),
-//           const SizedBox(width: 6),
-//           Text(
-//             label,
-//             style: Theme.of(context).textTheme.labelLarge?.copyWith(
-//               color: colorScheme.onSurface,
-//             ),
-//           ),
-//         ],
-//       ),
-//     );
-//   }
-// }
-
-class _SegmentedControl extends StatelessWidget {
-  const _SegmentedControl({
-    required this.firstLabel,
-    required this.secondLabel,
-    required this.selectedIndex,
-    required this.onChanged,
-  });
-
-  final String firstLabel;
-  final String secondLabel;
-  final int selectedIndex;
-  final ValueChanged<int> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(
-        color: colorScheme.secondary,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(
-          color: colorScheme.onSurface.withValues(alpha: 0.08),
-        ),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: _SegmentButton(
-              label: firstLabel,
-              selected: selectedIndex == 0,
-              onTap: () => onChanged(0),
-            ),
-          ),
-          const SizedBox(width: 4),
-          Expanded(
-            child: _SegmentButton(
-              label: secondLabel,
-              selected: selectedIndex == 1,
-              onTap: () => onChanged(1),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _SegmentButton extends StatelessWidget {
-  const _SegmentButton({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(14),
-      onTap: onTap,
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(vertical: 14),
-        decoration: BoxDecoration(
-          color: selected ? colorScheme.primary : Colors.transparent,
-          borderRadius: BorderRadius.circular(14),
-        ),
-        child: Center(
-          child: Text(
-            label,
-            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-              color: selected
-                  ? colorScheme.onPrimary
-                  : colorScheme.onSurface.withValues(alpha: 0.68),
-              fontWeight: FontWeight.w700,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _RoomsSection extends StatelessWidget {
-  const _RoomsSection({
-    required this.rooms,
+class _HostedEventsSection extends StatelessWidget {
+  const _HostedEventsSection({
+    required this.events,
     required this.isOwnProfile,
-    this.onOpenRoom,
+    this.onOpenEvent,
     super.key,
   });
 
-  final List<ProfileRoomEntity> rooms;
+  final List<HostedEventEntity> events;
   final bool isOwnProfile;
-  final void Function(ProfileRoomEntity room)? onOpenRoom;
+  final void Function(HostedEventEntity)? onOpenEvent;
 
   @override
   Widget build(BuildContext context) {
-    if (rooms.isEmpty) {
+    if (events.isEmpty) {
       return _EmptyStateCard(
         icon: Icons.queue_music_rounded,
         title: isOwnProfile ? 'No rooms yet' : 'No public rooms yet',
         message: isOwnProfile
             ? 'Your hosted rooms will appear here once you create an event.'
-            : 'This user has not exposed any hosted rooms through the current '
-                  'API.',
+            : 'This user has not exposed any hosted rooms '
+                  'through the current API.',
       );
     }
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final isWide = constraints.maxWidth >= 760;
-        return GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: rooms.length,
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: isWide ? 2 : 1,
-            mainAxisExtent: 140,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-          ),
-          itemBuilder: (context, index) {
-            final room = rooms[index];
-            return _RoomCard(
-              room: room,
-              onTap: onOpenRoom == null ? null : () => onOpenRoom!(room),
-            );
-          },
+    return ListView.builder(
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      itemCount: events.length,
+      itemBuilder: (_, index) {
+        final event = events[index];
+        return MyEventListTile(
+          event: _toMyEventItem(event),
+          onTap: onOpenEvent == null ? null : () => onOpenEvent!(event),
         );
       },
     );
   }
-}
 
-class _RoomCard extends StatelessWidget {
-  const _RoomCard({required this.room, this.onTap});
-
-  final ProfileRoomEntity room;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final imageUrl = _resolveImageUrl(room.thumbnailUrl);
-
-    final card = Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: colorScheme.onSurface.withValues(alpha: 0.08),
-        ),
-      ),
-      child: Row(
-        children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(16),
-            child: SizedBox(
-              width: 72,
-              height: 72,
-              child: imageUrl == null
-                  ? ColoredBox(
-                      color: colorScheme.primaryContainer,
-                      child: Icon(
-                        Icons.music_note_rounded,
-                        color: colorScheme.primary,
-                        size: 30,
-                      ),
-                    )
-                  : Image.network(
-                      imageUrl,
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stackTrace) => ColoredBox(
-                        color: colorScheme.primaryContainer,
-                        child: Icon(
-                          Icons.music_note_rounded,
-                          color: colorScheme.primary,
-                          size: 30,
-                        ),
-                      ),
-                    ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        room.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.titleMedium?.copyWith(
-                          fontWeight: FontWeight.w800,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    _LiveBadge(isLive: room.isLive),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  '${room.status} · ${room.membersCount} listeners',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.onSurface.withValues(alpha: 0.68),
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  room.hostName,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurface.withValues(alpha: 0.52),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-
-    if (onTap == null) {
-      return card;
-    }
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(22),
-        onTap: onTap,
-        child: card,
-      ),
+  MyEventItem _toMyEventItem(HostedEventEntity event) {
+    return MyEventItem(
+      id: event.id,
+      name: event.name,
+      hostName: event.hostName,
+      hostId: event.hostId,
+      dateTime: event.dateTime,
+      status: event.status,
+      coverImageAsset: event.coverImageAsset,
+      coverColorHex: event.coverColorHex,
+      listenerCount: event.listenerCount,
+      genre: event.genre,
     );
   }
 }
@@ -1289,11 +1032,24 @@ class _PlaylistsSection extends StatelessWidget {
           ),
           itemBuilder: (context, index) {
             final playlist = playlists[index];
-            return _PlaylistCard(
-              playlist: playlist,
-              onTap: onOpenPlaylist == null
-                  ? null
-                  : () => onOpenPlaylist!(playlist),
+            final data = PlaylistCardData(
+              id: playlist.id,
+              name: playlist.name,
+              thumbnailUrl: playlist.thumbnailUrl,
+              visibility: playlist.visibility,
+              trackCount: playlist.trackCount,
+              tags: playlist.tags,
+              collageImageUrls: playlist.collageImageUrls,
+            );
+
+            return SizedBox(
+              height: 140,
+              child: MediaCard(
+                data: data,
+                onTap: onOpenPlaylist == null
+                    ? null
+                    : () => onOpenPlaylist!(playlist),
+              ),
             );
           },
         );
@@ -1302,103 +1058,7 @@ class _PlaylistsSection extends StatelessWidget {
   }
 }
 
-class _PlaylistCard extends StatelessWidget {
-  const _PlaylistCard({required this.playlist, this.onTap});
-
-  final PlaylistEntity playlist;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    final card = Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: colorScheme.onSurface.withValues(alpha: 0.08),
-        ),
-      ),
-      child: Row(
-        children: [
-          PlaylistCollageImage(
-            thumbnailUrl: playlist.thumbnailUrl,
-            collageImageUrls: playlist.collageImageUrls,
-            borderRadius: BorderRadius.circular(22),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  playlist.name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  '${playlist.visibility} · ${playlist.trackCount} tracks',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.onSurface.withValues(alpha: 0.68),
-                  ),
-                ),
-                if (playlist.tags.isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: playlist.tags
-                        .take(2)
-                        .map(
-                          (tag) => Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 10,
-                              vertical: 6,
-                            ),
-                            decoration: BoxDecoration(
-                              color: colorScheme.primaryContainer,
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: Text(
-                              tag,
-                              style: theme.textTheme.labelMedium?.copyWith(
-                                color: colorScheme.onPrimaryContainer,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                        )
-                        .toList(growable: false),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-
-    if (onTap == null) {
-      return card;
-    }
-
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(22),
-        onTap: onTap,
-        child: card,
-      ),
-    );
-  }
-}
+// Playlists now render with `MediaCard` (see MediaCard/PlaylistCardData).
 
 class _PrivateInfoCard extends StatelessWidget {
   const _PrivateInfoCard({required this.profile});
@@ -1627,7 +1287,7 @@ class _GoogleLinkedDetails extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final imageUrl = _resolveImageUrl(profile.avatarUrl);
+    final imageUrl = resolveImageUrl(profile.avatarUrl);
 
     return Column(
       children: [
@@ -1821,34 +1481,6 @@ class _EmptyStateCard extends StatelessWidget {
   }
 }
 
-class _LiveBadge extends StatelessWidget {
-  const _LiveBadge({required this.isLive});
-
-  final bool isLive;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-      decoration: BoxDecoration(
-        color: isLive
-            ? colorScheme.error.withValues(alpha: 0.16)
-            : colorScheme.primaryContainer,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        isLive ? 'LIVE' : 'ROOM',
-        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-          color: isLive ? colorScheme.error : colorScheme.onPrimaryContainer,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-    );
-  }
-}
-
 class _BannerChip extends StatelessWidget {
   const _BannerChip({
     required this.icon,
@@ -1970,12 +1602,7 @@ String? _profileGenres(UserProfileEntity profile) {
       preferences['tags'];
 
   if (rawGenres is List<dynamic>) {
-    final genres = rawGenres
-        .whereType<String>()
-        .map((genre) => genre.trim())
-        .where((genre) => genre.isNotEmpty)
-        .take(3)
-        .toList(growable: false);
+    final genres = TagGenreNormalizer.toDisplayLabels(rawGenres, limit: 3);
 
     if (genres.isNotEmpty) {
       return genres.join(' · ');
@@ -1985,19 +1612,7 @@ String? _profileGenres(UserProfileEntity profile) {
   return null;
 }
 
-String? _resolveImageUrl(String? value) {
-  if (value == null || value.trim().isEmpty) {
-    return null;
-  }
-
-  if (value.startsWith('http')) {
-    return value;
-  }
-
-  final baseUrl = AppConfig.apiBaseUrl.replaceAll(RegExp(r'/+$'), '');
-  final normalizedPath = value.replaceAll(RegExp('^/+'), '');
-  return '$baseUrl/$normalizedPath';
-}
+// Image URL resolution handled by `core/utils/image_url.dart`.
 
 String _formatCount(int value) {
   if (value >= 1000000) {

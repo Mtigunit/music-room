@@ -16,7 +16,6 @@ import 'package:music_room/features/auth/presentation/widgets/post_registration_
 import 'package:music_room/features/auth/presentation/widgets/post_registration_profile_card.dart';
 import 'package:music_room/features/auth/presentation/widgets/post_registration_profile_form_sections.dart';
 import 'package:music_room/features/auth/presentation/widgets/post_registration_profile_theme_section.dart';
-import 'package:music_room/features/playlist/domain/types/playlist_tags.dart';
 import 'package:music_room/features/profile/domain/entities/profile_entity.dart';
 import 'package:music_room/routes/route_names.dart';
 
@@ -336,12 +335,10 @@ class _PostRegistrationProfilePageState
 
   void _toggleGenre(String genre) {
     setState(() {
-      final tag = _playlistTagFromDisplayLabel(genre);
-
-      if (_selectedGenres.contains(tag.value)) {
-        _selectedGenres.remove(tag.value);
-      } else if (_selectedGenres.length < 4) {
-        _selectedGenres.add(tag.value);
+      if (_selectedGenres.contains(genre)) {
+        _selectedGenres.remove(genre);
+      } else if (_selectedGenres.length < 3) {
+        _selectedGenres.add(genre);
       }
     });
   }
@@ -465,12 +462,6 @@ class _PostRegistrationProfilePageState
 
     _usernameController.text = username;
     _hasPrefilledUsername = true;
-  }
-
-  PlaylistTag _playlistTagFromDisplayLabel(String displayLabel) {
-    return PlaylistTag.all.firstWhere(
-      (tag) => tag.displayLabel == displayLabel,
-    );
   }
 
   String? _trimmedValue(String value) {

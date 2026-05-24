@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:music_room/core/models/tag_option.dart';
+import 'package:music_room/core/utils/tag_genre_normalizer.dart';
 import 'package:music_room/core/widgets/genre_selection_grid.dart';
 import 'package:music_room/core/widgets/responsive_layout.dart';
-import 'package:music_room/features/events/domain/entities/event_tag.dart';
 
 class Step2Genre extends StatelessWidget {
   const Step2Genre({
@@ -12,16 +13,17 @@ class Step2Genre extends StatelessWidget {
     this.errorText,
     super.key,
   });
-  final List<EventTag> selectedGenres;
-  final ValueChanged<List<EventTag>> onGenresChanged;
+  final List<TagOption<String>> selectedGenres;
+  final ValueChanged<List<TagOption<String>>> onGenresChanged;
   final bool canContinue;
   final String? errorText;
   final VoidCallback onNext;
 
-  static const List<EventTag> availableGenres = EventTag.values;
+  static List<TagOption<String>> get availableGenres =>
+      TagGenreNormalizer.allTags;
 
-  void _toggleGenre(EventTag genre) {
-    final newlySelected = List<EventTag>.from(selectedGenres);
+  void _toggleGenre(TagOption<String> genre) {
+    final newlySelected = List<TagOption<String>>.from(selectedGenres);
     if (newlySelected.contains(genre)) {
       newlySelected.remove(genre);
       onGenresChanged(newlySelected);

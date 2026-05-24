@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:music_room/core/models/tag_option.dart';
 
 import 'package:music_room/core/widgets/app_back_button.dart';
 import 'package:music_room/core/widgets/app_snackbar.dart';
@@ -10,7 +11,6 @@ import 'package:music_room/core/widgets/responsive_layout.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/events/data/models/track_model.dart';
 import 'package:music_room/features/events/domain/entities/event_location.dart';
-import 'package:music_room/features/events/domain/entities/event_tag.dart';
 import 'package:music_room/features/events/presentation/state/create_event_cubit.dart';
 import 'package:music_room/features/events/presentation/validation/create_event_form_validator.dart';
 import 'package:music_room/features/events/presentation/widgets/step_1_details.dart';
@@ -37,7 +37,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
   String eventDescription = '';
   XFile? eventCover;
 
-  List<EventTag> selectedGenres = [];
+  List<TagOption<String>> selectedGenres = [];
 
   List<TrackModel> selectedTracks = []; // Use actual TrackModel
 

@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:intl/intl.dart';
 import 'package:music_room/core/config/app_config.dart';
+import 'package:music_room/core/utils/tag_genre_normalizer.dart';
 import 'package:music_room/core/widgets/feature_chip.dart';
 import 'package:music_room/features/music_vote/data/models/event_detail_model.dart';
 import 'package:music_room/features/music_vote/data/models/event_track_model.dart';
@@ -380,7 +381,7 @@ class _EventInfoSection extends StatelessWidget {
             children: event.tags
                 .map(
                   (tag) => FeatureChip(
-                    label: tag,
+                    label: TagGenreNormalizer.toDisplayLabel(tag) ?? tag,
                     icon: Icons.local_offer_rounded,
                   ),
                 )
