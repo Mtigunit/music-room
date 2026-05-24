@@ -197,10 +197,11 @@ class ProfileRepositoryImpl implements ProfileRepository {
   }
 
   HostedEventEntity _toHostedEventEntity(MyEventItemModel model) {
-    final cover = model.coverImage;
-    final resolvedCover = (cover != null && cover.trim().isNotEmpty)
-        ? cover
-        : model.firstTrack;
+    final coverTrim = (model.coverImage ?? '').trim();
+    final firstTrackTrim = (model.firstTrack ?? '').trim();
+    final resolvedCover = coverTrim.isNotEmpty
+        ? coverTrim
+        : (firstTrackTrim.isNotEmpty ? firstTrackTrim : null);
 
     return HostedEventEntity(
       id: model.id,
