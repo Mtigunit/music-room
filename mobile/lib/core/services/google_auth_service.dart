@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 
 import 'package:music_room/core/config/app_config.dart';
@@ -36,8 +35,8 @@ final class GoogleAuthService {
 
     try {
       await _googleSignIn.initialize(
-        clientId: kIsWeb ? dotenv.env['GOOGLE_WEB_CLIENT_ID'] : null,
-        serverClientId: dotenv.env['GOOGLE_SERVER_CLIENT_ID'],
+        clientId: kIsWeb ? AppConfig.googleWebClientId : null,
+        serverClientId: AppConfig.googleServerClientId,
       );
 
       isInitialized = true;
