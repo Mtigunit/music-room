@@ -21,6 +21,8 @@ class _GoogleWebSignInButtonState extends State<GoogleWebSignInButton> {
   bool _isInitializing = false;
   bool _hasInitError = false;
   bool _isSubmitting = false;
+  Object? _initError;
+  StackTrace? _initStackTrace;
   StreamSubscription<GoogleSignInAuthenticationEvent>? _subscription;
   static const Duration _initializationTimeout = Duration(seconds: 10);
 
@@ -45,6 +47,8 @@ class _GoogleWebSignInButtonState extends State<GoogleWebSignInButton> {
         setState(() {
           _isInitializing = true;
           _hasInitError = false;
+          _initError = null;
+          _initStackTrace = null;
         });
       }
 
@@ -74,9 +78,12 @@ class _GoogleWebSignInButtonState extends State<GoogleWebSignInButton> {
         setState(() {
           _hasInitError = false;
           _isInitializing = false;
+          _initError = null;
+          _initStackTrace = null;
         });
       }
-    } on Exception catch (error, stackTrace) {
+      // ignore: avoid_catches_without_on_clauses
+    } catch (error, stackTrace) {
       debugPrint(
         '[GoogleWebSignInButton] Initialization failed: $error',
       );
@@ -88,6 +95,8 @@ class _GoogleWebSignInButtonState extends State<GoogleWebSignInButton> {
         setState(() {
           _hasInitError = true;
           _isInitializing = false;
+          _initError = error;
+          _initStackTrace = stackTrace;
         });
       }
     }
@@ -239,6 +248,22 @@ class _GoogleWebSignInButtonState extends State<GoogleWebSignInButton> {
   }
 
   Widget _buildErrorState() {
+    assert(
+      () {
+        if (_initError != null) {
+          debugPrint(
+            '[GoogleWebSignInButton] Last initialization error: $_initError',
+          );
+        }
+        if (_initStackTrace != null) {
+          debugPrintStack(stackTrace: _initStackTrace);
+        }
+        return true;
+      }(),
+      'Logs the last Google sign-in initialization failure before building '
+      'the error state.',
+    );
+
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     final borderColor = isDarkMode
         ? Colors.redAccent.shade100
