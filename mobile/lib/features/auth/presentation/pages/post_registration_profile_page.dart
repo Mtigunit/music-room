@@ -5,7 +5,6 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:music_room/core/utils/tag_genre_normalizer.dart';
 import 'package:music_room/core/widgets/app_snackbar.dart';
 import 'package:music_room/core/widgets/responsive_layout.dart';
 import 'package:music_room/di/injection_container.dart';
@@ -336,15 +335,10 @@ class _PostRegistrationProfilePageState
 
   void _toggleGenre(String genre) {
     setState(() {
-      final normalizedGenre = TagGenreNormalizer.toValue(genre);
-      if (normalizedGenre == null) {
-        return;
-      }
-
-      if (_selectedGenres.contains(normalizedGenre)) {
-        _selectedGenres.remove(normalizedGenre);
+      if (_selectedGenres.contains(genre)) {
+        _selectedGenres.remove(genre);
       } else if (_selectedGenres.length < 3) {
-        _selectedGenres.add(normalizedGenre);
+        _selectedGenres.add(genre);
       }
     });
   }

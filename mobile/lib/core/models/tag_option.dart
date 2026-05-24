@@ -1,3 +1,6 @@
+import 'package:flutter/foundation.dart';
+
+@immutable
 class TagOption<TValue extends Object> {
   const TagOption({
     required this.value,
@@ -12,4 +15,14 @@ class TagOption<TValue extends Object> {
   TValue get backendValue => value;
 
   String get displayLabel => label;
+
+  @override
+  bool operator ==(Object other) {
+    return other.runtimeType == runtimeType &&
+        other is TagOption<TValue> &&
+        other.backendValue == backendValue;
+  }
+
+  @override
+  int get hashCode => Object.hash(runtimeType, backendValue);
 }

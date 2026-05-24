@@ -52,6 +52,10 @@ class TagRegistry<TValue extends Object> {
     Iterable<Object?>? values, {
     int? limit,
   }) {
+    if (limit != null && limit <= 0) {
+      return <TValue>[];
+    }
+
     if (values == null) {
       return <TValue>[];
     }
