@@ -8,6 +8,7 @@ import 'package:music_room/core/widgets/responsive_layout.dart';
 import 'package:music_room/features/music_vote/data/models/my_event_item.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/my_event_list_tile.dart';
 import 'package:music_room/features/playlist/domain/entities/playlist_entity.dart';
+import 'package:music_room/features/profile/domain/entities/hosted_event_entity.dart';
 import 'package:music_room/features/profile/domain/entities/profile_entity.dart';
 import 'package:music_room/features/profile/presentation/widgets/media_card.dart';
 
@@ -33,7 +34,7 @@ class ProfileView extends StatefulWidget {
   final VoidCallback? onFollowProfile;
   final VoidCallback? onEditProfile;
   final VoidCallback? onChangeAvatar;
-  final void Function(MyEventItem room)? onOpenRoom;
+  final void Function(HostedEventEntity room)? onOpenRoom;
   final void Function(PlaylistEntity playlist)? onOpenPlaylist;
   final VoidCallback? onLogout;
   final VoidCallback? onGoogleAccountAction;
@@ -944,9 +945,9 @@ class _HostedEventsSection extends StatelessWidget {
     super.key,
   });
 
-  final List<MyEventItem> events;
+  final List<HostedEventEntity> events;
   final bool isOwnProfile;
-  final void Function(MyEventItem)? onOpenEvent;
+  final void Function(HostedEventEntity)? onOpenEvent;
 
   @override
   Widget build(BuildContext context) {
@@ -968,10 +969,25 @@ class _HostedEventsSection extends StatelessWidget {
       itemBuilder: (_, index) {
         final event = events[index];
         return MyEventListTile(
-          event: event,
+          event: _toMyEventItem(event),
           onTap: onOpenEvent == null ? null : () => onOpenEvent!(event),
         );
       },
+    );
+  }
+
+  MyEventItem _toMyEventItem(HostedEventEntity event) {
+    return MyEventItem(
+      id: event.id,
+      name: event.name,
+      hostName: event.hostName,
+      hostId: event.hostId,
+      dateTime: event.dateTime,
+      status: event.status,
+      coverImageAsset: event.coverImageAsset,
+      coverColorHex: event.coverColorHex,
+      listenerCount: event.listenerCount,
+      genre: event.genre,
     );
   }
 }

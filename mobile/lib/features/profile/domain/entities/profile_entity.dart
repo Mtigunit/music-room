@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
-import 'package:music_room/features/music_vote/data/models/my_event_item.dart';
 import 'package:music_room/features/playlist/domain/entities/playlist_entity.dart';
+import 'package:music_room/features/profile/domain/entities/hosted_event_entity.dart';
 
 enum GoogleLinkStatus {
   unknown,
@@ -101,7 +101,7 @@ class ProfilePageData extends Equatable {
   });
 
   final UserProfileEntity profile;
-  final List<MyEventItem> hostedRooms;
+  final List<HostedEventEntity> hostedRooms;
   final List<PlaylistEntity> playlists;
   final int followersCount;
   final int followingCount;

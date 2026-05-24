@@ -4,10 +4,11 @@ import 'package:music_room/core/services/google_auth_service.dart';
 import 'package:music_room/core/services/google_link_status_service.dart';
 import 'package:music_room/core/services/theme_preference_service.dart';
 import 'package:music_room/features/events/data/datasources/event_remote_datasource.dart';
-import 'package:music_room/features/music_vote/data/models/my_event_item.dart';
+import 'package:music_room/features/events/domain/entities/my_event_item_model.dart';
 import 'package:music_room/features/playlist/data/datasources/playlist_remote_datasource.dart';
 import 'package:music_room/features/playlist/domain/entities/playlist_entity.dart';
 import 'package:music_room/features/profile/data/datasources/profile_remote_datasource.dart';
+import 'package:music_room/features/profile/domain/entities/hosted_event_entity.dart';
 import 'package:music_room/features/profile/domain/entities/profile_entity.dart';
 import 'package:music_room/features/profile/domain/repositories/profile_repository.dart';
 
@@ -58,24 +59,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
     await _syncThemePreference(profile);
 
     final hostedProfileRooms = hostedRooms
-        .map(
-          (model) {
-            final cover = model.coverImage;
-            final resolvedCover = (cover != null && cover.trim().isNotEmpty)
-                ? cover
-                : model.firstTrack;
-
-            return MyEventItem(
-              id: model.id,
-              name: model.name,
-              hostName: model.hostName,
-              hostId: model.hostId,
-              dateTime: model.startDate,
-              status: model.status,
-              coverImageAsset: resolvedCover,
-            );
-          },
-        )
+        .map(_toHostedEventEntity)
         .toList(growable: false);
 
     return ProfilePageData(
@@ -106,7 +90,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
 
     return ProfilePageData(
       profile: profile,
-      hostedRooms: const <MyEventItem>[],
+      hostedRooms: const <HostedEventEntity>[],
       playlists: const <PlaylistEntity>[],
       followersCount: followersCount,
       followingCount: followingCount,
@@ -209,6 +193,24 @@ class ProfileRepositoryImpl implements ProfileRepository {
     await _themePreferenceService.saveThemePreferenceForUser(
       profile.id,
       themePreference,
+    );
+  }
+
+  HostedEventEntity _toHostedEventEntity(MyEventItemModel model) {
+    final cover = model.coverImage;
+    final resolvedCover = (cover != null && cover.trim().isNotEmpty)
+        ? cover
+        : model.firstTrack;
+
+    return HostedEventEntity(
+      id: model.id,
+      name: model.name,
+      hostName: model.hostName,
+      hostId: model.hostId,
+      dateTime: model.startDate,
+      status: model.status,
+      coverImageAsset: resolvedCover,
+      listenerCount: model.membersCount,
     );
   }
 }
