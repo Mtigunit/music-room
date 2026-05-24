@@ -130,6 +130,11 @@ class LogoutRequested extends AuthEvent {
   const LogoutRequested();
 }
 
+/// Event to log out from all devices, including the current session.
+class LogoutFromAllDevicesRequested extends AuthEvent {
+  const LogoutFromAllDevicesRequested();
+}
+
 /// Event triggered when session expires (token invalid/expired)
 class SessionExpiredRequested extends AuthEvent {
   const SessionExpiredRequested();

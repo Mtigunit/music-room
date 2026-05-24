@@ -28,6 +28,7 @@ abstract class IAuthRemoteDataSource {
     required String password,
   });
   Future<LoginResponse> loginWithGoogle({required String idToken});
+  Future<MessageResponse> logoutFromAllDevices();
   Future<UserProfile> getProfile();
 }
 
@@ -148,6 +149,17 @@ class AuthRemoteDataSource implements IAuthRemoteDataSource {
       data: {'idToken': idToken},
       expectedStatusCode: 201,
       parser: LoginResponse.fromJson,
+    );
+  }
+
+  @override
+  Future<MessageResponse> logoutFromAllDevices() async {
+    return _postAndMap(
+      path: AppConfig.logoutAllEndpoint,
+      data: const <String, dynamic>{},
+      expectedStatusCode: 200,
+      additionalSuccessStatusCodes: const {201},
+      parser: MessageResponse.fromJson,
     );
   }
 

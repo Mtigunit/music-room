@@ -49,5 +49,7 @@ abstract class AuthRepository {
 
   Future<void> logout();
 
+  Future<Failure?> logoutFromAllDevices();
+
   Future<bool> isAuthenticated();
 }

@@ -38,6 +38,7 @@ class AppConfig {
   static const String resetPasswordEndpoint = 'auth/reset-password';
   static const String registerEndpoint = 'auth/register';
   static const String loginEndpoint = 'auth/login';
+  static const String logoutAllEndpoint = 'auth/logout-all';
   static const String googleAuthEndpoint = 'auth/google';
   static const String profileEndpoint = 'auth/profile';
   static const String myProfileEndpoint = 'users/me';

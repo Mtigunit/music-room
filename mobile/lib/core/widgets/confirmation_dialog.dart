@@ -14,7 +14,7 @@ Future<bool?> showAppConfirmationDialog({
   String cancelLabel = 'Cancel',
   IconData icon = Icons.help_outline_rounded,
   ConfirmationDialogVariant variant = ConfirmationDialogVariant.neutral,
-  bool barrierDismissible = false,
+  bool barrierDismissible = true,
   bool useRootNavigator = true,
 }) {
   if (!context.mounted) {
@@ -25,12 +25,15 @@ Future<bool?> showAppConfirmationDialog({
 
   return showDialog<bool>(
     context: context,
+    barrierDismissible: barrierDismissible,
+    useRootNavigator: useRootNavigator,
     barrierColor: scrimColor,
-    builder: (dialogContext) {
+    builder: (_) {
       return AppConfirmationDialog(
         title: title,
         message: message,
         confirmLabel: confirmLabel,
+        cancelLabel: cancelLabel,
         icon: icon,
         variant: variant,
       );

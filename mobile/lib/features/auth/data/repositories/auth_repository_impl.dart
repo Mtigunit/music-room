@@ -258,6 +258,19 @@ class AuthRepositoryImpl implements AuthRepository {
   }
 
   @override
+  Future<Failure?> logoutFromAllDevices() async {
+    try {
+      await _remoteDataSource.logoutFromAllDevices();
+      await logout();
+      return null;
+    } on DioException catch (e) {
+      return _handleDioException(e);
+    } on Object catch (e) {
+      return Failure(message: 'An unexpected error occurred: $e');
+    }
+  }
+
+  @override
   Future<UserProfile?> getStoredUserProfile() async {
     final raw = await _tokenStorage.getUserProfile();
     if (raw == null || raw.isEmpty) {

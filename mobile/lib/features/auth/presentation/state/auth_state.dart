@@ -260,3 +260,18 @@ class RegisterFailure extends AuthState {
 class LogoutSuccess extends AuthState {
   const LogoutSuccess();
 }
+
+/// Logout from all devices in progress.
+class LogoutLoading extends AuthState {
+  const LogoutLoading();
+}
+
+/// Logout from all devices failed.
+class LogoutFailure extends AuthState {
+  const LogoutFailure({required this.failure});
+
+  final Failure failure;
+
+  @override
+  List<Object?> get props => [failure];
+}

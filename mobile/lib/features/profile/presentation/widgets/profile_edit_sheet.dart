@@ -3,18 +3,23 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/utils/tag_genre_normalizer.dart';
 import 'package:music_room/core/widgets/app_back_button.dart';
 import 'package:music_room/core/widgets/app_button.dart';
+import 'package:music_room/core/widgets/app_snackbar.dart';
 import 'package:music_room/core/widgets/confirmation_dialog.dart';
 import 'package:music_room/core/widgets/form_input_decoration.dart';
 import 'package:music_room/core/widgets/form_section_label.dart';
 import 'package:music_room/core/widgets/form_toggle_row.dart';
 import 'package:music_room/core/widgets/genre_selection_grid.dart';
 import 'package:music_room/core/widgets/responsive_layout.dart';
+import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
+import 'package:music_room/features/auth/presentation/state/auth_event.dart';
+import 'package:music_room/features/auth/presentation/state/auth_state.dart';
 import 'package:music_room/features/events/presentation/widgets/selection_card.dart';
 import 'package:music_room/features/profile/domain/entities/profile_entity.dart';
 import 'package:music_room/features/profile/presentation/pages/email_update_page.dart';
 import 'package:music_room/features/profile/presentation/state/profile_bloc.dart';
 import 'package:music_room/features/profile/presentation/state/profile_event.dart';
 import 'package:music_room/features/profile/presentation/state/profile_state.dart';
+import 'package:music_room/features/profile/presentation/widgets/logout_all_button.dart';
 
 class ProfileEditSheet extends StatefulWidget {
   const ProfileEditSheet({required this.profile, super.key});
@@ -98,21 +103,33 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
         ResponsiveLayout.expandedBreakpoint;
 
     return SafeArea(
-      child: BlocListener<ProfileBloc, ProfileState>(
-        listenWhen: (previous, current) =>
-            current is ProfilePasswordChangeSuccess ||
-            current is ProfileGoogleLinkSuccess ||
-            current is ProfileGoogleUnlinkSuccess,
-        listener: (context, state) {
-          if (state is ProfilePasswordChangeSuccess) {
-            _clearSecurityForm();
-          }
+      child: MultiBlocListener(
+        listeners: [
+          BlocListener<ProfileBloc, ProfileState>(
+            listenWhen: (previous, current) =>
+                current is ProfilePasswordChangeSuccess ||
+                current is ProfileGoogleLinkSuccess ||
+                current is ProfileGoogleUnlinkSuccess,
+            listener: (context, state) {
+              if (state is ProfilePasswordChangeSuccess) {
+                _clearSecurityForm();
+              }
 
-          if (state is ProfileGoogleLinkSuccess ||
-              state is ProfileGoogleUnlinkSuccess) {
-            setState(() {});
-          }
-        },
+              if (state is ProfileGoogleLinkSuccess ||
+                  state is ProfileGoogleUnlinkSuccess) {
+                setState(() {});
+              }
+            },
+          ),
+          BlocListener<AuthBloc, AuthState>(
+            listenWhen: (previous, current) => current is LogoutFailure,
+            listener: (context, state) {
+              if (state is LogoutFailure) {
+                AppSnackbar.showError(context, state.failure.message);
+              }
+            },
+          ),
+        ],
         child: SingleChildScrollView(
           padding: EdgeInsets.fromLTRB(
             20,
@@ -562,6 +579,10 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
                               ),
                             ),
                           ),
+                          const SizedBox(height: 20),
+                          LogoutAllButton(
+                            onLogout: _handleLogoutFromAllDevices,
+                          ),
                         ],
                       ),
                     );
@@ -720,6 +741,24 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
 
     if (confirmed == true && mounted) {
       context.read<ProfileBloc>().add(const ProfileGoogleUnlinkRequested());
+    }
+  }
+
+  Future<void> _handleLogoutFromAllDevices() async {
+    final confirmed = await showAppConfirmationDialog(
+      context: context,
+      title: 'Log out from all devices?',
+      message:
+          'This will end every active session for your account, including '
+          'this device. You will need to sign in again.',
+      confirmLabel: 'Log out all',
+      cancelLabel: 'Stay signed in',
+      icon: Icons.logout_rounded,
+      variant: ConfirmationDialogVariant.destructive,
+    );
+
+    if (confirmed == true && mounted) {
+      context.read<AuthBloc>().add(const LogoutFromAllDevicesRequested());
     }
   }
 
