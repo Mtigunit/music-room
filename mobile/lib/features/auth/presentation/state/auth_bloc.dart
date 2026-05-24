@@ -27,6 +27,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<ResetPasswordRequested>(_onResetPasswordRequested);
     on<RegisterRequested>(_onRegisterRequested);
     on<LogoutRequested>(_onLogoutRequested);
+    on<LogoutFromAllDevicesRequested>(_onLogoutFromAllDevicesRequested);
     on<SessionExpiredRequested>(_onSessionExpiredRequested);
 
     _sessionExpiredSubscription = apiClient.sessionExpired.listen((_) {
@@ -321,8 +322,22 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) async {
     await _authRepository.logout();
-    emit(const LogoutSuccess());
-    emit(const AuthUnauthenticated());
+    _emitLoggedOut(emit);
+  }
+
+  Future<void> _onLogoutFromAllDevicesRequested(
+    LogoutFromAllDevicesRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(const LogoutLoading());
+
+    final failure = await _authRepository.logoutFromAllDevices();
+    if (failure != null) {
+      emit(LogoutFailure(failure: failure));
+      return;
+    }
+
+    _emitLoggedOut(emit);
   }
 
   /// Handle session expiration (token expired during active use)
@@ -331,6 +346,10 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) async {
     await _authRepository.logout();
+    _emitLoggedOut(emit);
+  }
+
+  void _emitLoggedOut(Emitter<AuthState> emit) {
     emit(const LogoutSuccess());
     emit(const AuthUnauthenticated());
   }

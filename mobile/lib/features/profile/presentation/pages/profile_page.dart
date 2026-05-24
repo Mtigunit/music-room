@@ -155,7 +155,7 @@ class _ProfilePageBody extends StatelessWidget {
           : null,
       googleAccountMessage: googleAccountMessage,
       onLogout: profileData.profile.isSelf
-          ? () => context.read<AuthBloc>().add(const LogoutRequested())
+          ? () => _confirmLogout(context)
           : null,
       onOpenRoom: (room) {
         unawaited(
@@ -280,6 +280,22 @@ class _ProfilePageBody extends StatelessWidget {
     }
 
     bloc.add(const ProfileGoogleLinkRequested());
+  }
+
+  Future<void> _confirmLogout(BuildContext context) async {
+    final confirmed = await showAppConfirmationDialog(
+      context: context,
+      title: 'Log Out?',
+      message: 'Are you sure you want to log out of your account?',
+      confirmLabel: 'Log Out',
+      cancelLabel: 'Stay signed in',
+      icon: Icons.logout_rounded,
+      variant: ConfirmationDialogVariant.destructive,
+    );
+
+    if (confirmed == true && context.mounted) {
+      context.read<AuthBloc>().add(const LogoutRequested());
+    }
   }
 
   Future<void> _showEditSheet(
