@@ -1,40 +1,11 @@
 import 'package:equatable/equatable.dart';
+import 'package:music_room/features/music_vote/data/models/my_event_item.dart';
 import 'package:music_room/features/playlist/domain/entities/playlist_entity.dart';
 
 enum GoogleLinkStatus {
   unknown,
   linked,
   unlinked,
-}
-
-class ProfileRoomEntity extends Equatable {
-  const ProfileRoomEntity({
-    required this.id,
-    required this.name,
-    required this.status,
-    required this.hostName,
-    required this.membersCount,
-    this.thumbnailUrl,
-  });
-
-  final String id;
-  final String name;
-  final String status;
-  final String hostName;
-  final int membersCount;
-  final String? thumbnailUrl;
-
-  bool get isLive => status.toUpperCase() == 'LIVE';
-
-  @override
-  List<Object?> get props => [
-    id,
-    name,
-    status,
-    hostName,
-    membersCount,
-    thumbnailUrl,
-  ];
 }
 
 /// Domain entity for user profile
@@ -130,7 +101,7 @@ class ProfilePageData extends Equatable {
   });
 
   final UserProfileEntity profile;
-  final List<ProfileRoomEntity> hostedRooms;
+  final List<MyEventItem> hostedRooms;
   final List<PlaylistEntity> playlists;
   final int followersCount;
   final int followingCount;

@@ -4,6 +4,7 @@ import 'package:music_room/core/services/google_auth_service.dart';
 import 'package:music_room/core/services/google_link_status_service.dart';
 import 'package:music_room/core/services/theme_preference_service.dart';
 import 'package:music_room/features/events/data/datasources/event_remote_datasource.dart';
+import 'package:music_room/features/music_vote/data/models/my_event_item.dart';
 import 'package:music_room/features/playlist/data/datasources/playlist_remote_datasource.dart';
 import 'package:music_room/features/playlist/domain/entities/playlist_entity.dart';
 import 'package:music_room/features/profile/data/datasources/profile_remote_datasource.dart';
@@ -58,14 +59,22 @@ class ProfileRepositoryImpl implements ProfileRepository {
 
     final hostedProfileRooms = hostedRooms
         .map(
-          (event) => ProfileRoomEntity(
-            id: event.id,
-            name: event.name,
-            status: event.status,
-            hostName: event.hostName,
-            membersCount: event.membersCount,
-            thumbnailUrl: event.coverImage,
-          ),
+          (model) {
+            final cover = model.coverImage;
+            final resolvedCover = (cover != null && cover.trim().isNotEmpty)
+                ? cover
+                : model.firstTrack;
+
+            return MyEventItem(
+              id: model.id,
+              name: model.name,
+              hostName: model.hostName,
+              hostId: model.hostId,
+              dateTime: model.startDate,
+              status: model.status,
+              coverImageAsset: resolvedCover,
+            );
+          },
         )
         .toList(growable: false);
 
@@ -97,7 +106,7 @@ class ProfileRepositoryImpl implements ProfileRepository {
 
     return ProfilePageData(
       profile: profile,
-      hostedRooms: const <ProfileRoomEntity>[],
+      hostedRooms: const <MyEventItem>[],
       playlists: const <PlaylistEntity>[],
       followersCount: followersCount,
       followingCount: followingCount,

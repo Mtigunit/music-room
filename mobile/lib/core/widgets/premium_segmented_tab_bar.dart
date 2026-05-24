@@ -5,6 +5,7 @@ class PremiumSegmentedTabBar extends StatelessWidget {
   const PremiumSegmentedTabBar({
     required this.tabs,
     super.key,
+    this.controller,
     this.onTap,
     this.margin = const EdgeInsets.only(top: 12),
     this.height = 48,
@@ -12,6 +13,7 @@ class PremiumSegmentedTabBar extends StatelessWidget {
   });
 
   final List<Tab> tabs;
+  final TabController? controller;
   final ValueChanged<int>? onTap;
   final EdgeInsetsGeometry margin;
   final double height;
@@ -35,6 +37,7 @@ class PremiumSegmentedTabBar extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
       ),
       child: TabBar(
+        controller: controller,
         onTap: onTap,
         indicator: BoxDecoration(
           gradient: LinearGradient(
