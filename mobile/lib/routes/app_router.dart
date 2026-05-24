@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:music_room/core/widgets/app_scaffold.dart';
 import 'package:music_room/features/auth/presentation/pages/onboarding_page.dart';
@@ -14,6 +15,18 @@ class AppRouter {
   static final GlobalKey<NavigatorState> navigatorKey =
       GlobalKey<NavigatorState>();
   static const String initialRoute = RouteNames.onboarding;
+
+  static String resolveStartupRoute({
+    required bool isWeb,
+    required bool hasSeenOnboarding,
+    required bool isAuthenticated,
+  }) {
+    if (!isWeb && !hasSeenOnboarding) {
+      return initialRoute;
+    }
+
+    return isAuthenticated ? RouteNames.home : RouteNames.auth;
+  }
 
   static Widget pageForRoute(String routeName) {
     return _pageForRoute(routeName);
@@ -40,7 +53,7 @@ class AppRouter {
 
   static Widget _pageForRoute(String routeName, {Object? arguments}) {
     if (routeName == RouteNames.onboarding) {
-      return const OnboardingPage();
+      return kIsWeb ? const SignInPage() : const OnboardingPage();
     }
 
     if (routeName == RouteNames.home || routeName == RouteNames.homeAlias) {
