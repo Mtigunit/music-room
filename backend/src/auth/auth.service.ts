@@ -5,7 +5,7 @@ import {
   BadRequestException,
   Logger,
 } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
@@ -23,6 +23,7 @@ import { createAuditLogEvent } from '../audit-log/audit-log.event';
 import type { ClientMetaDto } from '../common/dto/client-meta.dto';
 
 const BCRYPT_SALT_ROUNDS = 10;
+export const PASSWORD_RESET_REQUEST_EVENT = 'auth.password_reset_request';
 
 @Injectable()
 export class AuthService {
@@ -49,7 +50,14 @@ export class AuthService {
     await this.otpService.sendOtp(email, 'email_verification');
   }
 
-  async sendPasswordResetOtp(email: string): Promise<void> {
+  sendPasswordResetOtp(email: string): Promise<void> {
+    this.eventEmitter.emit(PASSWORD_RESET_REQUEST_EVENT, { email });
+    return Promise.resolve();
+  }
+
+  @OnEvent(PASSWORD_RESET_REQUEST_EVENT, { async: true })
+  async handlePasswordResetRequest(payload: { email: string }): Promise<void> {
+    const { email } = payload;
     const existingUser = await this.usersService.findByEmail(email);
     if (!existingUser) {
       // Silently return to prevent email enumeration attacks.
@@ -58,7 +66,16 @@ export class AuthService {
       );
       return;
     }
-    await this.otpService.sendOtp(email, 'password_reset');
+    try {
+      await this.otpService.sendOtp(email, 'password_reset');
+    } catch (err: unknown) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+      const errorStack = err instanceof Error ? err.stack : undefined;
+      this.logger.error(
+        `Failed to send password reset OTP for ${email}: ${errorMessage}`,
+        errorStack,
+      );
+    }
   }
 
   async register(

@@ -8,7 +8,7 @@ import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { OAuth2Client } from 'google-auth-library';
-import { AuthService } from './auth.service';
+import { AuthService, PASSWORD_RESET_REQUEST_EVENT } from './auth.service';
 import { UsersService } from '../users/users.service';
 import { OtpService } from '../otp/otp.service';
 import type { User } from '@prisma/client';
@@ -40,6 +40,7 @@ describe('AuthService', () => {
   let usersService: jest.Mocked<UsersService>;
   let jwtService: jest.Mocked<JwtService>;
   let otpService: jest.Mocked<OtpService>;
+  let eventEmitter: jest.Mocked<EventEmitter2>;
   let verifyIdTokenMock: jest.Mock;
 
   beforeEach(async () => {
@@ -101,6 +102,7 @@ describe('AuthService', () => {
     usersService = module.get(UsersService);
     jwtService = module.get(JwtService);
     otpService = module.get(OtpService);
+    eventEmitter = module.get(EventEmitter2);
   });
 
   afterEach(() => {
@@ -129,9 +131,21 @@ describe('AuthService', () => {
   });
 
   describe('sendPasswordResetOtp', () => {
+    it('should emit PASSWORD_RESET_REQUEST_EVENT', async () => {
+      await authService.sendPasswordResetOtp('test@example.com');
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        PASSWORD_RESET_REQUEST_EVENT,
+        { email: 'test@example.com' },
+      );
+    });
+  });
+
+  describe('handlePasswordResetRequest', () => {
     it('should call otpService.sendOtp if email exists', async () => {
       usersService.findByEmail.mockResolvedValue(mockUser);
-      await authService.sendPasswordResetOtp('test@example.com');
+      await authService.handlePasswordResetRequest({
+        email: 'test@example.com',
+      });
       expect(otpService.sendOtp).toHaveBeenCalledWith(
         'test@example.com',
         'password_reset',
@@ -140,7 +154,9 @@ describe('AuthService', () => {
 
     it('should silently return if email does not exist (enumeration protection)', async () => {
       usersService.findByEmail.mockResolvedValue(null);
-      await authService.sendPasswordResetOtp('unknown@example.com');
+      await authService.handlePasswordResetRequest({
+        email: 'unknown@example.com',
+      });
       expect(otpService.sendOtp).not.toHaveBeenCalled();
     });
   });
