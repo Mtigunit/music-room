@@ -411,7 +411,7 @@ class _Sidebar extends StatelessWidget {
               const Spacer(),
               Divider(
                 height: 1,
-                color: colors.utilityDivider.withValues(
+                color: colors.border.withValues(
                   alpha: kBorderAlpha,
                 ),
               ),
