@@ -63,11 +63,11 @@ const List<_NavItemData> _navItems = [
 
 /// Pages are kept as a top-level constant so they are not recreated on
 /// every [AppScaffoldState] build.
-final List<Widget> _pages = [
-  const HomePage(),
-  const MyEventsPage(),
-  const PlaylistPage(),
-  const ProfilePage(),
+const List<Widget> _pages = [
+  HomePage(),
+  MyEventsPage(),
+  PlaylistPage(),
+  ProfilePage(),
 ];
 
 // =============================================================================
