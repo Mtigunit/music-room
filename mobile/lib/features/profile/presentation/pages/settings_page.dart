@@ -89,9 +89,23 @@ class _SettingsPageState extends State<SettingsPage> {
                   body: Center(
                     child: Padding(
                       padding: const EdgeInsets.all(24),
-                      child: Text(
-                        state.message,
-                        textAlign: TextAlign.center,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            state.message,
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 12),
+                          TextButton(
+                            onPressed: () {
+                              context.read<ProfileBloc>().add(
+                                ProfileRequested(userId: widget.userId),
+                              );
+                            },
+                            child: const Text('Retry'),
+                          ),
+                        ],
                       ),
                     ),
                   ),
