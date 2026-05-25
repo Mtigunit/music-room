@@ -10,7 +10,6 @@ import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
 import 'package:music_room/features/auth/presentation/state/auth_event.dart';
 import 'package:music_room/features/playlist/presentation/pages/playlist_details_page.dart';
 import 'package:music_room/features/profile/domain/entities/profile_entity.dart';
-import 'package:music_room/features/profile/presentation/pages/settings_page.dart';
 import 'package:music_room/features/profile/presentation/state/profile_bloc.dart';
 import 'package:music_room/features/profile/presentation/state/profile_event.dart';
 import 'package:music_room/features/profile/presentation/state/profile_state.dart';
@@ -199,28 +198,11 @@ class _ProfilePageBody extends StatelessWidget {
   }
 
   Future<void> _openSettingsPage(BuildContext context) async {
-    try {
-      final saved = await Navigator.of(context).pushNamed(RouteNames.settings);
-      if (saved == true && context.mounted) {
-        context.read<ProfileBloc>().add(
-          ProfileRefreshRequested(userId: userId),
-        );
-      }
-    } on Exception {
-      if (!context.mounted) {
-        return;
-      }
-      final saved = await Navigator.of(context).push<bool>(
-        MaterialPageRoute<bool>(
-          builder: (_) => SettingsPage(userId: userId),
-        ),
+    final saved = await Navigator.of(context).pushNamed(RouteNames.settings);
+    if (saved == true && context.mounted) {
+      context.read<ProfileBloc>().add(
+        ProfileRefreshRequested(userId: userId),
       );
-
-      if (saved == true && context.mounted) {
-        context.read<ProfileBloc>().add(
-          ProfileRefreshRequested(userId: userId),
-        );
-      }
     }
   }
 
