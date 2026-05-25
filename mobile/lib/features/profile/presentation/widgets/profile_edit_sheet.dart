@@ -163,7 +163,7 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
     final horizontalPadding = isDesktop ? 48.0 : (isTablet ? 32.0 : 20.0);
     final topPadding = isDesktop ? 32.0 : 20.0;
 
-    return SingleChildScrollView(
+    return Padding(
       padding: EdgeInsets.fromLTRB(
         horizontalPadding,
         topPadding,
