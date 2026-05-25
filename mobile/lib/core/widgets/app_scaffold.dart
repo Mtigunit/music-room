@@ -49,8 +49,8 @@ const List<_NavItemData> _navItems = [
   ),
   _NavItemData(
     label: 'Playlists',
-    icon: Icons.playlist_play_outlined,
-    selectedIcon: Icons.playlist_play_rounded,
+    icon: Icons.queue_music_outlined,
+    selectedIcon: Icons.queue_music_rounded,
     tabIndex: AppTabs.playlist,
   ),
   _NavItemData(
