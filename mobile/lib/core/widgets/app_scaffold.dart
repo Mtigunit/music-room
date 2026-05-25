@@ -14,7 +14,10 @@ import 'package:music_room/features/auth/presentation/state/auth_state.dart';
 import 'package:music_room/features/home/presentation/pages/home_page.dart';
 import 'package:music_room/features/music_vote/presentation/pages/my_events_page.dart';
 import 'package:music_room/features/playlist/presentation/pages/playlist_page.dart';
+import 'package:music_room/features/profile/domain/entities/profile_entity.dart';
 import 'package:music_room/features/profile/presentation/pages/profile_page.dart';
+import 'package:music_room/features/profile/presentation/pages/settings_page.dart';
+import 'package:music_room/routes/route_names.dart';
 
 // =============================================================================
 // NAVIGATION ITEM METADATA
@@ -61,15 +64,6 @@ const List<_NavItemData> _navItems = [
   ),
 ];
 
-/// Pages are kept as a top-level constant so they are not recreated on
-/// every [AppScaffoldState] build.
-const List<Widget> _pages = [
-  HomePage(),
-  MyEventsPage(),
-  PlaylistPage(),
-  ProfilePage(),
-];
-
 // =============================================================================
 // APP SCAFFOLD
 // =============================================================================
@@ -96,6 +90,8 @@ class AppScaffold extends StatefulWidget {
 
 class AppScaffoldState extends State<AppScaffold> {
   late int _currentIndex;
+  late final GlobalKey<ProfilePageState> _profilePageKey;
+  late final List<Widget> _pages;
 
   bool get _hasForegroundPage => widget.foregroundPage != null;
 
@@ -103,6 +99,13 @@ class AppScaffoldState extends State<AppScaffold> {
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+    _profilePageKey = GlobalKey<ProfilePageState>();
+    _pages = [
+      const HomePage(),
+      const MyEventsPage(),
+      const PlaylistPage(),
+      ProfilePage(key: _profilePageKey),
+    ];
   }
 
   // ---------------------------------------------------------------------------
@@ -131,6 +134,29 @@ class AppScaffoldState extends State<AppScaffold> {
     if (index >= 0 && index < _pages.length) {
       setState(() => _currentIndex = index);
     }
+  }
+
+  Future<void> _openSettings(BuildContext context) async {
+    ProfileUpdateRequest? request;
+
+    final navigator = Navigator.of(context);
+
+    try {
+      final result = await navigator.pushNamed(RouteNames.settings);
+      request = result is ProfileUpdateRequest ? result : null;
+    } on Exception {
+      request = await navigator.push<ProfileUpdateRequest>(
+        MaterialPageRoute<ProfileUpdateRequest>(
+          builder: (_) => const SettingsPage(),
+        ),
+      );
+    }
+
+    if (request == null) {
+      return;
+    }
+
+    _profilePageKey.currentState?.submitProfileUpdate(request);
   }
 
   // ---------------------------------------------------------------------------
@@ -234,7 +260,7 @@ class AppScaffoldState extends State<AppScaffold> {
             navItems: _navItems,
             onNavItemTap: _onItemTapped,
             onThemeToggle: () => _handleThemeToggle(isDarkMode),
-            onSettingsTap: () => _onItemTapped(AppTabs.profile),
+            onSettingsTap: () => unawaited(_openSettings(context)),
             onLogoutTap: () => _handleLogout(context),
           ),
           Expanded(child: _buildBodyContent()),

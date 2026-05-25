@@ -5,16 +5,15 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:music_room/core/widgets/app_snackbar.dart';
 import 'package:music_room/core/widgets/confirmation_dialog.dart';
-import 'package:music_room/core/widgets/responsive_layout.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
 import 'package:music_room/features/auth/presentation/state/auth_event.dart';
 import 'package:music_room/features/playlist/presentation/pages/playlist_details_page.dart';
 import 'package:music_room/features/profile/domain/entities/profile_entity.dart';
+import 'package:music_room/features/profile/presentation/pages/settings_page.dart';
 import 'package:music_room/features/profile/presentation/state/profile_bloc.dart';
 import 'package:music_room/features/profile/presentation/state/profile_event.dart';
 import 'package:music_room/features/profile/presentation/state/profile_state.dart';
-import 'package:music_room/features/profile/presentation/widgets/profile_edit_sheet.dart';
 import 'package:music_room/features/profile/presentation/widgets/profile_view.dart';
 import 'package:music_room/routes/route_names.dart';
 
@@ -24,11 +23,69 @@ class ProfilePage extends StatefulWidget {
   final String? userId;
 
   @override
-  State<ProfilePage> createState() => _ProfilePageState();
+  State<ProfilePage> createState() => ProfilePageState();
 }
 
-class _ProfilePageState extends State<ProfilePage> {
+class ProfilePageState extends State<ProfilePage> {
   late final ProfileBloc _profileBloc;
+
+  void submitProfileUpdate(ProfileUpdateRequest request) {
+    final profileData = _profileDataFromState(_profileBloc.state);
+    final currentUsername = profileData?.profile.username;
+    if (currentUsername == null) {
+      return;
+    }
+
+    if (!request.hasChanges(currentUsername: currentUsername)) {
+      AppSnackbar.showInfo(context, 'No profile changes to save.');
+      return;
+    }
+
+    _profileBloc.add(ProfileEditSubmitted(request: request));
+  }
+
+  ProfilePageData? _profileDataFromState(ProfileState state) {
+    if (state is ProfileLoaded) {
+      return state.data;
+    }
+    if (state is ProfileMutationInProgress) {
+      return state.data;
+    }
+    if (state is ProfileMutationSuccess) {
+      return state.data;
+    }
+    if (state is ProfileMutationFailure) {
+      return state.data;
+    }
+    if (state is ProfilePasswordChangeInProgress) {
+      return state.data;
+    }
+    if (state is ProfilePasswordChangeSuccess) {
+      return state.data;
+    }
+    if (state is ProfilePasswordChangeFailure) {
+      return state.data;
+    }
+    if (state is ProfileGoogleLinkInProgress) {
+      return state.data;
+    }
+    if (state is ProfileGoogleLinkSuccess) {
+      return state.data;
+    }
+    if (state is ProfileGoogleLinkFailure) {
+      return state.data;
+    }
+    if (state is ProfileGoogleUnlinkInProgress) {
+      return state.data;
+    }
+    if (state is ProfileGoogleUnlinkSuccess) {
+      return state.data;
+    }
+    if (state is ProfileGoogleUnlinkFailure) {
+      return state.data;
+    }
+    return null;
+  }
 
   @override
   void initState() {
@@ -47,15 +104,22 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     return BlocProvider<ProfileBloc>.value(
       value: _profileBloc,
-      child: _ProfilePageBody(userId: widget.userId),
+      child: _ProfilePageBody(
+        userId: widget.userId,
+        onSubmitProfileUpdate: submitProfileUpdate,
+      ),
     );
   }
 }
 
 class _ProfilePageBody extends StatelessWidget {
-  const _ProfilePageBody({this.userId});
+  const _ProfilePageBody({
+    required this.onSubmitProfileUpdate,
+    this.userId,
+  });
 
   final String? userId;
+  final void Function(ProfileUpdateRequest request) onSubmitProfileUpdate;
 
   @override
   Widget build(BuildContext context) {
@@ -145,7 +209,7 @@ class _ProfilePageBody extends StatelessWidget {
           ? null
           : () => _handleFollowAction(context, profileData.profile),
       onEditProfile: profileData.profile.isSelf
-          ? () => _showEditSheet(context, profileData.profile)
+          ? () => _openSettingsPage(context)
           : null,
       onChangeAvatar: profileData.profile.isSelf
           ? () => _pickAndUploadAvatar(context)
@@ -193,6 +257,30 @@ class _ProfilePageBody extends StatelessWidget {
         }
       },
     );
+  }
+
+  Future<void> _openSettingsPage(BuildContext context) async {
+    ProfileUpdateRequest? request;
+
+    try {
+      final result = await Navigator.of(context).pushNamed(RouteNames.settings);
+      request = result is ProfileUpdateRequest ? result : null;
+    } on Exception {
+      if (!context.mounted) {
+        return;
+      }
+      request = await Navigator.of(context).push<ProfileUpdateRequest>(
+        MaterialPageRoute<ProfileUpdateRequest>(
+          builder: (_) => SettingsPage(userId: userId),
+        ),
+      );
+    }
+
+    if (request == null || !context.mounted) {
+      return;
+    }
+
+    onSubmitProfileUpdate(request);
   }
 
   void _handleFollowAction(
@@ -296,64 +384,6 @@ class _ProfilePageBody extends StatelessWidget {
     if (confirmed == true && context.mounted) {
       context.read<AuthBloc>().add(const LogoutRequested());
     }
-  }
-
-  Future<void> _showEditSheet(
-    BuildContext context,
-    UserProfileEntity profile,
-  ) async {
-    final profileBloc = context.read<ProfileBloc>();
-    final width = MediaQuery.of(context).size.width;
-    final isDesktop = width >= ResponsiveLayout.expandedBreakpoint;
-
-    final sheetContent = BlocProvider.value(
-      value: profileBloc,
-      child: ProfileEditSheet(profile: profile),
-    );
-
-    final ProfileUpdateRequest? request;
-
-    if (isDesktop) {
-      request = await showDialog<ProfileUpdateRequest>(
-        context: context,
-        builder: (_) => Center(
-          child: Material(
-            color: Colors.transparent,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: 560,
-                maxHeight: 720,
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(28),
-                child: ColoredBox(
-                  color: Theme.of(context).colorScheme.surface,
-                  child: sheetContent,
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-    } else {
-      request = await showModalBottomSheet<ProfileUpdateRequest>(
-        context: context,
-        isScrollControlled: true,
-        showDragHandle: true,
-        builder: (_) => sheetContent,
-      );
-    }
-
-    if (request == null || !context.mounted) {
-      return;
-    }
-
-    if (!request.hasChanges(currentUsername: profile.username)) {
-      AppSnackbar.showInfo(context, 'No profile changes to save.');
-      return;
-    }
-
-    context.read<ProfileBloc>().add(ProfileEditSubmitted(request: request));
   }
 
   Future<void> _pickAndUploadAvatar(BuildContext context) async {
