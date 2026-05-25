@@ -9,6 +9,49 @@ import 'package:music_room/features/profile/presentation/state/profile_event.dar
 import 'package:music_room/features/profile/presentation/state/profile_state.dart';
 import 'package:music_room/features/profile/presentation/widgets/profile_edit_sheet.dart';
 
+ProfilePageData? _profileDataFromState(ProfileState state) {
+  if (state is ProfileLoaded) {
+    return state.data;
+  }
+  if (state is ProfileMutationInProgress) {
+    return state.data;
+  }
+  if (state is ProfileMutationSuccess) {
+    return state.data;
+  }
+  if (state is ProfileMutationFailure) {
+    return state.data;
+  }
+  if (state is ProfilePasswordChangeInProgress) {
+    return state.data;
+  }
+  if (state is ProfilePasswordChangeSuccess) {
+    return state.data;
+  }
+  if (state is ProfilePasswordChangeFailure) {
+    return state.data;
+  }
+  if (state is ProfileGoogleLinkInProgress) {
+    return state.data;
+  }
+  if (state is ProfileGoogleLinkSuccess) {
+    return state.data;
+  }
+  if (state is ProfileGoogleLinkFailure) {
+    return state.data;
+  }
+  if (state is ProfileGoogleUnlinkInProgress) {
+    return state.data;
+  }
+  if (state is ProfileGoogleUnlinkSuccess) {
+    return state.data;
+  }
+  if (state is ProfileGoogleUnlinkFailure) {
+    return state.data;
+  }
+  return null;
+}
+
 class SettingsPage extends StatefulWidget {
   const SettingsPage({super.key, this.userId});
 
@@ -80,49 +123,6 @@ class _SettingsPageState extends State<SettingsPage> {
       ),
     );
   }
-
-  ProfilePageData? _profileDataFromState(ProfileState state) {
-    if (state is ProfileLoaded) {
-      return state.data;
-    }
-    if (state is ProfileMutationInProgress) {
-      return state.data;
-    }
-    if (state is ProfileMutationSuccess) {
-      return state.data;
-    }
-    if (state is ProfileMutationFailure) {
-      return state.data;
-    }
-    if (state is ProfilePasswordChangeInProgress) {
-      return state.data;
-    }
-    if (state is ProfilePasswordChangeSuccess) {
-      return state.data;
-    }
-    if (state is ProfilePasswordChangeFailure) {
-      return state.data;
-    }
-    if (state is ProfileGoogleLinkInProgress) {
-      return state.data;
-    }
-    if (state is ProfileGoogleLinkSuccess) {
-      return state.data;
-    }
-    if (state is ProfileGoogleLinkFailure) {
-      return state.data;
-    }
-    if (state is ProfileGoogleUnlinkInProgress) {
-      return state.data;
-    }
-    if (state is ProfileGoogleUnlinkSuccess) {
-      return state.data;
-    }
-    if (state is ProfileGoogleUnlinkFailure) {
-      return state.data;
-    }
-    return null;
-  }
 }
 
 class _SettingsContent extends StatelessWidget {
@@ -140,48 +140,5 @@ class _SettingsContent extends StatelessWidget {
       profile: profileData.profile,
       showDragHandle: false,
     );
-  }
-
-  ProfilePageData? _profileDataFromState(ProfileState state) {
-    if (state is ProfileLoaded) {
-      return state.data;
-    }
-    if (state is ProfileMutationInProgress) {
-      return state.data;
-    }
-    if (state is ProfileMutationSuccess) {
-      return state.data;
-    }
-    if (state is ProfileMutationFailure) {
-      return state.data;
-    }
-    if (state is ProfilePasswordChangeInProgress) {
-      return state.data;
-    }
-    if (state is ProfilePasswordChangeSuccess) {
-      return state.data;
-    }
-    if (state is ProfilePasswordChangeFailure) {
-      return state.data;
-    }
-    if (state is ProfileGoogleLinkInProgress) {
-      return state.data;
-    }
-    if (state is ProfileGoogleLinkSuccess) {
-      return state.data;
-    }
-    if (state is ProfileGoogleLinkFailure) {
-      return state.data;
-    }
-    if (state is ProfileGoogleUnlinkInProgress) {
-      return state.data;
-    }
-    if (state is ProfileGoogleUnlinkSuccess) {
-      return state.data;
-    }
-    if (state is ProfileGoogleUnlinkFailure) {
-      return state.data;
-    }
-    return null;
   }
 }

@@ -144,7 +144,7 @@ class AppScaffoldState extends State<AppScaffold> {
     try {
       final result = await navigator.pushNamed(RouteNames.settings);
       request = result is ProfileUpdateRequest ? result : null;
-    } on Exception {
+    } on Exception catch (_) {
       request = await navigator.push<ProfileUpdateRequest>(
         MaterialPageRoute<ProfileUpdateRequest>(
           builder: (_) => const SettingsPage(),
