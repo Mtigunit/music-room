@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/theme/app_theme.dart';
 import 'package:music_room/core/utils/tag_genre_normalizer.dart';
 import 'package:music_room/core/widgets/app_back_button.dart';
+import 'package:music_room/core/widgets/app_brand_icon.dart';
 import 'package:music_room/core/widgets/app_snackbar.dart';
 import 'package:music_room/core/widgets/empty_state_widget.dart';
 import 'package:music_room/core/widgets/responsive_layout.dart';
@@ -1271,14 +1272,14 @@ class _HeroActions extends StatelessWidget {
           _PillButton(
             onPressed: onAddSongs,
             label: 'Add songs',
-            icon: Icons.music_note_outlined,
+            icon: const AppBrandIcon(size: 16),
             filled: true,
           ),
         if (permissions.canManageCollaborators)
           _PillButton(
             onPressed: onInviteUsers,
             label: 'Invite',
-            icon: Icons.person_add_outlined,
+            icon: const Icon(Icons.person_add_outlined),
             filled: false,
           ),
         if (permissions.canManageSettings)
@@ -1320,7 +1321,7 @@ class _CompactActionRow extends StatelessWidget {
           _PillButton(
             onPressed: onAddSongs,
             label: 'Add',
-            icon: Icons.music_note_outlined,
+            icon: const AppBrandIcon(size: 16),
             filled: true,
             compact: true,
           ),
@@ -1330,7 +1331,7 @@ class _CompactActionRow extends StatelessWidget {
           _PillButton(
             onPressed: onInviteUsers,
             label: 'Invite',
-            icon: Icons.person_add_outlined,
+            icon: const Icon(Icons.person_add_outlined),
             filled: false,
             compact: true,
           ),
@@ -1365,7 +1366,7 @@ class _PillButton extends StatelessWidget {
 
   final VoidCallback onPressed;
   final String label;
-  final IconData icon;
+  final Widget icon;
   final bool filled;
   final bool compact;
 
@@ -1391,10 +1392,12 @@ class _PillButton extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
-              icon,
-              size: 16,
-              color: filled ? Colors.white : _Token.textSecondary(context),
+            IconTheme.merge(
+              data: IconThemeData(
+                size: 16,
+                color: filled ? Colors.white : _Token.textSecondary(context),
+              ),
+              child: icon,
             ),
             const SizedBox(width: 6),
             Text(
@@ -1703,13 +1706,9 @@ class _ArtworkMosaic extends StatelessWidget {
               );
             }),
           ),
-          // Centered icon overlay
-          Center(
-            child: Icon(
-              Icons.queue_music_rounded,
-              size: 40,
-              color: Colors.white.withValues(alpha: 0.2),
-            ),
+          // Centered icon overlay (app branding)
+          const Center(
+            child: AppBrandIcon(size: 40),
           ),
         ],
       ),
@@ -1872,23 +1871,15 @@ class _TrackThumbnail extends StatelessWidget {
                 fit: BoxFit.cover,
                 errorBuilder: (_, _, _) => ColoredBox(
                   color: _Token.cardBg(context),
-                  child: Center(
-                    child: Icon(
-                      Icons.music_note_rounded,
-                      size: 16,
-                      color: _Token.textMuted(context),
-                    ),
+                  child: const Center(
+                    child: AppBrandIcon(size: 16),
                   ),
                 ),
               )
             : ColoredBox(
                 color: _Token.cardBg(context),
-                child: Center(
-                  child: Icon(
-                    Icons.music_note_rounded,
-                    size: 16,
-                    color: _Token.textMuted(context),
-                  ),
+                child: const Center(
+                  child: AppBrandIcon(size: 16),
                 ),
               ),
       ),

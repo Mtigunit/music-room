@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:music_room/core/widgets/app_brand_icon.dart';
 import 'package:music_room/core/widgets/app_snackbar.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/events/domain/entities/my_event_item_model.dart';
@@ -341,16 +342,10 @@ class TrackThumbnail extends StatelessWidget {
               child: Image.network(
                 imageUrl!,
                 fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => Icon(
-                  Icons.music_note,
-                  color: colorScheme.primary,
-                ),
+                errorBuilder: (_, _, _) => const Center(child: AppBrandIcon()),
               ),
             )
-          : Icon(
-              Icons.music_note,
-              color: colorScheme.primary,
-            ),
+          : const Center(child: AppBrandIcon()),
     );
   }
 }

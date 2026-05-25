@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:music_room/core/widgets/app_brand_icon.dart';
 import 'package:music_room/features/events/data/models/track_model.dart';
 
 enum TrackAddState { idle, loading, success }
@@ -209,11 +210,7 @@ class _ThumbnailFallback extends StatelessWidget {
       width: 52,
       height: 52,
       color: colorScheme.primary.withValues(alpha: 0.2),
-      child: Icon(
-        Icons.music_note,
-        color: colorScheme.primary,
-        size: 24,
-      ),
+      child: const Center(child: AppBrandIcon()),
     );
   }
 }

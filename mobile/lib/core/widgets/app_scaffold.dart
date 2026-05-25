@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:music_room/core/widgets/app_brand_icon.dart';
 import 'package:music_room/core/widgets/confirmation_dialog.dart';
 import 'package:music_room/core/widgets/responsive_layout.dart';
 import 'package:music_room/di/injection_container.dart';
@@ -291,10 +292,9 @@ class AppScaffoldState extends State<AppScaffold> {
         ),
         borderRadius: BorderRadius.circular(10),
       ),
-      child: const Icon(
-        Icons.music_note_rounded,
-        color: Colors.white,
-        size: 20,
+      child: const Padding(
+        padding: EdgeInsets.all(8),
+        child: AppBrandIcon(size: 20),
       ),
     );
 
