@@ -38,6 +38,13 @@ class _SettingsPageState extends State<SettingsPage> {
 
   @override
   Widget build(BuildContext context) {
+    final viewportWidth = MediaQuery.sizeOf(context).width;
+    final formMaxWidth = viewportWidth >= 1200
+        ? 1200.0
+        : viewportWidth >= 768
+        ? 700.0
+        : double.infinity;
+
     return PopScope(
       canPop: !_isSaving,
       child: BlocProvider<ProfileBloc>.value(
@@ -100,7 +107,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   child: SingleChildScrollView(
                     child: Center(
                       child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 1200),
+                        constraints: BoxConstraints(maxWidth: formMaxWidth),
                         child: _SettingsContent(
                           isSaving: _isSaving,
                           onSaveRequested: _handleSaveRequested,
