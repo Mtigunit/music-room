@@ -14,7 +14,6 @@ import 'package:music_room/features/auth/presentation/state/auth_state.dart';
 import 'package:music_room/features/home/presentation/pages/home_page.dart';
 import 'package:music_room/features/music_vote/presentation/pages/my_events_page.dart';
 import 'package:music_room/features/playlist/presentation/pages/playlist_page.dart';
-import 'package:music_room/features/profile/domain/entities/profile_entity.dart';
 import 'package:music_room/features/profile/presentation/pages/profile_page.dart';
 import 'package:music_room/features/profile/presentation/pages/settings_page.dart';
 import 'package:music_room/routes/route_names.dart';
@@ -137,26 +136,23 @@ class AppScaffoldState extends State<AppScaffold> {
   }
 
   Future<void> _openSettings(BuildContext context) async {
-    ProfileUpdateRequest? request;
-
     final navigator = Navigator.of(context);
 
     try {
-      final result = await navigator.pushNamed(RouteNames.settings);
-      request = result is ProfileUpdateRequest ? result : null;
+      final saved = await navigator.pushNamed(RouteNames.settings);
+      if (saved == true) {
+        _profilePageKey.currentState?.refreshProfile();
+      }
     } on Exception catch (_) {
-      request = await navigator.push<ProfileUpdateRequest>(
-        MaterialPageRoute<ProfileUpdateRequest>(
+      final saved = await navigator.push<bool>(
+        MaterialPageRoute<bool>(
           builder: (_) => const SettingsPage(),
         ),
       );
+      if (saved == true) {
+        _profilePageKey.currentState?.refreshProfile();
+      }
     }
-
-    if (request == null) {
-      return;
-    }
-
-    _profilePageKey.currentState?.submitProfileUpdate(request);
   }
 
   // ---------------------------------------------------------------------------

@@ -24,12 +24,16 @@ import 'package:music_room/features/profile/presentation/widgets/logout_all_butt
 class ProfileEditSheet extends StatefulWidget {
   const ProfileEditSheet({
     required this.profile,
+    required this.onSaveRequested,
     this.showDragHandle = true,
+    this.isSaving = false,
     super.key,
   });
 
   final UserProfileEntity profile;
   final bool showDragHandle;
+  final ValueChanged<ProfileUpdateRequest> onSaveRequested;
+  final bool isSaving;
 
   @override
   State<ProfileEditSheet> createState() => _ProfileEditSheetState();
@@ -103,42 +107,45 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
     final currentProfile = _profileFromState(profileState);
 
     return SafeArea(
-      child: MultiBlocListener(
-        listeners: [
-          BlocListener<ProfileBloc, ProfileState>(
-            listenWhen: (previous, current) =>
-                current is ProfilePasswordChangeSuccess ||
-                current is ProfileGoogleLinkSuccess ||
-                current is ProfileGoogleUnlinkSuccess,
-            listener: (context, state) {
-              if (state is ProfilePasswordChangeSuccess) {
-                _clearSecurityForm();
-              }
+      child: IgnorePointer(
+        ignoring: widget.isSaving,
+        child: MultiBlocListener(
+          listeners: [
+            BlocListener<ProfileBloc, ProfileState>(
+              listenWhen: (previous, current) =>
+                  current is ProfilePasswordChangeSuccess ||
+                  current is ProfileGoogleLinkSuccess ||
+                  current is ProfileGoogleUnlinkSuccess,
+              listener: (context, state) {
+                if (state is ProfilePasswordChangeSuccess) {
+                  _clearSecurityForm();
+                }
 
-              if (state is ProfileGoogleLinkSuccess ||
-                  state is ProfileGoogleUnlinkSuccess) {
-                setState(() {});
-              }
+                if (state is ProfileGoogleLinkSuccess ||
+                    state is ProfileGoogleUnlinkSuccess) {
+                  setState(() {});
+                }
+              },
+            ),
+            BlocListener<AuthBloc, AuthState>(
+              listenWhen: (previous, current) => current is LogoutFailure,
+              listener: (context, state) {
+                if (state is LogoutFailure) {
+                  AppSnackbar.showError(context, state.failure.message);
+                }
+              },
+            ),
+          ],
+          child: ResponsiveLayout(
+            builder: (context, size) {
+              return _buildResponsiveContent(
+                context,
+                size,
+                currentProfile,
+                theme,
+              );
             },
           ),
-          BlocListener<AuthBloc, AuthState>(
-            listenWhen: (previous, current) => current is LogoutFailure,
-            listener: (context, state) {
-              if (state is LogoutFailure) {
-                AppSnackbar.showError(context, state.failure.message);
-              }
-            },
-          ),
-        ],
-        child: ResponsiveLayout(
-          builder: (context, size) {
-            return _buildResponsiveContent(
-              context,
-              size,
-              currentProfile,
-              theme,
-            );
-          },
         ),
       ),
     );
@@ -488,7 +495,8 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
           SizedBox(
             width: double.infinity,
             child: AppButton(
-              onPressed: _handleProfileSave,
+              onPressed: widget.isSaving ? null : _handleProfileSave,
+              isLoading: widget.isSaving,
               label: 'Save changes',
               padding: const EdgeInsets.symmetric(vertical: 14),
             ),
@@ -703,7 +711,7 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
       return;
     }
 
-    Navigator.of(context).pop(
+    widget.onSaveRequested(
       ProfileUpdateRequest(
         username: _usernameController.text,
         shortBio: _bioController.text,
@@ -864,49 +872,8 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
     return value is String ? value : '';
   }
 
-  UserProfileEntity _profileFromState(ProfileState state) {
-    if (state is ProfileLoaded) {
-      return state.data.profile;
-    }
-    if (state is ProfileMutationInProgress) {
-      return state.data.profile;
-    }
-    if (state is ProfileMutationSuccess) {
-      return state.data.profile;
-    }
-    if (state is ProfileMutationFailure) {
-      return state.data.profile;
-    }
-    if (state is ProfilePasswordChangeInProgress) {
-      return state.data.profile;
-    }
-    if (state is ProfilePasswordChangeSuccess) {
-      return state.data.profile;
-    }
-    if (state is ProfilePasswordChangeFailure) {
-      return state.data.profile;
-    }
-    if (state is ProfileGoogleLinkInProgress) {
-      return state.data.profile;
-    }
-    if (state is ProfileGoogleLinkSuccess) {
-      return state.data.profile;
-    }
-    if (state is ProfileGoogleLinkFailure) {
-      return state.data.profile;
-    }
-    if (state is ProfileGoogleUnlinkInProgress) {
-      return state.data.profile;
-    }
-    if (state is ProfileGoogleUnlinkSuccess) {
-      return state.data.profile;
-    }
-    if (state is ProfileGoogleUnlinkFailure) {
-      return state.data.profile;
-    }
-
-    return widget.profile;
-  }
+  UserProfileEntity _profileFromState(ProfileState state) =>
+      state.dataOrNull?.profile ?? widget.profile;
 
   List<String> _readGenres(Map<String, dynamic>? source) {
     final rawGenres =
@@ -940,48 +907,9 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
     return false;
   }
 
-  GoogleLinkStatus _googleLinkStatusFromState(ProfileState state) {
-    if (state is ProfileLoaded) {
-      return state.data.profile.googleLinkStatus;
-    }
-    if (state is ProfileMutationInProgress) {
-      return state.data.profile.googleLinkStatus;
-    }
-    if (state is ProfileMutationSuccess) {
-      return state.data.profile.googleLinkStatus;
-    }
-    if (state is ProfileMutationFailure) {
-      return state.data.profile.googleLinkStatus;
-    }
-    if (state is ProfilePasswordChangeInProgress) {
-      return state.data.profile.googleLinkStatus;
-    }
-    if (state is ProfilePasswordChangeSuccess) {
-      return state.data.profile.googleLinkStatus;
-    }
-    if (state is ProfilePasswordChangeFailure) {
-      return state.data.profile.googleLinkStatus;
-    }
-    if (state is ProfileGoogleLinkInProgress) {
-      return state.data.profile.googleLinkStatus;
-    }
-    if (state is ProfileGoogleLinkSuccess) {
-      return state.data.profile.googleLinkStatus;
-    }
-    if (state is ProfileGoogleLinkFailure) {
-      return state.data.profile.googleLinkStatus;
-    }
-    if (state is ProfileGoogleUnlinkInProgress) {
-      return state.data.profile.googleLinkStatus;
-    }
-    if (state is ProfileGoogleUnlinkSuccess) {
-      return state.data.profile.googleLinkStatus;
-    }
-    if (state is ProfileGoogleUnlinkFailure) {
-      return state.data.profile.googleLinkStatus;
-    }
-    return widget.profile.googleLinkStatus;
-  }
+  GoogleLinkStatus _googleLinkStatusFromState(ProfileState state) =>
+      state.dataOrNull?.profile.googleLinkStatus ??
+      widget.profile.googleLinkStatus;
 
   String? _validateUsername(String? value) {
     final trimmed = value?.trim() ?? '';

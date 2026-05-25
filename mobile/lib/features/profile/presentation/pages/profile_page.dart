@@ -29,62 +29,8 @@ class ProfilePage extends StatefulWidget {
 class ProfilePageState extends State<ProfilePage> {
   late final ProfileBloc _profileBloc;
 
-  void submitProfileUpdate(ProfileUpdateRequest request) {
-    final profileData = _profileDataFromState(_profileBloc.state);
-    final currentUsername = profileData?.profile.username;
-    if (currentUsername == null) {
-      return;
-    }
-
-    if (!request.hasChanges(currentUsername: currentUsername)) {
-      AppSnackbar.showInfo(context, 'No profile changes to save.');
-      return;
-    }
-
-    _profileBloc.add(ProfileEditSubmitted(request: request));
-  }
-
-  ProfilePageData? _profileDataFromState(ProfileState state) {
-    if (state is ProfileLoaded) {
-      return state.data;
-    }
-    if (state is ProfileMutationInProgress) {
-      return state.data;
-    }
-    if (state is ProfileMutationSuccess) {
-      return state.data;
-    }
-    if (state is ProfileMutationFailure) {
-      return state.data;
-    }
-    if (state is ProfilePasswordChangeInProgress) {
-      return state.data;
-    }
-    if (state is ProfilePasswordChangeSuccess) {
-      return state.data;
-    }
-    if (state is ProfilePasswordChangeFailure) {
-      return state.data;
-    }
-    if (state is ProfileGoogleLinkInProgress) {
-      return state.data;
-    }
-    if (state is ProfileGoogleLinkSuccess) {
-      return state.data;
-    }
-    if (state is ProfileGoogleLinkFailure) {
-      return state.data;
-    }
-    if (state is ProfileGoogleUnlinkInProgress) {
-      return state.data;
-    }
-    if (state is ProfileGoogleUnlinkSuccess) {
-      return state.data;
-    }
-    if (state is ProfileGoogleUnlinkFailure) {
-      return state.data;
-    }
-    return null;
+  void refreshProfile() {
+    _profileBloc.add(ProfileRefreshRequested(userId: widget.userId));
   }
 
   @override
@@ -104,22 +50,15 @@ class ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     return BlocProvider<ProfileBloc>.value(
       value: _profileBloc,
-      child: _ProfilePageBody(
-        userId: widget.userId,
-        onSubmitProfileUpdate: submitProfileUpdate,
-      ),
+      child: _ProfilePageBody(userId: widget.userId),
     );
   }
 }
 
 class _ProfilePageBody extends StatelessWidget {
-  const _ProfilePageBody({
-    required this.onSubmitProfileUpdate,
-    this.userId,
-  });
+  const _ProfilePageBody({this.userId});
 
   final String? userId;
-  final void Function(ProfileUpdateRequest request) onSubmitProfileUpdate;
 
   @override
   Widget build(BuildContext context) {
@@ -185,7 +124,7 @@ class _ProfilePageBody extends StatelessWidget {
       );
     }
 
-    final profileData = _profileDataFromState(state);
+    final profileData = state.dataOrNull;
     if (profileData == null) {
       return const SizedBox.shrink();
     }
@@ -260,27 +199,29 @@ class _ProfilePageBody extends StatelessWidget {
   }
 
   Future<void> _openSettingsPage(BuildContext context) async {
-    ProfileUpdateRequest? request;
-
     try {
-      final result = await Navigator.of(context).pushNamed(RouteNames.settings);
-      request = result is ProfileUpdateRequest ? result : null;
+      final saved = await Navigator.of(context).pushNamed(RouteNames.settings);
+      if (saved == true && context.mounted) {
+        context.read<ProfileBloc>().add(
+          ProfileRefreshRequested(userId: userId),
+        );
+      }
     } on Exception {
       if (!context.mounted) {
         return;
       }
-      request = await Navigator.of(context).push<ProfileUpdateRequest>(
-        MaterialPageRoute<ProfileUpdateRequest>(
+      final saved = await Navigator.of(context).push<bool>(
+        MaterialPageRoute<bool>(
           builder: (_) => SettingsPage(userId: userId),
         ),
       );
-    }
 
-    if (request == null || !context.mounted) {
-      return;
+      if (saved == true && context.mounted) {
+        context.read<ProfileBloc>().add(
+          ProfileRefreshRequested(userId: userId),
+        );
+      }
     }
-
-    onSubmitProfileUpdate(request);
   }
 
   void _handleFollowAction(
@@ -296,49 +237,6 @@ class _ProfilePageBody extends StatelessWidget {
     }
 
     bloc.add(ProfileFollowRequested(userId: profile.id));
-  }
-
-  ProfilePageData? _profileDataFromState(ProfileState state) {
-    if (state is ProfileLoaded) {
-      return state.data;
-    }
-    if (state is ProfileMutationInProgress) {
-      return state.data;
-    }
-    if (state is ProfileMutationSuccess) {
-      return state.data;
-    }
-    if (state is ProfileMutationFailure) {
-      return state.data;
-    }
-    if (state is ProfilePasswordChangeInProgress) {
-      return state.data;
-    }
-    if (state is ProfilePasswordChangeSuccess) {
-      return state.data;
-    }
-    if (state is ProfilePasswordChangeFailure) {
-      return state.data;
-    }
-    if (state is ProfileGoogleLinkInProgress) {
-      return state.data;
-    }
-    if (state is ProfileGoogleLinkSuccess) {
-      return state.data;
-    }
-    if (state is ProfileGoogleLinkFailure) {
-      return state.data;
-    }
-    if (state is ProfileGoogleUnlinkInProgress) {
-      return state.data;
-    }
-    if (state is ProfileGoogleUnlinkSuccess) {
-      return state.data;
-    }
-    if (state is ProfileGoogleUnlinkFailure) {
-      return state.data;
-    }
-    return null;
   }
 
   Future<void> _handleGoogleAccountAction(
