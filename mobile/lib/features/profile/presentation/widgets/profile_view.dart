@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
@@ -470,7 +468,7 @@ class _ProfileHeroCard extends StatelessWidget {
                                   if (context.mounted) {
                                     context.read<ProfileBloc>().add(
                                       ProfileAvatarUploadRequested(
-                                        bytes: Uint8List.fromList(bytes),
+                                        bytes: bytes,
                                         fileName: picked.name,
                                       ),
                                     );
