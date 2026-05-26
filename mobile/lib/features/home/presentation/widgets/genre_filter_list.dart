@@ -39,6 +39,7 @@ class HorizontalFilterList extends StatelessWidget {
             backgroundColor: theme.colorScheme.surfaceContainerHighest
                 .withValues(alpha: 0.3),
             selectedColor: theme.colorScheme.primary,
+            checkmarkColor: theme.colorScheme.onPrimary,
             labelStyle: TextStyle(
               color: isSelected
                   ? theme.colorScheme.onPrimary
