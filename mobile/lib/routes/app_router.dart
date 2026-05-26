@@ -94,7 +94,9 @@ class AppRouter {
       return ProfilePage(
         userId: arguments is String && arguments.trim().isNotEmpty
             ? arguments.trim()
-            : arguments is Map<String, dynamic> && arguments['userId'] is String
+            : arguments is Map<String, dynamic> &&
+                  arguments['userId'] is String &&
+                  (arguments['userId'] as String).trim().isNotEmpty
             ? (arguments['userId'] as String).trim()
             : null,
         showBackButton:
