@@ -22,9 +22,18 @@ import 'package:music_room/features/profile/presentation/state/profile_state.dar
 import 'package:music_room/features/profile/presentation/widgets/logout_all_button.dart';
 
 class ProfileEditSheet extends StatefulWidget {
-  const ProfileEditSheet({required this.profile, super.key});
+  const ProfileEditSheet({
+    required this.profile,
+    required this.onSaveRequested,
+    this.showDragHandle = true,
+    this.isSaving = false,
+    super.key,
+  });
 
   final UserProfileEntity profile;
+  final bool showDragHandle;
+  final ValueChanged<ProfileUpdateRequest> onSaveRequested;
+  final bool isSaving;
 
   @override
   State<ProfileEditSheet> createState() => _ProfileEditSheetState();
@@ -94,504 +103,523 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
     final profileState = context.watch<ProfileBloc>().state;
     final currentProfile = _profileFromState(profileState);
 
-    final isDesktop =
-        MediaQuery.of(context).size.width >=
-        ResponsiveLayout.expandedBreakpoint;
-
     return SafeArea(
-      child: MultiBlocListener(
-        listeners: [
-          BlocListener<ProfileBloc, ProfileState>(
-            listenWhen: (previous, current) =>
-                current is ProfilePasswordChangeSuccess ||
-                current is ProfileGoogleLinkSuccess ||
-                current is ProfileGoogleUnlinkSuccess,
-            listener: (context, state) {
-              if (state is ProfilePasswordChangeSuccess) {
-                _clearSecurityForm();
-              }
+      child: IgnorePointer(
+        ignoring: widget.isSaving,
+        child: MultiBlocListener(
+          listeners: [
+            BlocListener<ProfileBloc, ProfileState>(
+              listenWhen: (previous, current) =>
+                  current is ProfilePasswordChangeSuccess ||
+                  current is ProfileGoogleLinkSuccess ||
+                  current is ProfileGoogleUnlinkSuccess,
+              listener: (context, state) {
+                if (state is ProfilePasswordChangeSuccess) {
+                  _clearSecurityForm();
+                }
 
-              if (state is ProfileGoogleLinkSuccess ||
-                  state is ProfileGoogleUnlinkSuccess) {
-                setState(() {});
-              }
+                if (state is ProfileGoogleLinkSuccess ||
+                    state is ProfileGoogleUnlinkSuccess) {
+                  setState(() {});
+                }
+              },
+            ),
+            BlocListener<AuthBloc, AuthState>(
+              listenWhen: (previous, current) => current is LogoutFailure,
+              listener: (context, state) {
+                if (state is LogoutFailure) {
+                  AppSnackbar.showError(context, state.failure.message);
+                }
+              },
+            ),
+          ],
+          child: ResponsiveLayout(
+            builder: (context, size) {
+              return _buildResponsiveContent(
+                context,
+                size,
+                currentProfile,
+                theme,
+              );
             },
-          ),
-          BlocListener<AuthBloc, AuthState>(
-            listenWhen: (previous, current) => current is LogoutFailure,
-            listener: (context, state) {
-              if (state is LogoutFailure) {
-                AppSnackbar.showError(context, state.failure.message);
-              }
-            },
-          ),
-        ],
-        child: SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(
-            20,
-            isDesktop ? 20 : 12,
-            20,
-            MediaQuery.viewInsetsOf(context).bottom + 20,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.only(bottom: 20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Drag handle — only relevant inside a bottom sheet.
-                    if (!isDesktop)
-                      Center(
-                        child: Container(
-                          width: 42,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: colorScheme.onSurface.withValues(
-                              alpha: 0.18,
-                            ),
-                            borderRadius: BorderRadius.circular(999),
-                          ),
-                        ),
-                      ),
-                    if (!isDesktop) const SizedBox(height: 20),
-                    Row(
-                      children: [
-                        if (isDesktop)
-                          IconButton(
-                            icon: Icon(
-                              Icons.close_rounded,
-                              color: theme.colorScheme.onSurface,
-                            ),
-                            tooltip: 'Close',
-                            onPressed: () => Navigator.of(context).pop(),
-                            padding: EdgeInsets.zero,
-                            constraints: const BoxConstraints(
-                              minWidth: 48,
-                              minHeight: 48,
-                            ),
-                          )
-                        else
-                          AppBackButton(
-                            color: theme.colorScheme.onSurface,
-                            padding: EdgeInsets.zero,
-                          ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'Edit profile',
-                                style: theme.textTheme.headlineSmall?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                              const SizedBox(height: 4),
-                              Text(
-                                'Update your account, preferences, '
-                                'and security settings.',
-                                style: theme.textTheme.bodyMedium?.copyWith(
-                                  color: theme.colorScheme.onSurfaceVariant,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              Form(
-                key: _profileFormKey,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    _buildSectionCard(
-                      context: context,
-                      title: 'Account',
-                      subtitle: 'Keep your identity current.',
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          TextFormField(
-                            controller: _usernameController,
-                            textInputAction: TextInputAction.next,
-                            decoration: FormInputDecoration.build(
-                              theme,
-                              labelText: null,
-                              hintText: 'Choose a username',
-                            ),
-                            validator: _validateUsername,
-                          ),
-                          const SizedBox(height: 16),
-                          Container(
-                            width: double.infinity,
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.surface,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                color: theme.colorScheme.onSurface.withValues(
-                                  alpha: 0.1,
-                                ),
-                              ),
-                            ),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Email',
-                                        style: theme.textTheme.labelMedium
-                                            ?.copyWith(
-                                              color: theme
-                                                  .colorScheme
-                                                  .onSurfaceVariant,
-                                              fontWeight: FontWeight.w700,
-                                            ),
-                                      ),
-                                      const SizedBox(height: 4),
-                                      Text(
-                                        currentProfile.email ?? 'Not set',
-                                        maxLines: 1,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: theme.textTheme.bodyMedium
-                                            ?.copyWith(
-                                              color:
-                                                  theme.colorScheme.onSurface,
-                                              fontWeight: FontWeight.w600,
-                                            ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                AppButton(
-                                  onPressed: () async {
-                                    final profileBloc = context
-                                        .read<ProfileBloc>();
-                                    final result =
-                                        await Navigator.of(
-                                          context,
-                                        ).push<bool>(
-                                          MaterialPageRoute<bool>(
-                                            builder: (_) =>
-                                                const EmailUpdatePage(),
-                                          ),
-                                        );
-
-                                    if (result == true && mounted) {
-                                      profileBloc.add(
-                                        const ProfileRefreshRequested(),
-                                      );
-                                    }
-                                  },
-                                  variant: AppButtonVariant.text,
-                                  label: 'Change email',
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 10,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    _buildSectionCard(
-                      context: context,
-                      title: 'Profile details',
-                      subtitle:
-                          'Share the details friends see on your profile.',
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          TextFormField(
-                            controller: _bioController,
-                            maxLength: 150,
-                            maxLines: 4,
-                            decoration: FormInputDecoration.build(
-                              theme,
-                              labelText: null,
-                              hintText: 'Tell people about your vibe',
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          TextFormField(
-                            controller: _locationController,
-                            decoration: FormInputDecoration.build(
-                              theme,
-                              labelText: null,
-                              hintText: 'City or region',
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          TextFormField(
-                            controller: _dateOfBirthController,
-                            decoration: FormInputDecoration.build(
-                              theme,
-                              labelText: null,
-                              hintText: 'YYYY-MM-DD',
-                              suffixIcon: IconButton(
-                                icon: const Icon(
-                                  Icons.calendar_month_rounded,
-                                ),
-                                onPressed: () => _pickDate(context),
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          TextFormField(
-                            controller: _physicalAddressController,
-                            maxLines: 2,
-                            decoration: FormInputDecoration.build(
-                              theme,
-                              labelText: null,
-                              hintText: 'Optional address or venue area',
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    _buildSectionCard(
-                      context: context,
-                      title: 'Preferences',
-                      subtitle: 'Control how your profile and app look.',
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          FormToggleRow(
-                            title: 'Auto accept invites',
-                            subtitle: _autoAcceptInvites
-                                ? 'Automatically accept room and '
-                                      'playlist invitations'
-                                : 'Review invitations before accepting',
-                            value: _autoAcceptInvites,
-                            onChanged: (value) {
-                              setState(() {
-                                _autoAcceptInvites = value;
-                              });
-                            },
-                          ),
-                          const SizedBox(height: 20),
-                          const FormSectionLabel(text: 'FAVORITE GENRES'),
-                          const SizedBox(height: 10),
-                          GenreSelectionGrid(
-                            genres: TagGenreNormalizer.allDisplayLabels,
-                            selectedGenres: TagGenreNormalizer.toDisplayLabels(
-                              _favoriteGenres,
-                            ),
-                            onGenreTapped: (displayLabel) {
-                              final tagValue = TagGenreNormalizer.toValue(
-                                displayLabel,
-                              );
-                              if (tagValue == null) {
-                                return;
-                              }
-
-                              setState(() {
-                                if (_favoriteGenres.contains(tagValue)) {
-                                  _favoriteGenres.remove(tagValue);
-                                } else {
-                                  _favoriteGenres.add(tagValue);
-                                }
-                              });
-                            },
-                          ),
-                          const SizedBox(height: 20),
-                          const FormSectionLabel(text: 'THEME PREFERENCE'),
-                          const SizedBox(height: 10),
-                          SelectionCard(
-                            title: 'Light',
-                            subtitle: 'Always use light theme',
-                            icon: Icons.light_mode,
-                            isSelected: _themeController.text == 'LIGHT',
-                            onTap: () {
-                              setState(() {
-                                _themeController.text = 'LIGHT';
-                              });
-                            },
-                          ),
-                          const SizedBox(height: 10),
-                          SelectionCard(
-                            title: 'Dark',
-                            subtitle: 'Always use dark theme',
-                            icon: Icons.dark_mode,
-                            isSelected: _themeController.text == 'DARK',
-                            onTap: () {
-                              setState(() {
-                                _themeController.text = 'DARK';
-                              });
-                            },
-                          ),
-                          const SizedBox(height: 10),
-                          SelectionCard(
-                            title: 'System',
-                            subtitle: 'Follow device settings',
-                            icon: Icons.settings_suggest,
-                            isSelected: _themeController.text == 'SYSTEM',
-                            onTap: () {
-                              setState(() {
-                                _themeController.text = 'SYSTEM';
-                              });
-                            },
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 24),
-                    SizedBox(
-                      width: double.infinity,
-                      child: AppButton(
-                        onPressed: _handleProfileSave,
-                        label: 'Save changes',
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 20),
-              Form(
-                key: _securityFormKey,
-                child: BlocBuilder<ProfileBloc, ProfileState>(
-                  buildWhen: (previous, current) =>
-                      current is ProfilePasswordChangeInProgress ||
-                      current is ProfilePasswordChangeSuccess ||
-                      current is ProfilePasswordChangeFailure ||
-                      current is ProfileGoogleLinkInProgress ||
-                      current is ProfileGoogleLinkSuccess ||
-                      current is ProfileGoogleLinkFailure ||
-                      current is ProfileGoogleUnlinkInProgress ||
-                      current is ProfileGoogleUnlinkSuccess ||
-                      current is ProfileGoogleUnlinkFailure,
-                  builder: (context, state) {
-                    final isPasswordLoading =
-                        state is ProfilePasswordChangeInProgress;
-                    final isGoogleLinkLoading =
-                        state is ProfileGoogleLinkInProgress ||
-                        state is ProfileGoogleUnlinkInProgress;
-                    final googleLinkStatus = _googleLinkStatusFromState(state);
-
-                    return _buildSectionCard(
-                      context: context,
-                      title: 'Security',
-                      subtitle: 'Change your password safely.',
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          _buildPasswordField(
-                            controller: _currentPasswordController,
-                            label: 'Current password',
-                            hintText: 'Enter current password',
-                            obscureText: _obscureCurrentPassword,
-                            enabled: !isPasswordLoading,
-                            textInputAction: TextInputAction.next,
-                            validator: _validateCurrentPassword,
-                            onToggleVisibility: () {
-                              setState(() {
-                                _obscureCurrentPassword =
-                                    !_obscureCurrentPassword;
-                              });
-                            },
-                          ),
-                          const SizedBox(height: 20),
-                          _buildPasswordField(
-                            controller: _newPasswordController,
-                            label: 'New password',
-                            hintText: 'Enter a new password',
-                            obscureText: _obscureNewPassword,
-                            enabled: !isPasswordLoading,
-                            textInputAction: TextInputAction.next,
-                            validator: _validateNewPassword,
-                            onChanged: (_) {
-                              if (_confirmPasswordController.text.isNotEmpty) {
-                                _securityFormKey.currentState?.validate();
-                              }
-                            },
-                            onToggleVisibility: () {
-                              setState(() {
-                                _obscureNewPassword = !_obscureNewPassword;
-                              });
-                            },
-                          ),
-                          const SizedBox(height: 20),
-                          _buildPasswordField(
-                            controller: _confirmPasswordController,
-                            label: 'Confirm new password',
-                            hintText: 'Repeat the new password',
-                            obscureText: _obscureConfirmPassword,
-                            enabled: !isPasswordLoading,
-                            textInputAction: TextInputAction.done,
-                            validator: _validateConfirmPassword,
-                            onFieldSubmitted: (_) => _handlePasswordChange(),
-                            onToggleVisibility: () {
-                              setState(() {
-                                _obscureConfirmPassword =
-                                    !_obscureConfirmPassword;
-                              });
-                            },
-                          ),
-                          const SizedBox(height: 24),
-                          SizedBox(
-                            width: double.infinity,
-                            child: AppButton(
-                              onPressed: isPasswordLoading
-                                  ? null
-                                  : _handlePasswordChange,
-                              isLoading: isPasswordLoading,
-                              label: 'Change password',
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 14,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          _GoogleLinkStatusCard(
-                            status: googleLinkStatus,
-                          ),
-                          const SizedBox(height: 14),
-                          SizedBox(
-                            width: double.infinity,
-                            child: AppButton(
-                              onPressed: isGoogleLinkLoading
-                                  ? null
-                                  : _handleGoogleAccountLink,
-                              isLoading: isGoogleLinkLoading,
-                              label: googleLinkStatus == GoogleLinkStatus.linked
-                                  ? 'Remove Google Link'
-                                  : 'Link Google account',
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 14,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(height: 20),
-                          LogoutAllButton(
-                            onLogout: _handleLogoutFromAllDevices,
-                          ),
-                        ],
-                      ),
-                    );
-                  },
-                ),
-              ),
-            ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildResponsiveContent(
+    BuildContext context,
+    ScreenSize size,
+    UserProfileEntity currentProfile,
+    ThemeData theme,
+  ) {
+    final isDesktop = size == ScreenSize.expanded;
+    final isTablet = size == ScreenSize.medium;
+
+    final horizontalPadding = isDesktop ? 48.0 : (isTablet ? 32.0 : 20.0);
+    final topPadding = isDesktop ? 32.0 : 20.0;
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        horizontalPadding,
+        topPadding,
+        horizontalPadding,
+        MediaQuery.viewInsetsOf(context).bottom + 40,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildHeader(theme, size),
+          const SizedBox(height: 24),
+          if (isDesktop)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: _buildProfileForm(currentProfile, theme),
+                ),
+                const SizedBox(width: 48),
+                Expanded(
+                  child: _buildSecurityForm(theme),
+                ),
+              ],
+            )
+          else ...[
+            _buildProfileForm(currentProfile, theme),
+            const SizedBox(height: 24),
+            _buildSecurityForm(theme),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHeader(ThemeData theme, ScreenSize size) {
+    final isDesktop = size == ScreenSize.expanded;
+    final colorScheme = theme.colorScheme;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (!isDesktop && widget.showDragHandle)
+          Center(
+            child: Container(
+              margin: const EdgeInsets.only(bottom: 20),
+              width: 42,
+              height: 4,
+              decoration: BoxDecoration(
+                color: colorScheme.onSurface.withValues(alpha: 0.18),
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
+          ),
+        Row(
+          children: [
+            if (isDesktop)
+              IconButton(
+                icon: Icon(
+                  Icons.close_rounded,
+                  color: colorScheme.onSurface,
+                ),
+                tooltip: 'Close',
+                onPressed: () => Navigator.of(context).pop(),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints(
+                  minWidth: 48,
+                  minHeight: 48,
+                ),
+              )
+            else
+              AppBackButton(
+                color: colorScheme.onSurface,
+                padding: EdgeInsets.zero,
+              ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Settings',
+                    style: theme.textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Update your account, preferences, and security settings.',
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: colorScheme.onSurfaceVariant,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildProfileForm(UserProfileEntity currentProfile, ThemeData theme) {
+    return Form(
+      key: _profileFormKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildSectionCard(
+            context: context,
+            title: 'Account',
+            subtitle: 'Keep your identity current.',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextFormField(
+                  controller: _usernameController,
+                  textInputAction: TextInputAction.next,
+                  decoration: FormInputDecoration.build(
+                    theme,
+                    labelText: null,
+                    hintText: 'Choose a username',
+                  ),
+                  validator: _validateUsername,
+                ),
+                const SizedBox(height: 16),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.surface,
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: theme.colorScheme.onSurface.withValues(
+                        alpha: 0.1,
+                      ),
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'Email',
+                              style: theme.textTheme.labelMedium?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              currentProfile.email ?? 'Not set',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.bodyMedium?.copyWith(
+                                color: theme.colorScheme.onSurface,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      AppButton(
+                        onPressed: () async {
+                          final profileBloc = context.read<ProfileBloc>();
+                          final result = await Navigator.of(context).push<bool>(
+                            MaterialPageRoute<bool>(
+                              builder: (_) => const EmailUpdatePage(),
+                            ),
+                          );
+
+                          if (result == true && mounted) {
+                            profileBloc.add(const ProfileRefreshRequested());
+                          }
+                        },
+                        variant: AppButtonVariant.text,
+                        label: 'Change email',
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 10,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildSectionCard(
+            context: context,
+            title: 'Profile details',
+            subtitle: 'Share the details friends see on your profile.',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextFormField(
+                  controller: _bioController,
+                  maxLength: 150,
+                  maxLines: 4,
+                  decoration: FormInputDecoration.build(
+                    theme,
+                    labelText: null,
+                    hintText: 'Tell people about your vibe',
+                  ),
+                ),
+                const SizedBox(height: 20),
+                TextFormField(
+                  controller: _locationController,
+                  decoration: FormInputDecoration.build(
+                    theme,
+                    labelText: null,
+                    hintText: 'City or region',
+                  ),
+                ),
+                const SizedBox(height: 20),
+                TextFormField(
+                  controller: _dateOfBirthController,
+                  decoration: FormInputDecoration.build(
+                    theme,
+                    labelText: null,
+                    hintText: 'YYYY-MM-DD',
+                    suffixIcon: IconButton(
+                      icon: const Icon(Icons.calendar_month_rounded),
+                      onPressed: () => _pickDate(context),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                TextFormField(
+                  controller: _physicalAddressController,
+                  maxLines: 2,
+                  decoration: FormInputDecoration.build(
+                    theme,
+                    labelText: null,
+                    hintText: 'Optional address or venue area',
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
+          _buildSectionCard(
+            context: context,
+            title: 'Preferences',
+            subtitle: 'Control how your profile and app look.',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                FormToggleRow(
+                  title: 'Auto accept invites',
+                  subtitle: _autoAcceptInvites
+                      ? 'Automatically accept room and playlist invitations'
+                      : 'Review invitations before accepting',
+                  value: _autoAcceptInvites,
+                  onChanged: (value) {
+                    setState(() {
+                      _autoAcceptInvites = value;
+                    });
+                  },
+                ),
+                const SizedBox(height: 20),
+                const FormSectionLabel(text: 'FAVORITE GENRES'),
+                const SizedBox(height: 10),
+                GenreSelectionGrid(
+                  genres: TagGenreNormalizer.allDisplayLabels,
+                  selectedGenres: TagGenreNormalizer.toDisplayLabels(
+                    _favoriteGenres,
+                  ),
+                  onGenreTapped: (displayLabel) {
+                    final tagValue = TagGenreNormalizer.toValue(displayLabel);
+                    if (tagValue == null) {
+                      return;
+                    }
+
+                    setState(() {
+                      if (_favoriteGenres.contains(tagValue)) {
+                        _favoriteGenres.remove(tagValue);
+                      } else {
+                        _favoriteGenres.add(tagValue);
+                      }
+                    });
+                  },
+                ),
+                const SizedBox(height: 20),
+                const FormSectionLabel(text: 'THEME PREFERENCE'),
+                const SizedBox(height: 10),
+                SelectionCard(
+                  title: 'Light',
+                  subtitle: 'Always use light theme',
+                  icon: Icons.light_mode,
+                  isSelected: _themeController.text == 'LIGHT',
+                  onTap: () {
+                    setState(() {
+                      _themeController.text = 'LIGHT';
+                    });
+                  },
+                ),
+                const SizedBox(height: 10),
+                SelectionCard(
+                  title: 'Dark',
+                  subtitle: 'Always use dark theme',
+                  icon: Icons.dark_mode,
+                  isSelected: _themeController.text == 'DARK',
+                  onTap: () {
+                    setState(() {
+                      _themeController.text = 'DARK';
+                    });
+                  },
+                ),
+                const SizedBox(height: 10),
+                SelectionCard(
+                  title: 'System',
+                  subtitle: 'Follow device settings',
+                  icon: Icons.settings_suggest,
+                  isSelected: _themeController.text == 'SYSTEM',
+                  onTap: () {
+                    setState(() {
+                      _themeController.text = 'SYSTEM';
+                    });
+                  },
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          SizedBox(
+            width: double.infinity,
+            child: AppButton(
+              onPressed: widget.isSaving ? null : _handleProfileSave,
+              isLoading: widget.isSaving,
+              label: 'Save changes',
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSecurityForm(ThemeData theme) {
+    return Form(
+      key: _securityFormKey,
+      child: BlocBuilder<ProfileBloc, ProfileState>(
+        buildWhen: (previous, current) =>
+            current is ProfilePasswordChangeInProgress ||
+            current is ProfilePasswordChangeSuccess ||
+            current is ProfilePasswordChangeFailure ||
+            current is ProfileGoogleLinkInProgress ||
+            current is ProfileGoogleLinkSuccess ||
+            current is ProfileGoogleLinkFailure ||
+            current is ProfileGoogleUnlinkInProgress ||
+            current is ProfileGoogleUnlinkSuccess ||
+            current is ProfileGoogleUnlinkFailure,
+        builder: (context, state) {
+          final isPasswordLoading = state is ProfilePasswordChangeInProgress;
+          final isGoogleLinkLoading =
+              state is ProfileGoogleLinkInProgress ||
+              state is ProfileGoogleUnlinkInProgress;
+          final googleLinkStatus = _googleLinkStatusFromState(state);
+
+          return _buildSectionCard(
+            context: context,
+            title: 'Security',
+            subtitle: 'Change your password safely.',
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildPasswordField(
+                  controller: _currentPasswordController,
+                  label: 'Current password',
+                  hintText: 'Enter current password',
+                  obscureText: _obscureCurrentPassword,
+                  enabled: !isPasswordLoading,
+                  textInputAction: TextInputAction.next,
+                  validator: _validateCurrentPassword,
+                  onToggleVisibility: () {
+                    setState(() {
+                      _obscureCurrentPassword = !_obscureCurrentPassword;
+                    });
+                  },
+                ),
+                const SizedBox(height: 20),
+                _buildPasswordField(
+                  controller: _newPasswordController,
+                  label: 'New password',
+                  hintText: 'Enter a new password',
+                  obscureText: _obscureNewPassword,
+                  enabled: !isPasswordLoading,
+                  textInputAction: TextInputAction.next,
+                  validator: _validateNewPassword,
+                  onChanged: (_) {
+                    if (_confirmPasswordController.text.isNotEmpty) {
+                      _securityFormKey.currentState?.validate();
+                    }
+                  },
+                  onToggleVisibility: () {
+                    setState(() {
+                      _obscureNewPassword = !_obscureNewPassword;
+                    });
+                  },
+                ),
+                const SizedBox(height: 20),
+                _buildPasswordField(
+                  controller: _confirmPasswordController,
+                  label: 'Confirm new password',
+                  hintText: 'Repeat the new password',
+                  obscureText: _obscureConfirmPassword,
+                  enabled: !isPasswordLoading,
+                  textInputAction: TextInputAction.done,
+                  validator: _validateConfirmPassword,
+                  onFieldSubmitted: (_) => _handlePasswordChange(),
+                  onToggleVisibility: () {
+                    setState(() {
+                      _obscureConfirmPassword = !_obscureConfirmPassword;
+                    });
+                  },
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: AppButton(
+                    onPressed: isPasswordLoading ? null : _handlePasswordChange,
+                    isLoading: isPasswordLoading,
+                    label: 'Change password',
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                _GoogleLinkStatusCard(
+                  status: googleLinkStatus,
+                ),
+                const SizedBox(height: 14),
+                SizedBox(
+                  width: double.infinity,
+                  child: AppButton(
+                    onPressed: isGoogleLinkLoading
+                        ? null
+                        : _handleGoogleAccountLink,
+                    isLoading: isGoogleLinkLoading,
+                    label: googleLinkStatus == GoogleLinkStatus.linked
+                        ? 'Remove Google Link'
+                        : 'Link Google account',
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                LogoutAllButton(
+                  onLogout: _handleLogoutFromAllDevices,
+                ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
@@ -683,7 +711,7 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
       return;
     }
 
-    Navigator.of(context).pop(
+    widget.onSaveRequested(
       ProfileUpdateRequest(
         username: _usernameController.text,
         shortBio: _bioController.text,
@@ -844,49 +872,8 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
     return value is String ? value : '';
   }
 
-  UserProfileEntity _profileFromState(ProfileState state) {
-    if (state is ProfileLoaded) {
-      return state.data.profile;
-    }
-    if (state is ProfileMutationInProgress) {
-      return state.data.profile;
-    }
-    if (state is ProfileMutationSuccess) {
-      return state.data.profile;
-    }
-    if (state is ProfileMutationFailure) {
-      return state.data.profile;
-    }
-    if (state is ProfilePasswordChangeInProgress) {
-      return state.data.profile;
-    }
-    if (state is ProfilePasswordChangeSuccess) {
-      return state.data.profile;
-    }
-    if (state is ProfilePasswordChangeFailure) {
-      return state.data.profile;
-    }
-    if (state is ProfileGoogleLinkInProgress) {
-      return state.data.profile;
-    }
-    if (state is ProfileGoogleLinkSuccess) {
-      return state.data.profile;
-    }
-    if (state is ProfileGoogleLinkFailure) {
-      return state.data.profile;
-    }
-    if (state is ProfileGoogleUnlinkInProgress) {
-      return state.data.profile;
-    }
-    if (state is ProfileGoogleUnlinkSuccess) {
-      return state.data.profile;
-    }
-    if (state is ProfileGoogleUnlinkFailure) {
-      return state.data.profile;
-    }
-
-    return widget.profile;
-  }
+  UserProfileEntity _profileFromState(ProfileState state) =>
+      state.dataOrNull?.profile ?? widget.profile;
 
   List<String> _readGenres(Map<String, dynamic>? source) {
     final rawGenres =
@@ -920,48 +907,9 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
     return false;
   }
 
-  GoogleLinkStatus _googleLinkStatusFromState(ProfileState state) {
-    if (state is ProfileLoaded) {
-      return state.data.profile.googleLinkStatus;
-    }
-    if (state is ProfileMutationInProgress) {
-      return state.data.profile.googleLinkStatus;
-    }
-    if (state is ProfileMutationSuccess) {
-      return state.data.profile.googleLinkStatus;
-    }
-    if (state is ProfileMutationFailure) {
-      return state.data.profile.googleLinkStatus;
-    }
-    if (state is ProfilePasswordChangeInProgress) {
-      return state.data.profile.googleLinkStatus;
-    }
-    if (state is ProfilePasswordChangeSuccess) {
-      return state.data.profile.googleLinkStatus;
-    }
-    if (state is ProfilePasswordChangeFailure) {
-      return state.data.profile.googleLinkStatus;
-    }
-    if (state is ProfileGoogleLinkInProgress) {
-      return state.data.profile.googleLinkStatus;
-    }
-    if (state is ProfileGoogleLinkSuccess) {
-      return state.data.profile.googleLinkStatus;
-    }
-    if (state is ProfileGoogleLinkFailure) {
-      return state.data.profile.googleLinkStatus;
-    }
-    if (state is ProfileGoogleUnlinkInProgress) {
-      return state.data.profile.googleLinkStatus;
-    }
-    if (state is ProfileGoogleUnlinkSuccess) {
-      return state.data.profile.googleLinkStatus;
-    }
-    if (state is ProfileGoogleUnlinkFailure) {
-      return state.data.profile.googleLinkStatus;
-    }
-    return widget.profile.googleLinkStatus;
-  }
+  GoogleLinkStatus _googleLinkStatusFromState(ProfileState state) =>
+      state.dataOrNull?.profile.googleLinkStatus ??
+      widget.profile.googleLinkStatus;
 
   String? _validateUsername(String? value) {
     final trimmed = value?.trim() ?? '';

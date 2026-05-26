@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/widgets/app_scaffold.dart';
 import 'package:music_room/core/widgets/empty_state_widget.dart';
 import 'package:music_room/core/widgets/premium_segmented_tab_bar.dart';
+import 'package:music_room/core/widgets/sidebar_constants.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
 import 'package:music_room/features/events/domain/entities/my_event_item_model.dart';

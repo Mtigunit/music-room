@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:music_room/core/config/app_config.dart';
 import 'package:music_room/core/widgets/app_scaffold.dart';
+import 'package:music_room/core/widgets/sidebar_constants.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/home/presentation/widgets/show_notification_panel.dart';
 import 'package:music_room/routes/route_names.dart';

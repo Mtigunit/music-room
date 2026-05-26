@@ -9,4 +9,5 @@ class RouteNames {
   static const String playlist = '/playlist';
   static const String musicControl = '/music-control';
   static const String profile = '/profile';
+  static const String settings = '/settings';
 }

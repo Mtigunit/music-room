@@ -180,3 +180,49 @@ class ProfileError extends ProfileState {
   @override
   List<Object?> get props => [message];
 }
+
+extension ProfileStateX on ProfileState {
+  ProfilePageData? get dataOrNull {
+    if (this is ProfileLoaded) {
+      return (this as ProfileLoaded).data;
+    }
+    if (this is ProfileMutationInProgress) {
+      return (this as ProfileMutationInProgress).data;
+    }
+    if (this is ProfileMutationSuccess) {
+      return (this as ProfileMutationSuccess).data;
+    }
+    if (this is ProfileMutationFailure) {
+      return (this as ProfileMutationFailure).data;
+    }
+    if (this is ProfilePasswordChangeInProgress) {
+      return (this as ProfilePasswordChangeInProgress).data;
+    }
+    if (this is ProfilePasswordChangeSuccess) {
+      return (this as ProfilePasswordChangeSuccess).data;
+    }
+    if (this is ProfilePasswordChangeFailure) {
+      return (this as ProfilePasswordChangeFailure).data;
+    }
+    if (this is ProfileGoogleLinkInProgress) {
+      return (this as ProfileGoogleLinkInProgress).data;
+    }
+    if (this is ProfileGoogleLinkSuccess) {
+      return (this as ProfileGoogleLinkSuccess).data;
+    }
+    if (this is ProfileGoogleLinkFailure) {
+      return (this as ProfileGoogleLinkFailure).data;
+    }
+    if (this is ProfileGoogleUnlinkInProgress) {
+      return (this as ProfileGoogleUnlinkInProgress).data;
+    }
+    if (this is ProfileGoogleUnlinkSuccess) {
+      return (this as ProfileGoogleUnlinkSuccess).data;
+    }
+    if (this is ProfileGoogleUnlinkFailure) {
+      return (this as ProfileGoogleUnlinkFailure).data;
+    }
+
+    return null;
+  }
+}

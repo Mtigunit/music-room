@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:music_room/features/profile/presentation/pages/settings_page.dart';
 import 'package:music_room/routes/app_router.dart';
 import 'package:music_room/routes/route_names.dart';
 
@@ -56,6 +57,15 @@ void main() {
           isAuthenticated: true,
         ),
         RouteNames.home,
+      );
+    });
+  });
+
+  group('AppRouter.pageForRoute', () {
+    test('maps settings route to SettingsPage', () {
+      expect(
+        AppRouter.pageForRoute(RouteNames.settings),
+        isA<SettingsPage>(),
       );
     });
   });

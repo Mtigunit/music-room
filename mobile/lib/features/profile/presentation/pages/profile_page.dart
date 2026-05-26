@@ -5,7 +5,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:music_room/core/widgets/app_snackbar.dart';
 import 'package:music_room/core/widgets/confirmation_dialog.dart';
-import 'package:music_room/core/widgets/responsive_layout.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
 import 'package:music_room/features/auth/presentation/state/auth_event.dart';
@@ -14,7 +13,6 @@ import 'package:music_room/features/profile/domain/entities/profile_entity.dart'
 import 'package:music_room/features/profile/presentation/state/profile_bloc.dart';
 import 'package:music_room/features/profile/presentation/state/profile_event.dart';
 import 'package:music_room/features/profile/presentation/state/profile_state.dart';
-import 'package:music_room/features/profile/presentation/widgets/profile_edit_sheet.dart';
 import 'package:music_room/features/profile/presentation/widgets/profile_view.dart';
 import 'package:music_room/routes/route_names.dart';
 
@@ -24,11 +22,15 @@ class ProfilePage extends StatefulWidget {
   final String? userId;
 
   @override
-  State<ProfilePage> createState() => _ProfilePageState();
+  State<ProfilePage> createState() => ProfilePageState();
 }
 
-class _ProfilePageState extends State<ProfilePage> {
+class ProfilePageState extends State<ProfilePage> {
   late final ProfileBloc _profileBloc;
+
+  void refreshProfile() {
+    _profileBloc.add(ProfileRefreshRequested(userId: widget.userId));
+  }
 
   @override
   void initState() {
@@ -121,7 +123,7 @@ class _ProfilePageBody extends StatelessWidget {
       );
     }
 
-    final profileData = _profileDataFromState(state);
+    final profileData = state.dataOrNull;
     if (profileData == null) {
       return const SizedBox.shrink();
     }
@@ -145,7 +147,7 @@ class _ProfilePageBody extends StatelessWidget {
           ? null
           : () => _handleFollowAction(context, profileData.profile),
       onEditProfile: profileData.profile.isSelf
-          ? () => _showEditSheet(context, profileData.profile)
+          ? () => _openSettingsPage(context)
           : null,
       onChangeAvatar: profileData.profile.isSelf
           ? () => _pickAndUploadAvatar(context)
@@ -195,6 +197,15 @@ class _ProfilePageBody extends StatelessWidget {
     );
   }
 
+  Future<void> _openSettingsPage(BuildContext context) async {
+    final saved = await Navigator.of(context).pushNamed(RouteNames.settings);
+    if (saved == true && context.mounted) {
+      context.read<ProfileBloc>().add(
+        ProfileRefreshRequested(userId: userId),
+      );
+    }
+  }
+
   void _handleFollowAction(
     BuildContext context,
     UserProfileEntity profile,
@@ -208,49 +219,6 @@ class _ProfilePageBody extends StatelessWidget {
     }
 
     bloc.add(ProfileFollowRequested(userId: profile.id));
-  }
-
-  ProfilePageData? _profileDataFromState(ProfileState state) {
-    if (state is ProfileLoaded) {
-      return state.data;
-    }
-    if (state is ProfileMutationInProgress) {
-      return state.data;
-    }
-    if (state is ProfileMutationSuccess) {
-      return state.data;
-    }
-    if (state is ProfileMutationFailure) {
-      return state.data;
-    }
-    if (state is ProfilePasswordChangeInProgress) {
-      return state.data;
-    }
-    if (state is ProfilePasswordChangeSuccess) {
-      return state.data;
-    }
-    if (state is ProfilePasswordChangeFailure) {
-      return state.data;
-    }
-    if (state is ProfileGoogleLinkInProgress) {
-      return state.data;
-    }
-    if (state is ProfileGoogleLinkSuccess) {
-      return state.data;
-    }
-    if (state is ProfileGoogleLinkFailure) {
-      return state.data;
-    }
-    if (state is ProfileGoogleUnlinkInProgress) {
-      return state.data;
-    }
-    if (state is ProfileGoogleUnlinkSuccess) {
-      return state.data;
-    }
-    if (state is ProfileGoogleUnlinkFailure) {
-      return state.data;
-    }
-    return null;
   }
 
   Future<void> _handleGoogleAccountAction(
@@ -296,64 +264,6 @@ class _ProfilePageBody extends StatelessWidget {
     if (confirmed == true && context.mounted) {
       context.read<AuthBloc>().add(const LogoutRequested());
     }
-  }
-
-  Future<void> _showEditSheet(
-    BuildContext context,
-    UserProfileEntity profile,
-  ) async {
-    final profileBloc = context.read<ProfileBloc>();
-    final width = MediaQuery.of(context).size.width;
-    final isDesktop = width >= ResponsiveLayout.expandedBreakpoint;
-
-    final sheetContent = BlocProvider.value(
-      value: profileBloc,
-      child: ProfileEditSheet(profile: profile),
-    );
-
-    final ProfileUpdateRequest? request;
-
-    if (isDesktop) {
-      request = await showDialog<ProfileUpdateRequest>(
-        context: context,
-        builder: (_) => Center(
-          child: Material(
-            color: Colors.transparent,
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(
-                maxWidth: 560,
-                maxHeight: 720,
-              ),
-              child: ClipRRect(
-                borderRadius: BorderRadius.circular(28),
-                child: ColoredBox(
-                  color: Theme.of(context).colorScheme.surface,
-                  child: sheetContent,
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-    } else {
-      request = await showModalBottomSheet<ProfileUpdateRequest>(
-        context: context,
-        isScrollControlled: true,
-        showDragHandle: true,
-        builder: (_) => sheetContent,
-      );
-    }
-
-    if (request == null || !context.mounted) {
-      return;
-    }
-
-    if (!request.hasChanges(currentUsername: profile.username)) {
-      AppSnackbar.showInfo(context, 'No profile changes to save.');
-      return;
-    }
-
-    context.read<ProfileBloc>().add(ProfileEditSubmitted(request: request));
   }
 
   Future<void> _pickAndUploadAvatar(BuildContext context) async {

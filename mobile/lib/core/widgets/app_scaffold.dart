@@ -2,9 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:music_room/core/services/notifications_service.dart';
 import 'package:music_room/core/widgets/app_brand_icon.dart';
 import 'package:music_room/core/widgets/confirmation_dialog.dart';
 import 'package:music_room/core/widgets/responsive_layout.dart';
+import 'package:music_room/core/widgets/sidebar_constants.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
 import 'package:music_room/features/auth/presentation/state/auth_event.dart';
@@ -13,13 +15,56 @@ import 'package:music_room/features/home/presentation/pages/home_page.dart';
 import 'package:music_room/features/music_vote/presentation/pages/my_events_page.dart';
 import 'package:music_room/features/playlist/presentation/pages/playlist_page.dart';
 import 'package:music_room/features/profile/presentation/pages/profile_page.dart';
+import 'package:music_room/routes/route_names.dart';
 
-class AppTabs {
-  static const int home = 0;
-  static const int events = 1;
-  static const int playlist = 2;
-  static const int profile = 3;
+// =============================================================================
+// NAVIGATION ITEM METADATA
+// =============================================================================
+
+class _NavItemData {
+  const _NavItemData({
+    required this.label,
+    required this.icon,
+    required this.selectedIcon,
+    required this.tabIndex,
+  });
+
+  final String label;
+  final IconData icon;
+  final IconData selectedIcon;
+  final int tabIndex;
 }
+
+const List<_NavItemData> _navItems = [
+  _NavItemData(
+    label: 'Home',
+    icon: Icons.home_outlined,
+    selectedIcon: Icons.home_rounded,
+    tabIndex: AppTabs.home,
+  ),
+  _NavItemData(
+    label: 'Events',
+    icon: Icons.sensors,
+    selectedIcon: Icons.sensors,
+    tabIndex: AppTabs.events,
+  ),
+  _NavItemData(
+    label: 'Playlists',
+    icon: Icons.queue_music_outlined,
+    selectedIcon: Icons.queue_music_rounded,
+    tabIndex: AppTabs.playlist,
+  ),
+  _NavItemData(
+    label: 'Profile',
+    icon: Icons.person_outline,
+    selectedIcon: Icons.person,
+    tabIndex: AppTabs.profile,
+  ),
+];
+
+// =============================================================================
+// APP SCAFFOLD
+// =============================================================================
 
 class AppScaffold extends StatefulWidget {
   const AppScaffold({
@@ -30,7 +75,11 @@ class AppScaffold extends StatefulWidget {
          initialIndex >= 0 && initialIndex <= 3,
          'initialIndex must be between 0 and 3',
        );
+
   final int initialIndex;
+
+  /// When set, this page is shown instead of the tab stack. Navigation taps
+  /// that change the current tab will push a replacement [AppScaffold].
   final Widget? foregroundPage;
 
   @override
@@ -39,25 +88,32 @@ class AppScaffold extends StatefulWidget {
 
 class AppScaffoldState extends State<AppScaffold> {
   late int _currentIndex;
+  late final GlobalKey<ProfilePageState> _profilePageKey;
+  late final List<Widget> _pages;
 
-  final List<Widget> _pages = const [
-    HomePage(),
-    MyEventsPage(),
-    PlaylistPage(),
-    ProfilePage(),
-  ];
+  bool get _hasForegroundPage => widget.foregroundPage != null;
 
   @override
   void initState() {
     super.initState();
     _currentIndex = widget.initialIndex;
+    _profilePageKey = GlobalKey<ProfilePageState>();
+    _pages = [
+      const HomePage(),
+      const MyEventsPage(),
+      const PlaylistPage(),
+      ProfilePage(key: _profilePageKey),
+    ];
   }
 
+  // ---------------------------------------------------------------------------
+  // Navigation
+  // ---------------------------------------------------------------------------
+
   void _onItemTapped(int index) {
-    if (widget.foregroundPage != null) {
-      if (index == _currentIndex) {
-        return;
-      }
+    if (_hasForegroundPage) {
+      // Foreground page is active: only navigate if the tab actually changes.
+      if (index == _currentIndex) return;
       unawaited(
         Navigator.of(context).pushReplacement<void, void>(
           MaterialPageRoute<void>(
@@ -68,15 +124,31 @@ class AppScaffoldState extends State<AppScaffold> {
       return;
     }
 
-    setState(() {
-      _currentIndex = index;
-    });
+    setState(() => _currentIndex = index);
   }
 
-  Widget _buildBodyContent() {
-    if (widget.foregroundPage != null) {
-      return widget.foregroundPage!;
+  /// Programmatically switch to [index] without the foreground-page guard.
+  void switchTab(int index) {
+    if (index >= 0 && index < _pages.length) {
+      setState(() => _currentIndex = index);
     }
+  }
+
+  Future<void> _openSettings(BuildContext context) async {
+    final navigator = Navigator.of(context);
+
+    final saved = await navigator.pushNamed(RouteNames.settings);
+    if (saved == true) {
+      _profilePageKey.currentState?.refreshProfile();
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Body
+  // ---------------------------------------------------------------------------
+
+  Widget _buildBodyContent() {
+    if (_hasForegroundPage) return widget.foregroundPage!;
 
     return IndexedStack(
       index: _currentIndex,
@@ -84,28 +156,25 @@ class AppScaffoldState extends State<AppScaffold> {
     );
   }
 
-  void switchTab(int index) {
-    if (index >= 0 && index < _pages.length) {
-      setState(() {
-        _currentIndex = index;
-      });
-    }
-  }
+  // ---------------------------------------------------------------------------
+  // Build
+  // ---------------------------------------------------------------------------
 
   @override
   Widget build(BuildContext context) {
     return ResponsiveLayout(
-      builder: (context, size) {
-        return switch (size) {
-          ScreenSize.compact => _buildWithBottomBar(context),
-          ScreenSize.medium => _buildWithRail(context, extended: false),
-          ScreenSize.expanded => _buildWithRail(context, extended: true),
-        };
+      builder: (context, size) => switch (size) {
+        ScreenSize.compact => _buildWithBottomBar(context),
+        ScreenSize.medium => _buildWithRail(context, extended: false),
+        ScreenSize.expanded => _buildWithRail(context, extended: true),
       },
     );
   }
 
-  /// Phone: existing BottomNavigationBar — zero visual change.
+  // ---------------------------------------------------------------------------
+  // Phone layout – BottomNavigationBar
+  // ---------------------------------------------------------------------------
+
   Widget _buildWithBottomBar(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final notificationsService = InjectionContainer().notificationsService;
@@ -117,7 +186,9 @@ class AppScaffoldState extends State<AppScaffold> {
           color: Theme.of(context).scaffoldBackgroundColor,
           border: Border(
             top: BorderSide(
-              color: colorScheme.onSurface.withValues(alpha: 0.1),
+              color: colorScheme.onSurface.withValues(
+                alpha: kBottomNavBorderAlpha,
+              ),
             ),
           ),
         ),
@@ -130,277 +201,72 @@ class AppScaffoldState extends State<AppScaffold> {
           showSelectedLabels: false,
           showUnselectedLabels: false,
           selectedItemColor: colorScheme.primary,
-          unselectedItemColor: colorScheme.onSurface.withValues(alpha: 0.4),
+          unselectedItemColor: colorScheme.onSurface.withValues(
+            alpha: kBottomNavUnselectedAlpha,
+          ),
           items: [
+            // Home tab gets a live unread-count badge; all others are static.
             BottomNavigationBarItem(
-              icon: StreamBuilder<int>(
-                stream: notificationsService.unreadCountStream,
-                initialData: notificationsService.unreadCount,
-                builder: (context, snapshot) {
-                  final count = snapshot.data ?? 0;
-                  if (count > 0) {
-                    return Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        const Icon(Icons.home_outlined, size: 28),
-                        Positioned(
-                          right: -6,
-                          top: -6,
-                          child: Container(
-                            padding: const EdgeInsets.all(4),
-                            decoration: BoxDecoration(
-                              color: colorScheme.error,
-                              shape: BoxShape.circle,
-                            ),
-                            constraints: const BoxConstraints(
-                              minWidth: 20,
-                              minHeight: 20,
-                            ),
-                            child: Center(
-                              child: Text(
-                                count > 99 ? '99+' : count.toString(),
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
-                    );
-                  }
-
-                  return const Icon(Icons.home_outlined, size: 28);
-                },
+              icon: _HomeTabIcon(
+                notificationsService: notificationsService,
+                badgeColor: colorScheme.error,
               ),
-              label: 'Home',
+              label: _navItems[AppTabs.home].label,
             ),
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.sensors, size: 28),
-              label: 'Events',
-            ),
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.queue_music, size: 28),
-              label: 'Playlist',
-            ),
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline, size: 28),
-              label: 'Profile',
-            ),
+            for (final item in _navItems.skip(1))
+              BottomNavigationBarItem(
+                icon: Icon(item.icon, size: kBottomNavIconSize),
+                label: item.label,
+              ),
           ],
         ),
       ),
     );
   }
 
-  /// Tablet / Desktop: NavigationRail on the left side.
-  /// [extended] controls whether labels are shown next to icons.
+  // ---------------------------------------------------------------------------
+  // Tablet / Desktop layout – custom sidebar rail
+  // ---------------------------------------------------------------------------
+
   Widget _buildWithRail(BuildContext context, {required bool extended}) {
     final colorScheme = Theme.of(context).colorScheme;
+    final sidebarColors = _SidebarThemeTokens.fromColorScheme(colorScheme);
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
     return Scaffold(
       body: Row(
         children: [
-          // Navigation rail
-          Container(
-            decoration: BoxDecoration(
-              border: Border(
-                right: BorderSide(
-                  color: colorScheme.onSurface.withValues(alpha: 0.1),
-                ),
-              ),
-            ),
-            child: NavigationRail(
-              selectedIndex: _currentIndex,
-              onDestinationSelected: _onItemTapped,
-              extended: extended,
-              minWidth: 72,
-              minExtendedWidth: 220,
-              backgroundColor: Theme.of(context).scaffoldBackgroundColor,
-              selectedIconTheme: IconThemeData(
-                color: colorScheme.primary,
-                size: 26,
-              ),
-              unselectedIconTheme: IconThemeData(
-                color: colorScheme.onSurface.withValues(alpha: 0.4),
-                size: 26,
-              ),
-              selectedLabelTextStyle: TextStyle(
-                color: colorScheme.primary,
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-              ),
-              unselectedLabelTextStyle: TextStyle(
-                color: colorScheme.onSurface.withValues(alpha: 0.5),
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
-              indicatorColor: colorScheme.primary.withValues(alpha: 0.12),
-              leading: _buildRailHeader(isDarkMode, extended: extended),
-              trailing: _buildRailTrailing(
-                context,
-                isDarkMode: isDarkMode,
-                extended: extended,
-              ),
-              destinations: const [
-                NavigationRailDestination(
-                  icon: Icon(Icons.home_outlined),
-                  selectedIcon: Icon(Icons.home),
-                  label: Text('Home'),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(Icons.sensors),
-                  selectedIcon: Icon(Icons.sensors),
-                  label: Text('Events'),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(Icons.queue_music),
-                  selectedIcon: Icon(Icons.queue_music),
-                  label: Text('Playlists'),
-                ),
-                NavigationRailDestination(
-                  icon: Icon(Icons.person_outline),
-                  selectedIcon: Icon(Icons.person),
-                  label: Text('Profile'),
-                ),
-              ],
-            ),
+          _Sidebar(
+            extended: extended,
+            colors: sidebarColors,
+            isDarkMode: isDarkMode,
+            currentIndex: _currentIndex,
+            navItems: _navItems,
+            onNavItemTap: _onItemTapped,
+            onThemeToggle: () => _handleThemeToggle(isDarkMode),
+            onSettingsTap: () => unawaited(_openSettings(context)),
+            onLogoutTap: () => _handleLogout(context),
           ),
-
-          // Page content
-          Expanded(
-            child: _buildBodyContent(),
-          ),
+          Expanded(child: _buildBodyContent()),
         ],
       ),
     );
   }
 
-  /// Branded header at the top of the NavigationRail.
-  /// On tablet (not extended): icon only.
-  /// On desktop (extended): icon + app name.
-  Widget _buildRailHeader(bool isDarkMode, {required bool extended}) {
-    final logoIcon = Container(
-      width: 36,
-      height: 36,
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [Color(0xFF7C3AED), Color(0xFF5B21B6)],
-        ),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: const Padding(
-        padding: EdgeInsets.all(8),
-        child: AppBrandIcon(size: 20),
-      ),
-    );
-
-    if (!extended) {
-      // Tablet: icon only, centred
-      return Padding(
-        padding: const EdgeInsets.only(top: 20, bottom: 16),
-        child: logoIcon,
-      );
-    }
-
-    // Desktop: icon + app name
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          logoIcon,
-          const SizedBox(width: 12),
-          Text(
-            'Music Room',
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: isDarkMode ? Colors.white : const Color(0xFF1A1A2E),
-              letterSpacing: -0.3,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Trailing section at the bottom of the NavigationRail.
-  /// Contains dark mode toggle and logout button.
-  Widget _buildRailTrailing(
-    BuildContext context, {
-    required bool isDarkMode,
-    required bool extended,
-  }) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final mutedColor = colorScheme.onSurface.withValues(alpha: 0.5);
-
-    return Expanded(
-      child: Align(
-        alignment: Alignment.bottomCenter,
-        child: Padding(
-          padding: const EdgeInsets.only(bottom: 20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Divider
-              Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: extended ? 16 : 12,
-                  vertical: 8,
-                ),
-                child: Divider(
-                  height: 1,
-                  color: colorScheme.onSurface.withValues(alpha: 0.1),
-                ),
-              ),
-
-              // Dark mode toggle
-              _RailActionButton(
-                icon: isDarkMode
-                    ? Icons.light_mode_outlined
-                    : Icons.dark_mode_outlined,
-                label: isDarkMode ? 'Light Mode' : 'Dark Mode',
-                color: mutedColor,
-                extended: extended,
-                onTap: () => _handleThemeToggle(isDarkMode),
-              ),
-
-              const SizedBox(height: 4),
-
-              // Logout
-              _RailActionButton(
-                icon: Icons.logout_rounded,
-                label: 'Log Out',
-                color: colorScheme.error,
-                extended: extended,
-                onTap: () => _handleLogout(context),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+  // ---------------------------------------------------------------------------
+  // Actions
+  // ---------------------------------------------------------------------------
 
   Future<void> _handleThemeToggle(bool currentlyDark) async {
     final themeService = InjectionContainer().themePreferenceService;
     final authState = context.read<AuthBloc>().state;
 
-    // Extract userId from the current auth state
-    String? userId;
-    if (authState is AuthAuthenticated) {
-      userId = authState.user.id;
-    }
+    final userId = authState is AuthAuthenticated ? authState.user.id : null;
+    if (userId == null || userId.isEmpty) return;
 
-    if (userId == null || userId.isEmpty) {
-      return;
-    }
-
-    final newPreference = currentlyDark ? 'LIGHT' : 'DARK';
+    final newPreference = currentlyDark
+        ? kThemePreferenceLight
+        : kThemePreferenceDark;
     await themeService.saveThemePreferenceForUser(userId, newPreference);
   }
 
@@ -409,9 +275,9 @@ class AppScaffoldState extends State<AppScaffold> {
 
     final confirmed = await showAppConfirmationDialog(
       context: context,
-      title: 'Log Out?',
-      message: 'Are you sure you want to log out of your account?',
-      confirmLabel: 'Log Out',
+      title: kLogoutDialogTitle,
+      message: kLogoutDialogMessage,
+      confirmLabel: kLogoutDialogConfirmLabel,
       icon: Icons.logout_rounded,
       variant: ConfirmationDialogVariant.destructive,
     );
@@ -422,58 +288,484 @@ class AppScaffoldState extends State<AppScaffold> {
   }
 }
 
-/// A compact action button for the NavigationRail trailing section.
-/// Shows icon-only when not extended, icon + label when extended.
-class _RailActionButton extends StatelessWidget {
-  const _RailActionButton({
-    required this.icon,
-    required this.label,
-    required this.color,
-    required this.extended,
-    required this.onTap,
+// =============================================================================
+// _HomeTabIcon — live-updating badge for the Home bottom-nav item
+// =============================================================================
+
+class _HomeTabIcon extends StatelessWidget {
+  const _HomeTabIcon({
+    required this.notificationsService,
+    required this.badgeColor,
   });
 
-  final IconData icon;
-  final String label;
-  final Color color;
-  final bool extended;
-  final VoidCallback onTap;
+  final NotificationsService notificationsService;
+  final Color badgeColor;
 
   @override
   Widget build(BuildContext context) {
-    if (!extended) {
-      // Icon-only button for tablet
-      return IconButton(
-        icon: Icon(icon, color: color, size: 22),
-        tooltip: label,
-        onPressed: onTap,
-      );
-    }
+    return StreamBuilder<int>(
+      stream: notificationsService.unreadCountStream,
+      initialData: notificationsService.unreadCount,
+      builder: (context, snapshot) {
+        final count = snapshot.data ?? 0;
+        if (count <= 0) {
+          return const Icon(Icons.home_outlined, size: kBottomNavIconSize);
+        }
 
-    // Full-width button with label for desktop
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        return Stack(
+          clipBehavior: Clip.none,
+          children: [
+            const Icon(Icons.home_outlined, size: kBottomNavIconSize),
+            Positioned(
+              right: kBadgeRightOffset,
+              top: kBadgeTopOffset,
+              child: _NotificationBadge(count: count, color: badgeColor),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+// =============================================================================
+// _NotificationBadge
+// =============================================================================
+
+class _NotificationBadge extends StatelessWidget {
+  const _NotificationBadge({required this.count, required this.color});
+
+  final int count;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(kBadgePadding),
+      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      constraints: const BoxConstraints(
+        minWidth: kBadgeMinSize,
+        minHeight: kBadgeMinSize,
+      ),
+      child: Center(
+        child: Text(
+          count > kMaxBadgeCount ? '$kMaxBadgeCount+' : count.toString(),
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: kBadgeFontSize,
+            fontWeight: FontWeight.w700,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// _Sidebar — full left-side navigation panel for tablet / desktop
+// =============================================================================
+
+class _Sidebar extends StatelessWidget {
+  const _Sidebar({
+    required this.extended,
+    required this.colors,
+    required this.isDarkMode,
+    required this.currentIndex,
+    required this.navItems,
+    required this.onNavItemTap,
+    required this.onThemeToggle,
+    required this.onSettingsTap,
+    required this.onLogoutTap,
+  });
+
+  final bool extended;
+  final _SidebarThemeTokens colors;
+  final bool isDarkMode;
+  final int currentIndex;
+  final List<_NavItemData> navItems;
+  final ValueChanged<int> onNavItemTap;
+  final VoidCallback onThemeToggle;
+  final VoidCallback onSettingsTap;
+  final VoidCallback onLogoutTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final horizontalPadding = extended
+        ? kSidebarExtendedPadding
+        : kSidebarCollapsedPadding;
+
+    return Container(
+      width: extended ? kSidebarExtendedWidth : kSidebarCollapsedWidth,
+      decoration: BoxDecoration(
+        color: colors.background,
+        border: Border(right: BorderSide(color: colors.border)),
+      ),
+      child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          child: Row(
+          padding: EdgeInsets.fromLTRB(
+            horizontalPadding,
+            kSidebarTopPadding,
+            horizontalPadding,
+            kSidebarBottomPadding,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Icon(icon, color: color, size: 22),
-              const SizedBox(width: 12),
-              Text(
-                label,
-                style: TextStyle(
-                  color: color,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w500,
+              _SidebarHeader(extended: extended, colors: colors),
+              SizedBox(
+                height: extended
+                    ? kSidebarHeaderGapExtended
+                    : kSidebarHeaderGapCollapsed,
+              ),
+              ..._buildNavItems(),
+              const Spacer(),
+              Divider(
+                height: 1,
+                color: colors.border.withValues(
+                  alpha: kBorderAlpha,
                 ),
               ),
+              SizedBox(
+                height: extended
+                    ? kSidebarUtilityGapExtended
+                    : kSidebarUtilityGapCollapsed,
+              ),
+              ..._buildUtilityButtons(),
             ],
           ),
         ),
       ),
     );
   }
+
+  List<Widget> _buildNavItems() {
+    return [
+      for (final item in navItems) ...[
+        _SidebarNavItem(
+          extended: extended,
+          colors: colors,
+          label: item.label,
+          icon: currentIndex == item.tabIndex ? item.selectedIcon : item.icon,
+          isSelected: currentIndex == item.tabIndex,
+          onTap: () => onNavItemTap(item.tabIndex),
+        ),
+        const SizedBox(height: kSidebarNavItemGap),
+      ],
+    ];
+  }
+
+  List<Widget> _buildUtilityButtons() {
+    return [
+      _SidebarUtilityButton(
+        extended: extended,
+        colors: colors,
+        icon: isDarkMode ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+        label: isDarkMode ? 'Light Mode' : 'Dark Mode',
+        onTap: onThemeToggle,
+      ),
+      const SizedBox(height: kSidebarUtilityButtonGap),
+      _SidebarUtilityButton(
+        extended: extended,
+        colors: colors,
+        icon: Icons.settings_outlined,
+        label: 'Settings',
+        onTap: onSettingsTap,
+      ),
+      const SizedBox(height: kSidebarUtilityButtonGap),
+      _SidebarUtilityButton(
+        extended: extended,
+        colors: colors,
+        icon: Icons.logout_rounded,
+        label: 'Logout',
+        foregroundColor: colors.dangerForeground,
+        onTap: onLogoutTap,
+      ),
+    ];
+  }
+}
+
+// =============================================================================
+// _SidebarHeader
+// =============================================================================
+
+class _SidebarHeader extends StatelessWidget {
+  const _SidebarHeader({required this.extended, required this.colors});
+
+  final bool extended;
+  final _SidebarThemeTokens colors;
+
+  @override
+  Widget build(BuildContext context) {
+    final avatarSize = extended ? kAvatarSizeExtended : kAvatarSizeCollapsed;
+    final iconSize = extended
+        ? kBrandIconSizeExtended
+        : kBrandIconSizeCollapsed;
+
+    final avatar = Container(
+      width: avatarSize,
+      height: avatarSize,
+      decoration: BoxDecoration(
+        color: colors.avatarBackground,
+        shape: BoxShape.circle,
+      ),
+      child: Center(
+        child: AppBrandIcon(size: iconSize, color: colors.brandIcon),
+      ),
+    );
+
+    if (!extended) return Center(child: avatar);
+
+    return Row(
+      children: [
+        avatar,
+        const SizedBox(width: kHeaderAvatarTextGap),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                kProfileDisplayName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: colors.title,
+                  fontSize: kHeaderTitleFontSize,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: kHeaderTitleLetterSpacing,
+                  height: kHeaderTitleLineHeight,
+                ),
+              ),
+              const SizedBox(height: kHeaderTitleSubtitleGap),
+              Text(
+                kProfileSubtitle,
+                style: TextStyle(
+                  color: colors.subtitle,
+                  fontSize: kHeaderSubtitleFontSize,
+                  fontWeight: FontWeight.w500,
+                  letterSpacing: kHeaderSubtitleLetterSpacing,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// =============================================================================
+// _SidebarNavItem
+// =============================================================================
+
+class _SidebarNavItem extends StatelessWidget {
+  const _SidebarNavItem({
+    required this.extended,
+    required this.colors,
+    required this.label,
+    required this.icon,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final bool extended;
+  final _SidebarThemeTokens colors;
+  final String label;
+  final IconData icon;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final foregroundColor = isSelected
+        ? colors.selectedForeground
+        : colors.unselectedForeground;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(kNavItemBorderRadius),
+        onTap: onTap,
+        child: Ink(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(kNavItemBorderRadius),
+            gradient: isSelected
+                ? LinearGradient(
+                    colors: [
+                      colors.activeGradientStart,
+                      colors.activeGradientEnd,
+                    ],
+                  )
+                : null,
+          ),
+          child: SizedBox(
+            height: kNavItemHeight,
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: extended ? kNavItemHorizontalPaddingExtended : 0,
+              ),
+              child: Row(
+                mainAxisAlignment: extended
+                    ? MainAxisAlignment.start
+                    : MainAxisAlignment.center,
+                children: [
+                  Icon(icon, color: foregroundColor, size: kNavItemIconSize),
+                  if (extended) ...[
+                    const SizedBox(width: kNavItemIconLabelGap),
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: TextStyle(
+                          color: foregroundColor,
+                          fontSize: kNavItemFontSize,
+                          fontWeight: isSelected
+                              ? FontWeight.w700
+                              : FontWeight.w500,
+                          letterSpacing: kNavItemLetterSpacing,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// _SidebarUtilityButton
+// =============================================================================
+
+class _SidebarUtilityButton extends StatelessWidget {
+  const _SidebarUtilityButton({
+    required this.extended,
+    required this.colors,
+    required this.icon,
+    required this.label,
+    required this.onTap,
+    this.foregroundColor,
+  });
+
+  final bool extended;
+  final _SidebarThemeTokens colors;
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  /// Override to use a colour other than
+  /// [_SidebarThemeTokens.unselectedForeground].
+  final Color? foregroundColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final effectiveForeground = foregroundColor ?? colors.unselectedForeground;
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(kUtilityButtonBorderRadius),
+        onTap: onTap,
+        child: SizedBox(
+          height: kUtilityButtonHeight,
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: extended
+                  ? kUtilityButtonHorizontalPaddingExtended
+                  : 0,
+            ),
+            child: Row(
+              mainAxisAlignment: extended
+                  ? MainAxisAlignment.start
+                  : MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  color: effectiveForeground,
+                  size: kUtilityButtonIconSize,
+                ),
+                if (extended) ...[
+                  const SizedBox(width: kUtilityButtonIconLabelGap),
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: TextStyle(
+                        color: effectiveForeground,
+                        fontSize: kUtilityButtonFontSize,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: kUtilityButtonLetterSpacing,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// =============================================================================
+// _SidebarThemeTokens — resolved colours for one brightness
+// =============================================================================
+
+class _SidebarThemeTokens {
+  const _SidebarThemeTokens({
+    required this.background,
+    required this.border,
+    required this.avatarBackground,
+    required this.brandIcon,
+    required this.title,
+    required this.subtitle,
+    required this.unselectedForeground,
+    required this.selectedForeground,
+    required this.utilityDivider,
+    required this.dangerForeground,
+    required this.activeGradientStart,
+    required this.activeGradientEnd,
+  });
+
+  factory _SidebarThemeTokens.fromColorScheme(ColorScheme scheme) {
+    final isDark = scheme.brightness == Brightness.dark;
+
+    return _SidebarThemeTokens(
+      background: isDark ? scheme.surfaceContainer : scheme.surface,
+      border: scheme.outlineVariant.withValues(alpha: kBorderAlpha),
+      avatarBackground: scheme.surfaceContainerHighest,
+      brandIcon: scheme.primary,
+      title: scheme.primary,
+      subtitle: scheme.onSurface.withValues(alpha: kSubtitleAlpha),
+      unselectedForeground: scheme.onSurface.withValues(
+        alpha: kUnselectedForegroundAlpha,
+      ),
+      selectedForeground: scheme.onPrimary,
+      utilityDivider: scheme.outlineVariant.withValues(
+        alpha: kUtilityDividerAlpha,
+      ),
+      dangerForeground: scheme.error,
+      activeGradientStart: scheme.primary,
+      activeGradientEnd: Color.lerp(
+        scheme.primary,
+        scheme.primaryContainer,
+        kGradientEndLerpFactor,
+      )!,
+    );
+  }
+
+  final Color background;
+  final Color border;
+  final Color avatarBackground;
+  final Color brandIcon;
+  final Color title;
+  final Color subtitle;
+  final Color unselectedForeground;
+  final Color selectedForeground;
+  final Color utilityDivider;
+  final Color dangerForeground;
+  final Color activeGradientStart;
+  final Color activeGradientEnd;
 }
