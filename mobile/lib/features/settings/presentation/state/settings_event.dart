@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:equatable/equatable.dart';
 import 'package:music_room/features/settings/domain/entities/settings_update_request.dart';
 
@@ -56,17 +54,4 @@ class SettingsGoogleLinkRequested extends SettingsEvent {
 
 class SettingsGoogleUnlinkRequested extends SettingsEvent {
   const SettingsGoogleUnlinkRequested();
-}
-
-class SettingsAvatarUploadRequested extends SettingsEvent {
-  const SettingsAvatarUploadRequested({
-    required this.bytes,
-    required this.fileName,
-  });
-
-  final Uint8List bytes;
-  final String fileName;
-
-  @override
-  List<Object?> get props => [bytes, fileName];
 }

@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:music_room/core/services/google_auth_service.dart';
 import 'package:music_room/core/services/google_link_status_service.dart';
 import 'package:music_room/core/services/theme_preference_service.dart';
@@ -131,18 +129,6 @@ class SettingsRepositoryImpl implements SettingsRepository {
     await _googleLinkStatusService.saveStatusForUser(
       userId,
       GoogleLinkStatus.unlinked,
-    );
-    return loadMySettingsPage();
-  }
-
-  @override
-  Future<ProfilePageData> uploadMyAvatar(
-    Uint8List bytes,
-    String fileName,
-  ) async {
-    await _remoteDataSource.uploadMyAvatar(
-      bytes: bytes,
-      fileName: fileName,
     );
     return loadMySettingsPage();
   }
