@@ -3,9 +3,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/widgets/app_button.dart';
 import 'package:music_room/core/widgets/form_input_decoration.dart';
 import 'package:music_room/features/profile/domain/entities/profile_entity.dart';
-import 'package:music_room/features/profile/presentation/widgets/logout_all_button.dart';
 import 'package:music_room/features/settings/presentation/state/settings_bloc.dart';
 import 'package:music_room/features/settings/presentation/state/settings_state.dart';
+import 'package:music_room/features/settings/presentation/widgets/logout_all_button.dart';
 import 'package:music_room/features/settings/presentation/widgets/profile_edit_section_card.dart';
 
 class ProfileEditSecurityForm extends StatefulWidget {
