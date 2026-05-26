@@ -106,11 +106,7 @@ class AppRouter {
     }
 
     if (routeName == RouteNames.settings) {
-      return SettingsPage(
-        userId: arguments is String && arguments.trim().isNotEmpty
-            ? arguments.trim()
-            : null,
-      );
+      return const SettingsPage();
     }
 
     return _unknownRoutePage(routeName);

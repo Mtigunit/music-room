@@ -11,9 +11,7 @@ import 'package:music_room/features/settings/presentation/state/settings_state.d
 import 'package:music_room/features/settings/presentation/widgets/profile_edit_sheet.dart';
 
 class SettingsPage extends StatefulWidget {
-  const SettingsPage({super.key, this.userId});
-
-  final String? userId;
+  const SettingsPage({super.key});
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -27,7 +25,7 @@ class _SettingsPageState extends State<SettingsPage> {
   void initState() {
     super.initState();
     _settingsBloc = InjectionContainer().createSettingsBloc()
-      ..add(SettingsRequested(userId: widget.userId));
+      ..add(const SettingsRequested());
   }
 
   @override
@@ -100,7 +98,7 @@ class _SettingsPageState extends State<SettingsPage> {
                           TextButton(
                             onPressed: () {
                               context.read<SettingsBloc>().add(
-                                SettingsRequested(userId: widget.userId),
+                                const SettingsRequested(),
                               );
                             },
                             child: const Text('Retry'),

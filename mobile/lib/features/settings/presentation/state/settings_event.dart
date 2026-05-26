@@ -9,21 +9,14 @@ abstract class SettingsEvent extends Equatable {
 }
 
 class SettingsRequested extends SettingsEvent {
-  const SettingsRequested({this.userId});
-
-  final String? userId;
+  const SettingsRequested();
 
   @override
-  List<Object?> get props => [userId];
+  List<Object?> get props => const <Object?>[];
 }
 
 class SettingsRefreshRequested extends SettingsEvent {
-  const SettingsRefreshRequested({this.userId});
-
-  final String? userId;
-
-  @override
-  List<Object?> get props => [userId];
+  const SettingsRefreshRequested();
 }
 
 class SettingsSaveSubmitted extends SettingsEvent {
