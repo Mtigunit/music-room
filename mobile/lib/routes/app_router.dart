@@ -9,7 +9,7 @@ import 'package:music_room/features/music_control/presentation/pages/music_contr
 import 'package:music_room/features/music_vote/presentation/pages/pre_event_page.dart';
 import 'package:music_room/features/playlist/presentation/pages/playlist_page.dart';
 import 'package:music_room/features/profile/presentation/pages/profile_page.dart';
-import 'package:music_room/features/profile/presentation/pages/settings_page.dart';
+import 'package:music_room/features/settings/presentation/pages/settings_page.dart';
 import 'package:music_room/routes/route_names.dart';
 
 class AppRouter {
@@ -94,7 +94,12 @@ class AppRouter {
       return ProfilePage(
         userId: arguments is String && arguments.trim().isNotEmpty
             ? arguments.trim()
+            : arguments is Map<String, dynamic> && arguments['userId'] is String
+            ? (arguments['userId'] as String).trim()
             : null,
+        showBackButton:
+            arguments is Map<String, dynamic> &&
+            arguments['showBackButton'] == true,
       );
     }
 

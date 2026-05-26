@@ -16,7 +16,7 @@ import 'package:music_room/features/auth/presentation/widgets/post_registration_
 import 'package:music_room/features/auth/presentation/widgets/post_registration_profile_card.dart';
 import 'package:music_room/features/auth/presentation/widgets/post_registration_profile_form_sections.dart';
 import 'package:music_room/features/auth/presentation/widgets/post_registration_profile_theme_section.dart';
-import 'package:music_room/features/profile/domain/entities/profile_entity.dart';
+import 'package:music_room/features/settings/domain/entities/settings_update_request.dart';
 import 'package:music_room/routes/route_names.dart';
 
 class PostRegistrationProfilePage extends StatefulWidget {
@@ -357,7 +357,8 @@ class _PostRegistrationProfilePageState
     });
 
     final profileRepository = InjectionContainer().profileRepository;
-    final request = ProfileUpdateRequest(
+    final settingsRepository = InjectionContainer().settingsRepository;
+    final request = SettingsUpdateRequest(
       shortBio: _trimmedValue(_bioController.text),
       location: _trimmedValue(_locationController.text),
       favoriteGenres: _selectedGenres.isEmpty
@@ -376,11 +377,11 @@ class _PostRegistrationProfilePageState
 
     try {
       if (hasUsernameChange) {
-        await profileRepository.updateMyUsername(normalizedUsername);
+        await settingsRepository.updateMyUsername(normalizedUsername);
       }
 
       if (request.toJson().isNotEmpty) {
-        await profileRepository.updateMyProfile(request);
+        await settingsRepository.updateMySettings(request);
       }
 
       if (_pickedAvatarBytes != null) {

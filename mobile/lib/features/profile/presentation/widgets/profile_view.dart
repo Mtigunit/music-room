@@ -1,29 +1,35 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:music_room/core/utils/image_url.dart';
 import 'package:music_room/core/utils/tag_genre_normalizer.dart';
 import 'package:music_room/core/widgets/app_back_button.dart';
-import 'package:music_room/core/widgets/app_button.dart';
+import 'package:music_room/core/widgets/confirmation_dialog.dart';
 import 'package:music_room/core/widgets/premium_segmented_tab_bar.dart';
 import 'package:music_room/core/widgets/responsive_layout.dart';
+import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
+import 'package:music_room/features/auth/presentation/state/auth_event.dart';
 import 'package:music_room/features/music_vote/data/models/my_event_item.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/my_event_list_tile.dart';
 import 'package:music_room/features/playlist/domain/entities/playlist_entity.dart';
 import 'package:music_room/features/profile/domain/entities/hosted_event_entity.dart';
+
 import 'package:music_room/features/profile/domain/entities/profile_entity.dart';
+import 'package:music_room/features/profile/presentation/state/profile_bloc.dart';
+import 'package:music_room/features/profile/presentation/state/profile_event.dart';
 import 'package:music_room/features/profile/presentation/widgets/media_card.dart';
+import 'package:music_room/routes/route_names.dart';
 
 class ProfileView extends StatefulWidget {
   const ProfileView({
     required this.data,
     required this.onRefresh,
+    this.showBackButton = false,
     this.onFollowProfile,
-    this.onEditProfile,
-    this.onChangeAvatar,
     this.onOpenRoom,
     this.onOpenPlaylist,
-    this.onLogout,
-    this.onGoogleAccountAction,
-    this.googleAccountMessage,
     this.isBusy = false,
     this.busyLabel,
     super.key,
@@ -31,14 +37,10 @@ class ProfileView extends StatefulWidget {
 
   final ProfilePageData data;
   final Future<void> Function() onRefresh;
+  final bool showBackButton;
   final VoidCallback? onFollowProfile;
-  final VoidCallback? onEditProfile;
-  final VoidCallback? onChangeAvatar;
   final void Function(HostedEventEntity room)? onOpenRoom;
   final void Function(PlaylistEntity playlist)? onOpenPlaylist;
-  final VoidCallback? onLogout;
-  final VoidCallback? onGoogleAccountAction;
-  final String? googleAccountMessage;
   final bool isBusy;
   final String? busyLabel;
 
@@ -48,6 +50,15 @@ class ProfileView extends StatefulWidget {
 
 class _ProfileViewState extends State<ProfileView> {
   int _selectedTabIndex = 0;
+
+  // ── Shared data accessors ────────────────────────────────────────
+
+  UserProfileEntity get _profile => widget.data.profile;
+  bool get _isOwnProfile => _profile.isSelf;
+  bool get _hasShortBio =>
+      _profile.shortBio != null && _profile.shortBio!.trim().isNotEmpty;
+  String get _roomTabLabel => _isOwnProfile ? 'My Rooms' : 'Rooms';
+  String get _playlistTabLabel => _isOwnProfile ? 'My Playlists' : 'Playlists';
 
   @override
   Widget build(BuildContext context) {
@@ -61,15 +72,6 @@ class _ProfileViewState extends State<ProfileView> {
       },
     );
   }
-
-  // ── Shared data accessors ────────────────────────────────────────
-
-  UserProfileEntity get _profile => widget.data.profile;
-  bool get _isOwnProfile => _profile.isSelf;
-  bool get _hasShortBio =>
-      _profile.shortBio != null && _profile.shortBio!.trim().isNotEmpty;
-  String get _roomTabLabel => _isOwnProfile ? 'My Rooms' : 'Rooms';
-  String get _playlistTabLabel => _isOwnProfile ? 'My Playlists' : 'Playlists';
 
   // ── Compact (< 600px) — original mobile layout ──────────────────
 
@@ -86,7 +88,7 @@ class _ProfileViewState extends State<ProfileView> {
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
           children: [
-            _buildHeader(context, showLogout: true),
+            _buildHeader(context),
             const SizedBox(height: 16),
             _buildHeroCard(),
             const SizedBox(height: 16),
@@ -95,26 +97,12 @@ class _ProfileViewState extends State<ProfileView> {
               const SizedBox(height: 16),
               _BioCard(bio: _profile.shortBio!.trim()),
             ],
-            if (_isOwnProfile) ...[
-              const SizedBox(height: 16),
-              _PremiumCard(subscriptionTier: _profile.subscriptionTier),
-            ] else ...[
-              const SizedBox(height: 12),
-            ],
+            const SizedBox(height: 16),
+            _PremiumCard(subscriptionTier: _profile.subscriptionTier),
             const SizedBox(height: 16),
             _buildSegmentedControl(),
             const SizedBox(height: 16),
             _buildTabContent(),
-            if (_isOwnProfile) ...[
-              const SizedBox(height: 16),
-              _PrivateInfoCard(profile: _profile),
-              const SizedBox(height: 16),
-              _GoogleAccountCard(
-                profile: _profile,
-                onAction: widget.onGoogleAccountAction,
-                message: widget.googleAccountMessage,
-              ),
-            ],
           ],
         ),
       ),
@@ -144,7 +132,7 @@ class _ProfileViewState extends State<ProfileView> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      _buildHeader(context, showLogout: true),
+                      _buildHeader(context),
                       const SizedBox(height: 16),
                       _buildHeroCard(),
                       const SizedBox(height: 16),
@@ -153,28 +141,12 @@ class _ProfileViewState extends State<ProfileView> {
                         const SizedBox(height: 16),
                         _BioCard(bio: _profile.shortBio!.trim()),
                       ],
-                      if (_isOwnProfile) ...[
-                        const SizedBox(height: 16),
-                        _PremiumCard(
-                          subscriptionTier: _profile.subscriptionTier,
-                        ),
-                      ] else ...[
-                        const SizedBox(height: 12),
-                      ],
+                      const SizedBox(height: 16),
+                      _PremiumCard(subscriptionTier: _profile.subscriptionTier),
                       const SizedBox(height: 16),
                       _buildSegmentedControl(),
                       const SizedBox(height: 16),
                       _buildTabContent(),
-                      if (_isOwnProfile) ...[
-                        const SizedBox(height: 16),
-                        _PrivateInfoCard(profile: _profile),
-                        const SizedBox(height: 16),
-                        _GoogleAccountCard(
-                          profile: _profile,
-                          onAction: widget.onGoogleAccountAction,
-                          message: widget.googleAccountMessage,
-                        ),
-                      ],
                     ],
                   ),
                 ),
@@ -208,11 +180,7 @@ class _ProfileViewState extends State<ProfileView> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _buildHeader(
-                          context,
-                          // Nav rail already has logout on desktop.
-                          showLogout: false,
-                        ),
+                        _buildHeader(context),
                         const SizedBox(height: 16),
                         _buildHeroCard(desktopScale: true),
                         const SizedBox(height: 16),
@@ -221,12 +189,10 @@ class _ProfileViewState extends State<ProfileView> {
                           const SizedBox(height: 16),
                           _BioCard(bio: _profile.shortBio!.trim()),
                         ],
-                        if (_isOwnProfile) ...[
-                          const SizedBox(height: 16),
-                          _PremiumCard(
-                            subscriptionTier: _profile.subscriptionTier,
-                          ),
-                        ],
+                        const SizedBox(height: 16),
+                        _PremiumCard(
+                          subscriptionTier: _profile.subscriptionTier,
+                        ),
                       ],
                     ),
                   ),
@@ -243,16 +209,6 @@ class _ProfileViewState extends State<ProfileView> {
                         _buildSegmentedControl(),
                         const SizedBox(height: 16),
                         _buildTabContent(),
-                        if (_isOwnProfile) ...[
-                          const SizedBox(height: 16),
-                          _PrivateInfoCard(profile: _profile),
-                          const SizedBox(height: 16),
-                          _GoogleAccountCard(
-                            profile: _profile,
-                            onAction: widget.onGoogleAccountAction,
-                            message: widget.googleAccountMessage,
-                          ),
-                        ],
                       ],
                     ),
                   ),
@@ -267,16 +223,14 @@ class _ProfileViewState extends State<ProfileView> {
 
   // ── Shared widget builders ──────────────────────────────────────
 
-  Widget _buildHeader(
-    BuildContext context, {
-    required bool showLogout,
-  }) {
+  Widget _buildHeader(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+    final canGoBack = widget.showBackButton || !_isOwnProfile;
 
     return Row(
       children: [
-        if (!_isOwnProfile)
+        if (canGoBack)
           AppBackButton(
             color: colorScheme.onSurface,
             padding: EdgeInsets.zero,
@@ -290,16 +244,6 @@ class _ProfileViewState extends State<ProfileView> {
             ),
           ),
         ),
-        if (showLogout && _isOwnProfile && widget.onLogout != null)
-          IconButton(
-            tooltip: 'Log out',
-            onPressed: widget.onLogout,
-            icon: Icon(
-              Icons.logout_rounded,
-              color: colorScheme.onSurface,
-            ),
-            splashRadius: 20,
-          ),
       ],
     );
   }
@@ -309,8 +253,6 @@ class _ProfileViewState extends State<ProfileView> {
       profile: _profile,
       isOwnProfile: _isOwnProfile,
       onFollowProfile: widget.onFollowProfile,
-      onEditProfile: widget.onEditProfile,
-      onChangeAvatar: widget.onChangeAvatar,
       avatarRadius: desktopScale ? 56 : 48,
       usernameFontSize: desktopScale ? 32 : 29,
     );
@@ -364,10 +306,7 @@ class _ProfileViewState extends State<ProfileView> {
   }
 
   /// Busy overlay shown on top during mutations.
-  Widget _wrapWithBusyOverlay(
-    BuildContext context, {
-    required Widget child,
-  }) {
+  Widget _wrapWithBusyOverlay(BuildContext context, {required Widget child}) {
     if (!widget.isBusy) return child;
 
     final theme = Theme.of(context);
@@ -417,13 +356,16 @@ class _ProfileViewState extends State<ProfileView> {
   }
 }
 
+enum _ProfileHeaderAction {
+  settings,
+  logout,
+}
+
 class _ProfileHeroCard extends StatelessWidget {
   const _ProfileHeroCard({
     required this.profile,
     required this.isOwnProfile,
     this.onFollowProfile,
-    this.onEditProfile,
-    this.onChangeAvatar,
     this.avatarRadius = 48,
     this.usernameFontSize = 29,
   });
@@ -431,8 +373,6 @@ class _ProfileHeroCard extends StatelessWidget {
   final UserProfileEntity profile;
   final bool isOwnProfile;
   final VoidCallback? onFollowProfile;
-  final VoidCallback? onEditProfile;
-  final VoidCallback? onChangeAvatar;
   final double avatarRadius;
   final double usernameFontSize;
 
@@ -512,7 +452,34 @@ class _ProfileHeroCard extends StatelessWidget {
                         avatarUrl: profile.avatarUrl,
                         username: profile.username,
                         size: avatarRadius * 2,
-                        onTap: isOwnProfile ? onChangeAvatar : null,
+                        onTap: isOwnProfile
+                            ? () async {
+                                try {
+                                  final picker = ImagePicker();
+                                  final picked = await picker.pickImage(
+                                    source: ImageSource.gallery,
+                                    imageQuality: 88,
+                                    maxWidth: 1600,
+                                  );
+
+                                  if (picked == null) return;
+
+                                  final bytes = await picked.readAsBytes();
+
+                                  // Dispatch upload event to the ProfileBloc
+                                  if (context.mounted) {
+                                    context.read<ProfileBloc>().add(
+                                      ProfileAvatarUploadRequested(
+                                        bytes: Uint8List.fromList(bytes),
+                                        fileName: picked.name,
+                                      ),
+                                    );
+                                  }
+                                } on Exception catch (_) {
+                                  // Let the bloc/listener handle errors via state
+                                }
+                              }
+                            : null,
                       ),
                       const SizedBox(width: 14),
                       Expanded(
@@ -582,21 +549,72 @@ class _ProfileHeroCard extends StatelessWidget {
     required Color bannerTextColor,
     required bool isLight,
   }) {
-    if (isOwnProfile && onEditProfile != null) {
-      return FilledButton.tonal(
-        style: FilledButton.styleFrom(
-          backgroundColor: bannerTextColor.withValues(
-            alpha: isLight ? 0.12 : 0.16,
-          ),
-          foregroundColor: bannerTextColor,
-        ),
-        onPressed: onEditProfile,
-        child: const Text('Edit Profile'),
-      );
-    }
-
     if (isOwnProfile) {
-      return const SizedBox.shrink();
+      return PopupMenuButton<_ProfileHeaderAction>(
+        tooltip: 'Profile actions',
+        icon: Icon(Icons.more_horiz_rounded, color: bannerTextColor),
+        color: Theme.of(context).colorScheme.surface,
+        elevation: 14,
+        surfaceTintColor: Theme.of(context).colorScheme.surfaceTint,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+        ),
+        offset: const Offset(0, 14),
+        onSelected: (action) async {
+          switch (action) {
+            case _ProfileHeaderAction.settings:
+              await Navigator.of(context).pushNamed(RouteNames.settings);
+            case _ProfileHeaderAction.logout:
+              final confirmed = await showAppConfirmationDialog(
+                context: context,
+                title: 'Log out?',
+                message:
+                    'You will be signed out from this device. You can sign in'
+                    ' again later.',
+                confirmLabel: 'Log out',
+                icon: Icons.logout_rounded,
+                variant: ConfirmationDialogVariant.destructive,
+              );
+
+              if (confirmed == true && context.mounted) {
+                context.read<AuthBloc>().add(const LogoutRequested());
+              }
+          }
+        },
+        itemBuilder: (context) => [
+          PopupMenuItem<_ProfileHeaderAction>(
+            value: _ProfileHeaderAction.settings,
+            child: Row(
+              children: [
+                Icon(
+                  Icons.settings_rounded,
+                  size: 20,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 12),
+                const Text('Settings'),
+              ],
+            ),
+          ),
+          PopupMenuItem<_ProfileHeaderAction>(
+            value: _ProfileHeaderAction.logout,
+            child: Row(
+              children: [
+                Icon(
+                  Icons.logout_rounded,
+                  size: 20,
+                  color: Theme.of(context).colorScheme.error,
+                ),
+                const SizedBox(width: 12),
+                Text(
+                  'Log out',
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
     }
 
     final label = _followButtonLabel(profile);
@@ -904,14 +922,8 @@ class _PremiumCard extends StatelessWidget {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 colors: isPremium
-                    ? [
-                        colorScheme.primary,
-                        colorScheme.secondary,
-                      ]
-                    : [
-                        colorScheme.surface,
-                        colorScheme.surface,
-                      ],
+                    ? [colorScheme.primary, colorScheme.secondary]
+                    : [colorScheme.surface, colorScheme.surface],
               ),
               borderRadius: BorderRadius.circular(999),
             ),
@@ -1053,371 +1065,6 @@ class _PlaylistsSection extends StatelessWidget {
   }
 }
 
-// Playlists now render with `MediaCard` (see MediaCard/PlaylistCardData).
-
-class _PrivateInfoCard extends StatelessWidget {
-  const _PrivateInfoCard({required this.profile});
-
-  final UserProfileEntity profile;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: colorScheme.onSurface.withValues(alpha: 0.08),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Private details',
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w800,
-            ),
-          ),
-          const SizedBox(height: 12),
-          _InfoLine(label: 'Email', value: profile.email ?? 'Not set'),
-          const SizedBox(height: 10),
-          _InfoLine(
-            label: 'Google account',
-            value: switch (profile.googleLinkStatus) {
-              GoogleLinkStatus.linked => 'Linked',
-              GoogleLinkStatus.unlinked => 'Not linked',
-              GoogleLinkStatus.unknown => 'Status unavailable',
-            },
-          ),
-          const SizedBox(height: 10),
-          _InfoLine(
-            label: 'Preferences',
-            value: profile.preferences == null || profile.preferences!.isEmpty
-                ? 'Not set'
-                : 'Stored in account settings',
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _GoogleAccountCard extends StatelessWidget {
-  const _GoogleAccountCard({
-    required this.profile,
-    this.onAction,
-    this.message,
-  });
-
-  final UserProfileEntity profile;
-  final VoidCallback? onAction;
-  final String? message;
-
-  bool get _isLinked => profile.googleLinkStatus == GoogleLinkStatus.linked;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        borderRadius: BorderRadius.circular(22),
-        border: Border.all(
-          color: colorScheme.onSurface.withValues(alpha: 0.08),
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 42,
-                height: 42,
-                decoration: BoxDecoration(
-                  color: _isLinked
-                      ? colorScheme.primaryContainer
-                      : colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Icon(
-                  Icons.g_mobiledata_rounded,
-                  color: _isLinked ? colorScheme.primary : colorScheme.outline,
-                  size: 28,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Google account',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _isLinked
-                          ? 'Linked to this account'
-                          : 'No Google account linked',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: colorScheme.onSurface.withValues(alpha: 0.66),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              _GoogleStatusChip(isLinked: _isLinked),
-            ],
-          ),
-          if (message != null) ...[
-            const SizedBox(height: 12),
-            _InlineNotice(message: message!),
-          ],
-          if (_isLinked) ...[
-            const SizedBox(height: 16),
-            _GoogleLinkedDetails(profile: profile),
-          ] else ...[
-            const SizedBox(height: 16),
-            Text(
-              'Link Google to keep your account connection in sync across '
-              'supported sign-in flows.',
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurface.withValues(alpha: 0.72),
-              ),
-            ),
-          ],
-          const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            child: AppButton(
-              onPressed: onAction,
-              backgroundColor: _isLinked
-                  ? colorScheme.errorContainer
-                  : colorScheme.primaryContainer,
-              foregroundColor: _isLinked
-                  ? colorScheme.onErrorContainer
-                  : colorScheme.onPrimaryContainer,
-              disabledBackgroundColor: colorScheme.surfaceContainerHighest,
-              disabledForegroundColor: colorScheme.onSurfaceVariant,
-              padding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 14,
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    _isLinked ? Icons.link_off_rounded : Icons.link_rounded,
-                    size: 18,
-                    color: _isLinked
-                        ? colorScheme.onErrorContainer
-                        : colorScheme.onPrimaryContainer,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    _isLinked ? 'Remove Google Link' : 'Link Google Account',
-                    style: theme.textTheme.labelLarge?.copyWith(
-                      color: _isLinked
-                          ? colorScheme.onErrorContainer
-                          : colorScheme.onPrimaryContainer,
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _GoogleStatusChip extends StatelessWidget {
-  const _GoogleStatusChip({required this.isLinked});
-
-  final bool isLinked;
-
-  @override
-  Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: isLinked
-            ? colorScheme.primaryContainer
-            : colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        isLinked ? 'Linked' : 'Not linked',
-        style: Theme.of(context).textTheme.labelMedium?.copyWith(
-          color: isLinked ? colorScheme.primary : colorScheme.onSurface,
-          fontWeight: FontWeight.w800,
-        ),
-      ),
-    );
-  }
-}
-
-class _GoogleLinkedDetails extends StatelessWidget {
-  const _GoogleLinkedDetails({required this.profile});
-
-  final UserProfileEntity profile;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final imageUrl = resolveImageUrl(profile.avatarUrl);
-
-    return Column(
-      children: [
-        Row(
-          children: [
-            ClipOval(
-              child: Container(
-                width: 52,
-                height: 52,
-                color: colorScheme.primaryContainer,
-                child: imageUrl == null
-                    ? Icon(
-                        Icons.person_rounded,
-                        color: colorScheme.primary,
-                      )
-                    : Image.network(
-                        imageUrl,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) {
-                          return Icon(
-                            Icons.person_rounded,
-                            color: colorScheme.primary,
-                          );
-                        },
-                      ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    profile.username,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    profile.email ?? 'Email not available',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurface.withValues(alpha: 0.68),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 14),
-        const _InfoLine(label: 'Provider', value: 'Google'),
-        const SizedBox(height: 10),
-        const _InfoLine(
-          label: 'Status',
-          value: 'Linked and ready to remove at any time',
-        ),
-      ],
-    );
-  }
-}
-
-class _InlineNotice extends StatelessWidget {
-  const _InlineNotice({required this.message});
-
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: colorScheme.errorContainer.withValues(alpha: 0.55),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: colorScheme.error.withValues(alpha: 0.2),
-        ),
-      ),
-      child: Text(
-        message,
-        style: theme.textTheme.bodyMedium?.copyWith(
-          color: colorScheme.onErrorContainer,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
-    );
-  }
-}
-
-class _InfoLine extends StatelessWidget {
-  const _InfoLine({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Expanded(
-          flex: 3,
-          child: Text(
-            label,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: colorScheme.onSurface.withValues(alpha: 0.6),
-            ),
-          ),
-        ),
-        Expanded(
-          flex: 5,
-          child: Text(
-            value,
-            style: theme.textTheme.bodyMedium?.copyWith(
-              color: colorScheme.onSurface,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class _EmptyStateCard extends StatelessWidget {
   const _EmptyStateCard({
     required this.icon,
@@ -1537,10 +1184,7 @@ class _DecorBlob extends StatelessWidget {
     return Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: color,
-      ),
+      decoration: BoxDecoration(shape: BoxShape.circle, color: color),
     );
   }
 }

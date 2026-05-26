@@ -1,7 +1,6 @@
 import 'dart:typed_data';
 
 import 'package:equatable/equatable.dart';
-import 'package:music_room/features/profile/domain/entities/profile_entity.dart';
 
 abstract class ProfileEvent extends Equatable {
   const ProfileEvent();
@@ -44,36 +43,6 @@ class ProfileUnfollowRequested extends ProfileEvent {
 
   @override
   List<Object?> get props => [userId];
-}
-
-class ProfileEditSubmitted extends ProfileEvent {
-  const ProfileEditSubmitted({required this.request});
-
-  final ProfileUpdateRequest request;
-
-  @override
-  List<Object?> get props => [request];
-}
-
-class ProfilePasswordChangeRequested extends ProfileEvent {
-  const ProfilePasswordChangeRequested({
-    required this.currentPassword,
-    required this.newPassword,
-  });
-
-  final String currentPassword;
-  final String newPassword;
-
-  @override
-  List<Object?> get props => [currentPassword, newPassword];
-}
-
-class ProfileGoogleLinkRequested extends ProfileEvent {
-  const ProfileGoogleLinkRequested();
-}
-
-class ProfileGoogleUnlinkRequested extends ProfileEvent {
-  const ProfileGoogleUnlinkRequested();
 }
 
 class ProfileAvatarUploadRequested extends ProfileEvent {

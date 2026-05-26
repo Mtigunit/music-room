@@ -2,12 +2,8 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:image_picker/image_picker.dart';
 import 'package:music_room/core/widgets/app_snackbar.dart';
-import 'package:music_room/core/widgets/confirmation_dialog.dart';
 import 'package:music_room/di/injection_container.dart';
-import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
-import 'package:music_room/features/auth/presentation/state/auth_event.dart';
 import 'package:music_room/features/playlist/presentation/pages/playlist_details_page.dart';
 import 'package:music_room/features/profile/domain/entities/profile_entity.dart';
 import 'package:music_room/features/profile/presentation/state/profile_bloc.dart';
@@ -17,9 +13,14 @@ import 'package:music_room/features/profile/presentation/widgets/profile_view.da
 import 'package:music_room/routes/route_names.dart';
 
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key, this.userId});
+  const ProfilePage({
+    super.key,
+    this.userId,
+    this.showBackButton = false,
+  });
 
   final String? userId;
+  final bool showBackButton;
 
   @override
   State<ProfilePage> createState() => ProfilePageState();
@@ -49,51 +50,31 @@ class ProfilePageState extends State<ProfilePage> {
   Widget build(BuildContext context) {
     return BlocProvider<ProfileBloc>.value(
       value: _profileBloc,
-      child: _ProfilePageBody(userId: widget.userId),
+      child: _ProfilePageBody(
+        userId: widget.userId,
+        showBackButton: widget.showBackButton,
+      ),
     );
   }
 }
 
 class _ProfilePageBody extends StatelessWidget {
-  const _ProfilePageBody({this.userId});
+  const _ProfilePageBody({required this.showBackButton, this.userId});
 
   final String? userId;
+  final bool showBackButton;
 
   @override
   Widget build(BuildContext context) {
     return BlocConsumer<ProfileBloc, ProfileState>(
       listenWhen: (previous, current) =>
           current is ProfileMutationSuccess ||
-          current is ProfileMutationFailure ||
-          current is ProfilePasswordChangeSuccess ||
-          current is ProfilePasswordChangeFailure ||
-          current is ProfileGoogleLinkSuccess ||
-          current is ProfileGoogleLinkFailure ||
-          current is ProfileGoogleUnlinkSuccess ||
-          current is ProfileGoogleUnlinkFailure,
+          current is ProfileMutationFailure,
       listener: (context, state) {
         if (state is ProfileMutationSuccess) {
           AppSnackbar.showSuccess(context, state.message);
         }
         if (state is ProfileMutationFailure) {
-          AppSnackbar.showError(context, state.message);
-        }
-        if (state is ProfilePasswordChangeSuccess) {
-          AppSnackbar.showSuccess(context, state.message);
-        }
-        if (state is ProfilePasswordChangeFailure) {
-          AppSnackbar.showError(context, state.message);
-        }
-        if (state is ProfileGoogleLinkSuccess) {
-          AppSnackbar.showSuccess(context, state.message);
-        }
-        if (state is ProfileGoogleLinkFailure) {
-          AppSnackbar.showError(context, state.message);
-        }
-        if (state is ProfileGoogleUnlinkSuccess) {
-          AppSnackbar.showSuccess(context, state.message);
-        }
-        if (state is ProfileGoogleUnlinkFailure) {
           AppSnackbar.showError(context, state.message);
         }
       },
@@ -128,37 +109,16 @@ class _ProfilePageBody extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    final isBusy =
-        state is ProfileMutationInProgress ||
-        state is ProfilePasswordChangeInProgress ||
-        state is ProfileGoogleLinkInProgress ||
-        state is ProfileGoogleUnlinkInProgress;
-    final googleAccountMessage = switch (state) {
-      ProfileGoogleLinkFailure(:final message) => message,
-      ProfileGoogleUnlinkFailure(:final message) => message,
-      _ => null,
-    };
+    final isBusy = state is ProfileMutationInProgress;
 
     return ProfileView(
       data: profileData,
       isBusy: isBusy,
+      showBackButton: showBackButton,
       busyLabel: state is ProfileMutationInProgress ? state.message : null,
       onFollowProfile: profileData.profile.isSelf
           ? null
           : () => _handleFollowAction(context, profileData.profile),
-      onEditProfile: profileData.profile.isSelf
-          ? () => _openSettingsPage(context)
-          : null,
-      onChangeAvatar: profileData.profile.isSelf
-          ? () => _pickAndUploadAvatar(context)
-          : null,
-      onGoogleAccountAction: profileData.profile.isSelf
-          ? () => _handleGoogleAccountAction(context, profileData.profile)
-          : null,
-      googleAccountMessage: googleAccountMessage,
-      onLogout: profileData.profile.isSelf
-          ? () => _confirmLogout(context)
-          : null,
       onOpenRoom: (room) {
         unawaited(
           Navigator.of(context).pushNamed(
@@ -197,15 +157,6 @@ class _ProfilePageBody extends StatelessWidget {
     );
   }
 
-  Future<void> _openSettingsPage(BuildContext context) async {
-    final saved = await Navigator.of(context).pushNamed(RouteNames.settings);
-    if (saved == true && context.mounted) {
-      context.read<ProfileBloc>().add(
-        ProfileRefreshRequested(userId: userId),
-      );
-    }
-  }
-
   void _handleFollowAction(
     BuildContext context,
     UserProfileEntity profile,
@@ -219,77 +170,6 @@ class _ProfilePageBody extends StatelessWidget {
     }
 
     bloc.add(ProfileFollowRequested(userId: profile.id));
-  }
-
-  Future<void> _handleGoogleAccountAction(
-    BuildContext context,
-    UserProfileEntity profile,
-  ) async {
-    final bloc = context.read<ProfileBloc>();
-
-    if (profile.googleLinkStatus == GoogleLinkStatus.linked) {
-      final confirmed = await showAppConfirmationDialog(
-        context: context,
-        title: 'Unlink Google Account?',
-        message:
-            'This will remove the Google connection from your account.\n\n'
-            'You can link it again later from this screen.',
-        confirmLabel: 'Remove Link',
-        cancelLabel: 'Keep Linked',
-        icon: Icons.link_off_rounded,
-        variant: ConfirmationDialogVariant.destructive,
-      );
-
-      if (confirmed == true && context.mounted) {
-        bloc.add(const ProfileGoogleUnlinkRequested());
-      }
-
-      return;
-    }
-
-    bloc.add(const ProfileGoogleLinkRequested());
-  }
-
-  Future<void> _confirmLogout(BuildContext context) async {
-    final confirmed = await showAppConfirmationDialog(
-      context: context,
-      title: 'Log Out?',
-      message: 'Are you sure you want to log out of your account?',
-      confirmLabel: 'Log Out',
-      cancelLabel: 'Stay signed in',
-      icon: Icons.logout_rounded,
-      variant: ConfirmationDialogVariant.destructive,
-    );
-
-    if (confirmed == true && context.mounted) {
-      context.read<AuthBloc>().add(const LogoutRequested());
-    }
-  }
-
-  Future<void> _pickAndUploadAvatar(BuildContext context) async {
-    final picker = ImagePicker();
-    final avatar = await picker.pickImage(
-      source: ImageSource.gallery,
-      imageQuality: 88,
-      maxWidth: 1600,
-    );
-
-    if (avatar == null) {
-      return;
-    }
-
-    final bytes = await avatar.readAsBytes();
-
-    if (!context.mounted) {
-      return;
-    }
-
-    context.read<ProfileBloc>().add(
-      ProfileAvatarUploadRequested(
-        bytes: bytes,
-        fileName: avatar.name,
-      ),
-    );
   }
 }
 

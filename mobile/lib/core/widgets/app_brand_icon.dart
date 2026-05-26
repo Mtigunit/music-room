@@ -19,7 +19,7 @@ class AppBrandIcon extends StatelessWidget {
     return ImageIcon(
       AssetImage(assetPath),
       size: size,
-      color: color,
+      color: color ?? const Color(0xFFFFFFFF),
     );
   }
 }

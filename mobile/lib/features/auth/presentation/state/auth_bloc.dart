@@ -5,16 +5,16 @@ import 'package:music_room/core/network/api_client.dart';
 import 'package:music_room/features/auth/domain/repositories/auth_repository.dart';
 import 'package:music_room/features/auth/presentation/state/auth_event.dart';
 import 'package:music_room/features/auth/presentation/state/auth_state.dart';
-import 'package:music_room/features/profile/domain/repositories/profile_repository.dart';
+import 'package:music_room/features/settings/domain/repositories/settings_repository.dart';
 
 /// BLoC for managing authentication state and events
 class AuthBloc extends Bloc<AuthEvent, AuthState> {
   AuthBloc({
     required AuthRepository authRepository,
     required ApiClient apiClient,
-    required ProfileRepository profileRepository,
+    required SettingsRepository settingsRepository,
   }) : _authRepository = authRepository,
-       _profileRepository = profileRepository,
+       _settingsRepository = settingsRepository,
        super(const AuthInitial()) {
     on<AuthStarted>(_onAuthStarted);
     on<LoginRequested>(_onLoginRequested);
@@ -36,7 +36,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
   }
 
   final AuthRepository _authRepository;
-  final ProfileRepository _profileRepository;
+  final SettingsRepository _settingsRepository;
   late final StreamSubscription<void> _sessionExpiredSubscription;
 
   @override
@@ -356,7 +356,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
 
   Future<void> _syncThemePreference() async {
     try {
-      await _profileRepository.syncMyThemePreference();
+      await _settingsRepository.syncMyThemePreference();
     } on Object {
       // Theme preference falls back to system until the next successful sync.
     }
