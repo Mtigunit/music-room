@@ -1,5 +1,5 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsEnum, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
 import { Tags } from '@prisma/client';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 
@@ -10,6 +10,7 @@ export class ExplorePlaylistsQueryDto extends PaginationDto {
   })
   @IsOptional()
   @IsString()
+  @MaxLength(100)
   q?: string;
 
   @ApiPropertyOptional({
