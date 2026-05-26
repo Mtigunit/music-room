@@ -470,6 +470,9 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
     if (trimmed.length < 3) {
       return 'Username must be at least 3 characters';
     }
+    if (trimmed.length > 30) {
+      return 'Username must be 30 characters or fewer';
+    }
     if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(trimmed)) {
       return 'Use only letters, numbers, and underscores';
     }
