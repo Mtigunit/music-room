@@ -50,12 +50,14 @@ class _SettingsPageState extends State<SettingsPage> {
         child: BlocListener<SettingsBloc, SettingsState>(
           listenWhen: (previous, current) =>
               current is SettingsMutationSuccess ||
-              current is SettingsMutationFailure,
+              current is SettingsMutationFailure ||
+              current is SettingsPasswordChangeSuccess ||
+              current is SettingsPasswordChangeFailure ||
+              current is SettingsGoogleLinkSuccess ||
+              current is SettingsGoogleLinkFailure ||
+              current is SettingsGoogleUnlinkSuccess ||
+              current is SettingsGoogleUnlinkFailure,
           listener: (context, state) {
-            if (!_isSaving) {
-              return;
-            }
-
             if (state is SettingsMutationSuccess) {
               setState(() {
                 _isSaving = false;
@@ -68,6 +70,63 @@ class _SettingsPageState extends State<SettingsPage> {
             }
 
             if (state is SettingsMutationFailure) {
+              setState(() {
+                _isSaving = false;
+              });
+              AppSnackbar.showError(context, state.message);
+              return;
+            }
+
+            if (state is SettingsPasswordChangeSuccess) {
+              setState(() {
+                _isSaving = false;
+              });
+              AppSnackbar.showSuccess(context, state.message);
+              if (mounted) {
+                Navigator.of(context).pop(true);
+              }
+              return;
+            }
+
+            if (state is SettingsPasswordChangeFailure) {
+              setState(() {
+                _isSaving = false;
+              });
+              AppSnackbar.showError(context, state.message);
+              return;
+            }
+
+            if (state is SettingsGoogleLinkSuccess) {
+              setState(() {
+                _isSaving = false;
+              });
+              AppSnackbar.showSuccess(context, state.message);
+              if (mounted) {
+                Navigator.of(context).pop(true);
+              }
+              return;
+            }
+
+            if (state is SettingsGoogleLinkFailure) {
+              setState(() {
+                _isSaving = false;
+              });
+              AppSnackbar.showError(context, state.message);
+              return;
+            }
+
+            if (state is SettingsGoogleUnlinkSuccess) {
+              setState(() {
+                _isSaving = false;
+              });
+              AppSnackbar.showSuccess(context, state.message);
+              if (mounted) {
+                Navigator.of(context).pop(true);
+              }
+              return;
+            }
+
+            if (state is SettingsGoogleUnlinkFailure) {
               setState(() {
                 _isSaving = false;
               });

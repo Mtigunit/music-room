@@ -190,6 +190,8 @@ class ApiClient {
   }
 
   bool _shouldSkipSessionExpiry(String requestPath) {
-    return requestPath.contains(AppConfig.requestEmailUpdateEndpoint);
+    return requestPath.contains(AppConfig.requestEmailUpdateEndpoint) ||
+        requestPath.contains('${AppConfig.myProfileEndpoint}/password') ||
+        requestPath.contains(AppConfig.linkGoogleAccountEndpoint);
   }
 }
