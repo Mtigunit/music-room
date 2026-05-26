@@ -561,7 +561,14 @@ class _ProfileHeroCard extends StatelessWidget {
         onSelected: (action) async {
           switch (action) {
             case _ProfileHeaderAction.settings:
-              await Navigator.of(context).pushNamed(RouteNames.settings);
+              final saved = await Navigator.of(context).pushNamed(
+                RouteNames.settings,
+              );
+              if (saved == true && context.mounted) {
+                context.read<ProfileBloc>().add(
+                  const ProfileRefreshRequested(),
+                );
+              }
               return;
             case _ProfileHeaderAction.logout:
               final confirmed = await showAppConfirmationDialog(
