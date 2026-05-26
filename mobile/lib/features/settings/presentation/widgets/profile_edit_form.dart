@@ -8,10 +8,10 @@ import 'package:music_room/core/widgets/form_toggle_row.dart';
 import 'package:music_room/core/widgets/genre_selection_grid.dart';
 import 'package:music_room/features/events/presentation/widgets/selection_card.dart';
 import 'package:music_room/features/profile/domain/entities/profile_entity.dart';
-import 'package:music_room/features/profile/presentation/widgets/profile_edit_section_card.dart';
 import 'package:music_room/features/settings/presentation/pages/email_update_page.dart';
 import 'package:music_room/features/settings/presentation/state/settings_bloc.dart';
 import 'package:music_room/features/settings/presentation/state/settings_event.dart';
+import 'package:music_room/features/settings/presentation/widgets/profile_edit_section_card.dart';
 
 class ProfileEditForm extends StatefulWidget {
   const ProfileEditForm({
