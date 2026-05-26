@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:music_room/core/utils/logger.dart';
 import 'package:music_room/features/profile/domain/entities/profile_entity.dart';
 import 'package:music_room/features/profile/domain/repositories/profile_repository.dart';
 import 'package:music_room/features/profile/presentation/state/profile_event.dart';
@@ -18,6 +19,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
   }
 
   final ProfileRepository _profileRepository;
+  final Logger _logger = Logger();
 
   Future<void> _onProfileRequested(
     ProfileRequested event,
@@ -182,12 +184,15 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     Emitter<ProfileState> emit,
   ) async {
     final currentData = _currentLoadedData();
-    final message =
-        'Unable to read selected image. ${event.exception}\n'
-        '${event.stackTrace}';
+    const message = 'Unable to read selected image. Please try again.';
+
+    _logger.log(
+      '[ProfileBloc] Avatar image read failed: ${event.exception}\n'
+      '${event.stackTrace}',
+    );
 
     if (currentData == null) {
-      emit(ProfileError(message: message));
+      emit(const ProfileError(message: message));
       return;
     }
 

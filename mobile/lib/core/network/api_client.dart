@@ -190,8 +190,20 @@ class ApiClient {
   }
 
   bool _shouldSkipSessionExpiry(String requestPath) {
-    return requestPath.contains(AppConfig.requestEmailUpdateEndpoint) ||
-        requestPath.contains('${AppConfig.myProfileEndpoint}/password') ||
-        requestPath.contains(AppConfig.linkGoogleAccountEndpoint);
+    final normalizedRequestPath = _normalizeRequestPath(requestPath);
+
+    return normalizedRequestPath == AppConfig.requestEmailUpdateEndpoint ||
+        normalizedRequestPath == AppConfig.updatePasswordEndpoint ||
+        normalizedRequestPath == AppConfig.linkGoogleAccountEndpoint;
+  }
+
+  String _normalizeRequestPath(String requestPath) {
+    final pathWithoutQuery = Uri.parse(requestPath).path;
+
+    if (pathWithoutQuery.length > 1 && pathWithoutQuery.endsWith('/')) {
+      return pathWithoutQuery.substring(0, pathWithoutQuery.length - 1);
+    }
+
+    return pathWithoutQuery;
   }
 }
