@@ -90,7 +90,7 @@ class _HomeSearchBarState extends State<HomeSearchBar> {
         decoration: InputDecoration(
           border: InputBorder.none,
           isCollapsed: true,
-          hintText: 'Search rooms, tracks, artists...',
+          hintText: 'Search events, tracks, artists...',
           hintStyle: TextStyle(
             color: colorScheme.onSurface.withValues(alpha: 0.4),
             fontSize: 15,
