@@ -25,7 +25,7 @@ class SettingsSaveSubmitted extends SettingsEvent {
   final SettingsUpdateRequest request;
 
   @override
-  List<Object?> get props => [request];
+  List<Object?> get props => const <Object?>[];
 }
 
 class SettingsPasswordChangeRequested extends SettingsEvent {
@@ -38,7 +38,7 @@ class SettingsPasswordChangeRequested extends SettingsEvent {
   final String newPassword;
 
   @override
-  List<Object?> get props => [currentPassword, newPassword];
+  List<Object?> get props => const <Object?>[];
 }
 
 class SettingsGoogleLinkRequested extends SettingsEvent {
