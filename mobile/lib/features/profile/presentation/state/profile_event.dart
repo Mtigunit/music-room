@@ -57,3 +57,16 @@ class ProfileAvatarUploadRequested extends ProfileEvent {
   @override
   List<Object?> get props => [bytes, fileName];
 }
+
+class ProfileAvatarUploadFailed extends ProfileEvent {
+  const ProfileAvatarUploadFailed({
+    required this.exception,
+    required this.stackTrace,
+  });
+
+  final Exception exception;
+  final StackTrace stackTrace;
+
+  @override
+  List<Object?> get props => [exception, stackTrace];
+}

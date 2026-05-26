@@ -473,8 +473,15 @@ class _ProfileHeroCard extends StatelessWidget {
                                       ),
                                     );
                                   }
-                                } on Exception catch (_) {
-                                  // Let the bloc/listener handle errors via state
+                                } on Exception catch (error, stackTrace) {
+                                  if (context.mounted) {
+                                    context.read<ProfileBloc>().add(
+                                      ProfileAvatarUploadFailed(
+                                        exception: error,
+                                        stackTrace: stackTrace,
+                                      ),
+                                    );
+                                  }
                                 }
                               }
                             : null,

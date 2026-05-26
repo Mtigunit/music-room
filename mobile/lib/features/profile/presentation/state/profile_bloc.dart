@@ -14,6 +14,7 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     on<ProfileFollowRequested>(_onProfileFollowRequested);
     on<ProfileUnfollowRequested>(_onProfileUnfollowRequested);
     on<ProfileAvatarUploadRequested>(_onProfileAvatarUploadRequested);
+    on<ProfileAvatarUploadFailed>(_onProfileAvatarUploadFailed);
   }
 
   final ProfileRepository _profileRepository;
@@ -174,6 +175,28 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
         ),
       );
     }
+  }
+
+  Future<void> _onProfileAvatarUploadFailed(
+    ProfileAvatarUploadFailed event,
+    Emitter<ProfileState> emit,
+  ) async {
+    final currentData = _currentLoadedData();
+    final message =
+        'Unable to read selected image. ${event.exception}\n'
+        '${event.stackTrace}';
+
+    if (currentData == null) {
+      emit(ProfileError(message: message));
+      return;
+    }
+
+    emit(
+      ProfileMutationFailure(
+        data: currentData,
+        message: message,
+      ),
+    );
   }
 
   ProfilePageData? _currentLoadedData() {
