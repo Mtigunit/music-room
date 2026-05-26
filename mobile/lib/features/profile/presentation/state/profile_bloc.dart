@@ -221,15 +221,11 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
   }
 
   String _followLoadingMessage(UserProfileEntity profile) {
-    return profile.isFollowing || profile.isFriend
-        ? 'Unfollowing @${profile.username}...'
-        : 'Following @${profile.username}...';
+    return 'Following @${profile.username}...';
   }
 
   String _followSuccessMessage(UserProfileEntity profile) {
-    return profile.isFollowing || profile.isFriend
-        ? 'Unfollowed @${profile.username}.'
-        : 'Now following @${profile.username}.';
+    return 'Now following @${profile.username}.';
   }
 
   String _unfollowLoadingMessage(UserProfileEntity profile) {
