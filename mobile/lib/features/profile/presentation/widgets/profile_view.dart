@@ -562,6 +562,7 @@ class _ProfileHeroCard extends StatelessWidget {
           switch (action) {
             case _ProfileHeaderAction.settings:
               await Navigator.of(context).pushNamed(RouteNames.settings);
+              return;
             case _ProfileHeaderAction.logout:
               final confirmed = await showAppConfirmationDialog(
                 context: context,
@@ -577,6 +578,7 @@ class _ProfileHeroCard extends StatelessWidget {
               if (confirmed == true && context.mounted) {
                 context.read<AuthBloc>().add(const LogoutRequested());
               }
+              return;
           }
         },
         itemBuilder: (context) => [
