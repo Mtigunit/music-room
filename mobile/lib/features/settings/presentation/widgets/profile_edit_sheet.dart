@@ -173,153 +173,101 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: ProfileEditForm(
-                    currentProfile: currentProfile,
-                    usernameController: _usernameController,
-                    bioController: _bioController,
-                    locationController: _locationController,
-                    dateOfBirthController: _dateOfBirthController,
-                    physicalAddressController: _physicalAddressController,
-                    themeController: _themeController,
-                    autoAcceptInvites: _autoAcceptInvites,
-                    favoriteGenres: _favoriteGenres,
-                    isSaving: widget.isSaving,
-                    onSavePressed: _handleProfileSave,
-                    onAutoAcceptInvitesChanged: (value) {
-                      setState(() {
-                        _autoAcceptInvites = value;
-                      });
-                    },
-                    onFavoriteGenreTapped: (displayLabel) {
-                      final tagValue = TagGenreNormalizer.toValue(displayLabel);
-                      if (tagValue == null) {
-                        return;
-                      }
-
-                      setState(() {
-                        if (_favoriteGenres.contains(tagValue)) {
-                          _favoriteGenres.remove(tagValue);
-                        } else {
-                          _favoriteGenres.add(tagValue);
-                        }
-                      });
-                    },
-                    onThemeSelected: (themeValue) {
-                      setState(() {
-                        _themeController.text = themeValue;
-                      });
-                    },
-                    onDatePicked: () => _pickDate(context),
-                    validateUsername: _validateUsername,
+                  child: _buildProfileEditForm(
+                    context,
+                    currentProfile,
                   ),
                 ),
                 const SizedBox(width: 48),
                 Expanded(
-                  child: ProfileEditSecurityForm(
-                    currentPasswordController: _currentPasswordController,
-                    newPasswordController: _newPasswordController,
-                    confirmPasswordController: _confirmPasswordController,
-                    obscureCurrentPassword: _obscureCurrentPassword,
-                    obscureNewPassword: _obscureNewPassword,
-                    obscureConfirmPassword: _obscureConfirmPassword,
-                    onToggleCurrentPasswordVisibility: () {
-                      setState(() {
-                        _obscureCurrentPassword = !_obscureCurrentPassword;
-                      });
-                    },
-                    onToggleNewPasswordVisibility: () {
-                      setState(() {
-                        _obscureNewPassword = !_obscureNewPassword;
-                      });
-                    },
-                    onToggleConfirmPasswordVisibility: () {
-                      setState(() {
-                        _obscureConfirmPassword = !_obscureConfirmPassword;
-                      });
-                    },
-                    onPasswordChangePressed: _handlePasswordChange,
-                    onGoogleAccountLinkPressed: _handleGoogleAccountLink,
-                    onLogoutFromAllDevicesPressed: _handleLogoutFromAllDevices,
-                    validateCurrentPassword: _validateCurrentPassword,
-                    validateNewPassword: _validateNewPassword,
-                    validateConfirmPassword: _validateConfirmPassword,
-                  ),
+                  child: _buildProfileEditSecurityForm(),
                 ),
               ],
             )
           else ...[
-            ProfileEditForm(
-              currentProfile: currentProfile,
-              usernameController: _usernameController,
-              bioController: _bioController,
-              locationController: _locationController,
-              dateOfBirthController: _dateOfBirthController,
-              physicalAddressController: _physicalAddressController,
-              themeController: _themeController,
-              autoAcceptInvites: _autoAcceptInvites,
-              favoriteGenres: _favoriteGenres,
-              isSaving: widget.isSaving,
-              onSavePressed: _handleProfileSave,
-              onAutoAcceptInvitesChanged: (value) {
-                setState(() {
-                  _autoAcceptInvites = value;
-                });
-              },
-              onFavoriteGenreTapped: (displayLabel) {
-                final tagValue = TagGenreNormalizer.toValue(displayLabel);
-                if (tagValue == null) {
-                  return;
-                }
-
-                setState(() {
-                  if (_favoriteGenres.contains(tagValue)) {
-                    _favoriteGenres.remove(tagValue);
-                  } else {
-                    _favoriteGenres.add(tagValue);
-                  }
-                });
-              },
-              onThemeSelected: (themeValue) {
-                setState(() {
-                  _themeController.text = themeValue;
-                });
-              },
-              onDatePicked: () => _pickDate(context),
-              validateUsername: _validateUsername,
-            ),
+            _buildProfileEditForm(context, currentProfile),
             const SizedBox(height: 24),
-            ProfileEditSecurityForm(
-              currentPasswordController: _currentPasswordController,
-              newPasswordController: _newPasswordController,
-              confirmPasswordController: _confirmPasswordController,
-              obscureCurrentPassword: _obscureCurrentPassword,
-              obscureNewPassword: _obscureNewPassword,
-              obscureConfirmPassword: _obscureConfirmPassword,
-              onToggleCurrentPasswordVisibility: () {
-                setState(() {
-                  _obscureCurrentPassword = !_obscureCurrentPassword;
-                });
-              },
-              onToggleNewPasswordVisibility: () {
-                setState(() {
-                  _obscureNewPassword = !_obscureNewPassword;
-                });
-              },
-              onToggleConfirmPasswordVisibility: () {
-                setState(() {
-                  _obscureConfirmPassword = !_obscureConfirmPassword;
-                });
-              },
-              onPasswordChangePressed: _handlePasswordChange,
-              onGoogleAccountLinkPressed: _handleGoogleAccountLink,
-              onLogoutFromAllDevicesPressed: _handleLogoutFromAllDevices,
-              validateCurrentPassword: _validateCurrentPassword,
-              validateNewPassword: _validateNewPassword,
-              validateConfirmPassword: _validateConfirmPassword,
-            ),
+            _buildProfileEditSecurityForm(),
           ],
         ],
       ),
+    );
+  }
+
+  Widget _buildProfileEditForm(
+    BuildContext context,
+    UserProfileEntity currentProfile,
+  ) {
+    return ProfileEditForm(
+      currentProfile: currentProfile,
+      usernameController: _usernameController,
+      bioController: _bioController,
+      locationController: _locationController,
+      dateOfBirthController: _dateOfBirthController,
+      physicalAddressController: _physicalAddressController,
+      themeController: _themeController,
+      autoAcceptInvites: _autoAcceptInvites,
+      favoriteGenres: _favoriteGenres,
+      isSaving: widget.isSaving,
+      onSavePressed: _handleProfileSave,
+      onAutoAcceptInvitesChanged: (value) {
+        setState(() {
+          _autoAcceptInvites = value;
+        });
+      },
+      onFavoriteGenreTapped: (displayLabel) {
+        final tagValue = TagGenreNormalizer.toValue(displayLabel);
+        if (tagValue == null) {
+          return;
+        }
+
+        setState(() {
+          if (_favoriteGenres.contains(tagValue)) {
+            _favoriteGenres.remove(tagValue);
+          } else {
+            _favoriteGenres.add(tagValue);
+          }
+        });
+      },
+      onThemeSelected: (themeValue) {
+        setState(() {
+          _themeController.text = themeValue;
+        });
+      },
+      onDatePicked: () => _pickDate(context),
+      validateUsername: _validateUsername,
+    );
+  }
+
+  Widget _buildProfileEditSecurityForm() {
+    return ProfileEditSecurityForm(
+      currentPasswordController: _currentPasswordController,
+      newPasswordController: _newPasswordController,
+      confirmPasswordController: _confirmPasswordController,
+      obscureCurrentPassword: _obscureCurrentPassword,
+      obscureNewPassword: _obscureNewPassword,
+      obscureConfirmPassword: _obscureConfirmPassword,
+      onToggleCurrentPasswordVisibility: () {
+        setState(() {
+          _obscureCurrentPassword = !_obscureCurrentPassword;
+        });
+      },
+      onToggleNewPasswordVisibility: () {
+        setState(() {
+          _obscureNewPassword = !_obscureNewPassword;
+        });
+      },
+      onToggleConfirmPasswordVisibility: () {
+        setState(() {
+          _obscureConfirmPassword = !_obscureConfirmPassword;
+        });
+      },
+      onPasswordChangePressed: _handlePasswordChange,
+      onGoogleAccountLinkPressed: _handleGoogleAccountLink,
+      onLogoutFromAllDevicesPressed: _handleLogoutFromAllDevices,
+      validateCurrentPassword: _validateCurrentPassword,
+      validateNewPassword: _validateNewPassword,
+      validateConfirmPassword: _validateConfirmPassword,
     );
   }
 
