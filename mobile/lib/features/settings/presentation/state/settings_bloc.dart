@@ -52,9 +52,7 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
     Emitter<SettingsState> emit,
   ) async {
     final currentData = _currentLoadedData();
-    if (currentData == null) {
-      return;
-    }
+    if (currentData == null) return;
 
     emit(
       SettingsMutationInProgress(
@@ -63,42 +61,48 @@ class SettingsBloc extends Bloc<SettingsEvent, SettingsState> {
       ),
     );
 
+    var updatedData = currentData;
+
     try {
-      final normalizedUsername = event.request.username?.trim();
-      final hasUsernameChange =
+      final request = event.request;
+
+      final normalizedUsername = request.username?.trim();
+      final currentUsername = currentData.profile.username.trim();
+
+      final shouldUpdateUsername =
           normalizedUsername != null &&
           normalizedUsername.isNotEmpty &&
-          normalizedUsername != currentData.profile.username.trim();
+          normalizedUsername != currentUsername;
 
-      var updated = currentData;
+      final shouldUpdateSettings = request.toJson().isNotEmpty;
 
-      if (hasUsernameChange) {
-        updated = await _settingsRepository.updateMyUsername(
+      if (shouldUpdateUsername) {
+        updatedData = await _settingsRepository.updateMyUsername(
           normalizedUsername,
         );
       }
 
-      if (event.request.toJson().isNotEmpty) {
-        updated = await _settingsRepository.updateMySettings(event.request);
+      if (shouldUpdateSettings) {
+        updatedData = await _settingsRepository.updateMySettings(request);
       }
 
       emit(
         SettingsMutationSuccess(
-          data: updated,
+          data: updatedData,
           message: 'Settings updated successfully.',
         ),
       );
     } on DioException catch (error) {
       emit(
         SettingsMutationFailure(
-          data: currentData,
+          data: updatedData,
           message: _buildErrorMessage(error),
         ),
       );
     } on Object {
       emit(
         SettingsMutationFailure(
-          data: currentData,
+          data: updatedData,
           message: 'Unable to update settings right now. Please try again.',
         ),
       );
