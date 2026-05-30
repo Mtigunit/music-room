@@ -165,6 +165,16 @@ export class PlaylistsService {
       );
     }
 
+    if (ownerId === targetUserId) {
+      throw new BadRequestException('The owner is implicitly a collaborator');
+    }
+
+    if (playlist.collaborators.length >= 50) {
+      throw new BadRequestException(
+        'Playlist has reached the maximum capacity of 50 collaborators',
+      );
+    }
+
     const userExists =
       await this.playlistsRepository.checkUserExists(targetUserId);
     if (!userExists) {
