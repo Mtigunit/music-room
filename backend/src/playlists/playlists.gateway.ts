@@ -13,6 +13,7 @@ import { PlaylistsRepository } from './playlists.repository';
 import { Visibility } from '@prisma/client';
 import { WsUser } from '../websockets/decorators/ws-user.decorator';
 import type { SocketUser } from '../websockets/socket-auth.service';
+import { isUUID } from 'class-validator';
 
 @WebSocketGateway({ path: '/ws', cors: true })
 @UseGuards(WsAuthGuard)
@@ -30,8 +31,12 @@ export class PlaylistsGateway {
     @MessageBody() payload: { playlistId: string },
     @WsUser() user: SocketUser,
   ) {
-    if (!payload?.playlistId) {
-      throw new WsException('playlistId is required');
+    if (
+      !payload?.playlistId ||
+      typeof payload.playlistId !== 'string' ||
+      !isUUID(payload.playlistId)
+    ) {
+      throw new WsException('A valid playlistId UUID is required');
     }
 
     const userId = user.id;
@@ -68,8 +73,12 @@ export class PlaylistsGateway {
     @ConnectedSocket() client: Socket,
     @MessageBody() payload: { playlistId: string },
   ) {
-    if (!payload?.playlistId) {
-      throw new WsException('playlistId is required');
+    if (
+      !payload?.playlistId ||
+      typeof payload.playlistId !== 'string' ||
+      !isUUID(payload.playlistId)
+    ) {
+      throw new WsException('A valid playlistId UUID is required');
     }
 
     const roomName = `playlist_${payload.playlistId}`;
