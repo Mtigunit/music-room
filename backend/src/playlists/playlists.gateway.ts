@@ -6,15 +6,16 @@ import {
   WebSocketServer,
   WsException,
 } from '@nestjs/websockets';
-import { Logger, UseGuards } from '@nestjs/common';
+import { Logger, UseGuards, UsePipes, ValidationPipe } from '@nestjs/common';
 import { Server, Socket } from 'socket.io';
 import { WsAuthGuard } from '../websockets/guards/ws-auth.guard';
 import { PlaylistsRepository } from './playlists.repository';
 import { Visibility } from '@prisma/client';
 import { WsUser } from '../websockets/decorators/ws-user.decorator';
 import type { SocketUser } from '../websockets/socket-auth.service';
-import { isUUID } from 'class-validator';
+import { PlaylistRoomDto } from './dto/playlist-room.dto';
 
+@UsePipes(new ValidationPipe({ transform: true, whitelist: true }))
 @WebSocketGateway({ path: '/ws', cors: true })
 @UseGuards(WsAuthGuard)
 export class PlaylistsGateway {
@@ -28,17 +29,9 @@ export class PlaylistsGateway {
   @SubscribeMessage('playlist:join')
   async handlePlaylistJoin(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { playlistId: string },
+    @MessageBody() payload: PlaylistRoomDto,
     @WsUser() user: SocketUser,
   ) {
-    if (
-      !payload?.playlistId ||
-      typeof payload.playlistId !== 'string' ||
-      !isUUID(payload.playlistId)
-    ) {
-      throw new WsException('A valid playlistId UUID is required');
-    }
-
     const userId = user.id;
     const playlistId = payload.playlistId;
 
@@ -71,16 +64,8 @@ export class PlaylistsGateway {
   @SubscribeMessage('playlist:leave')
   async handlePlaylistLeave(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { playlistId: string },
+    @MessageBody() payload: PlaylistRoomDto,
   ) {
-    if (
-      !payload?.playlistId ||
-      typeof payload.playlistId !== 'string' ||
-      !isUUID(payload.playlistId)
-    ) {
-      throw new WsException('A valid playlistId UUID is required');
-    }
-
     const roomName = `playlist_${payload.playlistId}`;
     await client.leave(roomName);
     this.logger.log(`Client ${client.id} left room ${roomName}`);
