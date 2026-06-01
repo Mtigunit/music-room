@@ -34,6 +34,9 @@ import 'package:music_room/features/profile/domain/repositories/profile_reposito
 import 'package:music_room/features/profile/presentation/state/profile_bloc.dart';
 import 'package:music_room/features/search/data/datasources/search_remote_datasource.dart';
 import 'package:music_room/features/search/data/services/search_query_service.dart';
+import 'package:music_room/features/settings/data/repositories/settings_repository_impl.dart';
+import 'package:music_room/features/settings/domain/repositories/settings_repository.dart';
+import 'package:music_room/features/settings/presentation/state/settings_bloc.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Service Locator for dependency injection
@@ -65,6 +68,7 @@ class InjectionContainer {
   late MusicVoteRepository _musicVoteRepository;
   late IProfileRemoteDataSource _profileRemoteDataSource;
   late ProfileRepository _profileRepository;
+  late SettingsRepository _settingsRepository;
   late ThemePreferenceService _themePreferenceService;
   late GoogleLinkStatusService _googleLinkStatusService;
   late NotificationsService _notificationsService;
@@ -135,6 +139,11 @@ class InjectionContainer {
       remoteDataSource: _profileRemoteDataSource,
       eventRemoteDataSource: _eventRemoteDataSource,
       playlistRemoteDataSource: _playlistRemoteDataSource,
+    );
+    _settingsRepository = SettingsRepositoryImpl(
+      remoteDataSource: _profileRemoteDataSource,
+      eventRemoteDataSource: _eventRemoteDataSource,
+      playlistRemoteDataSource: _playlistRemoteDataSource,
       themePreferenceService: _themePreferenceService,
       googleAuthService: _googleAuthService,
       googleLinkStatusService: _googleLinkStatusService,
@@ -183,6 +192,7 @@ class InjectionContainer {
   IProfileRemoteDataSource get profileRemoteDataSource =>
       _profileRemoteDataSource;
   ProfileRepository get profileRepository => _profileRepository;
+  SettingsRepository get settingsRepository => _settingsRepository;
   ThemePreferenceService get themePreferenceService => _themePreferenceService;
   GoogleLinkStatusService get googleLinkStatusService =>
       _googleLinkStatusService;
@@ -195,7 +205,7 @@ class InjectionContainer {
     return AuthBloc(
       authRepository: _authRepository,
       apiClient: _apiClient,
-      profileRepository: _profileRepository,
+      settingsRepository: _settingsRepository,
     );
   }
 
@@ -210,6 +220,10 @@ class InjectionContainer {
 
   ProfileBloc createProfileBloc() {
     return ProfileBloc(profileRepository: _profileRepository);
+  }
+
+  SettingsBloc createSettingsBloc() {
+    return SettingsBloc(settingsRepository: _settingsRepository);
   }
 
   HomeEventsCubit createHomeEventsCubit() {

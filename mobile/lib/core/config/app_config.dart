@@ -42,6 +42,7 @@ class AppConfig {
   static const String googleAuthEndpoint = 'auth/google';
   static const String profileEndpoint = 'auth/profile';
   static const String myProfileEndpoint = 'users/me';
+  static const String updatePasswordEndpoint = '$myProfileEndpoint/password';
   static const String userDetailEndpoint = 'users';
   static const String linkGoogleAccountEndpoint = 'users/link-google';
 

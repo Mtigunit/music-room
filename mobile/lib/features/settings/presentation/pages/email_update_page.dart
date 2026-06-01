@@ -2,14 +2,11 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/widgets/app_button.dart';
 import 'package:music_room/core/widgets/app_snackbar.dart';
 import 'package:music_room/core/widgets/form_input_decoration.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/auth/presentation/widgets/otp_verification_modal.dart';
-import 'package:music_room/features/profile/presentation/state/profile_bloc.dart';
-import 'package:music_room/features/profile/presentation/state/profile_event.dart';
 
 class EmailUpdatePage extends StatefulWidget {
   const EmailUpdatePage({super.key});
@@ -114,7 +111,7 @@ class _EmailUpdatePageState extends State<EmailUpdatePage> {
   Future<void> _submitRequest() async {
     if (!_formKey.currentState!.validate()) return;
     setState(() => _isLoading = true);
-    final repo = InjectionContainer().profileRepository;
+    final repo = InjectionContainer().settingsRepository;
     try {
       await repo.requestEmailUpdate(
         newEmail: _emailController.text.trim(),
@@ -165,16 +162,11 @@ class _EmailUpdatePageState extends State<EmailUpdatePage> {
             destination: requestedEmail,
             confirmLabel: 'Verify',
             onConfirm: (otpCode) async {
-              final repo = InjectionContainer().profileRepository;
+              final repo = InjectionContainer().settingsRepository;
               try {
                 await repo.verifyEmailUpdate(code: otpCode);
                 if (!modalContext.mounted) return;
                 if (!mounted) return;
-                try {
-                  context.read<ProfileBloc>().add(
-                    const ProfileRefreshRequested(),
-                  );
-                } on Object catch (_) {}
 
                 Navigator.of(modalContext).pop();
                 AppSnackbar.showSuccess(context, 'Email updated');
@@ -193,7 +185,7 @@ class _EmailUpdatePageState extends State<EmailUpdatePage> {
               }
             },
             onResend: () {
-              final repo = InjectionContainer().profileRepository;
+              final repo = InjectionContainer().settingsRepository;
               unawaited(
                 repo
                     .requestEmailUpdate(

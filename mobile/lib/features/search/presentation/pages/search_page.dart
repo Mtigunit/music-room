@@ -289,7 +289,10 @@ class _SearchPageState extends State<SearchPage> {
               unawaited(
                 Navigator.of(context).pushNamed(
                   RouteNames.profile,
-                  arguments: user.id,
+                  arguments: <String, dynamic>{
+                    'userId': user.id,
+                    'showBackButton': true,
+                  },
                 ),
               );
             },
