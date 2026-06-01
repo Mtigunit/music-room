@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:music_room/core/config/app_config.dart';
+import 'package:music_room/core/network/api_rate_limiter.dart';
 import 'package:music_room/core/services/client_meta_service.dart';
 import 'package:music_room/core/services/token_storage_service.dart';
 
@@ -11,15 +12,18 @@ class ApiClient {
     required Dio dio,
     required TokenStorageService tokenStorage,
     required ClientMetaService clientMetaService,
+    ApiRateLimiter? rateLimiter,
   }) : _dio = dio,
        _clientMetaService = clientMetaService,
-       _tokenStorage = tokenStorage {
+       _tokenStorage = tokenStorage,
+       _rateLimiter = rateLimiter ?? ApiRateLimiter() {
     _setupInterceptors();
   }
 
   final Dio _dio;
   final TokenStorageService _tokenStorage;
   final ClientMetaService _clientMetaService;
+  final ApiRateLimiter _rateLimiter;
 
   // Stream controller for session expiration events
   final StreamController<void> _sessionExpiredController =
@@ -27,6 +31,9 @@ class ApiClient {
 
   /// Stream that emits when session expires (401 received)
   Stream<void> get sessionExpired => _sessionExpiredController.stream;
+
+  /// Stream that emits when requests are delayed or the API returns 429.
+  Stream<ApiRateLimitEvent> get rateLimitEvents => _rateLimiter.events;
 
   void _setupInterceptors() {
     _dio.options.baseUrl = AppConfig.apiBaseUrl;
@@ -109,10 +116,17 @@ class ApiClient {
     Map<String, dynamic>? queryParameters,
     Options? options,
   }) async {
-    return _dio.get<T>(
-      path,
-      queryParameters: queryParameters,
-      options: options,
+    return _rateLimiter.schedule<Response<T>>(
+      request: ApiRequestDescriptor(
+        method: 'GET',
+        path: path,
+        queryParameters: queryParameters,
+      ),
+      execute: () => _dio.get<T>(
+        path,
+        queryParameters: queryParameters,
+        options: options,
+      ),
     );
   }
 
@@ -123,11 +137,19 @@ class ApiClient {
     Map<String, dynamic>? queryParameters,
     Options? options,
   }) async {
-    return _dio.post<T>(
-      path,
-      data: data,
-      queryParameters: queryParameters,
-      options: options,
+    return _rateLimiter.schedule<Response<T>>(
+      request: ApiRequestDescriptor(
+        method: 'POST',
+        path: path,
+        queryParameters: queryParameters,
+        data: data,
+      ),
+      execute: () => _dio.post<T>(
+        path,
+        data: data,
+        queryParameters: queryParameters,
+        options: options,
+      ),
     );
   }
 
@@ -138,11 +160,19 @@ class ApiClient {
     Map<String, dynamic>? queryParameters,
     Options? options,
   }) async {
-    return _dio.put<T>(
-      path,
-      data: data,
-      queryParameters: queryParameters,
-      options: options,
+    return _rateLimiter.schedule<Response<T>>(
+      request: ApiRequestDescriptor(
+        method: 'PUT',
+        path: path,
+        queryParameters: queryParameters,
+        data: data,
+      ),
+      execute: () => _dio.put<T>(
+        path,
+        data: data,
+        queryParameters: queryParameters,
+        options: options,
+      ),
     );
   }
 
@@ -153,11 +183,19 @@ class ApiClient {
     Map<String, dynamic>? queryParameters,
     Options? options,
   }) async {
-    return _dio.patch<T>(
-      path,
-      data: data,
-      queryParameters: queryParameters,
-      options: options,
+    return _rateLimiter.schedule<Response<T>>(
+      request: ApiRequestDescriptor(
+        method: 'PATCH',
+        path: path,
+        queryParameters: queryParameters,
+        data: data,
+      ),
+      execute: () => _dio.patch<T>(
+        path,
+        data: data,
+        queryParameters: queryParameters,
+        options: options,
+      ),
     );
   }
 
@@ -168,17 +206,26 @@ class ApiClient {
     Map<String, dynamic>? queryParameters,
     Options? options,
   }) async {
-    return _dio.delete<T>(
-      path,
-      data: data,
-      queryParameters: queryParameters,
-      options: options,
+    return _rateLimiter.schedule<Response<T>>(
+      request: ApiRequestDescriptor(
+        method: 'DELETE',
+        path: path,
+        queryParameters: queryParameters,
+        data: data,
+      ),
+      execute: () => _dio.delete<T>(
+        path,
+        data: data,
+        queryParameters: queryParameters,
+        options: options,
+      ),
     );
   }
 
   /// Cleanup resources
   Future<void> dispose() async {
     await _sessionExpiredController.close();
+    _rateLimiter.dispose();
   }
 
   void _emitSessionExpiredSafely() {
