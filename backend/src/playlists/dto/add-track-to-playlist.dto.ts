@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNotEmpty, IsString } from 'class-validator';
+import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
 
 export class AddTrackToPlaylistDto {
   @ApiProperty({
@@ -9,5 +9,6 @@ export class AddTrackToPlaylistDto {
   })
   @IsString()
   @IsNotEmpty()
+  @MaxLength(50)
   providerTrackId!: string;
 }
