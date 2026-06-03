@@ -3,9 +3,11 @@ import 'dart:async';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:music_room/core/network/api_rate_limiter.dart';
 import 'package:music_room/core/services/onboarding_service.dart';
 import 'package:music_room/core/services/theme_preference_service.dart';
 import 'package:music_room/core/theme/app_theme.dart';
+import 'package:music_room/core/widgets/app_snackbar.dart';
 import 'package:music_room/core/widgets/delegation_request_host.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
@@ -24,6 +26,7 @@ class App extends StatefulWidget {
 class _AppState extends State<App> {
   late final AuthBloc _authBloc;
   late final ThemePreferenceService _themePreferenceService;
+  late final StreamSubscription<ApiRateLimitEvent> _rateLimitSubscription;
 
   @override
   void initState() {
@@ -31,11 +34,15 @@ class _AppState extends State<App> {
     final container = InjectionContainer();
     _authBloc = container.createAuthBloc();
     _themePreferenceService = container.themePreferenceService;
+    _rateLimitSubscription = container.apiClient.rateLimitEvents.listen(
+      _handleRateLimitEvent,
+    );
     _authBloc.add(const AuthStarted());
   }
 
   @override
   void dispose() {
+    unawaited(_rateLimitSubscription.cancel());
     unawaited(_authBloc.close());
     super.dispose();
   }
@@ -82,6 +89,19 @@ class _AppState extends State<App> {
     };
 
     return _themePreferenceService.resolveThemeModeForUser(userId);
+  }
+
+  void _handleRateLimitEvent(ApiRateLimitEvent event) {
+    if (!mounted || event.delay < const Duration(seconds: 1)) {
+      return;
+    }
+
+    final context = AppRouter.navigatorKey.currentContext;
+    if (context == null) {
+      return;
+    }
+
+    AppSnackbar.showInfo(context, event.message);
   }
 }
 
