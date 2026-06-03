@@ -377,10 +377,15 @@ class ApiRateLimiter {
     if (retryAfter != null && retryAfter > Duration.zero) {
       return retryAfter;
     }
-
-    return _matchingRules(request.path)
-        .map((rule) => rule.window)
-        .reduce((longest, current) => current > longest ? current : longest);
+    final matchingWindows = _matchingRules(
+      request.path,
+    ).map((rule) => rule.window);
+    if (matchingWindows.isEmpty) {
+      return const Duration(minutes: 1);
+    }
+    return matchingWindows.reduce(
+      (longest, current) => current > longest ? current : longest,
+    );
   }
 
   Duration? _parseRetryAfter(Response<dynamic>? response) {
