@@ -182,6 +182,8 @@ class ApiRateLimiter {
       <String, _QueuedRequest>{};
   final Map<String, _RateLimitBucket> _buckets = <String, _RateLimitBucket>{};
   final Map<String, DateTime> _cooldowns = <String, DateTime>{};
+
+  static const _fallbackCooldownKey = '__fallback__';
   final StreamController<ApiRateLimitEvent> _eventController =
       StreamController<ApiRateLimitEvent>.broadcast();
 
@@ -326,7 +328,17 @@ class ApiRateLimiter {
   Duration _delayFor(ApiRequestDescriptor request, DateTime now) {
     var maxDelay = Duration.zero;
 
-    for (final rule in _matchingRules(request.path)) {
+    final matchingRules = _matchingRules(request.path);
+
+    if (matchingRules.isEmpty) {
+      final fallbackUntil = _cooldowns[_fallbackCooldownKey];
+      if (fallbackUntil != null && fallbackUntil.isAfter(now)) {
+        maxDelay = fallbackUntil.difference(now);
+      }
+      return maxDelay;
+    }
+
+    for (final rule in matchingRules) {
       final bucket = _buckets.putIfAbsent(rule.name, _RateLimitBucket.new)
         ..prune(now, rule.window);
 
@@ -361,7 +373,17 @@ class ApiRateLimiter {
   void _applyCooldown(ApiRequestDescriptor request, Duration delay) {
     final cooldownUntil = DateTime.now().add(delay);
 
-    for (final rule in _matchingRules(request.path)) {
+    final matchingRules = _matchingRules(request.path);
+
+    if (matchingRules.isEmpty) {
+      final currentUntil = _cooldowns[_fallbackCooldownKey];
+      if (currentUntil == null || cooldownUntil.isAfter(currentUntil)) {
+        _cooldowns[_fallbackCooldownKey] = cooldownUntil;
+      }
+      return;
+    }
+
+    for (final rule in matchingRules) {
       final currentUntil = _cooldowns[rule.name];
       if (currentUntil == null || cooldownUntil.isAfter(currentUntil)) {
         _cooldowns[rule.name] = cooldownUntil;
