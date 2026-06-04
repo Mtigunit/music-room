@@ -5,6 +5,9 @@ class AppConfig {
   static const String _googleWebClientIdOverride = String.fromEnvironment(
     'GOOGLE_WEB_CLIENT_ID',
   );
+  static const String _googleIosClientIdOverride = String.fromEnvironment(
+    'GOOGLE_IOS_CLIENT_ID',
+  );
   static const String _googleServerClientIdOverride = String.fromEnvironment(
     'GOOGLE_SERVER_CLIENT_ID',
   );
@@ -52,6 +55,19 @@ class AppConfig {
     }
 
     final envValue = dotenv.env['GOOGLE_WEB_CLIENT_ID']?.trim();
+    if (envValue != null && envValue.isNotEmpty) {
+      return envValue;
+    }
+
+    return null;
+  }
+
+  static String? get googleIosClientId {
+    if (_googleIosClientIdOverride.isNotEmpty) {
+      return _googleIosClientIdOverride;
+    }
+
+    final envValue = dotenv.env['GOOGLE_IOS_CLIENT_ID']?.trim();
     if (envValue != null && envValue.isNotEmpty) {
       return envValue;
     }
