@@ -34,10 +34,29 @@ final class GoogleAuthService {
     _initializing = completer;
 
     try {
-      await _googleSignIn.initialize(
-        clientId: kIsWeb ? AppConfig.googleWebClientId : null,
-        serverClientId: AppConfig.googleServerClientId,
-      );
+      if (kIsWeb) {
+        await _googleSignIn.initialize(
+          clientId: AppConfig.googleWebClientId,
+        );
+      } else if (defaultTargetPlatform == TargetPlatform.iOS) {
+        if (AppConfig.googleIosClientId == null &&
+            AppConfig.googleServerClientId == null) {
+          throw const GoogleAuthException(
+            'Missing iOS Google Sign-In configuration. Set GIDClientID and '
+            'GIDServerClientID in Info.plist or AppConfig.googleIosClientId / '
+            'AppConfig.googleServerClientId.',
+          );
+        }
+
+        await _googleSignIn.initialize(
+          clientId: AppConfig.googleIosClientId,
+          serverClientId: AppConfig.googleServerClientId,
+        );
+      } else {
+        await _googleSignIn.initialize(
+          serverClientId: AppConfig.googleServerClientId,
+        );
+      }
 
       isInitialized = true;
       completer.complete();
