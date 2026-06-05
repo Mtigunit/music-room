@@ -6,7 +6,6 @@ import 'package:go_router/go_router.dart';
 import 'package:music_room/core/widgets/app_back_button.dart';
 import 'package:music_room/core/widgets/app_button.dart';
 import 'package:music_room/core/widgets/app_snackbar.dart';
-import 'package:music_room/features/auth/presentation/pages/enter_new_password_page.dart';
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
 import 'package:music_room/features/auth/presentation/state/auth_event.dart';
 import 'package:music_room/features/auth/presentation/state/auth_state.dart';
@@ -172,21 +171,20 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           AppSnackbar.showSuccess(context, 'OTP verified successfully!');
           if (!_hasNavigatedToResetPage) {
             _hasNavigatedToResetPage = true;
-            final navigator = Navigator.of(context);
             final email = state.email;
             final resetToken = state.passwordResetToken;
+            final router = GoRouter.of(context);
             unawaited(
               _closeOtpModalIfOpen().then((_) {
                 if (!mounted) return;
                 unawaited(
-                  navigator
-                      .push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => EnterNewPasswordPage(
-                            email: email,
-                            resetToken: resetToken,
-                          ),
-                        ),
+                  router
+                      .push<void>(
+                        RouteNames.resetPassword,
+                        extra: <String, String>{
+                          'email': email,
+                          'resetToken': resetToken,
+                        },
                       )
                       .then((_) {
                         if (mounted) {
