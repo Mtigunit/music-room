@@ -457,85 +457,8 @@ class _PlaylistImportResults extends StatelessWidget {
   final String searchQuery;
   final ValueChanged<String> onPlaylistSelected;
 
-  static const List<Map<String, dynamic>> _mockPlaylists = [
-    {
-      'name': 'Late Night Driving',
-      'tags': <String>['electronic', 'chill', 'synthwave'],
-      'trackCount': 42,
-    },
-    {
-      'name': 'Summer Techno',
-      'tags': <String>['techno', 'dance', 'upbeat'],
-      'trackCount': 108,
-    },
-    {
-      'name': 'Moroccan Hits',
-      'tags': <String>['pop', 'arabic', 'trending'],
-      'trackCount': 25,
-    },
-    {
-      'name': 'Gym Motivation',
-      'tags': <String>['workout', 'hardstyle', 'bass'],
-      'trackCount': 60,
-    },
-    {
-      'name': 'Lo-fi Study',
-      'tags': <String>['lo-fi', 'study', 'relax'],
-      'trackCount': 200,
-    },
-  ];
-
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final filtered = _mockPlaylists.where((pl) {
-      final q = searchQuery.toLowerCase();
-      if (q.isEmpty) return true;
-      final nameMatches = (pl['name'] as String).toLowerCase().contains(q);
-      final tagsMatch = (pl['tags'] as List<String>).any(
-        (t) => t.toLowerCase().contains(q),
-      );
-      return nameMatches || tagsMatch;
-    }).toList();
-
-    if (filtered.isEmpty) {
-      return const Center(child: Text('No playlists found.'));
-    }
-
-    return ListView.separated(
-      itemCount: filtered.length,
-      separatorBuilder: (context, index) => const SizedBox(height: 8),
-      itemBuilder: (context, index) {
-        final pl = filtered[index];
-        final name = pl['name'] as String;
-        final tags = (pl['tags'] as List<String>).join(', ');
-        final count = pl['trackCount'] as int;
-
-        return ListTile(
-          onTap: () => onPlaylistSelected(name),
-          leading: Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: theme.colorScheme.primaryContainer,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(Icons.queue_music, color: theme.colorScheme.primary),
-          ),
-          title: Text(
-            name,
-            style: const TextStyle(fontWeight: FontWeight.w600),
-          ),
-          subtitle: Text(
-            '$count tracks • $tags',
-            style: TextStyle(
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-              fontSize: 13,
-            ),
-          ),
-          trailing: const Icon(Icons.chevron_right),
-        );
-      },
-    );
+    return const Center(child: Text('No playlists found.'));
   }
 }
