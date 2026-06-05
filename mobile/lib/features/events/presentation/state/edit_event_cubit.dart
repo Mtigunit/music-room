@@ -106,10 +106,13 @@ class EditEventCubit extends Cubit<EditEventState> {
         coverImage,
       );
 
+      if (isClosed) return;
       emit(EditEventSuccess(eventId));
     } on DioException catch (e) {
+      if (isClosed) return;
       emit(EditEventError(_extractDioMessage(e)));
     } on Object {
+      if (isClosed) return;
       emit(EditEventError('Unable to update event right now.'));
     }
   }
