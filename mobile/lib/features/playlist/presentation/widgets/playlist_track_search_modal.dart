@@ -170,7 +170,6 @@ class _PlaylistTrackSearchModalState extends State<PlaylistTrackSearchModal> {
     }
 
     return ListView.separated(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
       itemCount: _results.length,
       separatorBuilder: (_, index) => const SizedBox(height: 4),
       itemBuilder: (context, index) {
