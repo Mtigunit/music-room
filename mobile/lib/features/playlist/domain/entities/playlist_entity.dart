@@ -60,6 +60,10 @@ class PlaylistDetailsEntity {
     this.description,
   });
 
+  static const int maxCollaborators = 50;
+
+  int get collaboratorCount => collaboratorIds.length;
+
   final String id;
   final String name;
   final String ownerUserId;

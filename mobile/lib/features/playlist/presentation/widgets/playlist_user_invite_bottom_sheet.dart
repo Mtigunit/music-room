@@ -4,6 +4,7 @@ import 'package:music_room/core/widgets/app_snackbar.dart';
 import 'package:music_room/core/widgets/invite_bottom_sheet.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/playlist/data/datasources/playlist_remote_datasource.dart';
+import 'package:music_room/features/playlist/domain/entities/playlist_entity.dart';
 import 'package:music_room/features/search/data/datasources/search_remote_datasource.dart';
 
 class PlaylistUserInviteBottomSheet extends StatefulWidget {
@@ -12,6 +13,7 @@ class PlaylistUserInviteBottomSheet extends StatefulWidget {
     required this.playlistName,
     this.currentUserId,
     this.initialCollaboratorIds = const <String>[],
+    this.maxCollaborators = PlaylistDetailsEntity.maxCollaborators,
     super.key,
   });
 
@@ -19,6 +21,7 @@ class PlaylistUserInviteBottomSheet extends StatefulWidget {
   final String playlistName;
   final String? currentUserId;
   final List<String> initialCollaboratorIds;
+  final int maxCollaborators;
 
   @override
   State<PlaylistUserInviteBottomSheet> createState() =>
@@ -85,6 +88,17 @@ class _PlaylistUserInviteBottomSheetState
       return true;
     }
 
+    if (_invitedUserIds.length >= widget.maxCollaborators) {
+      if (mounted) {
+        AppSnackbar.showError(
+          context,
+          'This playlist already has the maximum of '
+          '${widget.maxCollaborators} collaborators.',
+        );
+      }
+      return false;
+    }
+
     try {
       await _playlistDataSource.addCollaboratorToPlaylist(
         widget.playlistId,
@@ -119,6 +133,13 @@ class _PlaylistUserInviteBottomSheetState
     final apiMessage = _extractApiMessage(error.response?.data);
     if (apiMessage != null && apiMessage.isNotEmpty) {
       return apiMessage;
+    }
+
+    if (statusCode == 400 &&
+        apiMessage != null &&
+        apiMessage.contains('maximum capacity')) {
+      return 'This playlist already has the maximum of '
+          '${widget.maxCollaborators} collaborators.';
     }
 
     switch (statusCode) {
