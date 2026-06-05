@@ -212,18 +212,22 @@ String? _resolveUserId(BuildContext context) {
 // ---------------------------------------------------------------------------
 
 class _Permissions {
-  const _Permissions({
+  const _Permissions._({
     required this.canEditTracks,
     required this.canManageCollaborators,
     required this.canManageSettings,
+    required this.userId,
+    required this.isOwner,
   });
 
   factory _Permissions.of(PlaylistDetailsEntity? details, String? userId) {
     if (details == null) {
-      return const _Permissions(
+      return const _Permissions._(
         canEditTracks: false,
         canManageCollaborators: false,
         canManageSettings: false,
+        userId: null,
+        isOwner: false,
       );
     }
     final isOwner = userId != null && details.ownerUserId == userId;
@@ -231,16 +235,24 @@ class _Permissions {
         userId != null && details.collaboratorIds.contains(userId);
     final isPublicOpen =
         details.visibility == 'PUBLIC' && details.editLicense == 'OPEN';
-    return _Permissions(
+    return _Permissions._(
       canEditTracks: isPublicOpen || isOwner || isCollaborator,
       canManageCollaborators: isOwner,
       canManageSettings: isOwner,
+      userId: userId,
+      isOwner: isOwner,
     );
   }
 
   final bool canEditTracks;
   final bool canManageCollaborators;
   final bool canManageSettings;
+  final String? userId;
+  final bool isOwner;
+
+  bool canRemoveTrack(PlaylistTrackEntity track) {
+    return isOwner || (userId != null && track.addedByUserId == userId);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1610,11 +1622,11 @@ class _TrackList extends StatelessWidget {
                   index: index,
                   track: track,
                   isWideLayout: layout.isWide,
-                  canRemove: permissions.canEditTracks,
+                  canRemove: permissions.canRemoveTrack(track),
                   isRemoving: isRemoving,
                   onRemove: () {
                     if (state.isInteractionLocked ||
-                        !permissions.canEditTracks ||
+                        !permissions.canRemoveTrack(track) ||
                         isRemoving) {
                       final msg = state.isOffline
                           ? 'You are offline. Playlist is read-only.'
