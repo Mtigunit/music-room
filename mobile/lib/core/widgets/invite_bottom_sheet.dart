@@ -153,7 +153,7 @@ class _InviteBottomSheetState extends State<InviteBottomSheet> {
       return widget.friends;
     }
 
-    final query = _searchQuery.toLowerCase();
+    final query = _searchQuery.trim().toLowerCase();
     return widget.friends.where((f) {
       return f.name.toLowerCase().contains(query) ||
           f.username.toLowerCase().contains(query);
