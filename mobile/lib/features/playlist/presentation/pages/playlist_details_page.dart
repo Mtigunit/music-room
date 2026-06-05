@@ -1603,7 +1603,7 @@ class _TrackList extends StatelessWidget {
         itemCount: tracks.length,
         onReorderItem: state.isInteractionLocked
             ? (_, _) => _handleLockedReorder(context)
-            : (old, next) => unawaited(onReorder(old, next)),
+            : (oldIndex, newIndex) => unawaited(onReorder(oldIndex, newIndex)),
         itemBuilder: (context, index) {
           final track = tracks[index];
           final isRemoving = state.removingTrackIds.contains(

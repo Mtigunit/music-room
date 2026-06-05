@@ -14,6 +14,7 @@ import 'package:music_room/features/events/domain/entities/my_event_item_model.d
 
 abstract class IEventRemoteDataSource {
   Future<String> createEvent(EventModel event, XFile? coverImage);
+  Future<void> updateEvent(String id, EventModel event, XFile? coverImage);
 
   /// Returns events the authenticated user has been invited to.
   Future<List<MyEventItemModel>> fetchInvitedEvents({
@@ -75,6 +76,44 @@ class EventRemoteDataSource implements IEventRemoteDataSource {
       debugPrint(e.toString());
       throw DioException(
         requestOptions: RequestOptions(path: AppConfig.eventsEndpoint),
+        error: e,
+      );
+    }
+  }
+
+  // ── Update Event ──────────────────────────────────────────────────────────
+
+  @override
+  Future<void> updateEvent(
+    String id,
+    EventModel event,
+    XFile? coverImage,
+  ) async {
+    try {
+      final mapData = await _buildFormDataMap(event, coverImage);
+      if (kDebugMode) {
+        debugPrint('--- [UPDATE EVENT] SENDING DATA ---');
+        debugPrint(mapData.toString());
+      }
+
+      final formData = FormData.fromMap(mapData);
+
+      await _apiClient.patch<Map<String, dynamic>>(
+        '${AppConfig.eventsEndpoint}/$id',
+        data: formData,
+      );
+    } on DioException catch (e) {
+      debugPrint('--- [UPDATE EVENT] DIO ERROR THROWN ---');
+      debugPrint(e.toString());
+      if (e.response != null) {
+        debugPrint('Response Data: ${e.response?.data}');
+      }
+      rethrow;
+    } on Object catch (e) {
+      debugPrint('--- [UPDATE EVENT] UNKNOWN ERROR THROWN ---');
+      debugPrint(e.toString());
+      throw DioException(
+        requestOptions: RequestOptions(path: '${AppConfig.eventsEndpoint}/$id'),
         error: e,
       );
     }
