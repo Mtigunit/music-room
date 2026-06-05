@@ -49,9 +49,9 @@ class PreEventPage extends StatelessWidget {
           final isHost =
               (state.event?.isHost ?? false) || (state.event?.hostId == userId);
           if (isHost) {
-            context.go('/music-vote/host/$eventId');
+            unawaited(context.push('/music-vote/host/$eventId'));
           } else {
-            context.go('/music-vote/guest/$eventId');
+            unawaited(context.push('/music-vote/guest/$eventId'));
           }
         },
         builder: (context, state) {

@@ -322,9 +322,9 @@ Future<void> _enterRoom(BuildContext context, MyEventItem event) async {
   if (!context.mounted) return;
 
   if (currentUserId == event.hostId) {
-    context.go('/music-vote/host/${event.id}');
+    unawaited(context.push('/music-vote/host/${event.id}'));
   } else {
-    context.go('/music-vote/guest/${event.id}');
+    unawaited(context.push('/music-vote/guest/${event.id}'));
   }
 }
 
