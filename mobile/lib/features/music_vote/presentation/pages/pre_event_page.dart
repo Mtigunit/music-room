@@ -51,7 +51,7 @@ class PreEventPage extends StatelessWidget {
               (state.event?.isHost ?? false) || (state.event?.hostId == userId);
           if (isHost) {
             unawaited(
-              Navigator.of(context).push(
+              Navigator.of(context).pushReplacement(
                 MaterialPageRoute<void>(
                   builder: (_) => HostMusicVotePage(eventId: eventId),
                 ),
@@ -59,7 +59,7 @@ class PreEventPage extends StatelessWidget {
             );
           } else {
             unawaited(
-              Navigator.of(context).push(
+              Navigator.of(context).pushReplacement(
                 MaterialPageRoute<void>(
                   builder: (_) => GuestMusicVotePage(eventId: eventId),
                 ),

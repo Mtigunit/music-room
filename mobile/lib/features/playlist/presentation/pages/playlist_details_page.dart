@@ -1590,9 +1590,9 @@ class _TrackList extends StatelessWidget {
       padding: EdgeInsets.fromLTRB(hp, 0, hp, layout.isCompact ? 24 : 32),
       sliver: SliverReorderableList(
         itemCount: tracks.length,
-        onReorder: state.isInteractionLocked
+        onReorderItem: state.isInteractionLocked
             ? (_, _) => _handleLockedReorder(context)
-            : (old, next) => unawaited(onReorder(old, next)),
+            : (oldIndex, newIndex) => unawaited(onReorder(oldIndex, newIndex)),
         itemBuilder: (context, index) {
           final track = tracks[index];
           final isRemoving = state.removingTrackIds.contains(
