@@ -174,12 +174,7 @@ GoRouter createRouter(AuthState Function() authStateProvider) {
                 path: ':playlistId',
                 builder: (context, state) {
                   final playlistId = state.pathParameters['playlistId']!;
-                  final playlistName =
-                      state.uri.queryParameters['name'] ?? 'Playlist';
-                  return PlaylistDetailsPage(
-                    playlistId: playlistId,
-                    playlistName: playlistName,
-                  );
+                  return PlaylistDetailsPage(playlistId: playlistId);
                 },
               ),
             ],
@@ -207,10 +202,7 @@ GoRouter createRouter(AuthState Function() authStateProvider) {
           ),
           GoRoute(
             path: '/search',
-            builder: (context, state) {
-              final query = state.uri.queryParameters['q'];
-              return SearchPage(initialQuery: query);
-            },
+            builder: (context, state) => const SearchPage(),
           ),
           GoRoute(
             path: '/music-vote/host/:eventId',

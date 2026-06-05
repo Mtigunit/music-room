@@ -19,12 +19,7 @@ import 'package:music_room/features/search/presentation/widgets/skeletons/search
 import 'package:music_room/routes/route_names.dart';
 
 class SearchPage extends StatefulWidget {
-  const SearchPage({
-    super.key,
-    this.initialQuery,
-  });
-
-  final String? initialQuery;
+  const SearchPage({super.key});
 
   @override
   State<SearchPage> createState() => _SearchPageState();
@@ -44,16 +39,13 @@ class _SearchPageState extends State<SearchPage> {
     );
     _searchController.addListener(_normalizeControllerSelection);
 
-    final initialQuery = _searchQueryService.currentQuery.trim().isNotEmpty
-        ? _searchQueryService.currentQuery.trim()
-        : (widget.initialQuery?.trim() ?? '');
+    final initialQuery = _searchQueryService.currentQuery.trim();
 
     if (initialQuery.isNotEmpty) {
       _searchController.value = TextEditingValue(
         text: initialQuery,
         selection: TextSelection.collapsed(offset: initialQuery.length),
       );
-      _searchQueryService.currentQuery = initialQuery;
     }
 
     _searchCubit.hydrate(
@@ -302,9 +294,7 @@ class _SearchPageState extends State<SearchPage> {
           child: InkWell(
             borderRadius: BorderRadius.circular(18),
             onTap: () {
-              context.go(
-                '/playlists/${playlist.id}?name=${Uri.encodeComponent(playlist.name)}',
-              );
+              context.go('/playlists/${playlist.id}');
             },
             child: SearchPlaylistResultCard(item: playlist),
           ),

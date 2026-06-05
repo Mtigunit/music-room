@@ -255,9 +255,8 @@ class _HeaderAndFilters extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: HomeSearchBar(
               onSubmitted: (query) {
-                context.go(
-                  '/search${query.isNotEmpty ? '?q=${Uri.encodeComponent(query)}' : ''}',
-                );
+                InjectionContainer().searchQueryService.currentQuery = query;
+                context.go('/search');
               },
             ),
           ),

@@ -324,12 +324,10 @@ class _PageState {
 class PlaylistDetailsPage extends StatefulWidget {
   const PlaylistDetailsPage({
     required this.playlistId,
-    required this.playlistName,
     super.key,
   });
 
   final String playlistId;
-  final String playlistName;
 
   @override
   State<PlaylistDetailsPage> createState() => _PlaylistDetailsPageState();
@@ -519,7 +517,7 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage> {
       useSafeArea: true,
       builder: (_) => PlaylistUserInviteBottomSheet(
         playlistId: widget.playlistId,
-        playlistName: widget.playlistName,
+        playlistName: details.name,
         currentUserId: _resolveUserId(context),
         initialCollaboratorIds: details.collaboratorIds,
       ),

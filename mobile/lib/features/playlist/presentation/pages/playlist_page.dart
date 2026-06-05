@@ -105,9 +105,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
   }
 
   void _openPlaylistDetails(PlaylistEntity playlist) {
-    context.go(
-      '/playlists/${playlist.id}?name=${Uri.encodeComponent(playlist.name)}',
-    );
+    context.go('/playlists/${playlist.id}');
   }
 
   Future<void> _showPlaylistSearchModal() async {
