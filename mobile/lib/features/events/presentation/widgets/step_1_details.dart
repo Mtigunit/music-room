@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:music_room/core/utils/image_url.dart';
 import 'package:music_room/core/widgets/responsive_layout.dart';
 import 'package:music_room/features/events/presentation/widgets/image_helper/image_helper.dart';
 
@@ -17,6 +18,7 @@ class Step1Details extends StatelessWidget {
     required this.canContinue,
     required this.onNext,
     this.nameError,
+    this.initialImageUrl,
     super.key,
   });
   final String eventName;
@@ -29,6 +31,7 @@ class Step1Details extends StatelessWidget {
   final ValueChanged<DateTime> onScheduledStartTimeChanged;
   final bool canContinue;
   final String? nameError;
+  final String? initialImageUrl;
   final VoidCallback onNext;
 
   Future<void> _pickImage() async {
@@ -75,6 +78,10 @@ class Step1Details extends StatelessWidget {
   ImageProvider _getCoverImage() {
     if (eventCover != null) {
       return getPlatformCoverImage(eventCover!);
+    }
+    final resolvedUrl = resolveImageUrl(initialImageUrl);
+    if (resolvedUrl != null) {
+      return NetworkImage(resolvedUrl);
     }
     return const AssetImage('assets/images/step1.webp');
   }
