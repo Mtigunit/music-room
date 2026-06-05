@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:music_room/core/widgets/app_back_button.dart';
 import 'package:music_room/core/widgets/app_button.dart';
 import 'package:music_room/core/widgets/app_snackbar.dart';
@@ -13,6 +14,7 @@ import 'package:music_room/features/auth/presentation/widgets/auth_page_layout.d
 import 'package:music_room/features/auth/presentation/widgets/auth_screen_header.dart';
 import 'package:music_room/features/auth/presentation/widgets/auth_text_input_field.dart';
 import 'package:music_room/features/auth/presentation/widgets/show_otp_modal.dart';
+import 'package:music_room/routes/route_names.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
   const ForgotPasswordPage({super.key});
@@ -194,7 +196,15 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       },
       child: Scaffold(
         appBar: AppBar(
-          leading: AppBackButton(onPressed: () => Navigator.of(context).pop()),
+          leading: AppBackButton(
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go(RouteNames.login);
+              }
+            },
+          ),
         ),
         body: SafeArea(
           child: AuthPageLayout(
@@ -288,7 +298,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 Center(
                   child: AppButton(
                     variant: AppButtonVariant.text,
-                    onPressed: () => Navigator.of(context).pop(),
+                    onPressed: () => context.go(RouteNames.login),
                     label: 'Back to sign in',
                     foregroundColor: colorScheme.primary,
                     textStyle: const TextStyle(

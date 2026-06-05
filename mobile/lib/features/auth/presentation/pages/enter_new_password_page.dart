@@ -117,7 +117,15 @@ class _EnterNewPasswordPageState extends State<EnterNewPasswordPage> {
       },
       child: Scaffold(
         appBar: AppBar(
-          leading: AppBackButton(onPressed: () => Navigator.of(context).pop()),
+          leading: AppBackButton(
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go(RouteNames.login);
+              }
+            },
+          ),
         ),
         body: SafeArea(
           child: AuthPageLayout(
