@@ -30,6 +30,7 @@ class _AppState extends State<App> {
   late final AuthBloc _authBloc;
   late final ThemePreferenceService _themePreferenceService;
   late final StreamSubscription<ApiRateLimitEvent> _rateLimitSubscription;
+  StreamSubscription<AuthState>? _authSubscription;
   late final GoRouter _router;
   bool _isLoading = true;
   bool _showOnboarding = false;
@@ -51,7 +52,7 @@ class _AppState extends State<App> {
 
     unawaited(_initializeApp(container));
 
-    _authBloc.stream.listen((state) {
+    _authSubscription = _authBloc.stream.listen((state) {
       if (state is AuthAuthenticated ||
           state is LoginSuccess ||
           state is GoogleLoginSuccess ||
@@ -123,6 +124,7 @@ class _AppState extends State<App> {
   @override
   void dispose() {
     unawaited(_rateLimitSubscription.cancel());
+    unawaited(_authSubscription?.cancel());
     unawaited(_authBloc.close());
     super.dispose();
   }
