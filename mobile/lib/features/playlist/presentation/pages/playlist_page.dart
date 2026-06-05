@@ -519,6 +519,7 @@ class _PlaylistTab extends StatelessWidget {
           crossAxisCount: screenSize == ScreenSize.expanded ? 3 : 2,
           crossAxisSpacing: 24,
           mainAxisSpacing: 24,
+          childAspectRatio: 0.75,
         ),
         itemBuilder: (context, index) {
           final playlist = playlists[index];
