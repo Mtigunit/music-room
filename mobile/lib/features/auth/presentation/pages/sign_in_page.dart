@@ -77,7 +77,7 @@ class _SignInPageState extends State<SignInPage> {
   }
 
   void _handleForgotPassword() {
-    context.go('/forgot-password');
+    context.go(RouteNames.forgotPassword);
   }
 
   @override

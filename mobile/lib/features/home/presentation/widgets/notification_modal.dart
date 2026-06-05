@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:music_room/core/models/notification_model.dart';
 import 'package:music_room/core/services/notifications_service.dart';
 import 'package:music_room/di/injection_container.dart';
+import 'package:music_room/routes/route_names.dart';
 
 /// Maps backend notification types to Flutter icons
 extension NotificationTypeIcon on String {
@@ -52,17 +53,19 @@ class NotificationModal extends StatelessWidget {
         InjectionContainer().notificationsService.markAsRead(notification.id),
       );
 
+      final router = GoRouter.of(context);
+
       // Close the modal/panel
       Navigator.of(context, rootNavigator: true).pop();
 
       if (notification.type == 'FOLLOW') {
-        context.go('/profile/$id');
+        router.go('${RouteNames.profile}/$id');
         return;
       }
 
       if (notification.type == 'EVENT_INVITE' ||
           notification.type == 'EVENT_START') {
-        context.go('/events/$id');
+        router.go('${RouteNames.events}/$id');
       }
     } on Exception catch (_) {
       // ignore errors
