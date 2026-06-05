@@ -135,11 +135,17 @@ class _AppState extends State<App> {
     try {
       InjectionContainer().notificationsService.attachSocketListeners();
       unawaited(InjectionContainer().notificationsService.fetchNotifications());
-    } on Exception catch (_) {}
+    } on Exception catch (e, stack) {
+      debugPrint('[NotificationsService] attach/fetch failed: $e\n$stack');
+    }
 
     try {
       InjectionContainer().delegationGateway.attachSocketListeners();
-    } on Exception catch (_) {}
+    } on Exception catch (e, stack) {
+      debugPrint(
+        '[DelegationGateway] attachSocketListeners failed: $e\n$stack',
+      );
+    }
   }
 
   @override
