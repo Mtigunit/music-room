@@ -1844,8 +1844,8 @@ class _PlaylistTrackTile extends StatelessWidget {
                   const SizedBox(width: 4),
 
                   // Drag handle
-                  Tooltip(
-                    message: 'Drag to reorder',
+                  ReorderableDragStartListener(
+                    index: index,
                     child: _TrackActionButton(
                       child: Icon(
                         Icons.drag_indicator_rounded,
