@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:music_room/core/theme/app_theme.dart';
 import 'package:music_room/core/utils/tag_genre_normalizer.dart';
 import 'package:music_room/core/widgets/app_back_button.dart';
@@ -211,18 +212,22 @@ String? _resolveUserId(BuildContext context) {
 // ---------------------------------------------------------------------------
 
 class _Permissions {
-  const _Permissions({
+  const _Permissions._({
     required this.canEditTracks,
     required this.canManageCollaborators,
     required this.canManageSettings,
+    required this.userId,
+    required this.isOwner,
   });
 
   factory _Permissions.of(PlaylistDetailsEntity? details, String? userId) {
     if (details == null) {
-      return const _Permissions(
+      return const _Permissions._(
         canEditTracks: false,
         canManageCollaborators: false,
         canManageSettings: false,
+        userId: null,
+        isOwner: false,
       );
     }
     final isOwner = userId != null && details.ownerUserId == userId;
@@ -230,16 +235,24 @@ class _Permissions {
         userId != null && details.collaboratorIds.contains(userId);
     final isPublicOpen =
         details.visibility == 'PUBLIC' && details.editLicense == 'OPEN';
-    return _Permissions(
+    return _Permissions._(
       canEditTracks: isPublicOpen || isOwner || isCollaborator,
       canManageCollaborators: isOwner,
       canManageSettings: isOwner,
+      userId: userId,
+      isOwner: isOwner,
     );
   }
 
   final bool canEditTracks;
   final bool canManageCollaborators;
   final bool canManageSettings;
+  final String? userId;
+  final bool isOwner;
+
+  bool canRemoveTrack(PlaylistTrackEntity track) {
+    return isOwner || (userId != null && track.addedByUserId == userId);
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -311,12 +324,10 @@ class _PageState {
 class PlaylistDetailsPage extends StatefulWidget {
   const PlaylistDetailsPage({
     required this.playlistId,
-    required this.playlistName,
     super.key,
   });
 
   final String playlistId;
-  final String playlistName;
 
   @override
   State<PlaylistDetailsPage> createState() => _PlaylistDetailsPageState();
@@ -506,7 +517,7 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage> {
       useSafeArea: true,
       builder: (_) => PlaylistUserInviteBottomSheet(
         playlistId: widget.playlistId,
-        playlistName: widget.playlistName,
+        playlistName: details.name,
         currentUserId: _resolveUserId(context),
         initialCollaboratorIds: details.collaboratorIds,
       ),
@@ -536,7 +547,7 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage> {
 
     if (result == 'deleted') {
       AppSnackbar.showSuccess(context, 'Playlist deleted.');
-      Navigator.of(context).pop();
+      context.go('/playlists');
       return;
     }
 
@@ -1609,11 +1620,11 @@ class _TrackList extends StatelessWidget {
                   index: index,
                   track: track,
                   isWideLayout: layout.isWide,
-                  canRemove: permissions.canEditTracks,
+                  canRemove: permissions.canRemoveTrack(track),
                   isRemoving: isRemoving,
                   onRemove: () {
                     if (state.isInteractionLocked ||
-                        !permissions.canEditTracks ||
+                        !permissions.canRemoveTrack(track) ||
                         isRemoving) {
                       final msg = state.isOffline
                           ? 'You are offline. Playlist is read-only.'
@@ -1833,8 +1844,8 @@ class _PlaylistTrackTile extends StatelessWidget {
                   const SizedBox(width: 4),
 
                   // Drag handle
-                  Tooltip(
-                    message: 'Drag to reorder',
+                  ReorderableDragStartListener(
+                    index: index,
                     child: _TrackActionButton(
                       child: Icon(
                         Icons.drag_indicator_rounded,

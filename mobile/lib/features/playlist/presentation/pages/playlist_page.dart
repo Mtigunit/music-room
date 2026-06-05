@@ -4,6 +4,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:music_room/core/widgets/app_button.dart';
 import 'package:music_room/core/widgets/empty_state_widget.dart';
 import 'package:music_room/core/widgets/premium_segmented_tab_bar.dart';
@@ -13,10 +14,9 @@ import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
 import 'package:music_room/features/auth/presentation/state/auth_state.dart';
 import 'package:music_room/features/playlist/data/datasources/playlist_remote_datasource.dart';
 import 'package:music_room/features/playlist/domain/entities/playlist_entity.dart';
-import 'package:music_room/features/playlist/presentation/pages/create_playlist_page.dart';
-import 'package:music_room/features/playlist/presentation/pages/playlist_details_page.dart';
 import 'package:music_room/features/playlist/presentation/widgets/playlist_collage_image.dart';
 import 'package:music_room/features/playlist/presentation/widgets/skeletons/playlist_page_skeleton.dart';
+import 'package:music_room/routes/route_names.dart';
 
 class PlaylistPage extends StatefulWidget {
   const PlaylistPage({super.key});
@@ -101,31 +101,20 @@ class _PlaylistPageState extends State<PlaylistPage> {
     return null;
   }
 
-  Future<void> _openCreatePlaylistPage() async {
-    final created = await Navigator.of(context).push<bool>(
-      MaterialPageRoute<bool>(
-        builder: (_) => const CreatePlaylistPage(),
-      ),
+  void _openCreatePlaylistPage() {
+    unawaited(
+      context
+          .push<void>('${RouteNames.playlists}/create')
+          .then((_) => _loadPlaylists()),
     );
-
-    if (created == true && mounted) {
-      await _loadPlaylists();
-    }
   }
 
-  Future<void> _openPlaylistDetails(PlaylistEntity playlist) async {
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => PlaylistDetailsPage(
-          playlistId: playlist.id,
-          playlistName: playlist.name,
-        ),
-      ),
+  void _openPlaylistDetails(PlaylistEntity playlist) {
+    unawaited(
+      context
+          .push<void>('${RouteNames.playlists}/${playlist.id}')
+          .then((_) => _loadPlaylists()),
     );
-
-    if (mounted) {
-      await _loadPlaylists();
-    }
   }
 
   Future<void> _showPlaylistSearchModal() async {
@@ -139,7 +128,7 @@ class _PlaylistPageState extends State<PlaylistPage> {
     );
 
     if (selectedPlaylist != null && mounted) {
-      unawaited(_openPlaylistDetails(selectedPlaylist));
+      _openPlaylistDetails(selectedPlaylist);
     }
   }
 
@@ -479,7 +468,7 @@ class _PlaylistTab extends StatelessWidget {
   final IconData emptyIcon;
   final String emptyMessage;
   final Future<void> Function() onRefresh;
-  final Future<void> Function(PlaylistEntity playlist) onPlaylistTap;
+  final void Function(PlaylistEntity playlist) onPlaylistTap;
   final ScreenSize screenSize;
 
   @override
@@ -511,7 +500,7 @@ class _PlaylistTab extends StatelessWidget {
             return _PlaylistListTile(
               playlist: playlist,
               onTap: () {
-                unawaited(onPlaylistTap(playlist));
+                onPlaylistTap(playlist);
               },
             );
           },
@@ -537,7 +526,7 @@ class _PlaylistTab extends StatelessWidget {
           return _PlaylistGridCard(
             playlist: playlist,
             onTap: () {
-              unawaited(onPlaylistTap(playlist));
+              onPlaylistTap(playlist);
             },
           );
         },

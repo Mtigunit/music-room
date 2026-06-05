@@ -1,7 +1,6 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:music_room/core/services/notifications_service.dart';
 import 'package:music_room/core/widgets/app_brand_icon.dart';
 import 'package:music_room/core/widgets/confirmation_dialog.dart';
@@ -15,6 +14,7 @@ import 'package:music_room/features/home/presentation/pages/home_page.dart';
 import 'package:music_room/features/music_vote/presentation/pages/my_events_page.dart';
 import 'package:music_room/features/playlist/presentation/pages/playlist_page.dart';
 import 'package:music_room/features/profile/presentation/pages/profile_page.dart';
+import 'package:music_room/features/settings/presentation/pages/settings_page.dart';
 import 'package:music_room/routes/route_names.dart';
 
 // =============================================================================
@@ -26,13 +26,13 @@ class _NavItemData {
     required this.label,
     required this.icon,
     required this.selectedIcon,
-    required this.tabIndex,
+    required this.route,
   });
 
   final String label;
   final IconData icon;
   final IconData selectedIcon;
-  final int tabIndex;
+  final String route;
 }
 
 const List<_NavItemData> _navItems = [
@@ -40,120 +40,165 @@ const List<_NavItemData> _navItems = [
     label: 'Home',
     icon: Icons.home_outlined,
     selectedIcon: Icons.home_rounded,
-    tabIndex: AppTabs.home,
+    route: RouteNames.home,
   ),
   _NavItemData(
     label: 'Events',
     icon: Icons.sensors,
     selectedIcon: Icons.sensors,
-    tabIndex: AppTabs.events,
+    route: RouteNames.events,
   ),
   _NavItemData(
     label: 'Playlists',
     icon: Icons.queue_music_outlined,
     selectedIcon: Icons.queue_music_rounded,
-    tabIndex: AppTabs.playlist,
+    route: RouteNames.playlists,
   ),
   _NavItemData(
     label: 'Profile',
     icon: Icons.person_outline,
     selectedIcon: Icons.person,
-    tabIndex: AppTabs.profile,
+    route: RouteNames.profile,
+  ),
+  _NavItemData(
+    label: 'Settings',
+    icon: Icons.settings_suggest_outlined,
+    selectedIcon: Icons.settings_suggest_outlined,
+    route: RouteNames.settings,
   ),
 ];
 
 // =============================================================================
-// APP SCAFFOLD
+// APP SCAFFOLD - Shell Route Layout
 // =============================================================================
 
 class AppScaffold extends StatefulWidget {
   const AppScaffold({
+    required this.child,
     super.key,
-    this.initialIndex = 0,
-    this.foregroundPage,
-  }) : assert(
-         initialIndex >= 0 && initialIndex <= 3,
-         'initialIndex must be between 0 and 3',
-       );
+  });
 
-  final int initialIndex;
-
-  /// When set, this page is shown instead of the tab stack. Navigation taps
-  /// that change the current tab will push a replacement [AppScaffold].
-  final Widget? foregroundPage;
+  final Widget child;
 
   @override
   State<AppScaffold> createState() => AppScaffoldState();
 }
 
 class AppScaffoldState extends State<AppScaffold> {
-  late int _currentIndex;
   late final GlobalKey<ProfilePageState> _profilePageKey;
-  late final List<Widget> _pages;
-
-  bool get _hasForegroundPage => widget.foregroundPage != null;
+  late final List<Widget> _tabPages;
+  String _currentLocation = '';
+  GoRouterDelegate? _routerDelegate;
 
   @override
   void initState() {
     super.initState();
-    _currentIndex = widget.initialIndex;
     _profilePageKey = GlobalKey<ProfilePageState>();
-    _pages = [
+    _tabPages = [
       const HomePage(),
       const MyEventsPage(),
       const PlaylistPage(),
       ProfilePage(key: _profilePageKey),
+      const SettingsPage(),
     ];
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // One-time initialisation that needs InheritedWidget access.
+    if (_routerDelegate == null) {
+      _routerDelegate = GoRouter.of(context).routerDelegate;
+      _updateCurrentLocation();
+      _routerDelegate!.addListener(_onRouteChanged);
+    }
+  }
+
+  @override
+  void dispose() {
+    _routerDelegate?.removeListener(_onRouteChanged);
+    super.dispose();
+  }
+
+  void _onRouteChanged() {
+    _updateCurrentLocation();
+  }
+
+  /// Walk the delegate's match tree to find the effective matched location.
+  ///
+  /// After a `context.push()` inside a ShellRoute,
+  /// `GoRouterState.matchedLocation` is stale (it preserves the original shell
+  /// match). The delegate's `currentConfiguration` contains the updated tree
+  /// with the correct leaf `matchedLocation`, so we derive it from there.
+  void _updateCurrentLocation() {
+    final config = GoRouter.of(context).routerDelegate.currentConfiguration;
+    if (config.matches.isEmpty) return;
+
+    var current = config.matches.last;
+    while (current is ShellRouteMatch) {
+      current = current.matches.last;
+    }
+    final newLocation = current.matchedLocation;
+    if (newLocation != _currentLocation) {
+      setState(() {
+        _currentLocation = newLocation;
+      });
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Tab / route helpers
+  // ---------------------------------------------------------------------------
+
+  /// Returns the sidebar nav-item index (0-4) for [location], or -1 if none.
+  int _sidebarIndexForRoute(String location) {
+    if (location == RouteNames.home ||
+        location.startsWith('${RouteNames.home}?')) {
+      return 0;
+    }
+    if (location == RouteNames.events ||
+        location.startsWith('${RouteNames.events}?') ||
+        location.startsWith('${RouteNames.events}/')) {
+      return 1;
+    }
+    if (location == RouteNames.playlists ||
+        location.startsWith('${RouteNames.playlists}?') ||
+        location.startsWith('${RouteNames.playlists}/')) {
+      return 2;
+    }
+    if (location == RouteNames.profile ||
+        location.startsWith('${RouteNames.profile}/') ||
+        location.startsWith('${RouteNames.profile}?')) {
+      return 3;
+    }
+    if (location == RouteNames.settings ||
+        location.startsWith('${RouteNames.settings}?')) {
+      return 4;
+    }
+    return -1;
+  }
+
+  /// True only for exact tab-route matches (no sub-routes).
+  bool get _isExactTabPage =>
+      _currentLocation == RouteNames.home ||
+      _currentLocation == RouteNames.events ||
+      _currentLocation == RouteNames.playlists ||
+      _currentLocation == RouteNames.profile ||
+      _currentLocation == RouteNames.settings;
+
+  int get _currentSidebarIndex {
+    final idx = _sidebarIndexForRoute(_currentLocation);
+    return idx >= 0 ? idx : 0;
   }
 
   // ---------------------------------------------------------------------------
   // Navigation
   // ---------------------------------------------------------------------------
 
-  void _onItemTapped(int index) {
-    if (_hasForegroundPage) {
-      // Foreground page is active: only navigate if the tab actually changes.
-      if (index == _currentIndex) return;
-      unawaited(
-        Navigator.of(context).pushReplacement<void, void>(
-          MaterialPageRoute<void>(
-            builder: (_) => AppScaffold(initialIndex: index),
-          ),
-        ),
-      );
-      return;
+  void _onNavItemTapped(int index) {
+    if (index >= 0 && index < _navItems.length) {
+      context.go(_navItems[index].route);
     }
-
-    setState(() => _currentIndex = index);
-  }
-
-  /// Programmatically switch to [index] without the foreground-page guard.
-  void switchTab(int index) {
-    if (index >= 0 && index < _pages.length) {
-      setState(() => _currentIndex = index);
-    }
-  }
-
-  Future<void> _openSettings(BuildContext context) async {
-    final navigator = Navigator.of(context);
-
-    final saved = await navigator.pushNamed(RouteNames.settings);
-    if (saved == true) {
-      _profilePageKey.currentState?.refreshProfile();
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // Body
-  // ---------------------------------------------------------------------------
-
-  Widget _buildBodyContent() {
-    if (_hasForegroundPage) return widget.foregroundPage!;
-
-    return IndexedStack(
-      index: _currentIndex,
-      children: _pages,
-    );
   }
 
   // ---------------------------------------------------------------------------
@@ -169,6 +214,16 @@ class AppScaffoldState extends State<AppScaffold> {
         ScreenSize.expanded => _buildWithRail(context, extended: true),
       },
     );
+  }
+
+  Widget _buildBodyContent() {
+    if (_isExactTabPage) {
+      return IndexedStack(
+        index: _currentSidebarIndex,
+        children: _tabPages,
+      );
+    }
+    return widget.child;
   }
 
   // ---------------------------------------------------------------------------
@@ -193,8 +248,8 @@ class AppScaffoldState extends State<AppScaffold> {
           ),
         ),
         child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: _onItemTapped,
+          currentIndex: _currentSidebarIndex,
+          onTap: _onNavItemTapped,
           elevation: 0,
           backgroundColor: Colors.transparent,
           type: BottomNavigationBarType.fixed,
@@ -205,13 +260,12 @@ class AppScaffoldState extends State<AppScaffold> {
             alpha: kBottomNavUnselectedAlpha,
           ),
           items: [
-            // Home tab gets a live unread-count badge; all others are static.
             BottomNavigationBarItem(
               icon: _HomeTabIcon(
                 notificationsService: notificationsService,
                 badgeColor: colorScheme.error,
               ),
-              label: _navItems[AppTabs.home].label,
+              label: _navItems[0].label,
             ),
             for (final item in _navItems.skip(1))
               BottomNavigationBarItem(
@@ -240,11 +294,10 @@ class AppScaffoldState extends State<AppScaffold> {
             extended: extended,
             colors: sidebarColors,
             isDarkMode: isDarkMode,
-            currentIndex: _currentIndex,
+            currentIndex: _currentSidebarIndex,
             navItems: _navItems,
-            onNavItemTap: _onItemTapped,
+            onNavItemTap: _onNavItemTapped,
             onThemeToggle: () => _handleThemeToggle(isDarkMode),
-            onSettingsTap: () => unawaited(_openSettings(context)),
             onLogoutTap: () => _handleLogout(context),
           ),
           Expanded(child: _buildBodyContent()),
@@ -374,7 +427,6 @@ class _Sidebar extends StatelessWidget {
     required this.navItems,
     required this.onNavItemTap,
     required this.onThemeToggle,
-    required this.onSettingsTap,
     required this.onLogoutTap,
   });
 
@@ -385,7 +437,6 @@ class _Sidebar extends StatelessWidget {
   final List<_NavItemData> navItems;
   final ValueChanged<int> onNavItemTap;
   final VoidCallback onThemeToggle;
-  final VoidCallback onSettingsTap;
   final VoidCallback onLogoutTap;
 
   @override
@@ -445,9 +496,11 @@ class _Sidebar extends StatelessWidget {
           extended: extended,
           colors: colors,
           label: item.label,
-          icon: currentIndex == item.tabIndex ? item.selectedIcon : item.icon,
-          isSelected: currentIndex == item.tabIndex,
-          onTap: () => onNavItemTap(item.tabIndex),
+          icon: currentIndex == _navItems.indexOf(item)
+              ? item.selectedIcon
+              : item.icon,
+          isSelected: currentIndex == _navItems.indexOf(item),
+          onTap: () => onNavItemTap(_navItems.indexOf(item)),
         ),
         const SizedBox(height: kSidebarNavItemGap),
       ],
@@ -462,14 +515,6 @@ class _Sidebar extends StatelessWidget {
         icon: isDarkMode ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
         label: isDarkMode ? 'Light Mode' : 'Dark Mode',
         onTap: onThemeToggle,
-      ),
-      const SizedBox(height: kSidebarUtilityButtonGap),
-      _SidebarUtilityButton(
-        extended: extended,
-        colors: colors,
-        icon: Icons.settings_outlined,
-        label: 'Settings',
-        onTap: onSettingsTap,
       ),
       const SizedBox(height: kSidebarUtilityButtonGap),
       _SidebarUtilityButton(
@@ -655,8 +700,6 @@ class _SidebarUtilityButton extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
 
-  /// Override to use a colour other than
-  /// [_SidebarThemeTokens.unselectedForeground].
   final Color? foregroundColor;
 
   @override
@@ -668,39 +711,44 @@ class _SidebarUtilityButton extends StatelessWidget {
       child: InkWell(
         borderRadius: BorderRadius.circular(kUtilityButtonBorderRadius),
         onTap: onTap,
-        child: SizedBox(
-          height: kUtilityButtonHeight,
-          child: Padding(
-            padding: EdgeInsets.symmetric(
-              horizontal: extended
-                  ? kUtilityButtonHorizontalPaddingExtended
-                  : 0,
-            ),
-            child: Row(
-              mainAxisAlignment: extended
-                  ? MainAxisAlignment.start
-                  : MainAxisAlignment.center,
-              children: [
-                Icon(
-                  icon,
-                  color: effectiveForeground,
-                  size: kUtilityButtonIconSize,
-                ),
-                if (extended) ...[
-                  const SizedBox(width: kUtilityButtonIconLabelGap),
-                  Expanded(
-                    child: Text(
-                      label,
-                      style: TextStyle(
-                        color: effectiveForeground,
-                        fontSize: kUtilityButtonFontSize,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: kUtilityButtonLetterSpacing,
+        child: Ink(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(kUtilityButtonBorderRadius),
+          ),
+          child: SizedBox(
+            height: kUtilityButtonHeight,
+            child: Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: extended
+                    ? kUtilityButtonHorizontalPaddingExtended
+                    : 0,
+              ),
+              child: Row(
+                mainAxisAlignment: extended
+                    ? MainAxisAlignment.start
+                    : MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    icon,
+                    color: effectiveForeground,
+                    size: kUtilityButtonIconSize,
+                  ),
+                  if (extended) ...[
+                    const SizedBox(width: kUtilityButtonIconLabelGap),
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: TextStyle(
+                          color: effectiveForeground,
+                          fontSize: kUtilityButtonFontSize,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: kUtilityButtonLetterSpacing,
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),

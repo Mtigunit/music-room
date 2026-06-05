@@ -63,9 +63,6 @@ class _SettingsPageState extends State<SettingsPage> {
                 _isSaving = false;
               });
               AppSnackbar.showSuccess(context, state.message);
-              if (mounted) {
-                Navigator.of(context).pop(true);
-              }
               return;
             }
 
@@ -82,9 +79,6 @@ class _SettingsPageState extends State<SettingsPage> {
                 _isSaving = false;
               });
               AppSnackbar.showSuccess(context, state.message);
-              if (mounted) {
-                Navigator.of(context).pop(true);
-              }
               return;
             }
 
@@ -101,9 +95,6 @@ class _SettingsPageState extends State<SettingsPage> {
                 _isSaving = false;
               });
               AppSnackbar.showSuccess(context, state.message);
-              if (mounted) {
-                Navigator.of(context).pop(true);
-              }
               return;
             }
 
@@ -120,9 +111,6 @@ class _SettingsPageState extends State<SettingsPage> {
                 _isSaving = false;
               });
               AppSnackbar.showSuccess(context, state.message);
-              if (mounted) {
-                Navigator.of(context).pop(true);
-              }
               return;
             }
 
@@ -238,6 +226,7 @@ class _SettingsContent extends StatelessWidget {
     return ProfileEditSheet(
       profile: profileData.profile,
       showDragHandle: false,
+      showBackButton: false,
       isSaving: isSaving,
       onSaveRequested: onSaveRequested,
     );

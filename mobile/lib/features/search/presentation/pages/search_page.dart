@@ -2,9 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/home/presentation/widgets/genre_filter_list.dart';
-import 'package:music_room/features/playlist/presentation/pages/playlist_details_page.dart';
 import 'package:music_room/features/search/data/models/search_filter_type.dart';
 import 'package:music_room/features/search/data/models/search_result_models.dart';
 import 'package:music_room/features/search/data/services/search_query_service.dart';
@@ -19,12 +19,7 @@ import 'package:music_room/features/search/presentation/widgets/skeletons/search
 import 'package:music_room/routes/route_names.dart';
 
 class SearchPage extends StatefulWidget {
-  const SearchPage({
-    super.key,
-    this.initialQuery,
-  });
-
-  final String? initialQuery;
+  const SearchPage({super.key});
 
   @override
   State<SearchPage> createState() => _SearchPageState();
@@ -44,16 +39,13 @@ class _SearchPageState extends State<SearchPage> {
     );
     _searchController.addListener(_normalizeControllerSelection);
 
-    final initialQuery = _searchQueryService.currentQuery.trim().isNotEmpty
-        ? _searchQueryService.currentQuery.trim()
-        : (widget.initialQuery?.trim() ?? '');
+    final initialQuery = _searchQueryService.currentQuery.trim();
 
     if (initialQuery.isNotEmpty) {
       _searchController.value = TextEditingValue(
         text: initialQuery,
         selection: TextSelection.collapsed(offset: initialQuery.length),
       );
-      _searchQueryService.currentQuery = initialQuery;
     }
 
     _searchCubit.hydrate(
@@ -102,15 +94,7 @@ class _SearchPageState extends State<SearchPage> {
       return;
     }
 
-    final navigator = Navigator.of(context);
-    if (navigator.canPop()) {
-      navigator.pop();
-      return;
-    }
-
-    unawaited(
-      navigator.pushNamedAndRemoveUntil(RouteNames.home, (_) => false),
-    );
+    context.go(RouteNames.home);
   }
 
   @override
@@ -286,15 +270,7 @@ class _SearchPageState extends State<SearchPage> {
           child: InkWell(
             borderRadius: BorderRadius.circular(18),
             onTap: () {
-              unawaited(
-                Navigator.of(context).pushNamed(
-                  RouteNames.profile,
-                  arguments: <String, dynamic>{
-                    'userId': user.id,
-                    'showBackButton': true,
-                  },
-                ),
-              );
+              context.go('/profile/${user.id}');
             },
             child: SearchUserResultCard(item: user),
           ),
@@ -306,12 +282,7 @@ class _SearchPageState extends State<SearchPage> {
           child: InkWell(
             borderRadius: BorderRadius.circular(18),
             onTap: () {
-              unawaited(
-                Navigator.of(context).pushNamed(
-                  RouteNames.preEvent,
-                  arguments: event.id,
-                ),
-              );
+              context.go('/events/${event.id}');
             },
             child: SearchEventResultCard(item: event),
           ),
@@ -323,16 +294,7 @@ class _SearchPageState extends State<SearchPage> {
           child: InkWell(
             borderRadius: BorderRadius.circular(18),
             onTap: () {
-              unawaited(
-                Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => PlaylistDetailsPage(
-                      playlistId: playlist.id,
-                      playlistName: playlist.name,
-                    ),
-                  ),
-                ),
-              );
+              context.go('/playlists/${playlist.id}');
             },
             child: SearchPlaylistResultCard(item: playlist),
           ),

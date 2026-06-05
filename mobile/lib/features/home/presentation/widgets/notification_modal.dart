@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:music_room/core/models/notification_model.dart';
 import 'package:music_room/core/services/notifications_service.dart';
 import 'package:music_room/di/injection_container.dart';
@@ -52,29 +53,19 @@ class NotificationModal extends StatelessWidget {
         InjectionContainer().notificationsService.markAsRead(notification.id),
       );
 
+      final router = GoRouter.of(context);
+
       // Close the modal/panel
       Navigator.of(context, rootNavigator: true).pop();
 
       if (notification.type == 'FOLLOW') {
-        // Navigate to user profile
-        unawaited(
-          Navigator.of(context, rootNavigator: true).pushNamed(
-            RouteNames.profile,
-            arguments: id,
-          ),
-        );
+        router.go('${RouteNames.profile}/$id');
         return;
       }
 
       if (notification.type == 'EVENT_INVITE' ||
           notification.type == 'EVENT_START') {
-        // Navigate to event page
-        unawaited(
-          Navigator.of(context, rootNavigator: true).pushNamed(
-            RouteNames.preEvent,
-            arguments: id,
-          ),
-        );
+        router.go('${RouteNames.events}/$id');
       }
     } on Exception catch (_) {
       // ignore errors

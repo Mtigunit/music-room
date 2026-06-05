@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:music_room/core/widgets/app_back_button.dart';
 import 'package:music_room/features/music_vote/presentation/state/music_vote_cubit.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/modals/delegation_bottom_sheet.dart';
@@ -53,12 +54,13 @@ class LiveHeader extends StatelessWidget {
           ),
           child: Row(
             children: [
-              const SizedBox(
+              SizedBox(
                 width: 40,
                 child: AppBackButton(
                   padding: EdgeInsets.zero,
                   iconSize: 18,
                   color: Colors.white,
+                  onPressed: () => context.pop(),
                 ),
               ),
               Expanded(
@@ -156,7 +158,7 @@ class LiveHeader extends StatelessWidget {
                 if (eventId != null) {
                   cubit.leaveEvent(eventId);
                 }
-                Navigator.pop(context); // Exit page
+                context.pop(); // Exit page
               },
               child: Text(
                 'Leave',

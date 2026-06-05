@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:music_room/core/utils/tag_genre_normalizer.dart';
 import 'package:music_room/core/widgets/app_back_button.dart';
 import 'package:music_room/core/widgets/app_button.dart';
@@ -143,7 +144,7 @@ class _CreatePlaylistPageState extends State<CreatePlaylistPage> {
             ? 'Playlist updated successfully.'
             : 'Playlist created successfully.',
       );
-      Navigator.of(context).pop(true);
+      context.go('/playlists');
     } on DioException catch (error) {
       if (!mounted) {
         return;
@@ -202,7 +203,7 @@ class _CreatePlaylistPageState extends State<CreatePlaylistPage> {
       }
 
       AppSnackbar.showSuccess(context, 'Playlist deleted successfully.');
-      Navigator.of(context).pop('deleted');
+      context.go('/playlists');
     } on DioException catch (error) {
       if (!mounted) {
         return;

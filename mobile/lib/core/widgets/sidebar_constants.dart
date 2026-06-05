@@ -1,18 +1,3 @@
-// Sidebar constants extracted from app_scaffold.dart
-// Purpose: centralize layout, typography and string tokens used by the
-// sidebar so they can be reused and kept tidy.
-
-// =============================================================================
-// TAB INDICES
-// =============================================================================
-
-abstract final class AppTabs {
-  static const int home = 0;
-  static const int events = 1;
-  static const int playlist = 2;
-  static const int profile = 3;
-}
-
 // =============================================================================
 // LAYOUT — Sidebar dimensions & padding
 // =============================================================================

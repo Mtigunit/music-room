@@ -4,7 +4,7 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:music_room/core/services/delegation_gateway.dart';
 import 'package:music_room/di/injection_container.dart';
-import 'package:music_room/routes/app_router.dart';
+import 'package:music_room/routes/router.dart';
 
 /// Invisible widget that wraps the entire app and listens for incoming
 /// `event:delegate` socket events from [DelegationGateway].
@@ -55,7 +55,7 @@ class _DelegationRequestHostState extends State<DelegationRequestHost> {
 
     try {
       final accepted = await showModalBottomSheet<bool>(
-        context: AppRouter.navigatorKey.currentContext ?? context,
+        context: rootNavigatorKey.currentContext ?? context,
         isScrollControlled: true,
         useSafeArea: true,
         useRootNavigator: true,

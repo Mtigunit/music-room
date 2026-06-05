@@ -1,8 +1,9 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:music_room/core/network/api_rate_limiter.dart';
 import 'package:music_room/core/services/onboarding_service.dart';
 import 'package:music_room/core/services/theme_preference_service.dart';
@@ -10,11 +11,13 @@ import 'package:music_room/core/theme/app_theme.dart';
 import 'package:music_room/core/widgets/app_snackbar.dart';
 import 'package:music_room/core/widgets/delegation_request_host.dart';
 import 'package:music_room/di/injection_container.dart';
+import 'package:music_room/features/auth/presentation/pages/onboarding_page.dart';
+import 'package:music_room/features/auth/presentation/pages/post_registration_profile_page.dart';
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
 import 'package:music_room/features/auth/presentation/state/auth_event.dart';
 import 'package:music_room/features/auth/presentation/state/auth_state.dart';
-import 'package:music_room/routes/app_router.dart';
 import 'package:music_room/routes/route_names.dart';
+import 'package:music_room/routes/router.dart';
 
 class App extends StatefulWidget {
   const App({super.key});
@@ -27,6 +30,14 @@ class _AppState extends State<App> {
   late final AuthBloc _authBloc;
   late final ThemePreferenceService _themePreferenceService;
   late final StreamSubscription<ApiRateLimitEvent> _rateLimitSubscription;
+  StreamSubscription<AuthState>? _authSubscription;
+  late final GoRouter _router;
+  bool _isLoading = true;
+  bool _showOnboarding = false;
+
+  GoRouter _buildRouter() {
+    return createRouter(() => _authBloc.state);
+  }
 
   @override
   void initState() {
@@ -34,43 +45,145 @@ class _AppState extends State<App> {
     final container = InjectionContainer();
     _authBloc = container.createAuthBloc();
     _themePreferenceService = container.themePreferenceService;
+    _router = _buildRouter();
     _rateLimitSubscription = container.apiClient.rateLimitEvents.listen(
       _handleRateLimitEvent,
     );
+
+    unawaited(_initializeApp(container));
+
+    _authSubscription = _authBloc.stream.listen((state) {
+      if (state is AuthAuthenticated ||
+          state is LoginSuccess ||
+          state is GoogleLoginSuccess ||
+          state is RegisterSuccess) {
+        unawaited(_restoreAuthenticatedSession());
+        _router.refresh();
+      }
+
+      if (state is LogoutSuccess) {
+        InjectionContainer().socketClient.disconnect();
+        try {
+          InjectionContainer().notificationsService.detachSocketListeners();
+        } on Exception catch (_) {}
+        try {
+          InjectionContainer().delegationGateway.detachSocketListeners();
+        } on Exception catch (_) {}
+      }
+
+      if (state is AuthUnauthenticated || state is LogoutSuccess) {
+        _router.refresh();
+      }
+    });
+  }
+
+  Future<void> _initializeApp(InjectionContainer container) async {
+    if (!kIsWeb) {
+      final hasSeen = await OnboardingService().hasSeenOnboarding();
+
+      if (!hasSeen) {
+        await container.tokenStorageService.clearAll();
+        if (!mounted) return;
+        setState(() {
+          _showOnboarding = true;
+          _isLoading = false;
+        });
+        return;
+      }
+    }
+
     _authBloc.add(const AuthStarted());
+
+    await _authBloc.stream.firstWhere(
+      (state) => state is! AuthInitial && state is! AuthChecking,
+    );
+
+    if (!mounted) return;
+    setState(() {
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _onOnboardingCompleted() async {
+    _authBloc.add(const AuthStarted());
+    await _authBloc.stream.firstWhere(
+      (state) => state is! AuthInitial && state is! AuthChecking,
+    );
+    if (!mounted) return;
+    setState(() {
+      _showOnboarding = false;
+    });
+  }
+
+  void _onPostRegistrationCompleted() {
+    _authBloc.add(const OnboardingCompleted());
+    final pendingLocation = consumePendingRedirect();
+    _router.go(pendingLocation ?? RouteNames.home);
   }
 
   @override
   void dispose() {
     unawaited(_rateLimitSubscription.cancel());
+    unawaited(_authSubscription?.cancel());
     unawaited(_authBloc.close());
     super.dispose();
   }
 
+  Future<void> _restoreAuthenticatedSession() async {
+    unawaited(InjectionContainer().socketClient.reconnectWithAuth());
+
+    try {
+      InjectionContainer().notificationsService.attachSocketListeners();
+      unawaited(InjectionContainer().notificationsService.fetchNotifications());
+    } on Exception catch (e, stack) {
+      debugPrint('[NotificationsService] attach/fetch failed: $e\n$stack');
+    }
+
+    try {
+      InjectionContainer().delegationGateway.attachSocketListeners();
+    } on Exception catch (e, stack) {
+      debugPrint(
+        '[DelegationGateway] attachSocketListeners failed: $e\n$stack',
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_isLoading) {
+      return const SizedBox.shrink();
+    }
+
     return BlocProvider<AuthBloc>.value(
       value: _authBloc,
       child: AnimatedBuilder(
         animation: _themePreferenceService,
         builder: (context, _) {
           return BlocBuilder<AuthBloc, AuthState>(
+            key: ValueKey(_showOnboarding),
             builder: (context, authState) {
-              return MaterialApp(
-                navigatorKey: AppRouter.navigatorKey,
+              return MaterialApp.router(
+                routerConfig: _router,
                 debugShowCheckedModeBanner: false,
-                onGenerateRoute: AppRouter.onGenerateRoute,
                 theme: AppTheme.lightTheme(),
                 darkTheme: AppTheme.darkTheme(),
                 themeMode: _resolveThemeMode(authState),
-                // Wrap the full app in a DelegationRequestHost so the
-                // delegation invite popup can surface globally, on top of
-                // any active route, without each feature having to wire
-                // its own socket listener.
-                builder: (context, child) => DelegationRequestHost(
-                  child: child ?? const SizedBox.shrink(),
-                ),
-                home: const _StartupRouteGate(),
+                builder: (context, child) {
+                  if (_showOnboarding) {
+                    return OnboardingPage(
+                      onCompleted: _onOnboardingCompleted,
+                    );
+                  }
+                  if (authState is AuthAuthenticated &&
+                      authState.showOnboarding) {
+                    return PostRegistrationProfilePage(
+                      onCompleted: _onPostRegistrationCompleted,
+                    );
+                  }
+                  return DelegationRequestHost(
+                    child: child ?? const SizedBox.shrink(),
+                  );
+                },
               );
             },
           );
@@ -96,111 +209,11 @@ class _AppState extends State<App> {
       return;
     }
 
-    final context = AppRouter.navigatorKey.currentContext;
+    final context = rootNavigatorKey.currentContext;
     if (context == null) {
       return;
     }
 
     AppSnackbar.showInfo(context, event.message);
-  }
-}
-
-class _StartupRouteGate extends StatefulWidget {
-  const _StartupRouteGate();
-
-  @override
-  State<_StartupRouteGate> createState() => _StartupRouteGateState();
-}
-
-class _StartupRouteGateState extends State<_StartupRouteGate> {
-  late final Future<String> _initialRouteFuture;
-
-  @override
-  void initState() {
-    super.initState();
-    _initialRouteFuture = _resolveInitialRoute();
-  }
-
-  Future<String> _resolveInitialRoute() async {
-    late final bool hasSeenOnboarding;
-    if (kIsWeb) {
-      hasSeenOnboarding = true;
-    } else {
-      hasSeenOnboarding = await OnboardingService().hasSeenOnboarding();
-    }
-    final tokenStorage = InjectionContainer().tokenStorageService;
-    final isAuthenticated = await tokenStorage.isAuthenticated();
-
-    final resolvedRoute = AppRouter.resolveStartupRoute(
-      isWeb: kIsWeb,
-      hasSeenOnboarding: hasSeenOnboarding,
-      isAuthenticated: isAuthenticated,
-    );
-
-    if (resolvedRoute == RouteNames.home) {
-      unawaited(_restoreAuthenticatedSession());
-    }
-
-    return resolvedRoute;
-  }
-
-  Future<void> _restoreAuthenticatedSession() async {
-    unawaited(InjectionContainer().socketClient.reconnectWithAuth());
-
-    try {
-      InjectionContainer().notificationsService.attachSocketListeners();
-      unawaited(InjectionContainer().notificationsService.fetchNotifications());
-    } on Exception catch (_) {}
-
-    try {
-      InjectionContainer().delegationGateway.attachSocketListeners();
-    } on Exception catch (_) {}
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return FutureBuilder<String>(
-      future: _initialRouteFuture,
-      builder: (context, snapshot) {
-        if (!snapshot.hasData) {
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
-
-        return BlocListener<AuthBloc, AuthState>(
-          listener: (context, state) {
-            if (state is AuthAuthenticated ||
-                state is LoginSuccess ||
-                state is GoogleLoginSuccess ||
-                state is RegisterSuccess) {
-              unawaited(_restoreAuthenticatedSession());
-            }
-
-            if (state is LogoutSuccess) {
-              InjectionContainer().socketClient.disconnect();
-              try {
-                InjectionContainer().notificationsService
-                    .detachSocketListeners();
-              } on Exception catch (_) {}
-              try {
-                InjectionContainer().delegationGateway.detachSocketListeners();
-              } on Exception catch (_) {}
-              // After logout, navigate back to auth screen
-              final navigator = AppRouter.navigatorKey.currentState;
-              if (navigator != null) {
-                unawaited(
-                  navigator.pushNamedAndRemoveUntil(
-                    RouteNames.auth,
-                    (_) => false,
-                  ),
-                );
-              }
-            }
-          },
-          child: AppRouter.pageForRoute(snapshot.data!),
-        );
-      },
-    );
   }
 }

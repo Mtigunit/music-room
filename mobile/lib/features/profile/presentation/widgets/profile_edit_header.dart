@@ -6,11 +6,13 @@ class ProfileEditHeader extends StatelessWidget {
   const ProfileEditHeader({
     required this.size,
     required this.showDragHandle,
+    this.showBackButton = true,
     super.key,
   });
 
   final ScreenSize size;
   final bool showDragHandle;
+  final bool showBackButton;
 
   @override
   Widget build(BuildContext context) {
@@ -35,26 +37,26 @@ class ProfileEditHeader extends StatelessWidget {
           ),
         Row(
           children: [
-            if (isDesktop)
-              IconButton(
-                icon: Icon(
-                  Icons.close_rounded,
-                  color: colorScheme.onSurface,
-                ),
-                tooltip: 'Close',
-                onPressed: () => Navigator.of(context).pop(),
-                padding: EdgeInsets.zero,
-                constraints: const BoxConstraints(
-                  minWidth: 48,
-                  minHeight: 48,
-                ),
-              )
-            else
-              AppBackButton(
-                color: colorScheme.onSurface,
-                padding: EdgeInsets.zero,
-              ),
-            const SizedBox(width: 12),
+            if (showBackButton)
+              isDesktop
+                  ? IconButton(
+                      icon: Icon(
+                        Icons.close_rounded,
+                        color: colorScheme.onSurface,
+                      ),
+                      tooltip: 'Close',
+                      onPressed: () => Navigator.of(context).pop(),
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(
+                        minWidth: 48,
+                        minHeight: 48,
+                      ),
+                    )
+                  : AppBackButton(
+                      color: colorScheme.onSurface,
+                      padding: EdgeInsets.zero,
+                    ),
+            if (showBackButton) const SizedBox(width: 12),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

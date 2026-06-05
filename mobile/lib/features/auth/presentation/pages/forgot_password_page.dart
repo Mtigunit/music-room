@@ -2,10 +2,10 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:music_room/core/widgets/app_back_button.dart';
 import 'package:music_room/core/widgets/app_button.dart';
 import 'package:music_room/core/widgets/app_snackbar.dart';
-import 'package:music_room/features/auth/presentation/pages/enter_new_password_page.dart';
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
 import 'package:music_room/features/auth/presentation/state/auth_event.dart';
 import 'package:music_room/features/auth/presentation/state/auth_state.dart';
@@ -13,6 +13,7 @@ import 'package:music_room/features/auth/presentation/widgets/auth_page_layout.d
 import 'package:music_room/features/auth/presentation/widgets/auth_screen_header.dart';
 import 'package:music_room/features/auth/presentation/widgets/auth_text_input_field.dart';
 import 'package:music_room/features/auth/presentation/widgets/show_otp_modal.dart';
+import 'package:music_room/routes/route_names.dart';
 
 class ForgotPasswordPage extends StatefulWidget {
   const ForgotPasswordPage({super.key});
@@ -101,9 +102,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     );
   }
 
-  void _closeOtpModalIfOpen() {
+  Future<void> _closeOtpModalIfOpen() async {
     if (_isOtpModalOpen && mounted) {
-      unawaited(Navigator.of(context, rootNavigator: true).maybePop());
+      await Navigator.of(context, rootNavigator: true).maybePop();
     }
     _isOtpModalOpen = false;
   }
@@ -168,24 +169,30 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           }
         } else if (state is PasswordResetOtpVerified) {
           AppSnackbar.showSuccess(context, 'OTP verified successfully!');
-          _closeOtpModalIfOpen();
           if (!_hasNavigatedToResetPage) {
             _hasNavigatedToResetPage = true;
+            final email = state.email;
+            final resetToken = state.passwordResetToken;
+            final router = GoRouter.of(context);
             unawaited(
-              Navigator.of(context)
-                  .push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => EnterNewPasswordPage(
-                        email: state.email,
-                        resetToken: state.passwordResetToken,
-                      ),
-                    ),
-                  )
-                  .then((_) {
-                    if (mounted) {
-                      _hasNavigatedToResetPage = false;
-                    }
-                  }),
+              _closeOtpModalIfOpen().then((_) {
+                if (!mounted) return;
+                unawaited(
+                  router
+                      .push<void>(
+                        RouteNames.resetPassword,
+                        extra: <String, String>{
+                          'email': email,
+                          'resetToken': resetToken,
+                        },
+                      )
+                      .then((_) {
+                        if (mounted) {
+                          _hasNavigatedToResetPage = false;
+                        }
+                      }),
+                );
+              }),
             );
           }
         } else if (state is PasswordResetOtpVerificationFailure) {
@@ -194,7 +201,15 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       },
       child: Scaffold(
         appBar: AppBar(
-          leading: AppBackButton(onPressed: () => Navigator.of(context).pop()),
+          leading: AppBackButton(
+            onPressed: () {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go(RouteNames.login);
+              }
+            },
+          ),
         ),
         body: SafeArea(
           child: AuthPageLayout(
@@ -288,7 +303,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
                 Center(
                   child: AppButton(
                     variant: AppButtonVariant.text,
-                    onPressed: () => Navigator.of(context).pop(),
+                    onPressed: () => context.go(RouteNames.login),
                     label: 'Back to sign in',
                     foregroundColor: colorScheme.primary,
                     textStyle: const TextStyle(

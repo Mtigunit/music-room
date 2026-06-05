@@ -128,6 +128,10 @@ class InviteBottomSheet extends StatefulWidget {
 class _InviteBottomSheetState extends State<InviteBottomSheet> {
   static const Duration _searchDebounceDuration = Duration(milliseconds: 350);
 
+  final FocusNode _searchFocusNode = FocusNode();
+  double _heightFactor = 0.5;
+  bool _hasExpanded = false;
+
   String _searchQuery = '';
   String _lastSearchQuery = '';
   Timer? _searchDebounce;
@@ -175,9 +179,27 @@ class _InviteBottomSheetState extends State<InviteBottomSheet> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    _searchFocusNode.addListener(_onFocusChange);
+  }
+
+  @override
   void dispose() {
+    _searchFocusNode
+      ..removeListener(_onFocusChange)
+      ..dispose();
     _searchDebounce?.cancel();
     super.dispose();
+  }
+
+  void _onFocusChange() {
+    if (_searchFocusNode.hasFocus && !_hasExpanded) {
+      setState(() {
+        _heightFactor = 0.9;
+        _hasExpanded = true;
+      });
+    }
   }
 
   void _onSearchChanged(String value) {
@@ -291,33 +313,30 @@ class _InviteBottomSheetState extends State<InviteBottomSheet> {
     final colorScheme = theme.colorScheme;
     final textTheme = theme.textTheme;
     final isDark = theme.brightness == Brightness.dark;
-    final mediaQuery = MediaQuery.of(context);
-    final screenSize = mediaQuery.size;
-    final keyboardInset = mediaQuery.viewInsets.bottom;
+    final screenSize = MediaQuery.of(context).size;
 
     final sheetBg = isDark ? const Color(0xFF1A1A27) : colorScheme.surface;
     final resolvedActions =
         widget.socialActions ?? InviteBottomSheet._defaultSocialActions;
     final displayList = _displayUsers;
 
-    return AnimatedPadding(
-      duration: const Duration(milliseconds: 180),
-      curve: Curves.easeOut,
-      padding: EdgeInsets.only(bottom: keyboardInset),
-      child: Container(
-        height: screenSize.height * 0.5,
-        decoration: BoxDecoration(
-          color: sheetBg,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Material(
-          color: Colors.transparent,
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOutCubic,
+      height: screenSize.height * _heightFactor,
+      decoration: BoxDecoration(
+        color: sheetBg,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(24, 12, 24, 0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Center(
                 child: Container(
-                  margin: const EdgeInsets.only(top: 12),
                   width: 36,
                   height: 4,
                   decoration: BoxDecoration(
@@ -329,101 +348,88 @@ class _InviteBottomSheetState extends State<InviteBottomSheet> {
               const SizedBox(height: 16),
 
               // Header
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        widget.title,
-                        style: textTheme.titleLarge?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 22,
-                        ),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      widget.title,
+                      style: textTheme.titleLarge?.copyWith(
+                        fontWeight: FontWeight.w800,
+                        fontSize: 22,
                       ),
                     ),
-                    IconButton(
-                      onPressed:
-                          widget.onClosePressed ??
-                          () => Navigator.of(context).pop(),
-                      icon: const Icon(Icons.close),
-                      style: IconButton.styleFrom(
-                        backgroundColor: colorScheme.onSurface.withValues(
-                          alpha: 0.06,
-                        ),
+                  ),
+                  IconButton(
+                    onPressed:
+                        widget.onClosePressed ??
+                        () => Navigator.of(context).pop(),
+                    icon: const Icon(Icons.close),
+                    style: IconButton.styleFrom(
+                      backgroundColor: colorScheme.onSurface.withValues(
+                        alpha: 0.06,
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
               const SizedBox(height: 16),
 
               // Compact Social Row
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: _SocialShareRow(
-                  link: widget.shareLink,
-                  actions: resolvedActions,
-                  colorScheme: colorScheme,
-                  isDark: isDark,
-                  onCopy: widget.onCopyLink,
-                  onShareTapped: widget.onShareTapped,
-                ),
+              _SocialShareRow(
+                link: widget.shareLink,
+                actions: resolvedActions,
+                colorScheme: colorScheme,
+                isDark: isDark,
+                onCopy: widget.onCopyLink,
+                onShareTapped: widget.onShareTapped,
               ),
               const SizedBox(height: 24),
 
               // Search Bar
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: TextField(
-                  onChanged: _onSearchChanged,
-                  decoration: InputDecoration(
-                    hintText: 'Search friends or username...',
-                    hintStyle: TextStyle(
+              TextField(
+                focusNode: _searchFocusNode,
+                onChanged: _onSearchChanged,
+                decoration: InputDecoration(
+                  hintText: 'Search friends or username...',
+                  hintStyle: TextStyle(
+                    color: theme.colorScheme.onSurface.withValues(
+                      alpha: 0.35,
+                    ),
+                  ),
+                  prefixIcon: Icon(
+                    Icons.search,
+                    color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
+                  ),
+                  filled: true,
+                  fillColor: theme.colorScheme.surfaceContainerHighest
+                      .withValues(alpha: 0.3),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(
                       color: theme.colorScheme.onSurface.withValues(
-                        alpha: 0.35,
+                        alpha: 0.1,
                       ),
                     ),
-                    prefixIcon: Icon(
-                      Icons.search,
-                      color: theme.colorScheme.onSurface.withValues(alpha: 0.4),
-                    ),
-                    filled: true,
-                    fillColor: theme.colorScheme.surfaceContainerHighest
-                        .withValues(alpha: 0.3),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: BorderSide(
-                        color: theme.colorScheme.onSurface.withValues(
-                          alpha: 0.1,
-                        ),
-                      ),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: BorderSide(color: theme.colorScheme.primary),
-                    ),
-                    contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 16,
-                    ),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(color: theme.colorScheme.primary),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 16,
                   ),
                 ),
               ),
               const SizedBox(height: 20),
 
               // List Title
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Text(
-                  _searchQuery.trim().isEmpty
-                      ? 'Your Friends'
-                      : 'Search Results',
-                  style: textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: colorScheme.onSurface.withValues(alpha: 0.6),
-                    letterSpacing: 0.5,
-                  ),
+              Text(
+                _searchQuery.trim().isEmpty ? 'Your Friends' : 'Search Results',
+                style: textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: colorScheme.onSurface.withValues(alpha: 0.6),
+                  letterSpacing: 0.5,
                 ),
               ),
               const SizedBox(height: 12),
@@ -459,7 +465,7 @@ class _InviteBottomSheetState extends State<InviteBottomSheet> {
                         ),
                       )
                     : ListView.separated(
-                        padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                        padding: const EdgeInsets.only(bottom: 20),
                         itemCount: displayList.length,
                         separatorBuilder: (context, index) =>
                             const SizedBox(height: 8),

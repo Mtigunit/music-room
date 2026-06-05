@@ -2,15 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:music_room/core/widgets/app_snackbar.dart';
 import 'package:music_room/di/injection_container.dart';
-import 'package:music_room/features/playlist/presentation/pages/playlist_details_page.dart';
 import 'package:music_room/features/profile/domain/entities/profile_entity.dart';
 import 'package:music_room/features/profile/presentation/state/profile_bloc.dart';
 import 'package:music_room/features/profile/presentation/state/profile_event.dart';
 import 'package:music_room/features/profile/presentation/state/profile_state.dart';
 import 'package:music_room/features/profile/presentation/widgets/profile_view.dart';
-import 'package:music_room/routes/route_names.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({
@@ -120,24 +119,10 @@ class _ProfilePageBody extends StatelessWidget {
           ? null
           : () => _handleFollowAction(context, profileData.profile),
       onOpenRoom: (room) {
-        unawaited(
-          Navigator.of(context).pushNamed(
-            RouteNames.preEvent,
-            arguments: room.id,
-          ),
-        );
+        context.go('/events/${room.id}');
       },
       onOpenPlaylist: (playlist) {
-        unawaited(
-          Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => PlaylistDetailsPage(
-                playlistId: playlist.id,
-                playlistName: playlist.name,
-              ),
-            ),
-          ),
-        );
+        context.go('/playlists/${playlist.id}');
       },
       onRefresh: () async {
         final bloc = context.read<ProfileBloc>();

@@ -139,3 +139,8 @@ class LogoutFromAllDevicesRequested extends AuthEvent {
 class SessionExpiredRequested extends AuthEvent {
   const SessionExpiredRequested();
 }
+
+/// Event to clear the post-registration onboarding flag.
+class OnboardingCompleted extends AuthEvent {
+  const OnboardingCompleted();
+}

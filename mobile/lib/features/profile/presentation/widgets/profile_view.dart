@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:music_room/core/utils/image_url.dart';
 import 'package:music_room/core/utils/tag_genre_normalizer.dart';
@@ -13,7 +14,6 @@ import 'package:music_room/features/music_vote/data/models/my_event_item.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/my_event_list_tile.dart';
 import 'package:music_room/features/playlist/domain/entities/playlist_entity.dart';
 import 'package:music_room/features/profile/domain/entities/hosted_event_entity.dart';
-
 import 'package:music_room/features/profile/domain/entities/profile_entity.dart';
 import 'package:music_room/features/profile/presentation/state/profile_bloc.dart';
 import 'package:music_room/features/profile/presentation/state/profile_event.dart';
@@ -568,14 +568,7 @@ class _ProfileHeroCard extends StatelessWidget {
         onSelected: (action) async {
           switch (action) {
             case _ProfileHeaderAction.settings:
-              final saved = await Navigator.of(context).pushNamed(
-                RouteNames.settings,
-              );
-              if (saved == true && context.mounted) {
-                context.read<ProfileBloc>().add(
-                  const ProfileRefreshRequested(),
-                );
-              }
+              context.go(RouteNames.settings);
               return;
             case _ProfileHeaderAction.logout:
               final confirmed = await showAppConfirmationDialog(

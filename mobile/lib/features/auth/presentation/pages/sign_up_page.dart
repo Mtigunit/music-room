@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:music_room/core/widgets/app_button.dart';
 import 'package:music_room/core/widgets/app_snackbar.dart';
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
@@ -231,12 +232,6 @@ class _SignUpPageState extends State<SignUpPage> {
           );
         } else if (state is RegisterSuccess) {
           AppSnackbar.showSuccess(context, 'Account created successfully!');
-          unawaited(
-            Navigator.of(context).pushNamedAndRemoveUntil(
-              RouteNames.completeProfile,
-              (_) => false,
-            ),
-          );
         } else if (state is RegisterFailure) {
           AppSnackbar.showError(context, state.failure.message);
         } else if (state is GoogleLoginLoading) {
@@ -247,12 +242,6 @@ class _SignUpPageState extends State<SignUpPage> {
           );
         } else if (state is GoogleLoginSuccess) {
           AppSnackbar.showSuccess(context, 'Account created with Google!');
-          unawaited(
-            Navigator.of(context).pushNamedAndRemoveUntil(
-              state.isNewUser ? RouteNames.completeProfile : RouteNames.home,
-              (_) => false,
-            ),
-          );
         } else if (state is GoogleLoginFailure) {
           AppSnackbar.showError(context, state.failure.message);
         }
@@ -400,11 +389,7 @@ class _SignUpPageState extends State<SignUpPage> {
                       ),
                       GestureDetector(
                         onTap: () {
-                          unawaited(
-                            Navigator.of(context).pushReplacementNamed(
-                              RouteNames.auth,
-                            ),
-                          );
+                          context.go(RouteNames.login);
                         },
                         child: Text(
                           'Log in',

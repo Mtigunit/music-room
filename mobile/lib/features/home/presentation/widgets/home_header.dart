@@ -1,9 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:music_room/core/config/app_config.dart';
-import 'package:music_room/core/widgets/app_scaffold.dart';
-import 'package:music_room/core/widgets/sidebar_constants.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/home/presentation/widgets/show_notification_panel.dart';
 import 'package:music_room/routes/route_names.dart';
@@ -176,15 +175,7 @@ class _HomeHeaderState extends State<HomeHeader> {
                   child: InkWell(
                     customBorder: const CircleBorder(),
                     onTap: () {
-                      final scaffoldState = context
-                          .findAncestorStateOfType<AppScaffoldState>();
-                      if (scaffoldState != null) {
-                        scaffoldState.switchTab(AppTabs.profile);
-                      } else {
-                        unawaited(
-                          Navigator.of(context).pushNamed(RouteNames.profile),
-                        );
-                      }
+                      context.go(RouteNames.profile);
                     },
                     child: Container(
                       width: 48,
