@@ -21,12 +21,14 @@ class ProfileEditSheet extends StatefulWidget {
     required this.profile,
     required this.onSaveRequested,
     this.showDragHandle = true,
+    this.showBackButton = true,
     this.isSaving = false,
     super.key,
   });
 
   final UserProfileEntity profile;
   final bool showDragHandle;
+  final bool showBackButton;
   final ValueChanged<SettingsUpdateRequest> onSaveRequested;
   final bool isSaving;
 
@@ -166,6 +168,7 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
           ProfileEditHeader(
             size: size,
             showDragHandle: widget.showDragHandle,
+            showBackButton: widget.showBackButton,
           ),
           const SizedBox(height: 24),
           if (isDesktop)

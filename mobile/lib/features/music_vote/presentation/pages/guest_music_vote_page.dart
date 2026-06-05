@@ -2,13 +2,13 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
 import 'package:music_room/features/auth/presentation/state/auth_state.dart';
 import 'package:music_room/features/music_vote/presentation/state/music_vote_cubit.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/event_ended_overlay.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/music_vote_view.dart';
-import 'package:music_room/routes/route_names.dart';
 
 /// Entry-point page for Guests in the "Live Event / Music Track Vote" feature.
 ///
@@ -62,12 +62,16 @@ class GuestMusicVotePage extends StatelessWidget {
                       EventEndedOverlay(
                         onFinished: () {
                           if (context.mounted) {
-                            unawaited(
-                              Navigator.of(context).pushReplacementNamed(
-                                RouteNames.preEvent,
-                                arguments: eventId,
-                              ),
-                            );
+                            Navigator.of(context, rootNavigator: true).pop();
+                            if (context.mounted) {
+                              final currentEventId = eventId?.trim();
+                              if (currentEventId == null ||
+                                  currentEventId.isEmpty) {
+                                return;
+                              }
+
+                              context.go('/events/$currentEventId');
+                            }
                           }
                         },
                       ),

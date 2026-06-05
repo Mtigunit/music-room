@@ -1,7 +1,6 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:music_room/core/widgets/app_back_button.dart';
 import 'package:music_room/core/widgets/app_button.dart';
 import 'package:music_room/core/widgets/app_snackbar.dart';
@@ -111,11 +110,7 @@ class _EnterNewPasswordPageState extends State<EnterNewPasswordPage> {
           );
         } else if (state is ResetPasswordSuccess) {
           AppSnackbar.showSuccess(context, state.message);
-          unawaited(
-            Navigator.of(
-              context,
-            ).pushNamedAndRemoveUntil(RouteNames.auth, (_) => false),
-          );
+          context.go(RouteNames.login);
         } else if (state is ResetPasswordFailure) {
           AppSnackbar.showError(context, state.failure.message);
         }

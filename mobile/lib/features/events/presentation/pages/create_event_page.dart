@@ -2,9 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:music_room/core/models/tag_option.dart';
-
 import 'package:music_room/core/widgets/app_back_button.dart';
 import 'package:music_room/core/widgets/app_snackbar.dart';
 import 'package:music_room/core/widgets/responsive_layout.dart';
@@ -17,7 +17,6 @@ import 'package:music_room/features/events/presentation/widgets/step_1_details.d
 import 'package:music_room/features/events/presentation/widgets/step_2_genre.dart';
 import 'package:music_room/features/events/presentation/widgets/step_3_music.dart';
 import 'package:music_room/features/events/presentation/widgets/step_4_access.dart';
-import 'package:music_room/routes/route_names.dart';
 
 class CreateEventPage extends StatefulWidget {
   const CreateEventPage({super.key});
@@ -113,7 +112,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
         ),
       );
     } else {
-      Navigator.of(context).pop();
+      context.go('/events');
     }
   }
 
@@ -464,12 +463,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
                             }
 
                             if (state is CreateEventSuccess) {
-                              unawaited(
-                                Navigator.of(context).pushReplacementNamed(
-                                  RouteNames.preEvent,
-                                  arguments: state.eventId,
-                                ),
-                              );
+                              context.go('/events/${state.eventId}');
                             }
                           },
                           builder: (context, state) {

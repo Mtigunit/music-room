@@ -8,10 +8,11 @@ import 'package:music_room/core/widgets/feature_chip.dart';
 import 'package:music_room/core/widgets/page_indicator.dart';
 import 'package:music_room/core/widgets/primary_button.dart';
 import 'package:music_room/features/auth/presentation/widgets/onboarding_slide.dart';
-import 'package:music_room/routes/route_names.dart';
 
 class OnboardingPage extends StatefulWidget {
-  const OnboardingPage({super.key});
+  const OnboardingPage({super.key, this.onCompleted});
+
+  final Future<void> Function()? onCompleted;
 
   @override
   State<OnboardingPage> createState() => _OnboardingPageState();
@@ -37,7 +38,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
       return;
     }
 
-    unawaited(Navigator.of(context).pushReplacementNamed(RouteNames.auth));
+    await widget.onCompleted?.call();
   }
 
   void _onSkip() {

@@ -2,9 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/home/presentation/widgets/genre_filter_list.dart';
-import 'package:music_room/features/playlist/presentation/pages/playlist_details_page.dart';
 import 'package:music_room/features/search/data/models/search_filter_type.dart';
 import 'package:music_room/features/search/data/models/search_result_models.dart';
 import 'package:music_room/features/search/data/services/search_query_service.dart';
@@ -102,15 +102,7 @@ class _SearchPageState extends State<SearchPage> {
       return;
     }
 
-    final navigator = Navigator.of(context);
-    if (navigator.canPop()) {
-      navigator.pop();
-      return;
-    }
-
-    unawaited(
-      navigator.pushNamedAndRemoveUntil(RouteNames.home, (_) => false),
-    );
+    context.go(RouteNames.home);
   }
 
   @override
@@ -286,15 +278,7 @@ class _SearchPageState extends State<SearchPage> {
           child: InkWell(
             borderRadius: BorderRadius.circular(18),
             onTap: () {
-              unawaited(
-                Navigator.of(context).pushNamed(
-                  RouteNames.profile,
-                  arguments: <String, dynamic>{
-                    'userId': user.id,
-                    'showBackButton': true,
-                  },
-                ),
-              );
+              context.go('/profile/${user.id}');
             },
             child: SearchUserResultCard(item: user),
           ),
@@ -306,12 +290,7 @@ class _SearchPageState extends State<SearchPage> {
           child: InkWell(
             borderRadius: BorderRadius.circular(18),
             onTap: () {
-              unawaited(
-                Navigator.of(context).pushNamed(
-                  RouteNames.preEvent,
-                  arguments: event.id,
-                ),
-              );
+              context.go('/events/${event.id}');
             },
             child: SearchEventResultCard(item: event),
           ),
@@ -323,15 +302,8 @@ class _SearchPageState extends State<SearchPage> {
           child: InkWell(
             borderRadius: BorderRadius.circular(18),
             onTap: () {
-              unawaited(
-                Navigator.of(context).push(
-                  MaterialPageRoute<void>(
-                    builder: (_) => PlaylistDetailsPage(
-                      playlistId: playlist.id,
-                      playlistName: playlist.name,
-                    ),
-                  ),
-                ),
+              context.go(
+                '/playlists/${playlist.id}?name=${Uri.encodeComponent(playlist.name)}',
               );
             },
             child: SearchPlaylistResultCard(item: playlist),

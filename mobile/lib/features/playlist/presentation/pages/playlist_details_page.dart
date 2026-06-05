@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:music_room/core/theme/app_theme.dart';
 import 'package:music_room/core/utils/tag_genre_normalizer.dart';
 import 'package:music_room/core/widgets/app_back_button.dart';
@@ -536,7 +537,7 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage> {
 
     if (result == 'deleted') {
       AppSnackbar.showSuccess(context, 'Playlist deleted.');
-      Navigator.of(context).pop();
+      context.go('/playlists');
       return;
     }
 
@@ -1590,7 +1591,7 @@ class _TrackList extends StatelessWidget {
       padding: EdgeInsets.fromLTRB(hp, 0, hp, layout.isCompact ? 24 : 32),
       sliver: SliverReorderableList(
         itemCount: tracks.length,
-        onReorder: state.isInteractionLocked
+        onReorderItem: state.isInteractionLocked
             ? (_, _) => _handleLockedReorder(context)
             : (old, next) => unawaited(onReorder(old, next)),
         itemBuilder: (context, index) {

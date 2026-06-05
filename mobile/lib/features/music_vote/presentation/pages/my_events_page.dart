@@ -3,20 +3,15 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:music_room/core/widgets/app_scaffold.dart';
+import 'package:go_router/go_router.dart';
 import 'package:music_room/core/widgets/empty_state_widget.dart';
 import 'package:music_room/core/widgets/premium_segmented_tab_bar.dart';
-import 'package:music_room/core/widgets/sidebar_constants.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
 import 'package:music_room/features/events/domain/entities/my_event_item_model.dart';
-import 'package:music_room/features/events/presentation/pages/create_event_page.dart';
 import 'package:music_room/features/music_vote/data/models/my_event_item.dart';
-import 'package:music_room/features/music_vote/presentation/pages/guest_music_vote_page.dart';
-import 'package:music_room/features/music_vote/presentation/pages/host_music_vote_page.dart';
 import 'package:music_room/features/music_vote/presentation/state/my_events_cubit.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/my_event_list_tile.dart';
-import 'package:music_room/routes/route_names.dart';
 import 'package:visibility_detector/visibility_detector.dart';
 
 /// The "My Events" dashboard page.
@@ -68,16 +63,7 @@ class MyEventsPage extends StatelessWidget {
   }
 
   void _navigateToCreate(BuildContext context) {
-    unawaited(
-      Navigator.of(context).push<void>(
-        MaterialPageRoute<void>(
-          builder: (_) => const AppScaffold(
-            initialIndex: AppTabs.events,
-            foregroundPage: CreateEventPage(),
-          ),
-        ),
-      ),
-    );
+    context.go('/events/create');
   }
 }
 
@@ -202,16 +188,7 @@ class _MyEventsBody extends StatelessWidget {
   }
 
   void _navigateToCreate(BuildContext context) {
-    unawaited(
-      Navigator.of(context).push<void>(
-        MaterialPageRoute<void>(
-          builder: (_) => const AppScaffold(
-            initialIndex: AppTabs.events,
-            foregroundPage: CreateEventPage(),
-          ),
-        ),
-      ),
-    );
+    context.go('/events/create');
   }
 }
 
@@ -323,10 +300,7 @@ class _EventListTab extends StatelessWidget {
 
 Future<void> _enterRoom(BuildContext context, MyEventItem event) async {
   if (event.status == 'UPCOMING' || event.status == 'ENDED') {
-    await Navigator.of(context).pushNamed(
-      RouteNames.preEvent,
-      arguments: event.id,
-    );
+    context.go('/events/${event.id}');
     return;
   }
 
@@ -348,17 +322,9 @@ Future<void> _enterRoom(BuildContext context, MyEventItem event) async {
   if (!context.mounted) return;
 
   if (currentUserId == event.hostId) {
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => HostMusicVotePage(eventId: event.id),
-      ),
-    );
+    context.go('/music-vote/host/${event.id}');
   } else {
-    await Navigator.of(context).push(
-      MaterialPageRoute<void>(
-        builder: (_) => GuestMusicVotePage(eventId: event.id),
-      ),
-    );
+    context.go('/music-vote/guest/${event.id}');
   }
 }
 

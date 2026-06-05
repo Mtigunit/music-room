@@ -1,11 +1,9 @@
-import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:music_room/core/widgets/app_button.dart';
 import 'package:music_room/core/widgets/app_snackbar.dart';
-import 'package:music_room/features/auth/presentation/pages/forgot_password_page.dart';
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
 import 'package:music_room/features/auth/presentation/state/auth_event.dart';
 import 'package:music_room/features/auth/presentation/state/auth_state.dart';
@@ -16,6 +14,7 @@ import 'package:music_room/features/auth/presentation/widgets/auth_text_input_fi
 import 'package:music_room/features/auth/presentation/widgets/google_web_signin_button.dart';
 import 'package:music_room/features/auth/presentation/widgets/social_login_button.dart';
 import 'package:music_room/routes/route_names.dart';
+import 'package:music_room/routes/router.dart' show consumePendingRedirect;
 
 class SignInPage extends StatefulWidget {
   const SignInPage({
@@ -77,12 +76,8 @@ class _SignInPageState extends State<SignInPage> {
     }
   }
 
-  Future<void> _handleForgotPassword() async {
-    await Navigator.of(context).push<void>(
-      MaterialPageRoute<void>(
-        builder: (_) => const ForgotPasswordPage(),
-      ),
-    );
+  void _handleForgotPassword() {
+    context.go('/forgot-password');
   }
 
   @override
@@ -110,19 +105,15 @@ class _SignInPageState extends State<SignInPage> {
           );
         } else if (state is LoginSuccess) {
           AppSnackbar.showSuccess(context, 'Signed in successfully!');
-          unawaited(
-            Navigator.of(context).pushNamedAndRemoveUntil(
-              RouteNames.home,
-              (_) => false,
-            ),
-          );
+          final pendingLocation = consumePendingRedirect();
+          context.go(pendingLocation ?? RouteNames.home);
         } else if (state is GoogleLoginSuccess) {
           AppSnackbar.showSuccess(context, 'Signed in with Google!');
-          unawaited(
-            Navigator.of(context).pushNamedAndRemoveUntil(
-              state.isNewUser ? RouteNames.completeProfile : RouteNames.home,
-              (_) => false,
-            ),
+          final pendingLocation = consumePendingRedirect();
+          context.go(
+            state.isNewUser
+                ? RouteNames.completeProfile
+                : pendingLocation ?? RouteNames.home,
           );
         } else if (state is LoginFailure) {
           AppSnackbar.showError(context, state.failure.message);
@@ -246,11 +237,7 @@ class _SignInPageState extends State<SignInPage> {
                       ),
                       GestureDetector(
                         onTap: () {
-                          unawaited(
-                            Navigator.of(context).pushReplacementNamed(
-                              RouteNames.signUp,
-                            ),
-                          );
+                          context.go(RouteNames.register);
                         },
                         child: Text(
                           'Sign up',

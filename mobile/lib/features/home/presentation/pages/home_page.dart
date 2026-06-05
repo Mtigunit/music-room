@@ -3,13 +3,12 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:go_router/go_router.dart';
 import 'package:music_room/core/models/tag_option.dart';
 import 'package:music_room/core/utils/tag_genre_normalizer.dart';
-import 'package:music_room/core/widgets/app_scaffold.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
 import 'package:music_room/features/events/domain/entities/my_event_item_model.dart';
-import 'package:music_room/features/events/presentation/pages/create_event_page.dart';
 import 'package:music_room/features/home/presentation/state/home_events_cubit.dart';
 import 'package:music_room/features/home/presentation/state/home_events_state.dart';
 import 'package:music_room/features/home/presentation/widgets/event_see_all_sheet.dart';
@@ -18,10 +17,6 @@ import 'package:music_room/features/home/presentation/widgets/home_filter_bottom
 import 'package:music_room/features/home/presentation/widgets/home_header.dart';
 import 'package:music_room/features/home/presentation/widgets/home_search_bar.dart';
 import 'package:music_room/features/home/presentation/widgets/section_title.dart';
-import 'package:music_room/features/music_vote/presentation/pages/guest_music_vote_page.dart';
-import 'package:music_room/features/music_vote/presentation/pages/host_music_vote_page.dart';
-import 'package:music_room/features/search/presentation/pages/search_page.dart';
-import 'package:music_room/routes/route_names.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -92,15 +87,7 @@ class _HomePageState extends State<HomePage> {
               floatingActionButton: FloatingActionButton(
                 heroTag: null,
                 onPressed: () {
-                  unawaited(
-                    Navigator.of(context).push<void>(
-                      MaterialPageRoute<void>(
-                        builder: (_) => const AppScaffold(
-                          foregroundPage: CreateEventPage(),
-                        ),
-                      ),
-                    ),
-                  );
+                  context.go('/events/create');
                 },
                 backgroundColor: Theme.of(context).colorScheme.primary,
                 foregroundColor: Theme.of(context).colorScheme.onPrimary,
@@ -196,10 +183,7 @@ class _HomePageState extends State<HomePage> {
 
   Future<void> _enterRoom(BuildContext context, MyEventItemModel event) async {
     if (event.status == 'UPCOMING' || event.status == 'ENDED') {
-      await Navigator.of(context).pushNamed(
-        RouteNames.preEvent,
-        arguments: event.id,
-      );
+      context.go('/events/${event.id}');
       return;
     }
 
@@ -221,17 +205,9 @@ class _HomePageState extends State<HomePage> {
     if (!context.mounted) return;
 
     if (currentUserId == event.hostId) {
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => HostMusicVotePage(eventId: event.id),
-        ),
-      );
+      context.go('/music-vote/host/${event.id}');
     } else {
-      await Navigator.of(context).push(
-        MaterialPageRoute<void>(
-          builder: (_) => GuestMusicVotePage(eventId: event.id),
-        ),
-      );
+      context.go('/music-vote/guest/${event.id}');
     }
   }
 
@@ -279,12 +255,8 @@ class _HeaderAndFilters extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: HomeSearchBar(
               onSubmitted: (query) {
-                unawaited(
-                  Navigator.of(context).push<void>(
-                    MaterialPageRoute<void>(
-                      builder: (_) => SearchPage(initialQuery: query),
-                    ),
-                  ),
+                context.go(
+                  '/search${query.isNotEmpty ? '?q=${Uri.encodeComponent(query)}' : ''}',
                 );
               },
             ),
