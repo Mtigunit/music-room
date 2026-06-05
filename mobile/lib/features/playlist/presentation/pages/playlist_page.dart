@@ -16,6 +16,7 @@ import 'package:music_room/features/playlist/data/datasources/playlist_remote_da
 import 'package:music_room/features/playlist/domain/entities/playlist_entity.dart';
 import 'package:music_room/features/playlist/presentation/widgets/playlist_collage_image.dart';
 import 'package:music_room/features/playlist/presentation/widgets/skeletons/playlist_page_skeleton.dart';
+import 'package:music_room/routes/route_names.dart';
 
 class PlaylistPage extends StatefulWidget {
   const PlaylistPage({super.key});
@@ -101,11 +102,19 @@ class _PlaylistPageState extends State<PlaylistPage> {
   }
 
   void _openCreatePlaylistPage() {
-    context.go('/playlists/create');
+    unawaited(
+      context
+          .push<void>('${RouteNames.playlists}/create')
+          .then((_) => _loadPlaylists()),
+    );
   }
 
   void _openPlaylistDetails(PlaylistEntity playlist) {
-    context.go('/playlists/${playlist.id}');
+    unawaited(
+      context
+          .push<void>('${RouteNames.playlists}/${playlist.id}')
+          .then((_) => _loadPlaylists()),
+    );
   }
 
   Future<void> _showPlaylistSearchModal() async {
