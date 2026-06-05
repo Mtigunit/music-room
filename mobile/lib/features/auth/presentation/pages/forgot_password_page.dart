@@ -103,9 +103,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     );
   }
 
-  void _closeOtpModalIfOpen() {
+  Future<void> _closeOtpModalIfOpen() async {
     if (_isOtpModalOpen && mounted) {
-      unawaited(Navigator.of(context, rootNavigator: true).maybePop());
+      await Navigator.of(context, rootNavigator: true).maybePop();
     }
     _isOtpModalOpen = false;
   }
@@ -170,24 +170,31 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           }
         } else if (state is PasswordResetOtpVerified) {
           AppSnackbar.showSuccess(context, 'OTP verified successfully!');
-          _closeOtpModalIfOpen();
           if (!_hasNavigatedToResetPage) {
             _hasNavigatedToResetPage = true;
+            final navigator = Navigator.of(context);
+            final email = state.email;
+            final resetToken = state.passwordResetToken;
             unawaited(
-              Navigator.of(context)
-                  .push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => EnterNewPasswordPage(
-                        email: state.email,
-                        resetToken: state.passwordResetToken,
-                      ),
-                    ),
-                  )
-                  .then((_) {
-                    if (mounted) {
-                      _hasNavigatedToResetPage = false;
-                    }
-                  }),
+              _closeOtpModalIfOpen().then((_) {
+                if (!mounted) return;
+                unawaited(
+                  navigator
+                      .push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => EnterNewPasswordPage(
+                            email: email,
+                            resetToken: resetToken,
+                          ),
+                        ),
+                      )
+                      .then((_) {
+                        if (mounted) {
+                          _hasNavigatedToResetPage = false;
+                        }
+                      }),
+                );
+              }),
             );
           }
         } else if (state is PasswordResetOtpVerificationFailure) {
