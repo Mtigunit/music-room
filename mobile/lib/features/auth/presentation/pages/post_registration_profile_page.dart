@@ -4,7 +4,6 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:music_room/core/widgets/app_snackbar.dart';
 import 'package:music_room/core/widgets/responsive_layout.dart';
@@ -18,11 +17,14 @@ import 'package:music_room/features/auth/presentation/widgets/post_registration_
 import 'package:music_room/features/auth/presentation/widgets/post_registration_profile_form_sections.dart';
 import 'package:music_room/features/auth/presentation/widgets/post_registration_profile_theme_section.dart';
 import 'package:music_room/features/settings/domain/entities/settings_update_request.dart';
-import 'package:music_room/routes/route_names.dart';
-import 'package:music_room/routes/router.dart';
 
 class PostRegistrationProfilePage extends StatefulWidget {
-  const PostRegistrationProfilePage({super.key});
+  const PostRegistrationProfilePage({
+    super.key,
+    this.onCompleted,
+  });
+
+  final VoidCallback? onCompleted;
 
   @override
   State<PostRegistrationProfilePage> createState() =>
@@ -404,8 +406,7 @@ class _PostRegistrationProfilePageState
       }
 
       AppSnackbar.showSuccess(context, 'Profile updated successfully.');
-      final pendingLocation = consumePendingRedirect();
-      context.go(pendingLocation ?? RouteNames.home);
+      widget.onCompleted?.call();
     } on DioException catch (error) {
       if (mounted) {
         AppSnackbar.showError(context, _mapSaveError(error));
@@ -431,8 +432,7 @@ class _PostRegistrationProfilePageState
       return;
     }
 
-    final pendingLocation = consumePendingRedirect();
-    context.go(pendingLocation ?? RouteNames.home);
+    widget.onCompleted?.call();
   }
 
   String? _usernameFromAuthState(AuthState state) {

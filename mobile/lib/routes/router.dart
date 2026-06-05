@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import 'package:music_room/core/widgets/app_scaffold.dart';
 import 'package:music_room/features/auth/presentation/pages/enter_new_password_page.dart';
 import 'package:music_room/features/auth/presentation/pages/forgot_password_page.dart';
-import 'package:music_room/features/auth/presentation/pages/post_registration_profile_page.dart';
 import 'package:music_room/features/auth/presentation/pages/sign_in_page.dart';
 import 'package:music_room/features/auth/presentation/pages/sign_up_page.dart';
 import 'package:music_room/features/auth/presentation/state/auth_state.dart';
@@ -45,26 +44,12 @@ const Set<String> _authOnlyRoutes = {
   '/reset-password',
 };
 
-/// Routes that are part of the auth flow but require a freshly-created
-/// account (transitional states). Fully-authenticated users are still
-/// blocked from these, but [RegisterSuccess] is allowed through so the
-/// profile-completion step works correctly.
-const Set<String> _postRegistrationRoutes = {
-  '/complete-profile',
-};
-
 /// Returns true if [location] is an auth-only route (exact path match,
 /// ignoring query parameters and trailing slashes).
 bool _isAuthOnlyRoute(String location) {
   // Strip query string and normalise trailing slash for a reliable match.
   final path = Uri.parse(location).path.replaceAll(RegExp(r'/$'), '');
   return _authOnlyRoutes.contains(path);
-}
-
-/// Returns true if [location] is a post-registration route.
-bool _isPostRegistrationRoute(String location) {
-  final path = Uri.parse(location).path.replaceAll(RegExp(r'/$'), '');
-  return _postRegistrationRoutes.contains(path);
 }
 
 GoRouter createRouter(AuthState Function() authStateProvider) {
@@ -103,10 +88,6 @@ GoRouter createRouter(AuthState Function() authStateProvider) {
 
       // ── 3. Unauthenticated user ────────────────────────────────────────────
       if (!isAnyAuthenticated) {
-        // Block access to post-registration routes for unauthenticated users.
-        if (_isPostRegistrationRoute(location)) {
-          return '/login';
-        }
         // Allow auth-only routes through; guard everything else.
         if (!_isAuthOnlyRoute(location)) {
           _pendingRedirectLocation = location;
@@ -115,19 +96,9 @@ GoRouter createRouter(AuthState Function() authStateProvider) {
         return null; // unauthenticated + auth route → allow
       }
 
-      // ── 4. Newly registered user ───────────────────────────────────────────
-      // Allow /complete-profile through so the onboarding step can finish.
-      // Redirect away from all other auth-only routes.
-      if (isNewRegistration) {
-        if (_isAuthOnlyRoute(location)) {
-          return '/complete-profile';
-        }
-        return null; // let /complete-profile (and protected routes) through
-      }
-
-      // ── 5. Fully authenticated user ────────────────────────────────────────
-      // Block ALL auth-only routes AND post-registration routes.
-      if (_isAuthOnlyRoute(location) || _isPostRegistrationRoute(location)) {
+      // ── 4. Fully authenticated user (or newly registered) ──────────────────
+      // Block auth-only routes.
+      if (_isAuthOnlyRoute(location)) {
         final target = consumePendingRedirect() ?? '/home';
         return target;
       }
@@ -164,10 +135,6 @@ GoRouter createRouter(AuthState Function() authStateProvider) {
             resetToken: resetToken,
           );
         },
-      ),
-      GoRoute(
-        path: '/complete-profile',
-        builder: (context, state) => const PostRegistrationProfilePage(),
       ),
       ShellRoute(
         builder: (context, state, child) {

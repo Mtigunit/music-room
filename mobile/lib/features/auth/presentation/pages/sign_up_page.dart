@@ -232,7 +232,6 @@ class _SignUpPageState extends State<SignUpPage> {
           );
         } else if (state is RegisterSuccess) {
           AppSnackbar.showSuccess(context, 'Account created successfully!');
-          context.go(RouteNames.completeProfile);
         } else if (state is RegisterFailure) {
           AppSnackbar.showError(context, state.failure.message);
         } else if (state is GoogleLoginLoading) {
@@ -243,9 +242,6 @@ class _SignUpPageState extends State<SignUpPage> {
           );
         } else if (state is GoogleLoginSuccess) {
           AppSnackbar.showSuccess(context, 'Account created with Google!');
-          context.go(
-            state.isNewUser ? RouteNames.completeProfile : RouteNames.home,
-          );
         } else if (state is GoogleLoginFailure) {
           AppSnackbar.showError(context, state.failure.message);
         }

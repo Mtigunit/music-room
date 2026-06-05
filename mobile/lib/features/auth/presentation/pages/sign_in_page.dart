@@ -110,11 +110,7 @@ class _SignInPageState extends State<SignInPage> {
         } else if (state is GoogleLoginSuccess) {
           AppSnackbar.showSuccess(context, 'Signed in with Google!');
           final pendingLocation = consumePendingRedirect();
-          context.go(
-            state.isNewUser
-                ? RouteNames.completeProfile
-                : pendingLocation ?? RouteNames.home,
-          );
+          context.go(pendingLocation ?? RouteNames.home);
         } else if (state is LoginFailure) {
           AppSnackbar.showError(context, state.failure.message);
         } else if (state is GoogleLoginFailure) {

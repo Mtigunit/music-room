@@ -29,6 +29,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<LogoutRequested>(_onLogoutRequested);
     on<LogoutFromAllDevicesRequested>(_onLogoutFromAllDevicesRequested);
     on<SessionExpiredRequested>(_onSessionExpiredRequested);
+    on<OnboardingCompleted>(_onOnboardingCompleted);
 
     _sessionExpiredSubscription = apiClient.sessionExpired.listen((_) {
       add(const SessionExpiredRequested());
@@ -55,17 +56,19 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     final (response, failure) = await _authRepository.loginWithGoogle();
 
     if (response != null) {
+      final isNewUser = response.isNewUser ?? false;
       emit(
         GoogleLoginSuccess(
           accessToken: response.accessToken,
           user: response.user,
-          isNewUser: response.isNewUser ?? false,
+          isNewUser: isNewUser,
         ),
       );
       emit(
         AuthAuthenticated(
           accessToken: response.accessToken,
           user: response.user,
+          showOnboarding: isNewUser,
         ),
       );
       unawaited(_syncThemePreference());
@@ -85,17 +88,19 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     );
 
     if (response != null) {
+      final isNewUser = response.isNewUser ?? false;
       emit(
         GoogleLoginSuccess(
           accessToken: response.accessToken,
           user: response.user,
-          isNewUser: response.isNewUser ?? false,
+          isNewUser: isNewUser,
         ),
       );
       emit(
         AuthAuthenticated(
           accessToken: response.accessToken,
           user: response.user,
+          showOnboarding: isNewUser,
         ),
       );
       unawaited(_syncThemePreference());
@@ -308,6 +313,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         AuthAuthenticated(
           accessToken: response.accessToken,
           user: response.user,
+          showOnboarding: true,
         ),
       );
       unawaited(_syncThemePreference());
@@ -338,6 +344,22 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     }
 
     _emitLoggedOut(emit);
+  }
+
+  /// Handle post-registration onboarding completion
+  Future<void> _onOnboardingCompleted(
+    OnboardingCompleted event,
+    Emitter<AuthState> emit,
+  ) async {
+    final current = state;
+    if (current is AuthAuthenticated) {
+      emit(
+        AuthAuthenticated(
+          accessToken: current.accessToken,
+          user: current.user,
+        ),
+      );
+    }
   }
 
   /// Handle session expiration (token expired during active use)

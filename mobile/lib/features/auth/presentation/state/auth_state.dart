@@ -27,16 +27,18 @@ class AuthAuthenticated extends AuthState {
   const AuthAuthenticated({
     required this.accessToken,
     required this.user,
+    this.showOnboarding = false,
   });
 
   final String accessToken;
   final UserProfile user;
+  final bool showOnboarding;
 
   @override
   UserProfile? get currentUser => user;
 
   @override
-  List<Object?> get props => [accessToken, user];
+  List<Object?> get props => [accessToken, user, showOnboarding];
 }
 
 /// User is not authenticated

@@ -12,9 +12,11 @@ import 'package:music_room/core/widgets/app_snackbar.dart';
 import 'package:music_room/core/widgets/delegation_request_host.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/auth/presentation/pages/onboarding_page.dart';
+import 'package:music_room/features/auth/presentation/pages/post_registration_profile_page.dart';
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
 import 'package:music_room/features/auth/presentation/state/auth_event.dart';
 import 'package:music_room/features/auth/presentation/state/auth_state.dart';
+import 'package:music_room/routes/route_names.dart';
 import 'package:music_room/routes/router.dart';
 
 class App extends StatefulWidget {
@@ -112,6 +114,12 @@ class _AppState extends State<App> {
     });
   }
 
+  void _onPostRegistrationCompleted() {
+    _authBloc.add(const OnboardingCompleted());
+    final pendingLocation = consumePendingRedirect();
+    _router.go(pendingLocation ?? RouteNames.home);
+  }
+
   @override
   void dispose() {
     unawaited(_rateLimitSubscription.cancel());
@@ -156,6 +164,12 @@ class _AppState extends State<App> {
                   if (_showOnboarding) {
                     return OnboardingPage(
                       onCompleted: _onOnboardingCompleted,
+                    );
+                  }
+                  if (authState is AuthAuthenticated &&
+                      authState.showOnboarding) {
+                    return PostRegistrationProfilePage(
+                      onCompleted: _onPostRegistrationCompleted,
                     );
                   }
                   return DelegationRequestHost(
