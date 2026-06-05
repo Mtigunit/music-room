@@ -72,11 +72,8 @@ class _PlaylistPageSkeletonState extends State<PlaylistPageSkeleton>
             40,
           ),
           itemCount: 6,
-          gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-            maxCrossAxisExtent: widget.screenSize == ScreenSize.medium
-                ? 300
-                : 340,
-            mainAxisExtent: widget.screenSize == ScreenSize.medium ? 340 : 380,
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: widget.screenSize == ScreenSize.expanded ? 3 : 2,
             crossAxisSpacing: 24,
             mainAxisSpacing: 24,
           ),

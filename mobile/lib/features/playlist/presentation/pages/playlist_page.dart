@@ -401,8 +401,8 @@ class _PlaylistPageState extends State<PlaylistPage> {
                     animation: tabController,
                     builder: (context, _) {
                       return _isLoading
-                          ? const PlaylistPageSkeleton(
-                              screenSize: ScreenSize.medium,
+                          ? PlaylistPageSkeleton(
+                              screenSize: screenSize,
                             )
                           : _errorMessage != null
                           ? Center(
@@ -515,9 +515,8 @@ class _PlaylistTab extends StatelessWidget {
       onRefresh: onRefresh,
       child: GridView.builder(
         padding: const EdgeInsets.fromLTRB(40, 12, 40, 40),
-        gridDelegate: SliverGridDelegateWithMaxCrossAxisExtent(
-          maxCrossAxisExtent: screenSize == ScreenSize.medium ? 300 : 340,
-          mainAxisExtent: screenSize == ScreenSize.medium ? 340 : 380,
+        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+          crossAxisCount: screenSize == ScreenSize.expanded ? 3 : 2,
           crossAxisSpacing: 24,
           mainAxisSpacing: 24,
         ),
