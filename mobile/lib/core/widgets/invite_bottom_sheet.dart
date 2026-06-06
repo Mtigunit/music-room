@@ -153,29 +153,11 @@ class _InviteBottomSheetState extends State<InviteBottomSheet> {
       return widget.friends;
     }
 
-    final query = _searchQuery.toLowerCase();
-    final filteredFriends = widget.friends.where((f) {
+    final query = _searchQuery.trim().toLowerCase();
+    return widget.friends.where((f) {
       return f.name.toLowerCase().contains(query) ||
           f.username.toLowerCase().contains(query);
     }).toList();
-
-    // Mock global search results for demonstration
-    final mockUsers = [
-      InviteFriendData(
-        id: 'mock1',
-        name: 'Global $_searchQuery',
-        username: '@global_${_searchQuery.replaceAll(' ', '')}',
-        colorHex: 0xFF9C27B0,
-      ),
-      InviteFriendData(
-        id: 'mock2',
-        name: '$_searchQuery User',
-        username: '@user_${_searchQuery.replaceAll(' ', '')}',
-        colorHex: 0xFFE91E63,
-      ),
-    ];
-
-    return [...filteredFriends, ...mockUsers];
   }
 
   @override
