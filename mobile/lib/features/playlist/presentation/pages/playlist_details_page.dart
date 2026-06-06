@@ -218,6 +218,7 @@ class _Permissions {
     required this.canManageSettings,
     required this.userId,
     required this.isOwner,
+    required this.collaboratorCount,
   });
 
   factory _Permissions.of(PlaylistDetailsEntity? details, String? userId) {
@@ -228,6 +229,7 @@ class _Permissions {
         canManageSettings: false,
         userId: null,
         isOwner: false,
+        collaboratorCount: 0,
       );
     }
     final isOwner = userId != null && details.ownerUserId == userId;
@@ -241,6 +243,7 @@ class _Permissions {
       canManageSettings: isOwner,
       userId: userId,
       isOwner: isOwner,
+      collaboratorCount: details.collaboratorCount,
     );
   }
 
@@ -249,6 +252,11 @@ class _Permissions {
   final bool canManageSettings;
   final String? userId;
   final bool isOwner;
+  final int collaboratorCount;
+
+  bool get canInvite =>
+      canManageCollaborators &&
+      collaboratorCount < PlaylistDetailsEntity.maxCollaborators;
 
   bool canRemoveTrack(PlaylistTrackEntity track) {
     return isOwner || (userId != null && track.addedByUserId == userId);
@@ -511,6 +519,15 @@ class _PlaylistDetailsPageState extends State<PlaylistDetailsPage> {
     }
 
     final details = _state.details!;
+    if (!_guard(
+      condition: !_permissions.canInvite,
+      message:
+          'This playlist already has the maximum of '
+          '${PlaylistDetailsEntity.maxCollaborators} collaborators.',
+    )) {
+      return;
+    }
+
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -1286,7 +1303,7 @@ class _HeroActions extends StatelessWidget {
             icon: const AppBrandIcon(size: 16),
             filled: true,
           ),
-        if (permissions.canManageCollaborators)
+        if (permissions.canInvite)
           _PillButton(
             onPressed: onInviteUsers,
             label: 'Invite',
@@ -1338,7 +1355,7 @@ class _CompactActionRow extends StatelessWidget {
           ),
           const SizedBox(width: 10),
         ],
-        if (permissions.canManageCollaborators) ...[
+        if (permissions.canInvite) ...[
           _PillButton(
             onPressed: onInviteUsers,
             label: 'Invite',
