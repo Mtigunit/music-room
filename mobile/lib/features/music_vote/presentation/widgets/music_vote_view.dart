@@ -47,6 +47,7 @@ class _MusicVoteViewState extends State<MusicVoteView> {
 
   // ── Audio phase listener ─────────────────────────────────────────────────
   StreamSubscription<AudioPlaybackPhase>? _phaseSub;
+  bool _audioBootstrapped = false;
 
   @override
   void initState() {
@@ -257,6 +258,16 @@ class _MusicVoteViewState extends State<MusicVoteView> {
         },
         child: BlocBuilder<MusicVoteCubit, MusicVoteState>(
           builder: (context, state) {
+            if (!_audioBootstrapped &&
+                !state.isLoading &&
+                state.event != null) {
+              _audioBootstrapped = true;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!mounted) return;
+                unawaited(_driveAudioPlayer(context, state));
+              });
+            }
+
             if (state.isLoading) {
               return const MusicVoteSkeleton();
             }
