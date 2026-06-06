@@ -697,17 +697,31 @@ class _MiniPlayerBar extends StatelessWidget {
                             cubit.pause();
                           } else {
                             final player = context.read<RoomAudioPlayer>();
+                            var canPlay = true;
                             if (player.loadedProviderTrackId !=
                                     track.providerTrackId &&
                                 isHost) {
                               cubit.setAudioLoading(isLoading: true);
-                              await player.loadTrack(
-                                track.providerTrackId,
-                                track.pausedPlaybackPositionMs ?? 0,
-                                autoPlay: false,
-                              );
+                              try {
+                                await player.loadTrack(
+                                  track.providerTrackId,
+                                  track.pausedPlaybackPositionMs ?? 0,
+                                  autoPlay: false,
+                                );
+                              } on Object {
+                                cubit.setAudioLoading(isLoading: false);
+                                canPlay = false;
+                              }
+                              if (canPlay &&
+                                  player.loadedProviderTrackId !=
+                                      track.providerTrackId) {
+                                cubit.setAudioLoading(isLoading: false);
+                                canPlay = false;
+                              }
                             }
-                            cubit.play();
+                            if (canPlay) {
+                              cubit.play();
+                            }
                           }
                         }
                       : null,

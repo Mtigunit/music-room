@@ -175,7 +175,9 @@ class _PlayerCardState extends State<PlayerCard> {
     final textTheme = Theme.of(context).textTheme;
     final track = state.currentTrack;
     final event = state.event;
-    final isPlaying = state.playbackStatus == 'PLAYING';
+    final status = state.playbackStatus;
+    final hasStartedAt = track?.currentTrackStartedAt != null;
+    final isPlaying = status == 'PLAYING' || (status == null && hasStartedAt);
     final isAudioLoading = state.isAudioLoading;
     // Playback controls are visible to the host AND to any user who has
     // accepted a delegation for this event (server confirms via the
@@ -247,17 +249,30 @@ class _PlayerCardState extends State<PlayerCard> {
                                 // emit play to the backend AFTER the audio
                                 // is loaded.
                                 final player = context.read<RoomAudioPlayer>();
+                                var canPlay = true;
                                 if (player.loadedProviderTrackId !=
-                                        track.providerTrackId &&
-                                    widget.isHost) {
+                                    track.providerTrackId) {
                                   cubit.setAudioLoading(isLoading: true);
-                                  await player.loadTrack(
-                                    track.providerTrackId,
-                                    track.pausedPlaybackPositionMs ?? 0,
-                                    autoPlay: false,
-                                  );
+                                  try {
+                                    await player.loadTrack(
+                                      track.providerTrackId,
+                                      track.pausedPlaybackPositionMs ?? 0,
+                                      autoPlay: false,
+                                    );
+                                  } on Object {
+                                    cubit.setAudioLoading(isLoading: false);
+                                    canPlay = false;
+                                  }
+                                  if (canPlay &&
+                                      player.loadedProviderTrackId !=
+                                          track.providerTrackId) {
+                                    cubit.setAudioLoading(isLoading: false);
+                                    canPlay = false;
+                                  }
                                 }
-                                cubit.play();
+                                if (canPlay) {
+                                  cubit.play();
+                                }
                               }
                             }
                           : null,
@@ -278,16 +293,33 @@ class _PlayerCardState extends State<PlayerCard> {
                                   ? state.tracks.first
                                   : null;
 
-                              if (nextTrack != null && widget.isHost) {
+                              var canNext = true;
+                              if (nextTrack != null) {
                                 final player = context.read<RoomAudioPlayer>();
-                                cubit.setAudioLoading(isLoading: true);
-                                await player.loadTrack(
-                                  nextTrack.providerTrackId,
-                                  0,
-                                  autoPlay: false,
-                                );
+                                if (player.loadedProviderTrackId !=
+                                    nextTrack.providerTrackId) {
+                                  cubit.setAudioLoading(isLoading: true);
+                                  try {
+                                    await player.loadTrack(
+                                      nextTrack.providerTrackId,
+                                      0,
+                                      autoPlay: false,
+                                    );
+                                  } on Object {
+                                    cubit.setAudioLoading(isLoading: false);
+                                    canNext = false;
+                                  }
+                                  if (canNext &&
+                                      player.loadedProviderTrackId !=
+                                          nextTrack.providerTrackId) {
+                                    cubit.setAudioLoading(isLoading: false);
+                                    canNext = false;
+                                  }
+                                }
                               }
-                              cubit.next();
+                              if (canNext) {
+                                cubit.next();
+                              }
                             }
                           : null,
                     ),

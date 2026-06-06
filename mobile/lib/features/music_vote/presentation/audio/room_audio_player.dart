@@ -210,7 +210,7 @@ class RoomAudioPlayer {
           }
           if (seq != _requestSeq) return;
           await _player.pause();
-          await _player.seek(Duration.zero);
+          await _player.seek(Duration(milliseconds: startPositionMs));
           await _player.setVolume(oldVol);
           debugPrint('🎵 [RoomAudioPlayer] Web buffer complete.');
         } else {
