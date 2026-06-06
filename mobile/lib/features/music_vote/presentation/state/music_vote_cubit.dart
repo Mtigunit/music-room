@@ -22,6 +22,7 @@ class MusicVoteState {
     this.isAddingTrack = false,
     this.isStartingEvent = false,
     this.isEndingEvent = false,
+    this.isAudioLoading = false,
     this.error,
     this.successMessage,
     this.event,
@@ -36,6 +37,11 @@ class MusicVoteState {
   final bool isAddingTrack;
   final bool isStartingEvent;
   final bool isEndingEvent;
+
+  /// `true` while the audio engine is resolving / buffering the track.
+  /// The UI must NOT start the progress ticker or show "playing" controls
+  /// until this is `false`.
+  final bool isAudioLoading;
   final String? error;
   final String? successMessage;
   final EventDetailModel? event;
@@ -55,6 +61,7 @@ class MusicVoteState {
     bool? isAddingTrack,
     bool? isStartingEvent,
     bool? isEndingEvent,
+    bool? isAudioLoading,
     String? error,
     String? successMessage,
     EventDetailModel? event,
@@ -72,6 +79,7 @@ class MusicVoteState {
       isAddingTrack: isAddingTrack ?? this.isAddingTrack,
       isStartingEvent: isStartingEvent ?? this.isStartingEvent,
       isEndingEvent: isEndingEvent ?? this.isEndingEvent,
+      isAudioLoading: isAudioLoading ?? this.isAudioLoading,
       error: clearError ? null : (error ?? this.error),
       successMessage: clearSuccessMessage
           ? null
@@ -823,6 +831,17 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
     }
   }
 
+  /// Called by the audio phase listener in the View layer to reflect the
+  /// actual audio-engine readiness in the cubit state.
+  ///
+  /// When `isLoading` is `true` the PlayerCard suppresses the progress
+  /// ticker and shows a loading indicator on the play button.
+  void setAudioLoading({required bool isLoading}) {
+    if (isClosed) return;
+    if (state.isAudioLoading == isLoading) return;
+    emit(state.copyWith(isAudioLoading: isLoading));
+  }
+
   /// Re-fetches the event details and merges the latest snapshot into
   /// the state. Used after the local user accepts a delegation so the
   /// `isDelegated` flag flips to `true` and playback controls unlock.
@@ -918,6 +937,7 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
     final eventId = _activeEventId ?? state.event?.id;
     if (eventId == null || eventId.isEmpty) return;
     if (!_socketClient.isConnected) return;
+
     debugPrint('🚀 [MusicVoteCubit] Emitting: playbackPlay for $eventId');
     _socketClient.emit(SocketEvent.playbackPlay.value, <String, dynamic>{
       'eventId': eventId,
@@ -932,6 +952,7 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
     final eventId = _activeEventId ?? state.event?.id;
     if (eventId == null || eventId.isEmpty) return;
     if (!_socketClient.isConnected) return;
+
     debugPrint('🚀 [MusicVoteCubit] Emitting: playbackPause for $eventId');
     _socketClient.emit(SocketEvent.playbackPause.value, <String, dynamic>{
       'eventId': eventId,
@@ -948,6 +969,7 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
     final eventId = _activeEventId ?? state.event?.id;
     if (eventId == null || eventId.isEmpty) return;
     if (!_socketClient.isConnected) return;
+
     final currentTrackId = state.currentTrack?.id;
     debugPrint('🚀 [MusicVoteCubit] Emitting: playbackNext for $eventId');
     _socketClient.emit(SocketEvent.playbackNext.value, <String, dynamic>{

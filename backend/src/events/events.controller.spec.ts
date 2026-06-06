@@ -115,7 +115,7 @@ describe('EventsController', () => {
         .spyOn(service, 'findAll')
         .mockResolvedValue({ data: [], total: 0 } as any);
 
-      await controller.findAll(page, limit, mockReq, search);
+      await controller.findAll({ page, limit, search }, mockReq);
 
       expect(spy).toHaveBeenCalledWith(mockUser.id, { page, limit, search });
     });
@@ -130,7 +130,7 @@ describe('EventsController', () => {
         .spyOn(service, 'findHosting')
         .mockResolvedValue({ data: [], total: 0 } as any);
 
-      await controller.findHosting(page, limit, mockReq, search);
+      await controller.findHosting({ page, limit, search }, mockReq);
 
       expect(spy).toHaveBeenCalledWith(mockUser.id, { page, limit, search });
     });
@@ -145,7 +145,7 @@ describe('EventsController', () => {
         .spyOn(service, 'findInvited')
         .mockResolvedValue({ data: [], total: 0 } as any);
 
-      await controller.findInvited(page, limit, mockReq, search);
+      await controller.findInvited({ page, limit, search }, mockReq);
 
       expect(spy).toHaveBeenCalledWith(mockUser.id, { page, limit, search });
     });
@@ -208,7 +208,7 @@ describe('EventsController', () => {
         pagination: { total: 0, page, limit, totalPages: 0 },
       } as any);
 
-      await controller.getTracks(eventId, mockReq, page, limit);
+      await controller.getTracks(eventId, mockReq, { page, limit });
 
       expect(spy).toHaveBeenCalledWith(eventId, mockUser.id, { page, limit });
     });

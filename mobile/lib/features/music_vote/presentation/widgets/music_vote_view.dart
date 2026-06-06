@@ -6,8 +6,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/widgets/app_brand_icon.dart';
 import 'package:music_room/core/widgets/top_toast.dart';
+import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/music_vote/data/models/event_detail_model.dart';
 import 'package:music_room/features/music_vote/data/models/event_track_model.dart';
+import 'package:music_room/features/music_vote/presentation/audio/room_audio_player.dart';
+import 'package:music_room/features/music_vote/presentation/audio/track_preload.dart';
 import 'package:music_room/features/music_vote/presentation/state/music_vote_cubit.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/live_header.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/player_card.dart';
@@ -42,6 +45,10 @@ class _MusicVoteViewState extends State<MusicVoteView> {
   _connectivitySubscription;
   bool _sheetIsOpen = false;
 
+  // ── Audio phase listener ─────────────────────────────────────────────────
+  StreamSubscription<AudioPlaybackPhase>? _phaseSub;
+  bool _audioBootstrapped = false;
+
   @override
   void initState() {
     super.initState();
@@ -62,9 +69,40 @@ class _MusicVoteViewState extends State<MusicVoteView> {
 
   @override
   void dispose() {
+    unawaited(_phaseSub?.cancel());
+    _phaseSub = null;
+    _audioBootstrapped = false;
     unawaited(_connectivitySubscription.cancel());
     unawaited(_setWakeLock(false));
     super.dispose();
+  }
+
+  /// Subscribe to the [RoomAudioPlayer] phase stream.
+  ///
+  /// Called lazily on the first BlocListener trigger, once the
+  /// [RoomAudioPlayer] has been provided in the widget tree.
+  void _ensurePhaseSubscription(RoomAudioPlayer player) {
+    if (_phaseSub != null) return;
+    _phaseSub = player.phaseStream.listen(_onAudioPhaseChanged);
+  }
+
+  /// Reacts to actual audio engine phases, updating `isAudioLoading` in the
+  /// cubit so the PlayerCard / MiniPlayer can gate progress + controls.
+  void _onAudioPhaseChanged(AudioPlaybackPhase phase) {
+    if (!mounted) return;
+    final cubit = context.read<MusicVoteCubit>();
+
+    switch (phase) {
+      case AudioPlaybackPhase.loading:
+        cubit.setAudioLoading(isLoading: true);
+      case AudioPlaybackPhase.playing:
+        cubit.setAudioLoading(isLoading: false);
+      case AudioPlaybackPhase.paused:
+        cubit.setAudioLoading(isLoading: false);
+      case AudioPlaybackPhase.idle:
+      case AudioPlaybackPhase.error:
+        cubit.setAudioLoading(isLoading: false);
+    }
   }
 
   /// Handles connectivity changes emitted by
@@ -105,6 +143,7 @@ class _MusicVoteViewState extends State<MusicVoteView> {
   }
 
   void _handleHeroVisibility(VisibilityInfo info) {
+    if (!mounted) return;
     final shouldShow = info.visibleFraction < 0.1;
     if (shouldShow != _showMiniPlayer) {
       setState(() => _showMiniPlayer = shouldShow);
@@ -123,56 +162,137 @@ class _MusicVoteViewState extends State<MusicVoteView> {
     }
   }
 
+  // ── Audio orchestration ─────────────────────────────────────────────────
+
+  /// Drives the audio player in response to cubit state changes.
+  ///
+  /// **Critical flow:**
+  /// 1. On track change or PLAYING: stop old audio immediately, emit loading,
+  ///    then `await loadTrack`. The phase stream will emit `playing` only when
+  ///    the audio engine is truly ready.
+  /// 2. On PAUSED: preload but do not play.
+  /// 3. On null track / status: stop.
+  Future<void> _driveAudioPlayer(
+    BuildContext context,
+    MusicVoteState state,
+  ) async {
+    final player = context.read<RoomAudioPlayer>();
+    _ensurePhaseSubscription(player);
+
+    final track = state.currentTrack;
+    final status = state.playbackStatus;
+
+    // ── Nothing to play → stop ────────────────────────────────────────────
+    if (track == null || status == null) {
+      unawaited(player.stop());
+      return;
+    }
+
+    // ── PLAYING → load and play ───────────────────────────────────────────
+    if (status == 'PLAYING') {
+      final startedAt = track.currentTrackStartedAt;
+      final paused = track.pausedPlaybackPositionMs ?? 0;
+      final startPositionMs = startedAt != null
+          ? DateTime.now().difference(startedAt).inMilliseconds + paused
+          : paused;
+
+      // loadTrack internally:
+      //  1. Stops old audio immediately (no overlap).
+      //  2. Emits AudioPlaybackPhase.loading → phase listener sets
+      //     isAudioLoading = true.
+      //  3. Resolves URL + buffers.
+      //  4. Emits AudioPlaybackPhase.playing → phase listener sets
+      //     isAudioLoading = false.
+      unawaited(player.loadTrack(track.providerTrackId, startPositionMs));
+      return;
+    }
+
+    // ── PAUSED → preload but do not play ──────────────────────────────────
+    if (status == 'PAUSED') {
+      final resumePositionMs = track.pausedPlaybackPositionMs ?? 0;
+      // loadTrack with autoPlay: false will resolve the URL, prepare the
+      // player, seek to the correct position, and then emit paused.
+      // It does NOT emit loading, so the user sees an interactive play button
+      // immediately upon entering the room, while buffering happens silently.
+      unawaited(
+        player.loadTrack(
+          track.providerTrackId,
+          resumePositionMs,
+          autoPlay: false,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    return BlocListener<MusicVoteCubit, MusicVoteState>(
-      listenWhen: (prev, curr) =>
-          prev.error != curr.error ||
-          prev.successMessage != curr.successMessage ||
-          prev.playbackStatus != curr.playbackStatus ||
-          prev.currentTrack?.id != curr.currentTrack?.id,
-      listener: (context, state) {
-        if (state.error != null && state.event != null) {
-          TopToast.show(context, state.error!);
-          context.read<MusicVoteCubit>().clearError();
-        }
-
-        if (state.successMessage != null && state.event != null) {
-          TopToast.show(context, state.successMessage!, isError: false);
-          context.read<MusicVoteCubit>().clearSuccessMessage();
-        }
-
-        final shouldKeepAwake =
-            state.playbackStatus == 'PLAYING' && state.currentTrack != null;
-        unawaited(_setWakeLock(shouldKeepAwake));
-      },
-      child: BlocBuilder<MusicVoteCubit, MusicVoteState>(
-        builder: (context, state) {
-          if (state.isLoading) {
-            return const MusicVoteSkeleton();
+    return RepositoryProvider<RoomAudioPlayer>(
+      create: (context) => InjectionContainer().createRoomAudioPlayer(),
+      dispose: (player) => player.dispose(),
+      child: BlocListener<MusicVoteCubit, MusicVoteState>(
+        listenWhen: (prev, curr) =>
+            prev.error != curr.error ||
+            prev.successMessage != curr.successMessage ||
+            prev.playbackStatus != curr.playbackStatus ||
+            prev.currentTrack?.id != curr.currentTrack?.id,
+        listener: (context, state) {
+          if (state.error != null && state.event != null) {
+            TopToast.show(context, state.error!);
+            context.read<MusicVoteCubit>().clearError();
           }
 
-          if (state.error != null && state.event == null) {
-            return _ErrorScaffold(
+          if (state.successMessage != null && state.event != null) {
+            TopToast.show(context, state.successMessage!, isError: false);
+            context.read<MusicVoteCubit>().clearSuccessMessage();
+          }
+
+          final shouldKeepAwake =
+              state.playbackStatus == 'PLAYING' && state.currentTrack != null;
+          unawaited(_setWakeLock(shouldKeepAwake));
+
+          // Drive the audio player — the real state will propagate back
+          // through the phase stream → _onAudioPhaseChanged → cubit.
+          unawaited(_driveAudioPlayer(context, state));
+        },
+        child: BlocBuilder<MusicVoteCubit, MusicVoteState>(
+          builder: (context, state) {
+            if (!_audioBootstrapped &&
+                !state.isLoading &&
+                state.event != null) {
+              _audioBootstrapped = true;
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!mounted) return;
+                unawaited(_driveAudioPlayer(context, state));
+              });
+            }
+
+            if (state.isLoading) {
+              _audioBootstrapped = false;
+              return const MusicVoteSkeleton();
+            }
+
+            if (state.error != null && state.event == null) {
+              return _ErrorScaffold(
+                eventId: widget.eventId,
+                isHost: widget.isHost,
+                message: state.error!,
+                onRetry: widget.eventId != null && widget.eventId!.isNotEmpty
+                    ? () => context.read<MusicVoteCubit>().loadRoom(
+                        widget.eventId!,
+                      )
+                    : null,
+              );
+            }
+
+            return _LoadedScaffold(
               eventId: widget.eventId,
               isHost: widget.isHost,
-              message: state.error!,
-              onRetry: widget.eventId != null && widget.eventId!.isNotEmpty
-                  ? () => context.read<MusicVoteCubit>().loadRoom(
-                      widget.eventId!,
-                    )
-                  : null,
+              showMiniPlayer: _showMiniPlayer,
+              onHeroVisibility: _handleHeroVisibility,
+              state: state,
             );
-          }
-
-          return _LoadedScaffold(
-            eventId: widget.eventId,
-            isHost: widget.isHost,
-            showMiniPlayer: _showMiniPlayer,
-            onHeroVisibility: _handleHeroVisibility,
-            state: state,
-          );
-        },
+          },
+        ),
       ),
     );
   }
@@ -366,8 +486,10 @@ class _LoadedScaffold extends StatelessWidget {
               child: _MiniPlayerBar(
                 track: state.currentTrack!,
                 isPlaying: state.playbackStatus == 'PLAYING',
+                isAudioLoading: state.isAudioLoading,
                 canControlPlayback:
                     isHost || (state.event?.isDelegated ?? false),
+                isHost: isHost,
               ),
             ),
         ],
@@ -473,20 +595,28 @@ class _MiniPlayerBar extends StatelessWidget {
   const _MiniPlayerBar({
     required this.track,
     required this.isPlaying,
+    required this.isAudioLoading,
     required this.canControlPlayback,
+    required this.isHost,
   });
 
   final EventTrackModel track;
   final bool isPlaying;
 
+  /// `true` when audio is still buffering / resolving the stream URL.
+  final bool isAudioLoading;
+
   /// `true` when the local user is the host or has accepted a delegation.
   final bool canControlPlayback;
+
+  /// `true` when the local user is the primary event host.
+  final bool isHost;
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final accent = colorScheme.primary;
-    final controlsEnabled = canControlPlayback;
+    final controlsEnabled = canControlPlayback && !isAudioLoading;
 
     return SafeArea(
       top: false,
@@ -540,23 +670,47 @@ class _MiniPlayerBar extends StatelessWidget {
                   ],
                 ),
               ),
-              _MiniControlButton(
-                icon: isPlaying
-                    ? Icons.pause_rounded
-                    : Icons.play_arrow_rounded,
-                accent: accent,
-                enabled: controlsEnabled,
-                onPressed: controlsEnabled
-                    ? () {
-                        final cubit = context.read<MusicVoteCubit>();
-                        if (isPlaying) {
-                          cubit.pause();
-                        } else {
-                          cubit.play();
+              if (isAudioLoading && canControlPlayback)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: accent,
+                    ),
+                  ),
+                )
+              else
+                _MiniControlButton(
+                  icon: isPlaying
+                      ? Icons.pause_rounded
+                      : Icons.play_arrow_rounded,
+                  accent: accent,
+                  enabled: controlsEnabled,
+                  onPressed: controlsEnabled
+                      ? () async {
+                          final cubit = context.read<MusicVoteCubit>();
+                          if (isPlaying) {
+                            cubit.pause();
+                          } else {
+                            final canPlay = await ensureTrackPreloaded(
+                              player: context.read<RoomAudioPlayer>(),
+                              cubit: cubit,
+                              providerTrackId: track.providerTrackId,
+                              startPositionMs:
+                                  track.pausedPlaybackPositionMs ?? 0,
+                              isMounted: () => context.mounted,
+                              preload: isHost,
+                            );
+                            if (canPlay) {
+                              cubit.play();
+                            }
+                          }
                         }
-                      }
-                    : null,
-              ),
+                      : null,
+                ),
               const SizedBox(width: 6),
               const _MiniControlButton(
                 icon: Icons.queue_music_rounded,

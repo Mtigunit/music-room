@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/utils/tag_genre_normalizer.dart';
 import 'package:music_room/core/widgets/app_brand_icon.dart';
+import 'package:music_room/features/music_vote/presentation/audio/room_audio_player.dart';
+import 'package:music_room/features/music_vote/presentation/audio/track_preload.dart';
 import 'package:music_room/features/music_vote/presentation/state/music_vote_cubit.dart';
 
 /// The hero player section.
@@ -23,7 +25,8 @@ class PlayerCard extends StatefulWidget {
 
 class _PlayerCardState extends State<PlayerCard> {
   /// Ticker used to advance the progress bar locally while the room is
-  /// PLAYING. The authoritative position arrives from `playback:status`.
+  /// PLAYING **and** the audio engine has finished loading. The authoritative
+  /// position arrives from `playback:status`.
   Timer? _progressTicker;
 
   /// Wall-clock time at which the current playback snapshot was applied.
@@ -36,6 +39,7 @@ class _PlayerCardState extends State<PlayerCard> {
   String? _lastStatus;
   int? _lastPausedMs;
   DateTime? _lastStartedAt;
+  bool _lastIsAudioLoading = false;
 
   @override
   void initState() {
@@ -56,9 +60,13 @@ class _PlayerCardState extends State<PlayerCard> {
   ///    `pausedPlaybackPositionMs` as an offset (resume-safe).
   ///  - If paused or `currentTrackStartedAt` is null, use
   ///    `pausedPlaybackPositionMs`.
+  ///
+  /// **Critical guard:** The progress ticker is NOT started while
+  /// `isAudioLoading` is `true` — the audio engine hasn't emitted sound yet.
   void _syncWithState(MusicVoteState state) {
     final track = state.currentTrack;
     final status = state.playbackStatus;
+    final isAudioLoading = state.isAudioLoading;
     final hasStartedAt = track?.currentTrackStartedAt != null;
     final isPlaying = status == 'PLAYING' || (status == null && hasStartedAt);
 
@@ -66,11 +74,13 @@ class _PlayerCardState extends State<PlayerCard> {
     final statusChanged = status != _lastStatus;
     final pausedMsChanged = track?.pausedPlaybackPositionMs != _lastPausedMs;
     final startedAtChanged = track?.currentTrackStartedAt != _lastStartedAt;
+    final loadingChanged = isAudioLoading != _lastIsAudioLoading;
 
     if (!trackChanged &&
         !statusChanged &&
         !pausedMsChanged &&
-        !startedAtChanged) {
+        !startedAtChanged &&
+        !loadingChanged) {
       return;
     }
 
@@ -78,12 +88,25 @@ class _PlayerCardState extends State<PlayerCard> {
     _lastStatus = status;
     _lastPausedMs = track?.pausedPlaybackPositionMs;
     _lastStartedAt = track?.currentTrackStartedAt;
+    _lastIsAudioLoading = isAudioLoading;
 
     _progressTicker?.cancel();
 
     if (track == null) {
       _progressMs = 0;
       _baselineMs = 0;
+      _snapshotAt = DateTime.now();
+      return;
+    }
+
+    // ── While audio is loading, freeze the progress bar at zero ──────────
+    if (isAudioLoading) {
+      // When loading a *new* track (track changed), reset progress to 0.
+      // When resuming the same track, keep the last known position.
+      if (trackChanged) {
+        _progressMs = 0;
+        _baselineMs = 0;
+      }
       _snapshotAt = DateTime.now();
       return;
     }
@@ -104,8 +127,8 @@ class _PlayerCardState extends State<PlayerCard> {
       _progressMs = pausedMs;
     }
 
-    // ── Arm local ticker while playing ──────────────────────────────────
-    if (isPlaying && track.durationMs > 0) {
+    // ── Arm local ticker while playing (and NOT loading) ─────────────────
+    if (isPlaying && !isAudioLoading && track.durationMs > 0) {
       _progressTicker = Timer.periodic(
         const Duration(milliseconds: 500),
         (_) {
@@ -131,6 +154,7 @@ class _PlayerCardState extends State<PlayerCard> {
           prev.currentTrack?.thumbnailUrl != curr.currentTrack?.thumbnailUrl ||
           prev.currentTrack?.durationMs != curr.currentTrack?.durationMs ||
           prev.playbackStatus != curr.playbackStatus ||
+          prev.isAudioLoading != curr.isAudioLoading ||
           prev.currentTrack?.pausedPlaybackPositionMs !=
               curr.currentTrack?.pausedPlaybackPositionMs ||
           prev.currentTrack?.currentTrackStartedAt !=
@@ -152,7 +176,10 @@ class _PlayerCardState extends State<PlayerCard> {
     final textTheme = Theme.of(context).textTheme;
     final track = state.currentTrack;
     final event = state.event;
-    final isPlaying = state.playbackStatus == 'PLAYING';
+    final status = state.playbackStatus;
+    final hasStartedAt = track?.currentTrackStartedAt != null;
+    final isPlaying = status == 'PLAYING' || (status == null && hasStartedAt);
+    final isAudioLoading = state.isAudioLoading;
     // Playback controls are visible to the host AND to any user who has
     // accepted a delegation for this event (server confirms via the
     // `isDelegated` field on `GET /events/{id}`).
@@ -208,20 +235,31 @@ class _PlayerCardState extends State<PlayerCard> {
                   Positioned(
                     left: 16,
                     bottom: 16,
-                    child: _HeroControlButton(
-                      icon: isPlaying
-                          ? Icons.pause_rounded
-                          : Icons.play_arrow_rounded,
-                      filled: true,
+                    child: _HeroPlayButton(
+                      isPlaying: isPlaying,
+                      isLoading: isAudioLoading,
                       accent: colorScheme.primary,
-                      enabled: track != null,
-                      onTap: track != null
-                          ? () {
+                      enabled: track != null && !isAudioLoading,
+                      onTap: track != null && !isAudioLoading
+                          ? () async {
                               final cubit = context.read<MusicVoteCubit>();
                               if (isPlaying) {
                                 cubit.pause();
                               } else {
-                                cubit.play();
+                                // To keep the progress bar in sync, we only
+                                // emit play to the backend AFTER the audio
+                                // is loaded.
+                                final canPlay = await ensureTrackPreloaded(
+                                  player: context.read<RoomAudioPlayer>(),
+                                  cubit: cubit,
+                                  providerTrackId: track.providerTrackId,
+                                  startPositionMs:
+                                      track.pausedPlaybackPositionMs ?? 0,
+                                  isMounted: () => mounted,
+                                );
+                                if (canPlay) {
+                                  cubit.play();
+                                }
                               }
                             }
                           : null,
@@ -234,9 +272,27 @@ class _PlayerCardState extends State<PlayerCard> {
                       icon: Icons.skip_next_rounded,
                       filled: false,
                       accent: Colors.white,
-                      enabled: track != null,
-                      onTap: track != null
-                          ? () => context.read<MusicVoteCubit>().next()
+                      enabled: track != null && !isAudioLoading,
+                      onTap: track != null && !isAudioLoading
+                          ? () async {
+                              final cubit = context.read<MusicVoteCubit>();
+                              final nextTrack = state.tracks.isNotEmpty
+                                  ? state.tracks.first
+                                  : null;
+
+                              final canNext =
+                                  nextTrack != null &&
+                                  await ensureTrackPreloaded(
+                                    player: context.read<RoomAudioPlayer>(),
+                                    cubit: cubit,
+                                    providerTrackId: nextTrack.providerTrackId,
+                                    startPositionMs: 0,
+                                    isMounted: () => mounted,
+                                  );
+                              if (canNext) {
+                                cubit.next();
+                              }
+                            }
                           : null,
                     ),
                   ),
@@ -279,6 +335,7 @@ class _PlayerCardState extends State<PlayerCard> {
                   positionMs: _progressMs,
                   durationMs: durationMs,
                   isOnDark: true,
+                  isLoading: isAudioLoading,
                 ),
               ],
             ),
@@ -325,6 +382,63 @@ class _HeroImage extends StatelessWidget {
         ),
       ),
       child: const Center(child: AppBrandIcon(size: 72)),
+    );
+  }
+}
+
+/// Play / Pause hero button that shows a loading spinner when audio is
+/// buffering.
+class _HeroPlayButton extends StatelessWidget {
+  const _HeroPlayButton({
+    required this.isPlaying,
+    required this.isLoading,
+    required this.accent,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final bool isPlaying;
+  final bool isLoading;
+  final Color accent;
+  final bool enabled;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Opacity(
+      opacity: enabled || isLoading ? 1.0 : 0.5,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: enabled ? onTap : null,
+          borderRadius: BorderRadius.circular(36),
+          child: Container(
+            width: 58,
+            height: 58,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: accent,
+              border: Border.all(
+                color: accent.withValues(alpha: 0.7),
+                width: 1.5,
+              ),
+            ),
+            child: isLoading
+                ? const Padding(
+                    padding: EdgeInsets.all(15),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: Colors.white,
+                    ),
+                  )
+                : Icon(
+                    isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                    size: 28,
+                    color: Colors.white,
+                  ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -389,6 +503,7 @@ class _ProgressBar extends StatelessWidget {
     required this.positionMs,
     required this.durationMs,
     this.isOnDark = false,
+    this.isLoading = false,
   });
 
   final double progress;
@@ -396,6 +511,9 @@ class _ProgressBar extends StatelessWidget {
   final int positionMs;
   final int durationMs;
   final bool isOnDark;
+
+  /// When `true`, the slider shows a pulsing / indeterminate visual.
+  final bool isLoading;
 
   String _formatMs(int ms) {
     final totalSeconds = (ms ~/ 1000).clamp(0, 1 << 31);
@@ -419,36 +537,49 @@ class _ProgressBar extends StatelessWidget {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        SliderTheme(
-          data: SliderTheme.of(context).copyWith(
-            trackHeight: 5,
-            trackShape: const RoundedRectSliderTrackShape(),
-            thumbShape: const RoundSliderThumbShape(
-              enabledThumbRadius: 7,
-              elevation: 0,
-              pressedElevation: 0,
+        if (isLoading)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 18),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(2.5),
+              child: LinearProgressIndicator(
+                minHeight: 5,
+                backgroundColor: inactiveTrack,
+                color: activeTrack.withValues(alpha: 0.6),
+              ),
             ),
-            overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
-            activeTrackColor: activeTrack,
-            disabledActiveTrackColor: activeTrack,
-            inactiveTrackColor: inactiveTrack,
-            disabledInactiveTrackColor: inactiveTrack,
-            thumbColor: activeTrack,
-            disabledThumbColor: activeTrack,
-            overlayColor: activeTrack.withValues(alpha: 0.2),
+          )
+        else
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              trackHeight: 5,
+              trackShape: const RoundedRectSliderTrackShape(),
+              thumbShape: const RoundSliderThumbShape(
+                enabledThumbRadius: 7,
+                elevation: 0,
+                pressedElevation: 0,
+              ),
+              overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
+              activeTrackColor: activeTrack,
+              disabledActiveTrackColor: activeTrack,
+              inactiveTrackColor: inactiveTrack,
+              disabledInactiveTrackColor: inactiveTrack,
+              thumbColor: activeTrack,
+              disabledThumbColor: activeTrack,
+              overlayColor: activeTrack.withValues(alpha: 0.2),
+            ),
+            child: Slider(
+              value: progress,
+              onChanged: null,
+            ),
           ),
-          child: Slider(
-            value: progress,
-            onChanged: null,
-          ),
-        ),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                _formatMs(positionMs),
+                isLoading ? '--:--' : _formatMs(positionMs),
                 style: textTheme.bodySmall?.copyWith(
                   color: labelColor,
                   fontSize: 11,

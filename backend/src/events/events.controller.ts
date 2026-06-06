@@ -12,8 +12,6 @@ import {
   UploadedFile,
   Req,
   Query,
-  ParseIntPipe,
-  DefaultValuePipe,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -23,7 +21,6 @@ import {
   ApiBody,
   ApiBearerAuth,
   ApiConsumes,
-  ApiQuery,
 } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { EventsService } from './events.service';
@@ -66,33 +63,13 @@ export class EventsController {
 
   @Get()
   @ApiOperation({ summary: 'Get all public events' })
-  @ApiQuery({
-    name: 'page',
-    required: false,
-    type: Number,
-    description: 'Page number (default 1)',
-  })
-  @ApiQuery({
-    name: 'limit',
-    required: false,
-    type: Number,
-    description: 'Items per page (default 10)',
-  })
-  @ApiQuery({
-    name: 'search',
-    required: false,
-    type: String,
-    description: 'Search events by name, tags, or description',
-  })
   @ApiResponse({ status: 200, description: 'List of public events.' })
   findAll(
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query() query: EventQueryDto,
     @Req() req: Request,
-    @Query('search') search?: string,
   ) {
     const userId = (req.user as { id: string }).id;
-    return this.eventsService.findAll(userId, { page, limit, search });
+    return this.eventsService.findAll(userId, query);
   }
 
   @Get('explore')
@@ -121,70 +98,30 @@ export class EventsController {
 
   @Get('hosting')
   @ApiOperation({ summary: 'Get all events created by that user' })
-  @ApiQuery({
-    name: 'page',
-    required: false,
-    type: Number,
-    description: 'Page number (default 1)',
-  })
-  @ApiQuery({
-    name: 'limit',
-    required: false,
-    type: Number,
-    description: 'Items per page (default 10)',
-  })
-  @ApiQuery({
-    name: 'search',
-    required: false,
-    type: String,
-    description: 'Search events by name, tags, or description',
-  })
   @ApiResponse({
     status: 200,
     description: 'List of events hosted by the user.',
   })
   findHosting(
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query() query: EventQueryDto,
     @Req() req: Request,
-    @Query('search') search?: string,
   ) {
     const userId = (req.user as { id: string }).id;
-    return this.eventsService.findHosting(userId, { page, limit, search });
+    return this.eventsService.findHosting(userId, query);
   }
 
   @Get('invited')
   @ApiOperation({ summary: 'Get all events that the user was invited to' })
-  @ApiQuery({
-    name: 'page',
-    required: false,
-    type: Number,
-    description: 'Page number (default 1)',
-  })
-  @ApiQuery({
-    name: 'limit',
-    required: false,
-    type: Number,
-    description: 'Items per page (default 10)',
-  })
-  @ApiQuery({
-    name: 'search',
-    required: false,
-    type: String,
-    description: 'Search events by name, tags, or description',
-  })
   @ApiResponse({
     status: 200,
     description: 'List of events the user is invited to.',
   })
   findInvited(
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query() query: EventQueryDto,
     @Req() req: Request,
-    @Query('search') search?: string,
   ) {
     const userId = (req.user as { id: string }).id;
-    return this.eventsService.findInvited(userId, { page, limit, search });
+    return this.eventsService.findInvited(userId, query);
   }
 
   @Get(':id')
@@ -250,29 +187,16 @@ export class EventsController {
   @Get(':id/tracks')
   @ApiOperation({ summary: 'Get tracks of an event' })
   @ApiParam({ name: 'id', type: String })
-  @ApiQuery({
-    name: 'page',
-    required: false,
-    type: Number,
-    description: 'Page number (default 1)',
-  })
-  @ApiQuery({
-    name: 'limit',
-    required: false,
-    type: Number,
-    description: 'Items per page (default 10)',
-  })
   @ApiResponse({ status: 200, description: 'Event tracks retrieved.' })
   @ApiResponse({ status: 403, description: 'Forbidden. No access to event.' })
   @ApiResponse({ status: 404, description: 'Event not found.' })
   getTracks(
     @Param('id', ParseUUIDPipe) id: string,
     @Req() req: Request,
-    @Query('page', new DefaultValuePipe(1), ParseIntPipe) page: number,
-    @Query('limit', new DefaultValuePipe(10), ParseIntPipe) limit: number,
+    @Query() query: PaginationDto,
   ) {
     const userId = (req.user as { id: string }).id;
-    return this.eventsService.getTracks(id, userId, { page, limit });
+    return this.eventsService.getTracks(id, userId, query);
   }
 
   @Delete(':id')
