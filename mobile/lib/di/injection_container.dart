@@ -25,6 +25,8 @@ import 'package:music_room/features/home/presentation/state/home_events_cubit.da
 import 'package:music_room/features/music_vote/data/datasources/music_vote_remote_datasource.dart';
 import 'package:music_room/features/music_vote/data/repositories/music_vote_repository_impl.dart';
 import 'package:music_room/features/music_vote/domain/repositories/music_vote_repository.dart';
+import 'package:music_room/features/music_vote/presentation/audio/room_audio_player.dart';
+import 'package:music_room/features/music_vote/presentation/audio/stream_url_service.dart';
 import 'package:music_room/features/playlist/data/datasources/playlist_cache_datasource.dart';
 import 'package:music_room/features/playlist/data/datasources/playlist_remote_datasource.dart';
 import 'package:music_room/features/playlist/presentation/state/playlist_bloc.dart';
@@ -75,6 +77,7 @@ class InjectionContainer {
   late DelegationGateway _delegationGateway;
   late IHomeRemoteDataSource _homeRemoteDataSource;
   late HomeRepository _homeRepository;
+  late StreamUrlService _streamUrlService;
 
   /// Initialize all dependencies
   Future<void> init() async {
@@ -166,6 +169,7 @@ class InjectionContainer {
     _musicVoteRepository = MusicVoteRepositoryImpl(
       remoteDataSource: _musicVoteRemoteDataSource,
     );
+    _streamUrlService = StreamUrlService(dio: _apiClient.dio);
   }
 
   // Getters
@@ -200,6 +204,11 @@ class InjectionContainer {
   DelegationGateway get delegationGateway => _delegationGateway;
   IHomeRemoteDataSource get homeRemoteDataSource => _homeRemoteDataSource;
   HomeRepository get homeRepository => _homeRepository;
+  StreamUrlService get streamUrlService => _streamUrlService;
+
+  RoomAudioPlayer createRoomAudioPlayer() {
+    return RoomAudioPlayer(streamUrlService: _streamUrlService);
+  }
 
   AuthBloc createAuthBloc() {
     return AuthBloc(

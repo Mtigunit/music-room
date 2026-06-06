@@ -15,7 +15,7 @@ class StreamUrlService {
   ///
   /// Calls `GET /playback/stream/{providerTrackId}`.
   /// Returns the stream URL as a string, or `null` if any network error,
-  /// timeout, or bad response occurs.
+  /// timeout, bad response, or malformed URL occurs.
   Future<String?> resolveAudioStreamUrl(String providerTrackId) async {
     try {
       final response = await _dio.get<Map<String, dynamic>>(
@@ -30,7 +30,7 @@ class StreamUrlService {
       if (response.statusCode == 200 && response.data != null) {
         final data = response.data!;
         final url = data['url'];
-        if (url is String && url.isNotEmpty) {
+        if (url is String && url.isNotEmpty && _isValidStreamUrl(url)) {
           return url;
         }
       }
@@ -44,5 +44,10 @@ class StreamUrlService {
       debugPrint('[StreamUrlService] Failed to resolve stream URL: $e');
       return null;
     }
+  }
+
+  static bool _isValidStreamUrl(String url) {
+    final uri = Uri.tryParse(url);
+    return uri != null && uri.hasScheme && uri.host.isNotEmpty;
   }
 }

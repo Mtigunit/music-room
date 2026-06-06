@@ -42,6 +42,9 @@ class RoomAudioPlayer {
   bool _audioSessionInitialized = false;
   String? _loadedProviderTrackId;
   int _requestSeq = 0;
+  bool _disposed = false;
+  StreamSubscription<AudioInterruptionEvent>? _interruptionSub;
+  StreamSubscription<void>? _becomingNoisySub;
 
   /// The provider ID of the currently loaded or loading track.
   String? get loadedProviderTrackId => _loadedProviderTrackId;
@@ -79,6 +82,14 @@ class RoomAudioPlayer {
     try {
       final session = await AudioSession.instance;
       await session.configure(const AudioSessionConfiguration.music());
+      _interruptionSub ??= session.interruptionEventStream.listen((event) {
+        if (_disposed || !event.begin) return;
+        unawaited(pause());
+      });
+      _becomingNoisySub ??= session.becomingNoisyEventStream.listen((_) {
+        if (_disposed) return;
+        unawaited(pause());
+      });
       _audioSessionInitialized = true;
     } on Object catch (e) {
       debugPrint('[RoomAudioPlayer] Failed to initialize AudioSession: $e');
@@ -93,7 +104,10 @@ class RoomAudioPlayer {
   /// then [AudioPlaybackPhase.playing] once audio is actually emitting sound.
   /// If [autoPlay] is false, it silently preloads in the background to avoid
   /// blocking the UI, and stays in [AudioPlaybackPhase.paused].
-  Future<void> loadTrack(
+  ///
+  /// Returns `true` when the track is ready at [startPositionMs], or `false`
+  /// when the load was aborted, superseded, or failed.
+  Future<bool> loadTrack(
     String providerTrackId,
     int startPositionMs, {
     bool autoPlay = true,
@@ -117,7 +131,7 @@ class RoomAudioPlayer {
     await _initAudioSession();
     if (seq != _requestSeq) {
       debugPrint('🎵 [RoomAudioPlayer] loadTrack aborted: newer request (1)');
-      return;
+      return false;
     }
 
     if (_loadedProviderTrackId == providerTrackId) {
@@ -127,24 +141,25 @@ class RoomAudioPlayer {
       );
       try {
         await _player.seek(Duration(milliseconds: startPositionMs));
-        if (seq != _requestSeq) return;
+        if (seq != _requestSeq) return false;
 
         if (autoPlay) {
           await _player.play();
-          if (seq != _requestSeq) return;
+          if (seq != _requestSeq) return false;
           _emitPhase(AudioPlaybackPhase.playing);
         } else {
           await _player.pause();
-          if (seq != _requestSeq) return;
+          if (seq != _requestSeq) return false;
           _emitPhase(AudioPlaybackPhase.paused);
         }
+        return true;
       } on Object catch (e) {
         debugPrint('🎵 [RoomAudioPlayer] Idempotent load/seek error: $e');
         if (autoPlay && seq == _requestSeq) {
           _emitPhase(AudioPlaybackPhase.error);
         }
+        return false;
       }
-      return;
     }
 
     // Clear stale track id so a failed load doesn't leave a stale reference.
@@ -154,7 +169,7 @@ class RoomAudioPlayer {
     final url = await _streamUrlService.resolveAudioStreamUrl(providerTrackId);
     if (seq != _requestSeq) {
       debugPrint('🎵 [RoomAudioPlayer] loadTrack aborted: newer request (2)');
-      return;
+      return false;
     }
 
     if (url == null) {
@@ -165,13 +180,13 @@ class RoomAudioPlayer {
       if (autoPlay && seq == _requestSeq) {
         _emitPhase(AudioPlaybackPhase.error);
       }
-      return;
+      return false;
     }
 
     debugPrint('🎵 [RoomAudioPlayer] URL resolved. Setting URL on player...');
     try {
       await _player.setUrl(url);
-      if (seq != _requestSeq) return;
+      if (seq != _requestSeq) return false;
 
       _loadedProviderTrackId = providerTrackId;
 
@@ -179,7 +194,7 @@ class RoomAudioPlayer {
       await _player.seek(
         Duration(milliseconds: startPositionMs),
       );
-      if (seq != _requestSeq) return;
+      if (seq != _requestSeq) return false;
 
       if (autoPlay) {
         debugPrint('🎵 [RoomAudioPlayer] Calling play()...');
@@ -194,9 +209,10 @@ class RoomAudioPlayer {
         _emitPhase(AudioPlaybackPhase.playing);
       } else {
         debugPrint('🎵 [RoomAudioPlayer] Track preloaded and paused.');
+        double? webOldVol;
         if (kIsWeb) {
           debugPrint('🎵 [RoomAudioPlayer] Forcing Web buffer...');
-          final oldVol = _player.volume;
+          webOldVol = _player.volume;
           await _player.setVolume(0);
           unawaited(_player.play().catchError((_) {}));
           try {
@@ -208,22 +224,25 @@ class RoomAudioPlayer {
           } on Object catch (e) {
             debugPrint('🎵 [RoomAudioPlayer] Web buffer timeout/error: $e');
           }
-          if (seq != _requestSeq) return;
+        }
+        if (seq != _requestSeq) return false;
+        if (kIsWeb) {
           await _player.pause();
           await _player.seek(Duration(milliseconds: startPositionMs));
-          await _player.setVolume(oldVol);
+          await _player.setVolume(webOldVol!);
           debugPrint('🎵 [RoomAudioPlayer] Web buffer complete.');
         } else {
           await _player.pause();
         }
-        if (seq != _requestSeq) return;
         _emitPhase(AudioPlaybackPhase.paused);
       }
+      return true;
     } on Object catch (e) {
       debugPrint('🎵 [RoomAudioPlayer] Error loading/playing stream URL: $e');
       if (autoPlay && seq == _requestSeq) {
         _emitPhase(AudioPlaybackPhase.error);
       }
+      return false;
     }
   }
 
@@ -267,8 +286,13 @@ class RoomAudioPlayer {
 
   /// Clean up player resources and service streams.
   Future<void> dispose() async {
+    _disposed = true;
     ++_requestSeq;
     _loadedProviderTrackId = null;
+    await _interruptionSub?.cancel();
+    await _becomingNoisySub?.cancel();
+    _interruptionSub = null;
+    _becomingNoisySub = null;
     _emitPhase(AudioPlaybackPhase.idle);
     await _phaseController.close();
     try {

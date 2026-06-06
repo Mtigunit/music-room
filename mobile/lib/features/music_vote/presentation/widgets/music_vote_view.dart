@@ -10,7 +10,7 @@ import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/music_vote/data/models/event_detail_model.dart';
 import 'package:music_room/features/music_vote/data/models/event_track_model.dart';
 import 'package:music_room/features/music_vote/presentation/audio/room_audio_player.dart';
-import 'package:music_room/features/music_vote/presentation/audio/stream_url_service.dart';
+import 'package:music_room/features/music_vote/presentation/audio/track_preload.dart';
 import 'package:music_room/features/music_vote/presentation/state/music_vote_cubit.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/live_header.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/player_card.dart';
@@ -70,6 +70,8 @@ class _MusicVoteViewState extends State<MusicVoteView> {
   @override
   void dispose() {
     unawaited(_phaseSub?.cancel());
+    _phaseSub = null;
+    _audioBootstrapped = false;
     unawaited(_connectivitySubscription.cancel());
     unawaited(_setWakeLock(false));
     super.dispose();
@@ -225,11 +227,7 @@ class _MusicVoteViewState extends State<MusicVoteView> {
   @override
   Widget build(BuildContext context) {
     return RepositoryProvider<RoomAudioPlayer>(
-      create: (context) => RoomAudioPlayer(
-        streamUrlService: StreamUrlService(
-          dio: InjectionContainer().apiClient.dio,
-        ),
-      ),
+      create: (context) => InjectionContainer().createRoomAudioPlayer(),
       dispose: (player) => player.dispose(),
       child: BlocListener<MusicVoteCubit, MusicVoteState>(
         listenWhen: (prev, curr) =>
@@ -269,6 +267,7 @@ class _MusicVoteViewState extends State<MusicVoteView> {
             }
 
             if (state.isLoading) {
+              _audioBootstrapped = false;
               return const MusicVoteSkeleton();
             }
 
@@ -696,29 +695,15 @@ class _MiniPlayerBar extends StatelessWidget {
                           if (isPlaying) {
                             cubit.pause();
                           } else {
-                            final player = context.read<RoomAudioPlayer>();
-                            var canPlay = true;
-                            if (player.loadedProviderTrackId !=
-                                    track.providerTrackId &&
-                                isHost) {
-                              cubit.setAudioLoading(isLoading: true);
-                              try {
-                                await player.loadTrack(
-                                  track.providerTrackId,
+                            final canPlay = await ensureTrackPreloaded(
+                              player: context.read<RoomAudioPlayer>(),
+                              cubit: cubit,
+                              providerTrackId: track.providerTrackId,
+                              startPositionMs:
                                   track.pausedPlaybackPositionMs ?? 0,
-                                  autoPlay: false,
-                                );
-                              } on Object {
-                                cubit.setAudioLoading(isLoading: false);
-                                canPlay = false;
-                              }
-                              if (canPlay &&
-                                  player.loadedProviderTrackId !=
-                                      track.providerTrackId) {
-                                cubit.setAudioLoading(isLoading: false);
-                                canPlay = false;
-                              }
-                            }
+                              isMounted: () => context.mounted,
+                              preload: isHost,
+                            );
                             if (canPlay) {
                               cubit.play();
                             }

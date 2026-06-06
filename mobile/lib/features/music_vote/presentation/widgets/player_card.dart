@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/utils/tag_genre_normalizer.dart';
 import 'package:music_room/core/widgets/app_brand_icon.dart';
 import 'package:music_room/features/music_vote/presentation/audio/room_audio_player.dart';
+import 'package:music_room/features/music_vote/presentation/audio/track_preload.dart';
 import 'package:music_room/features/music_vote/presentation/state/music_vote_cubit.dart';
 
 /// The hero player section.
@@ -248,28 +249,14 @@ class _PlayerCardState extends State<PlayerCard> {
                                 // To keep the progress bar in sync, we only
                                 // emit play to the backend AFTER the audio
                                 // is loaded.
-                                final player = context.read<RoomAudioPlayer>();
-                                var canPlay = true;
-                                if (player.loadedProviderTrackId !=
-                                    track.providerTrackId) {
-                                  cubit.setAudioLoading(isLoading: true);
-                                  try {
-                                    await player.loadTrack(
-                                      track.providerTrackId,
+                                final canPlay = await ensureTrackPreloaded(
+                                  player: context.read<RoomAudioPlayer>(),
+                                  cubit: cubit,
+                                  providerTrackId: track.providerTrackId,
+                                  startPositionMs:
                                       track.pausedPlaybackPositionMs ?? 0,
-                                      autoPlay: false,
-                                    );
-                                  } on Object {
-                                    cubit.setAudioLoading(isLoading: false);
-                                    canPlay = false;
-                                  }
-                                  if (canPlay &&
-                                      player.loadedProviderTrackId !=
-                                          track.providerTrackId) {
-                                    cubit.setAudioLoading(isLoading: false);
-                                    canPlay = false;
-                                  }
-                                }
+                                  isMounted: () => mounted,
+                                );
                                 if (canPlay) {
                                   cubit.play();
                                 }
@@ -293,30 +280,15 @@ class _PlayerCardState extends State<PlayerCard> {
                                   ? state.tracks.first
                                   : null;
 
-                              var canNext = true;
-                              if (nextTrack != null) {
-                                final player = context.read<RoomAudioPlayer>();
-                                if (player.loadedProviderTrackId !=
-                                    nextTrack.providerTrackId) {
-                                  cubit.setAudioLoading(isLoading: true);
-                                  try {
-                                    await player.loadTrack(
-                                      nextTrack.providerTrackId,
-                                      0,
-                                      autoPlay: false,
-                                    );
-                                  } on Object {
-                                    cubit.setAudioLoading(isLoading: false);
-                                    canNext = false;
-                                  }
-                                  if (canNext &&
-                                      player.loadedProviderTrackId !=
-                                          nextTrack.providerTrackId) {
-                                    cubit.setAudioLoading(isLoading: false);
-                                    canNext = false;
-                                  }
-                                }
-                              }
+                              final canNext =
+                                  nextTrack != null &&
+                                  await ensureTrackPreloaded(
+                                    player: context.read<RoomAudioPlayer>(),
+                                    cubit: cubit,
+                                    providerTrackId: nextTrack.providerTrackId,
+                                    startPositionMs: 0,
+                                    isMounted: () => mounted,
+                                  );
                               if (canNext) {
                                 cubit.next();
                               }
