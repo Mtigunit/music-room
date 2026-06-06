@@ -38,12 +38,6 @@ export class UserNotFoundError extends Error {
   }
 }
 
-export class ConcurrentVoteError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = 'ConcurrentVoteError';
-  }
-}
 @Injectable()
 export class TrackVotesRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -87,20 +81,14 @@ export class TrackVotesRepository {
     return this.prisma.$transaction(async (tx) => {
       // --- Serialization point for (userId, eventId) ---
       // Generates a stable integer key from the two UUIDs.
-      // pg_try_advisory_xact_lock is transaction-scoped: releases automatically on commit/rollback.
-      // Returns false (non-blocking) instead of waiting — we fail fast on contention.
+      // pg_advisory_xact_lock is transaction-scoped: releases automatically on commit/rollback.
+      // It blocks and waits if the lock is held, effectively queuing concurrent requests.
       const userHash = this.buildAdvisoryLockHash(userId);
       const eventHash = this.buildAdvisoryLockHash(eventId);
 
-      const lockResult = await tx.$queryRaw<[{ acquired: boolean }]>(
-        Prisma.sql`SELECT pg_try_advisory_xact_lock(${userHash}::int4, ${eventHash}::int4) AS acquired`,
+      await tx.$executeRaw(
+        Prisma.sql`SELECT pg_advisory_xact_lock(${userHash}::int4, ${eventHash}::int4)`,
       );
-
-      if (!lockResult[0].acquired) {
-        throw new ConcurrentVoteError(
-          'Another vote is being processed for this user. Please retry.',
-        );
-      }
       // ─────────────────────────────────────────────────
       const lockedTracks = await tx.$queryRaw<
         Array<{ voteScore: number; status: TrackStatus }>

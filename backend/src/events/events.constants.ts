@@ -3,7 +3,7 @@ export const INTERNAL_EVENTS = {
   DELEGATION_REVOKED: 'delegation.revoked',
 };
 
-export const MAX_VOTES_PER_EVENT = 100;
+export const MAX_VOTES_PER_EVENT = 3;
 
 export const WS_EVENTS = {
   // LISTENER EVENTS
