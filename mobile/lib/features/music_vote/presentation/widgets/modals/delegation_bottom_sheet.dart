@@ -1242,37 +1242,40 @@ class _EndEventTile extends StatelessWidget {
       builder: (context, state) {
         final isDisabled = eventId.isEmpty || state.isEndingEvent;
 
-        return ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20),
-          leading: state.isEndingEvent
-              ? const SizedBox(
-                  width: 24,
-                  height: 24,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2.5,
-                    color: Colors.red,
+        return Material(
+          color: Colors.transparent,
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+            leading: state.isEndingEvent
+                ? const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: Colors.red,
+                    ),
+                  )
+                : Icon(
+                    Icons.stop_circle,
+                    color: isDisabled ? Colors.grey : Colors.red,
                   ),
-                )
-              : Icon(
-                  Icons.stop_circle,
-                  color: isDisabled ? Colors.grey : Colors.red,
-                ),
-          title: Text(
-            'End Event',
-            style: textTheme.bodyLarge?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: isDisabled ? Colors.grey : Colors.red,
+            title: Text(
+              'End Event',
+              style: textTheme.bodyLarge?.copyWith(
+                fontWeight: FontWeight.w600,
+                color: isDisabled ? Colors.grey : Colors.red,
+              ),
             ),
-          ),
-          subtitle: Text(
-            'Stop the event and end all playback',
-            style: textTheme.bodySmall?.copyWith(
-              color: isDisabled
-                  ? Colors.grey.withValues(alpha: 0.6)
-                  : Colors.red.withValues(alpha: 0.6),
+            subtitle: Text(
+              'Stop the event and end all playback',
+              style: textTheme.bodySmall?.copyWith(
+                color: isDisabled
+                    ? Colors.grey.withValues(alpha: 0.6)
+                    : Colors.red.withValues(alpha: 0.6),
+              ),
             ),
+            onTap: isDisabled ? null : () => _showEndConfirmation(context),
           ),
-          onTap: isDisabled ? null : () => _showEndConfirmation(context),
         );
       },
     );
