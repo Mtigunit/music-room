@@ -140,7 +140,9 @@ class RoomAudioPlayer {
         }
       } on Object catch (e) {
         debugPrint('🎵 [RoomAudioPlayer] Idempotent load/seek error: $e');
-        if (autoPlay) _emitPhase(AudioPlaybackPhase.error);
+        if (autoPlay && seq == _requestSeq) {
+          _emitPhase(AudioPlaybackPhase.error);
+        }
       }
       return;
     }
@@ -160,7 +162,9 @@ class RoomAudioPlayer {
         '🎵 [RoomAudioPlayer] Stream url resolution returned null for: '
         '$providerTrackId',
       );
-      if (autoPlay) _emitPhase(AudioPlaybackPhase.error);
+      if (autoPlay && seq == _requestSeq) {
+        _emitPhase(AudioPlaybackPhase.error);
+      }
       return;
     }
 
@@ -206,7 +210,7 @@ class RoomAudioPlayer {
           }
           if (seq != _requestSeq) return;
           await _player.pause();
-          await _player.seek(Duration(milliseconds: startPositionMs));
+          await _player.seek(Duration.zero);
           await _player.setVolume(oldVol);
           debugPrint('🎵 [RoomAudioPlayer] Web buffer complete.');
         } else {
@@ -217,7 +221,9 @@ class RoomAudioPlayer {
       }
     } on Object catch (e) {
       debugPrint('🎵 [RoomAudioPlayer] Error loading/playing stream URL: $e');
-      if (autoPlay) _emitPhase(AudioPlaybackPhase.error);
+      if (autoPlay && seq == _requestSeq) {
+        _emitPhase(AudioPlaybackPhase.error);
+      }
     }
   }
 
