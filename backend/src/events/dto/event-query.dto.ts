@@ -1,5 +1,13 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsOptional, IsEnum, IsString, IsInt, Min, Max } from 'class-validator';
+import {
+  IsOptional,
+  IsEnum,
+  IsString,
+  IsInt,
+  Min,
+  Max,
+  MaxLength,
+} from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import { EventStatus, Tags } from '@prisma/client';
 
@@ -45,5 +53,6 @@ export class EventQueryDto {
   @ApiPropertyOptional({ description: 'Search term for name or description' })
   @IsOptional()
   @IsString()
+  @MaxLength(100)
   search?: string;
 }
