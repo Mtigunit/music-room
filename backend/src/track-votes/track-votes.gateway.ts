@@ -45,6 +45,10 @@ export class TrackVotesGateway {
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
+      exceptionFactory: (errors) =>
+        new WsException(
+          errors.map((e) => Object.values(e.constraints ?? {})).flat(),
+        ),
     }),
   )
   async handleTrackVote(
