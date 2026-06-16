@@ -64,10 +64,7 @@ export class EventsController {
   @Get()
   @ApiOperation({ summary: 'Get all public events' })
   @ApiResponse({ status: 200, description: 'List of public events.' })
-  findAll(
-    @Query() query: EventQueryDto,
-    @Req() req: Request,
-  ) {
+  findAll(@Query() query: EventQueryDto, @Req() req: Request) {
     const userId = (req.user as { id: string }).id;
     return this.eventsService.findAll(userId, query);
   }
@@ -102,10 +99,7 @@ export class EventsController {
     status: 200,
     description: 'List of events hosted by the user.',
   })
-  findHosting(
-    @Query() query: EventQueryDto,
-    @Req() req: Request,
-  ) {
+  findHosting(@Query() query: EventQueryDto, @Req() req: Request) {
     const userId = (req.user as { id: string }).id;
     return this.eventsService.findHosting(userId, query);
   }
@@ -116,10 +110,7 @@ export class EventsController {
     status: 200,
     description: 'List of events the user is invited to.',
   })
-  findInvited(
-    @Query() query: EventQueryDto,
-    @Req() req: Request,
-  ) {
+  findInvited(@Query() query: EventQueryDto, @Req() req: Request) {
     const userId = (req.user as { id: string }).id;
     return this.eventsService.findInvited(userId, query);
   }

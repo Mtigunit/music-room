@@ -1,17 +1,10 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import {
-  IsOptional,
-  IsEnum,
-  IsString,
-  IsInt,
-  Min,
-  Max,
-  MaxLength,
-} from 'class-validator';
-import { Transform, Type } from 'class-transformer';
+import { IsOptional, IsEnum, IsString, MaxLength } from 'class-validator';
+import { Transform } from 'class-transformer';
 import { EventStatus, Tags } from '@prisma/client';
+import { PaginationDto } from '../../common/dto/pagination.dto';
 
-export class EventQueryDto {
+export class EventQueryDto extends PaginationDto {
   @ApiPropertyOptional({
     enum: EventStatus,
     description: 'Filter events by status',
@@ -31,24 +24,6 @@ export class EventQueryDto {
   )
   @IsEnum(Tags, { each: true })
   tags?: Tags[];
-
-  @ApiPropertyOptional({ default: 1, description: 'Page number' })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  page?: number = 1;
-
-  @ApiPropertyOptional({
-    default: 10,
-    description: 'Number of items per page',
-  })
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  @Max(100)
-  limit?: number = 10;
 
   @ApiPropertyOptional({ description: 'Search term for name or description' })
   @IsOptional()
