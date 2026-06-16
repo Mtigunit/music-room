@@ -334,7 +334,9 @@ export class EventsService {
       throw new ConflictException('You cannot invite yourself to the event');
     }
     if (event.invites.length >= 50) {
-      throw new ConflictException('Maximum limit of 50 invites reached for this event');
+      throw new ConflictException(
+        'Maximum limit of 50 invites reached for this event',
+      );
     }
 
     const userToInvite =
