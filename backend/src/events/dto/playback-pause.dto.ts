@@ -1,9 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty } from 'class-validator';
+import { IsNotEmpty, IsUUID } from 'class-validator';
 
 export class PlaybackPauseDto {
   @ApiProperty({ description: 'ID of the event to pause' })
-  @IsString()
+  @IsUUID('4')
   @IsNotEmpty()
   eventId!: string;
 }

@@ -1,9 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsOptional } from 'class-validator';
+import { IsNotEmpty, IsOptional, IsUUID } from 'class-validator';
 
 export class PlaybackNextDto {
   @ApiProperty({ description: 'ID of the event to skip track' })
-  @IsString()
+  @IsUUID('4')
   @IsNotEmpty()
   eventId!: string;
 
@@ -12,6 +12,6 @@ export class PlaybackNextDto {
     nullable: true,
   })
   @IsOptional()
-  @IsString()
+  @IsUUID('4')
   trackId?: string | null;
 }
