@@ -315,6 +315,7 @@ export class CreateEventDto {
   @ApiPropertyOptional({ type: [String] })
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(50)
   @IsString({ each: true })
   @MinLength(1, { each: true, message: 'each track id must not be empty' })
   @Transform(({ value }): unknown[] | undefined =>
@@ -325,6 +326,7 @@ export class CreateEventDto {
   @ApiPropertyOptional({ type: [String] })
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(50)
   @IsUUID('all', { each: true })
   @Transform(({ value }): string[] | string | undefined =>
     parseJsonArrayField<string>(value, 'playlistIds'),
