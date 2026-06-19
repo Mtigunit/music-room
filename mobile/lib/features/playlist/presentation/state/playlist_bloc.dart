@@ -220,9 +220,7 @@ class PlaylistBloc extends Bloc<PlaylistEvent, PlaylistState> {
 
     final originalTracks = List<PlaylistTrackEntity>.from(playlist.tracks);
 
-    final targetIndex = event.newIndex > event.oldIndex
-        ? event.newIndex - 1
-        : event.newIndex;
+    final targetIndex = event.newIndex;
     final updatedTracks = List<PlaylistTrackEntity>.from(playlist.tracks);
     final movedTrack = updatedTracks.removeAt(event.oldIndex);
     updatedTracks.insert(targetIndex, movedTrack);

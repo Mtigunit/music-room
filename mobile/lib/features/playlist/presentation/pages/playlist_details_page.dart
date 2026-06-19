@@ -788,8 +788,7 @@ class _PlaylistContent extends StatelessWidget {
                 ),
               Expanded(
                 child: AbsorbPointer(
-                  absorbing:
-                      state.isInteractionLocked || !permissions.canEditTracks,
+                  absorbing: state.isInteractionLocked,
                   child: RefreshIndicator(
                     color: _Token.purpleLight(context),
                     backgroundColor: _Token.cardBg(context),
@@ -861,7 +860,8 @@ class _PlaylistContent extends StatelessWidget {
                               title: layout.trackSectionTitle,
                               state: state,
                               permissions: permissions,
-                              showIcon: layout.isWide,
+                              showIcon:
+                                  layout.isWide && permissions.canEditTracks,
                             ),
                           ),
 
@@ -1610,9 +1610,59 @@ class _TrackList extends StatelessWidget {
     AppSnackbar.showError(context, msg);
   }
 
+  Widget _buildTrackTile(BuildContext context, int index) {
+    final track = tracks[index];
+    final isRemoving = state.removingTrackIds.contains(track.playlistTrackId);
+
+    return Padding(
+      key: ValueKey<String>(track.playlistTrackId),
+      padding: const EdgeInsets.only(bottom: 6),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: layout.contentMaxWidth),
+          child: _PlaylistTrackTile(
+            index: index,
+            track: track,
+            isWideLayout: layout.isWide,
+            canEdit: permissions.canEditTracks,
+            canRemove: permissions.canRemoveTrack(track),
+            isRemoving: isRemoving,
+            onRemove: () {
+              if (state.isInteractionLocked ||
+                  !permissions.canRemoveTrack(track) ||
+                  isRemoving) {
+                final msg = state.isOffline
+                    ? 'You are offline. Playlist is read-only.'
+                    : state.isReordering
+                    ? 'Please wait until reordering completes.'
+                    : "You don't have permission to edit this.";
+                AppSnackbar.showError(context, msg);
+                return;
+              }
+              onRemoveTrack(track.playlistTrackId);
+            },
+            onTap: () => onTrackTap(track, index),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final hp = layout.horizontalPadding;
+
+    if (!permissions.canEditTracks) {
+      return SliverPadding(
+        padding: EdgeInsets.fromLTRB(hp, 0, hp, layout.isCompact ? 24 : 32),
+        sliver: SliverList(
+          delegate: SliverChildBuilderDelegate(
+            _buildTrackTile,
+            childCount: tracks.length,
+          ),
+        ),
+      );
+    }
 
     return SliverPadding(
       padding: EdgeInsets.fromLTRB(hp, 0, hp, layout.isCompact ? 24 : 32),
@@ -1621,44 +1671,7 @@ class _TrackList extends StatelessWidget {
         onReorderItem: state.isInteractionLocked
             ? (_, _) => _handleLockedReorder(context)
             : (oldIndex, newIndex) => unawaited(onReorder(oldIndex, newIndex)),
-        itemBuilder: (context, index) {
-          final track = tracks[index];
-          final isRemoving = state.removingTrackIds.contains(
-            track.playlistTrackId,
-          );
-
-          return Padding(
-            key: ValueKey<String>(track.playlistTrackId),
-            padding: const EdgeInsets.only(bottom: 6),
-            child: Center(
-              child: ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: layout.contentMaxWidth),
-                child: _PlaylistTrackTile(
-                  index: index,
-                  track: track,
-                  isWideLayout: layout.isWide,
-                  canRemove: permissions.canRemoveTrack(track),
-                  isRemoving: isRemoving,
-                  onRemove: () {
-                    if (state.isInteractionLocked ||
-                        !permissions.canRemoveTrack(track) ||
-                        isRemoving) {
-                      final msg = state.isOffline
-                          ? 'You are offline. Playlist is read-only.'
-                          : state.isReordering
-                          ? 'Please wait until reordering completes.'
-                          : "You don't have permission to edit this.";
-                      AppSnackbar.showError(context, msg);
-                      return;
-                    }
-                    onRemoveTrack(track.playlistTrackId);
-                  },
-                  onTap: () => onTrackTap(track, index),
-                ),
-              ),
-            ),
-          );
-        },
+        itemBuilder: _buildTrackTile,
       ),
     );
   }
@@ -1753,6 +1766,7 @@ class _PlaylistTrackTile extends StatelessWidget {
     required this.index,
     required this.track,
     required this.isWideLayout,
+    required this.canEdit,
     required this.canRemove,
     required this.isRemoving,
     required this.onRemove,
@@ -1762,6 +1776,7 @@ class _PlaylistTrackTile extends StatelessWidget {
   final int index;
   final PlaylistTrackEntity track;
   final bool isWideLayout;
+  final bool canEdit;
   final bool canRemove;
   final bool isRemoving;
   final VoidCallback onRemove;
@@ -1770,6 +1785,95 @@ class _PlaylistTrackTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final thumbnailUrl = track.thumbnailUrl;
+
+    final tile = Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: isWideLayout ? 14 : 12,
+        vertical: isWideLayout ? 10 : 10,
+      ),
+      child: Row(
+        children: [
+          // Index
+          SizedBox(
+            width: 28,
+            child: Center(
+              child: Text(
+                '${index + 1}',
+                style: TextStyle(
+                  color: _Token.textMuted(context),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+
+          // Thumbnail
+          _TrackThumbnail(thumbnailUrl: thumbnailUrl),
+          const SizedBox(width: 10),
+
+          // Title + artist
+          Expanded(
+            child: _TrackInfo(
+              track: track,
+              isWide: isWideLayout,
+            ),
+          ),
+
+          // Duration
+          const SizedBox(width: 12),
+          SizedBox(
+            width: 48,
+            child: Text(
+              _formatDurationMs(track.durationMs),
+              style: TextStyle(
+                color: _Token.textMuted(context),
+                fontSize: 12,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+          ),
+
+          // Remove button
+          if (canRemove)
+            Tooltip(
+              message: 'Remove track',
+              child: _TrackActionButton(
+                onPressed: isRemoving ? null : onRemove,
+                child: isRemoving
+                    ? SizedBox(
+                        width: 14,
+                        height: 14,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 1.5,
+                          color: Colors.white.withValues(alpha: 0.3),
+                        ),
+                      )
+                    : Icon(
+                        Icons.close_rounded,
+                        size: 16,
+                        color: _Token.textMuted(context),
+                      ),
+              ),
+            ),
+          const SizedBox(width: 4),
+
+          // Drag handle
+          if (canEdit)
+            ReorderableDragStartListener(
+              index: index,
+              child: _TrackActionButton(
+                child: Icon(
+                  Icons.drag_indicator_rounded,
+                  size: 16,
+                  color: _Token.textMuted(context),
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
 
     return Container(
       clipBehavior: Clip.antiAlias,
@@ -1780,102 +1884,24 @@ class _PlaylistTrackTile extends StatelessWidget {
       ),
       child: Material(
         color: Colors.transparent,
-        child: ReorderableDelayedDragStartListener(
-          index: index,
-          child: InkWell(
-            borderRadius: BorderRadius.circular(_Token.radiusCard),
-            splashColor: _Token.purple(context).withValues(alpha: 0.08),
-            highlightColor: _Token.cardBgHover(context),
-            onTap: onTap,
-            child: Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: isWideLayout ? 14 : 12,
-                vertical: isWideLayout ? 10 : 10,
+        child: canEdit
+            ? ReorderableDelayedDragStartListener(
+                index: index,
+                child: InkWell(
+                  borderRadius: BorderRadius.circular(_Token.radiusCard),
+                  splashColor: _Token.purple(context).withValues(alpha: 0.08),
+                  highlightColor: _Token.cardBgHover(context),
+                  onTap: onTap,
+                  child: tile,
+                ),
+              )
+            : InkWell(
+                borderRadius: BorderRadius.circular(_Token.radiusCard),
+                splashColor: _Token.purple(context).withValues(alpha: 0.08),
+                highlightColor: _Token.cardBgHover(context),
+                onTap: onTap,
+                child: tile,
               ),
-              child: Row(
-                children: [
-                  // Index
-                  SizedBox(
-                    width: 28,
-                    child: Center(
-                      child: Text(
-                        '${index + 1}',
-                        style: TextStyle(
-                          color: _Token.textMuted(context),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-
-                  // Thumbnail
-                  _TrackThumbnail(thumbnailUrl: thumbnailUrl),
-                  const SizedBox(width: 10),
-
-                  // Title + artist
-                  Expanded(
-                    child: _TrackInfo(
-                      track: track,
-                      isWide: isWideLayout,
-                    ),
-                  ),
-
-                  // Duration
-                  const SizedBox(width: 12),
-                  SizedBox(
-                    width: 48,
-                    child: Text(
-                      _formatDurationMs(track.durationMs),
-                      style: TextStyle(
-                        color: _Token.textMuted(context),
-                        fontSize: 12,
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                  ),
-
-                  // Remove button
-                  if (canRemove)
-                    Tooltip(
-                      message: 'Remove track',
-                      child: _TrackActionButton(
-                        onPressed: isRemoving ? null : onRemove,
-                        child: isRemoving
-                            ? SizedBox(
-                                width: 14,
-                                height: 14,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 1.5,
-                                  color: Colors.white.withValues(alpha: 0.3),
-                                ),
-                              )
-                            : Icon(
-                                Icons.close_rounded,
-                                size: 16,
-                                color: _Token.textMuted(context),
-                              ),
-                      ),
-                    ),
-                  const SizedBox(width: 4),
-
-                  // Drag handle
-                  ReorderableDragStartListener(
-                    index: index,
-                    child: _TrackActionButton(
-                      child: Icon(
-                        Icons.drag_indicator_rounded,
-                        size: 16,
-                        color: _Token.textMuted(context),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
       ),
     );
   }
