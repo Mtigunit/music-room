@@ -710,7 +710,7 @@ export class EventsService {
       this.eventsGateway.server
         .to(`event_${eventId}`)
         .emit(WS_EVENTS.PLAYBACK_STATUS, {
-          status: PlaybackStatus.PLAYING,
+          status: PlaybackStatus.PAUSED,
           currentTrack:
             currentTrack === null
               ? null
