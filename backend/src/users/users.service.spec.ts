@@ -11,7 +11,7 @@ import { UserRepository } from './user.repository';
 import { FollowsService } from '../follows/follows.service';
 import { OtpService } from '../otp/otp.service';
 import { MailService } from '../mail/mail.service';
-import { Prisma, type User } from '@prisma/client';
+import { Prisma, SubscriptionTier, type User } from '@prisma/client';
 import { AUDIT_LOG_EVENT } from '../audit-log/audit-log.constants';
 
 jest.mock('bcrypt');
@@ -70,6 +70,7 @@ describe('UsersService', () => {
             updateEmailAndIncrementToken: jest.fn(),
             incrementTokenVersion: jest.fn(),
             updateAvatar: jest.fn(),
+            upgradeToPremium: jest.fn(),
           },
         },
         {
@@ -332,6 +333,47 @@ describe('UsersService', () => {
       await expect(
         service.changePassword(mockUser.id, dto, mockMeta),
       ).rejects.toThrow('New password cannot be the same as the current one');
+    });
+  });
+
+  describe('upgradeSubscription', () => {
+    it('should upgrade a BASIC user to PREMIUM', async () => {
+      repository.findById.mockResolvedValue(mockUser);
+      repository.upgradeToPremium.mockResolvedValue({
+        ...mockUser,
+        subscriptionTier: SubscriptionTier.PREMIUM,
+      });
+
+      const result = await service.upgradeSubscription(mockUser.id, mockMeta);
+
+      expect(result.subscriptionTier).toBe(SubscriptionTier.PREMIUM);
+      expect(repository.upgradeToPremium).toHaveBeenCalledWith(mockUser.id);
+      expect(eventEmitter.emit).toHaveBeenCalledWith(
+        AUDIT_LOG_EVENT,
+        expect.any(Object),
+      );
+    });
+
+    it('should throw BadRequestException if user is already PREMIUM', async () => {
+      repository.findById.mockResolvedValue({
+        ...mockUser,
+        subscriptionTier: SubscriptionTier.PREMIUM,
+      });
+
+      await expect(
+        service.upgradeSubscription(mockUser.id, mockMeta),
+      ).rejects.toThrow('User is already on the PREMIUM subscription tier');
+      expect(repository.upgradeToPremium).not.toHaveBeenCalled();
+    });
+
+    it('should throw BadRequestException when upgrade is rejected atomically', async () => {
+      repository.findById.mockResolvedValue(mockUser);
+      repository.upgradeToPremium.mockResolvedValue(null);
+
+      await expect(
+        service.upgradeSubscription(mockUser.id, mockMeta),
+      ).rejects.toThrow('User is already on the PREMIUM subscription tier');
+      expect(eventEmitter.emit).not.toHaveBeenCalled();
     });
   });
 });

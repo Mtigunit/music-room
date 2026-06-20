@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { UserRepository } from './user.repository';
-import { Prisma, type User } from '@prisma/client';
+import { Prisma, SubscriptionTier, type User } from '@prisma/client';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import type { UpdateProfileDto } from './dto/update-profile.dto';
 import { FollowsService } from '../follows/follows.service';
@@ -369,5 +369,38 @@ export class UsersService {
 
   async incrementTokenVersion(userId: string): Promise<User> {
     return this.userRepository.incrementTokenVersion(userId);
+  }
+
+  async upgradeSubscription(
+    userId: string,
+    meta: ClientMetaDto,
+  ): Promise<User> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.subscriptionTier === SubscriptionTier.PREMIUM) {
+      throw new BadRequestException(
+        'User is already on the PREMIUM subscription tier',
+      );
+    }
+
+    const updatedUser = await this.userRepository.upgradeToPremium(userId);
+    if (!updatedUser) {
+      throw new BadRequestException(
+        'User is already on the PREMIUM subscription tier',
+      );
+    }
+
+    this.eventEmitter.emit(
+      AUDIT_LOG_EVENT,
+      createAuditLogEvent(userId, AuditAction.SUBSCRIPTION_UPGRADE, meta, {
+        previousTier: user.subscriptionTier,
+        newTier: SubscriptionTier.PREMIUM,
+      }),
+    );
+
+    return updatedUser;
   }
 }

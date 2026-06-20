@@ -6,6 +6,7 @@ import { ConfigService } from '@nestjs/config';
 import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { ClientMetaDto } from '../common/dto/client-meta.dto';
 import type { User } from '@prisma/client';
+import { SubscriptionTier } from '@prisma/client';
 import type { Request } from 'express';
 
 const mockUser: User = {
@@ -64,6 +65,7 @@ describe('UsersController', () => {
             linkGoogleAccount: jest.fn(),
             unlinkGoogleAccount: jest.fn(),
             changePassword: jest.fn(),
+            upgradeSubscription: jest.fn(),
           },
         },
         {
@@ -378,6 +380,34 @@ describe('UsersController', () => {
 
       expect(result).not.toHaveProperty('passwordHash');
       expect(result).not.toHaveProperty('googleId');
+    });
+  });
+
+  // ─── upgradeSubscription ──────────────────────────────
+
+  describe('upgradeSubscription', () => {
+    const mockMeta: ClientMetaDto = {
+      platform: 'jest',
+      deviceModel: 'jest',
+      deviceId: 'jest',
+      appVersion: 'jest',
+    };
+
+    it('should delegate to usersService.upgradeSubscription and return the safe user', async () => {
+      const updatedUser = {
+        ...mockUser,
+        subscriptionTier: SubscriptionTier.PREMIUM,
+      };
+      service.upgradeSubscription.mockResolvedValue(updatedUser);
+      const req = { user: { id: mockUser.id } } as unknown as Request;
+
+      const result = await controller.upgradeSubscription(req, mockMeta);
+
+      expect(service.upgradeSubscription).toHaveBeenCalledWith(
+        mockUser.id,
+        mockMeta,
+      );
+      expect(result.subscriptionTier).toBe(SubscriptionTier.PREMIUM);
     });
   });
 });

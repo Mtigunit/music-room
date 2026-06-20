@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { mergeJson } from '../common/utils/json-merge.util';
-import { Prisma, type User } from '@prisma/client';
+import { Prisma, SubscriptionTier, type User } from '@prisma/client';
 import type { PaginationDto } from '../common/dto/pagination.dto';
 import type { UpdateProfileDto } from './dto/update-profile.dto';
 
@@ -164,5 +164,25 @@ export class UserRepository {
         tokenVersion: { increment: 1 },
       },
     });
+  }
+
+  async upgradeToPremium(userId: string): Promise<User | null> {
+    try {
+      return await this.prisma.user.update({
+        where: {
+          id: userId,
+          subscriptionTier: SubscriptionTier.BASIC,
+        },
+        data: { subscriptionTier: SubscriptionTier.PREMIUM },
+      });
+    } catch (error) {
+      if (
+        error instanceof Prisma.PrismaClientKnownRequestError &&
+        error.code === 'P2025'
+      ) {
+        return null;
+      }
+      throw error;
+    }
   }
 }

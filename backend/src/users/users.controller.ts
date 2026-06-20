@@ -313,6 +313,29 @@ export class UsersController {
     return this.toSafeUser(user);
   }
 
+  @Patch('me/subscription')
+  @ApiClientMeta()
+  @ApiOperation({ summary: 'Upgrade subscription from BASIC to PREMIUM' })
+  @ApiResponse({
+    status: 200,
+    description: 'Subscription upgraded to PREMIUM successfully.',
+  })
+  @ApiResponse({
+    status: 400,
+    description: 'User is already on the PREMIUM subscription tier.',
+  })
+  @ApiResponse({ status: 404, description: 'User not found.' })
+  async upgradeSubscription(
+    @Request() req: Express.Request,
+    @ClientMeta() meta: ClientMetaDto,
+  ) {
+    const user = await this.usersService.upgradeSubscription(
+      req.user!.id,
+      meta,
+    );
+    return this.toSafeUser(user);
+  }
+
   @Get('search')
   @ApiOperation({ summary: 'Search users by username' })
   @ApiResponse({ status: 200, description: 'List of matching users.' })
