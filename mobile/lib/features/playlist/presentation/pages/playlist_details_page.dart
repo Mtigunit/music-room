@@ -788,13 +788,14 @@ class _PlaylistContent extends StatelessWidget {
                 ),
               Expanded(
                 child: AbsorbPointer(
-                  absorbing: state.isInteractionLocked,
+                  absorbing: state.isReordering,
                   child: RefreshIndicator(
                     color: _Token.purpleLight(context),
                     backgroundColor: _Token.cardBg(context),
                     onRefresh: () async => onRefresh(),
                     child: Scrollbar(
                       child: CustomScrollView(
+                        primary: true,
                         physics: const AlwaysScrollableScrollPhysics(),
                         slivers: [
                           // Hero (gradient background section)
@@ -896,6 +897,9 @@ class _PlaylistContent extends StatelessWidget {
                               layout: layout,
                               state: state,
                               permissions: permissions,
+                              isSearchActive: searchController.text
+                                  .trim()
+                                  .isNotEmpty,
                               onReorder: onReorder,
                               onRemoveTrack: onRemoveTrack,
                               onTrackTap: onTrackTap,
@@ -1590,6 +1594,7 @@ class _TrackList extends StatelessWidget {
     required this.layout,
     required this.state,
     required this.permissions,
+    required this.isSearchActive,
     required this.onReorder,
     required this.onRemoveTrack,
     required this.onTrackTap,
@@ -1599,6 +1604,7 @@ class _TrackList extends StatelessWidget {
   final _Layout layout;
   final _PageState state;
   final _Permissions permissions;
+  final bool isSearchActive;
   final Future<void> Function(int, int) onReorder;
   final void Function(String) onRemoveTrack;
   final void Function(PlaylistTrackEntity, int) onTrackTap;
@@ -1606,6 +1612,8 @@ class _TrackList extends StatelessWidget {
   void _handleLockedReorder(BuildContext context) {
     final msg = state.isOffline
         ? 'You are offline. Playlist is read-only.'
+        : isSearchActive
+        ? 'Clear search to reorder the playlist.'
         : 'Please wait until reordering completes.';
     AppSnackbar.showError(context, msg);
   }
@@ -1668,7 +1676,7 @@ class _TrackList extends StatelessWidget {
       padding: EdgeInsets.fromLTRB(hp, 0, hp, layout.isCompact ? 24 : 32),
       sliver: SliverReorderableList(
         itemCount: tracks.length,
-        onReorderItem: state.isInteractionLocked
+        onReorderItem: state.isInteractionLocked || isSearchActive
             ? (_, _) => _handleLockedReorder(context)
             : (oldIndex, newIndex) => unawaited(onReorder(oldIndex, newIndex)),
         itemBuilder: _buildTrackTile,
