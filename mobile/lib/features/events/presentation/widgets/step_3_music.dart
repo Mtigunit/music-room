@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/widgets/app_brand_icon.dart';
@@ -7,6 +9,8 @@ import 'package:music_room/core/widgets/track_search_list_tile.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/events/data/models/track_model.dart';
 import 'package:music_room/features/events/presentation/state/track_search_cubit.dart';
+import 'package:music_room/features/playlist/data/datasources/playlist_remote_datasource.dart';
+import 'package:music_room/features/playlist/domain/entities/playlist_entity.dart';
 
 class Step3Music extends StatelessWidget {
   const Step3Music({
@@ -14,12 +18,16 @@ class Step3Music extends StatelessWidget {
     required this.onTracksChanged,
     required this.canContinue,
     required this.onNext,
+    this.selectedPlaylistIds = const [],
+    this.onPlaylistIdsChanged,
     this.errorText,
     super.key,
   });
 
   final List<TrackModel> selectedTracks;
   final ValueChanged<List<TrackModel>> onTracksChanged;
+  final List<String> selectedPlaylistIds;
+  final ValueChanged<List<String>>? onPlaylistIdsChanged;
   final bool canContinue;
   final String? errorText;
   final VoidCallback onNext;
@@ -33,6 +41,8 @@ class Step3Music extends StatelessWidget {
       child: _Step3MusicBody(
         selectedTracks: selectedTracks,
         onTracksChanged: onTracksChanged,
+        selectedPlaylistIds: selectedPlaylistIds,
+        onPlaylistIdsChanged: onPlaylistIdsChanged,
         canContinue: canContinue,
         errorText: errorText,
         onNext: onNext,
@@ -47,11 +57,15 @@ class _Step3MusicBody extends StatefulWidget {
     required this.onTracksChanged,
     required this.canContinue,
     required this.onNext,
+    this.selectedPlaylistIds = const [],
+    this.onPlaylistIdsChanged,
     this.errorText,
   });
 
   final List<TrackModel> selectedTracks;
   final ValueChanged<List<TrackModel>> onTracksChanged;
+  final List<String> selectedPlaylistIds;
+  final ValueChanged<List<String>>? onPlaylistIdsChanged;
   final bool canContinue;
   final String? errorText;
   final VoidCallback onNext;
@@ -91,6 +105,9 @@ class _Step3MusicBodyState extends State<_Step3MusicBody> {
   Future<void> _showImportPlaylistModal(BuildContext context) async {
     setState(() => _playlistSearchQuery = '');
 
+    // Capture selected IDs so the modal can work with a local copy.
+    final localSelectedIds = List<String>.from(widget.selectedPlaylistIds);
+
     await showModalBottomSheet<void>(
       context: context,
       isScrollControlled: true,
@@ -112,11 +129,15 @@ class _Step3MusicBodyState extends State<_Step3MusicBody> {
                 },
                 content: _PlaylistImportResults(
                   searchQuery: _playlistSearchQuery,
-                  onPlaylistSelected: (name) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(content: Text('Importing $name...')),
-                    );
-                    Navigator.of(context).pop();
+                  selectedPlaylistIds: localSelectedIds,
+                  onPlaylistToggled: (playlistId) {
+                    setModalState(() {
+                      if (localSelectedIds.contains(playlistId)) {
+                        localSelectedIds.remove(playlistId);
+                      } else {
+                        localSelectedIds.add(playlistId);
+                      }
+                    });
                   },
                 ),
               ),
@@ -125,6 +146,9 @@ class _Step3MusicBodyState extends State<_Step3MusicBody> {
         },
       ),
     );
+
+    // When the bottom sheet is dismissed, propagate the selections.
+    widget.onPlaylistIdsChanged?.call(localSelectedIds);
   }
 
   Future<void> _showAddTracksModal(BuildContext context) async {
@@ -182,6 +206,7 @@ class _Step3MusicBodyState extends State<_Step3MusicBody> {
     final horizontalPadding = isCompact ? 16.0 : 24.0;
     final sectionGap = isCompact ? 20.0 : 24.0;
     final selectedCount = widget.selectedTracks.length;
+    final importedCount = widget.selectedPlaylistIds.length;
 
     return SingleChildScrollView(
       padding: EdgeInsets.symmetric(
@@ -229,8 +254,10 @@ class _Step3MusicBodyState extends State<_Step3MusicBody> {
                 child: OutlinedButton.icon(
                   onPressed: () => _showImportPlaylistModal(context),
                   icon: const Icon(Icons.playlist_add),
-                  label: const Text(
-                    'Import Playlist',
+                  label: Text(
+                    importedCount > 0
+                        ? 'Import Playlist ($importedCount)'
+                        : 'Import Playlist',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -242,9 +269,10 @@ class _Step3MusicBodyState extends State<_Step3MusicBody> {
                       borderRadius: BorderRadius.circular(16),
                     ),
                     side: BorderSide(
-                      color: theme.colorScheme.primary.withValues(
-                        alpha: 0.55,
-                      ),
+                      color: importedCount > 0
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.primary.withValues(alpha: 0.55),
+                      width: importedCount > 0 ? 2 : 1,
                     ),
                     foregroundColor: theme.colorScheme.primary,
                     textStyle: theme.textTheme.titleMedium?.copyWith(
@@ -448,17 +476,288 @@ class _TrackSearchResults extends StatelessWidget {
   }
 }
 
-class _PlaylistImportResults extends StatelessWidget {
+/// Fetches and displays the user's playlists from the backend.
+///
+/// Supports client-side filtering via [searchQuery] and multi-select via
+/// [onPlaylistToggled].
+class _PlaylistImportResults extends StatefulWidget {
   const _PlaylistImportResults({
     required this.searchQuery,
-    required this.onPlaylistSelected,
+    required this.selectedPlaylistIds,
+    required this.onPlaylistToggled,
   });
 
   final String searchQuery;
-  final ValueChanged<String> onPlaylistSelected;
+  final List<String> selectedPlaylistIds;
+  final ValueChanged<String> onPlaylistToggled;
+
+  @override
+  State<_PlaylistImportResults> createState() => _PlaylistImportResultsState();
+}
+
+class _PlaylistImportResultsState extends State<_PlaylistImportResults> {
+  late final IPlaylistRemoteDataSource _playlistDataSource;
+
+  List<PlaylistEntity>? _playlists;
+  bool _isLoading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _playlistDataSource = InjectionContainer().playlistRemoteDataSource;
+    unawaited(_fetchPlaylists());
+  }
+
+  Future<void> _fetchPlaylists() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+
+    try {
+      final playlists = await _playlistDataSource.fetchMyPlaylists();
+      if (!mounted) return;
+      setState(() {
+        _playlists = playlists;
+        _isLoading = false;
+      });
+    } on Object catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = 'Failed to load playlists: $e';
+        _isLoading = false;
+      });
+    }
+  }
+
+  List<PlaylistEntity> get _filteredPlaylists {
+    final all = _playlists ?? const <PlaylistEntity>[];
+    final query = widget.searchQuery.trim().toLowerCase();
+    if (query.isEmpty) return all;
+
+    return all
+        .where((playlist) {
+          final nameMatch = playlist.name.toLowerCase().contains(query);
+          final tagMatch = playlist.tags.any(
+            (tag) => tag.toLowerCase().contains(query),
+          );
+          return nameMatch || tagMatch;
+        })
+        .toList(growable: false);
+  }
 
   @override
   Widget build(BuildContext context) {
-    return const Center(child: Text('No playlists found.'));
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    if (_isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline_rounded,
+              size: 48,
+              color: colorScheme.error.withValues(alpha: 0.6),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Could not load playlists',
+              style: theme.textTheme.titleSmall?.copyWith(
+                color: colorScheme.error,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            TextButton.icon(
+              onPressed: _fetchPlaylists,
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    final filtered = _filteredPlaylists;
+
+    if ((_playlists ?? const []).isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.library_music_rounded,
+              size: 56,
+              color: colorScheme.onSurface.withValues(alpha: 0.2),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'No playlists yet',
+              style: theme.textTheme.titleSmall?.copyWith(
+                color: colorScheme.onSurface.withValues(alpha: 0.5),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Create a playlist first to import tracks.',
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: colorScheme.onSurface.withValues(alpha: 0.4),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    if (filtered.isEmpty) {
+      return Center(
+        child: Text(
+          'No playlists match "${widget.searchQuery}"',
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: colorScheme.onSurface.withValues(alpha: 0.5),
+          ),
+          textAlign: TextAlign.center,
+        ),
+      );
+    }
+
+    return ListView.separated(
+      padding: EdgeInsets.zero,
+      itemCount: filtered.length,
+      separatorBuilder: (context, _) => const SizedBox(height: 6),
+      itemBuilder: (context, index) {
+        final playlist = filtered[index];
+        final isSelected = widget.selectedPlaylistIds.contains(playlist.id);
+
+        return _PlaylistImportTile(
+          playlist: playlist,
+          isSelected: isSelected,
+          onTap: () => widget.onPlaylistToggled(playlist.id),
+        );
+      },
+    );
+  }
+}
+
+/// A single playlist tile inside the import sheet.
+class _PlaylistImportTile extends StatelessWidget {
+  const _PlaylistImportTile({
+    required this.playlist,
+    required this.isSelected,
+    required this.onTap,
+  });
+
+  final PlaylistEntity playlist;
+  final bool isSelected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
+    return Material(
+      type: MaterialType.transparency,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: isSelected
+                ? colorScheme.primary.withValues(alpha: 0.10)
+                : colorScheme.onSurface.withValues(alpha: 0.04),
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: isSelected
+                  ? colorScheme.primary
+                  : colorScheme.onSurface.withValues(alpha: 0.08),
+              width: isSelected ? 1.5 : 1,
+            ),
+          ),
+          child: Row(
+            children: [
+              // Playlist thumbnail / icon
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: colorScheme.primary.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: playlist.collageImageUrls.isNotEmpty
+                    ? ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.network(
+                          playlist.collageImageUrls.first,
+                          width: 48,
+                          height: 48,
+                          fit: BoxFit.cover,
+                          errorBuilder: (context, error, stackTrace) =>
+                              const Center(child: AppBrandIcon(size: 22)),
+                        ),
+                      )
+                    : const Center(child: AppBrandIcon(size: 22)),
+              ),
+              const SizedBox(width: 14),
+
+              // Name & track count
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      playlist.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: colorScheme.onSurface,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      '${playlist.trackCount} '
+                      'track${playlist.trackCount == 1 ? '' : 's'}',
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: colorScheme.onSurface.withValues(alpha: 0.5),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              // Selection indicator
+              AnimatedSwitcher(
+                duration: const Duration(milliseconds: 200),
+                child: isSelected
+                    ? Icon(
+                        Icons.check_circle_rounded,
+                        key: const ValueKey('selected'),
+                        color: colorScheme.primary,
+                        size: 26,
+                      )
+                    : Icon(
+                        Icons.radio_button_unchecked_rounded,
+                        key: const ValueKey('unselected'),
+                        color: colorScheme.onSurface.withValues(alpha: 0.25),
+                        size: 26,
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

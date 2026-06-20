@@ -39,6 +39,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
   List<TagOption<String>> selectedGenres = [];
 
   List<TrackModel> selectedTracks = []; // Use actual TrackModel
+  List<String> selectedPlaylistIds = [];
 
   String visibility = 'Public'; // Public, Private
   String votingRule = 'Everyone'; // Everyone, Invited Only, Location & Time
@@ -151,6 +152,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
         endDate: endDate,
         endTime: endTime,
         scheduledStartTime: scheduledStartTime,
+        playlistIds: selectedPlaylistIds,
       ),
     );
   }
@@ -171,6 +173,7 @@ class _CreateEventPageState extends State<CreateEventPage> {
       endDate: endDate,
       endTime: endTime,
       scheduledStartTime: scheduledStartTime,
+      playlistIds: selectedPlaylistIds,
     );
   }
 
@@ -446,6 +449,9 @@ class _CreateEventPageState extends State<CreateEventPage> {
                           selectedTracks: selectedTracks,
                           onTracksChanged: (val) =>
                               _setFieldState(() => selectedTracks = val),
+                          selectedPlaylistIds: selectedPlaylistIds,
+                          onPlaylistIdsChanged: (val) =>
+                              _setFieldState(() => selectedPlaylistIds = val),
                           canContinue: step3Valid,
                           errorText:
                               _validationErrors[CreateEventValidationField

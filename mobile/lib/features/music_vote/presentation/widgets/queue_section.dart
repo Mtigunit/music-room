@@ -55,7 +55,11 @@ class QueueSection extends StatelessWidget {
       children: [
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: _ActionRow(eventId: eventId, eventName: eventName),
+          child: _ActionRow(
+            eventId: eventId,
+            eventName: eventName,
+            isHost: isHost,
+          ),
         ),
         const SizedBox(height: 12),
         if (tracks.isEmpty)
@@ -110,21 +114,31 @@ class QueueSection extends StatelessWidget {
 // ────────────────────────────────────────────────────────────────────────────
 
 class _ActionRow extends StatelessWidget {
-  const _ActionRow({required this.eventId, this.eventName});
+  const _ActionRow({
+    required this.eventId,
+    this.eventName,
+    this.isHost = false,
+  });
 
   final String? eventId;
   final String? eventName;
+  final bool isHost;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Expanded(flex: 3, child: _AddTrackButton(eventId: eventId)),
-        const SizedBox(width: 12),
         Expanded(
-          flex: 2,
-          child: _InviteFriendsButton(eventId: eventId, eventName: eventName),
+          flex: isHost ? 3 : 1,
+          child: _AddTrackButton(eventId: eventId),
         ),
+        if (isHost) ...[
+          const SizedBox(width: 12),
+          Expanded(
+            flex: 2,
+            child: _InviteFriendsButton(eventId: eventId, eventName: eventName),
+          ),
+        ],
       ],
     );
   }
@@ -566,7 +580,7 @@ class _QueueTrackItemState extends State<QueueTrackItem> {
                   style: textTheme.bodyLarge?.copyWith(
                     fontWeight: FontWeight.w700,
                     fontSize: 15,
-                    color: const Color(0xFF111111),
+                    color: colorScheme.onSurface,
                     letterSpacing: -0.2,
                   ),
                   maxLines: 1,
@@ -587,7 +601,7 @@ class _QueueTrackItemState extends State<QueueTrackItem> {
                 Text(
                   '${widget.track.formattedDuration} | $timeLabel',
                   style: textTheme.bodySmall?.copyWith(
-                    color: Colors.black.withValues(alpha: 0.40),
+                    color: colorScheme.onSurface.withValues(alpha: 0.40),
                     fontSize: 12,
                     fontWeight: FontWeight.w400,
                   ),
@@ -602,7 +616,7 @@ class _QueueTrackItemState extends State<QueueTrackItem> {
               onPressed: () => _showRemoveConfirmation(context),
               icon: Icon(
                 Icons.close_rounded,
-                color: Colors.black.withValues(alpha: 0.35),
+                color: colorScheme.onSurface.withValues(alpha: 0.40),
                 size: 18,
               ),
               visualDensity: VisualDensity.compact,
@@ -698,15 +712,15 @@ class _VoteChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Voted state: filled primary background with white foreground.
+    // Unvoted state: transparent background with theme-aware border.
     final borderColor = hasVoted
         ? colorScheme.primary
-        : Colors.black.withValues(alpha: 0.12);
+        : colorScheme.onSurface.withValues(alpha: 0.18);
     final fgColor = hasVoted
-        ? colorScheme.primary
-        : Colors.black.withValues(alpha: 0.65);
-    final bgColor = hasVoted
-        ? colorScheme.primary.withValues(alpha: 0.10)
-        : Colors.transparent;
+        ? Colors.white
+        : colorScheme.onSurface.withValues(alpha: 0.65);
+    final bgColor = hasVoted ? colorScheme.primary : Colors.transparent;
 
     return Semantics(
       button: true,
@@ -808,10 +822,10 @@ class _VoteLockedChip extends StatelessWidget {
       width: 48,
       padding: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
-        color: colorScheme.onSurface.withValues(alpha: 0.05),
+        color: colorScheme.onSurface.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: Colors.black.withValues(alpha: 0.08),
+          color: colorScheme.onSurface.withValues(alpha: 0.12),
           width: 1.5,
         ),
       ),
@@ -821,7 +835,7 @@ class _VoteLockedChip extends StatelessWidget {
           Icon(
             Icons.lock_rounded,
             size: 16,
-            color: colorScheme.onSurface.withValues(alpha: 0.30),
+            color: colorScheme.onSurface.withValues(alpha: 0.35),
           ),
           const SizedBox(height: 3),
           Text(
@@ -829,7 +843,7 @@ class _VoteLockedChip extends StatelessWidget {
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w700,
-              color: colorScheme.onSurface.withValues(alpha: 0.30),
+              color: colorScheme.onSurface.withValues(alpha: 0.35),
             ),
           ),
         ],
@@ -851,10 +865,10 @@ class _VotingClosedChip extends StatelessWidget {
       width: 48,
       padding: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
-        color: colorScheme.onSurface.withValues(alpha: 0.05),
+        color: colorScheme.onSurface.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(12),
         border: Border.all(
-          color: Colors.black.withValues(alpha: 0.08),
+          color: colorScheme.onSurface.withValues(alpha: 0.12),
           width: 1.5,
         ),
       ),
@@ -864,7 +878,7 @@ class _VotingClosedChip extends StatelessWidget {
           Icon(
             Icons.lock_clock_rounded,
             size: 16,
-            color: colorScheme.onSurface.withValues(alpha: 0.30),
+            color: colorScheme.onSurface.withValues(alpha: 0.35),
           ),
           const SizedBox(height: 3),
           Text(
@@ -872,7 +886,7 @@ class _VotingClosedChip extends StatelessWidget {
             style: TextStyle(
               fontSize: 11,
               fontWeight: FontWeight.w700,
-              color: colorScheme.onSurface.withValues(alpha: 0.30),
+              color: colorScheme.onSurface.withValues(alpha: 0.35),
             ),
           ),
         ],
