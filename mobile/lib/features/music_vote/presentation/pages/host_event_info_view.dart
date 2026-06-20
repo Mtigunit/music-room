@@ -7,11 +7,11 @@ import 'package:intl/intl.dart';
 import 'package:music_room/core/config/app_config.dart';
 import 'package:music_room/core/utils/tag_genre_normalizer.dart';
 import 'package:music_room/core/widgets/feature_chip.dart';
-import 'package:music_room/features/events/presentation/widgets/edit_event_sheet.dart';
 import 'package:music_room/features/music_vote/data/models/event_detail_model.dart';
 import 'package:music_room/features/music_vote/data/models/event_track_model.dart';
 import 'package:music_room/features/music_vote/presentation/state/music_vote_cubit.dart';
 import 'package:music_room/features/music_vote/presentation/widgets/event_actions_row.dart';
+import 'package:music_room/features/music_vote/presentation/widgets/host_event_edit_action.dart';
 
 class HostEventInfoView extends StatelessWidget {
   const HostEventInfoView({
@@ -75,39 +75,7 @@ class HostEventInfoView extends StatelessWidget {
           ),
         ),
         actions: [
-          if (event.status != 'ENDED')
-            Center(
-              child: SizedBox(
-                width: 40,
-                height: 40,
-                child: IconButton(
-                  onPressed: () async {
-                    final didEdit = await showModalBottomSheet<bool>(
-                      context: context,
-                      isScrollControlled: true,
-                      backgroundColor: Colors.transparent,
-                      builder: (context) => EditEventSheet(
-                        event: event,
-                        tracks: tracks,
-                      ),
-                    );
-
-                    if (didEdit == true && context.mounted) {
-                      unawaited(
-                        context.read<MusicVoteCubit>().loadRoom(event.id),
-                      );
-                    }
-                  },
-                  icon: const Icon(Icons.edit_rounded, size: 18),
-                  style: IconButton.styleFrom(
-                    foregroundColor: colorScheme.onSurface,
-                    backgroundColor: colorScheme.surface,
-                    shape: const CircleBorder(),
-                    padding: EdgeInsets.zero,
-                  ),
-                ),
-              ),
-            ),
+          HostEventEditAction(event: event, tracks: tracks),
           const SizedBox(width: 12),
           Center(
             child: _StatusBadge(colorScheme: colorScheme, status: event.status),
