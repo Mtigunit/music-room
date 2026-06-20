@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:music_room/core/config/app_config.dart';
 import 'package:music_room/core/widgets/app_button.dart';
 import 'package:music_room/core/widgets/app_snackbar.dart';
 import 'package:music_room/core/widgets/form_input_decoration.dart';
@@ -222,9 +223,7 @@ class _EmailUpdatePageState extends State<EmailUpdatePage> {
       401 => 'Invalid current password. Please enter the correct password.',
       404 => serverMessage ?? 'Your account could not be found.',
       409 => serverMessage ?? 'This email address is already in use.',
-      429 =>
-        serverMessage ??
-            'Too many OTP requests. Please wait a moment and try again.',
+      429 => serverMessage ?? AppConfig.rateLimitMessage,
       500 =>
         'The server could not process the request. Please try again later.',
       _ =>
@@ -241,7 +240,7 @@ class _EmailUpdatePageState extends State<EmailUpdatePage> {
       400 =>
         serverMessage ?? 'Invalid or expired OTP. Please request a new code.',
       404 => serverMessage ?? 'Your account could not be found.',
-      429 => serverMessage ?? 'Too many attempts. Please wait and try again.',
+      429 => AppConfig.rateLimitMessage,
       500 => 'The server could not verify the code. Please try again later.',
       _ => serverMessage ?? 'Unable to verify the code. Please try again.',
     };

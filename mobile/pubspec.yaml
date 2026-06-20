@@ -30,7 +30,6 @@ environment:
 dependencies:
   audio_session: ^0.1.21
   connectivity_plus: ^7.1.1
-  crypto: ^3.0.3
   cupertino_icons: ^1.0.9
   device_info_plus: ^13.1.0
   dio: ^5.4.0

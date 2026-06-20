@@ -4,7 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
-import 'package:music_room/core/network/api_rate_limiter.dart';
+import 'package:music_room/core/config/app_config.dart';
+import 'package:music_room/core/realtime/socket_events.dart';
 import 'package:music_room/core/services/onboarding_service.dart';
 import 'package:music_room/core/services/theme_preference_service.dart';
 import 'package:music_room/core/theme/app_theme.dart';
@@ -29,7 +30,7 @@ class App extends StatefulWidget {
 class _AppState extends State<App> {
   late final AuthBloc _authBloc;
   late final ThemePreferenceService _themePreferenceService;
-  late final StreamSubscription<ApiRateLimitEvent> _rateLimitSubscription;
+  late final StreamSubscription<String> _rateLimitSubscription;
   StreamSubscription<AuthState>? _authSubscription;
   late final GoRouter _router;
   bool _isLoading = true;
@@ -46,8 +47,13 @@ class _AppState extends State<App> {
     _authBloc = container.createAuthBloc();
     _themePreferenceService = container.themePreferenceService;
     _router = _buildRouter();
+
     _rateLimitSubscription = container.apiClient.rateLimitEvents.listen(
-      _handleRateLimitEvent,
+      _showRateLimitMessage,
+    );
+    container.socketClient.on(
+      SocketEvent.exception.value,
+      _handleSocketException,
     );
 
     unawaited(_initializeApp(container));
@@ -124,6 +130,10 @@ class _AppState extends State<App> {
   @override
   void dispose() {
     unawaited(_rateLimitSubscription.cancel());
+    InjectionContainer().socketClient.off(
+      SocketEvent.exception.value,
+      _handleSocketException,
+    );
     unawaited(_authSubscription?.cancel());
     unawaited(_authBloc.close());
     super.dispose();
@@ -204,16 +214,33 @@ class _AppState extends State<App> {
     return _themePreferenceService.resolveThemeModeForUser(userId);
   }
 
-  void _handleRateLimitEvent(ApiRateLimitEvent event) {
-    if (!mounted || event.delay < const Duration(seconds: 1)) {
-      return;
+  void _showRateLimitMessage(String message) {
+    if (!mounted) return;
+    final context = rootNavigatorKey.currentContext;
+    if (context == null) return;
+    AppSnackbar.showError(context, message);
+  }
+
+  void _handleSocketException(dynamic payload) {
+    if (!mounted) return;
+
+    var isRateLimit = false;
+    var message = AppConfig.rateLimitMessage;
+
+    if (payload is Map<String, dynamic>) {
+      if (payload['event'] == 'rate:limit') {
+        isRateLimit = true;
+      }
+      final msg = payload['message'];
+      if (msg is String && msg.isNotEmpty) {
+        message = msg;
+      }
     }
+
+    if (!isRateLimit) return;
 
     final context = rootNavigatorKey.currentContext;
-    if (context == null) {
-      return;
-    }
-
-    AppSnackbar.showInfo(context, event.message);
+    if (context == null) return;
+    AppSnackbar.showError(context, message);
   }
 }
