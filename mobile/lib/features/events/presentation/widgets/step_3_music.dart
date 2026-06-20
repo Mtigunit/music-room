@@ -502,31 +502,78 @@ class _PlaylistImportResultsState extends State<_PlaylistImportResults> {
   bool _isLoading = true;
   String? _error;
 
+  int _currentPage = 1;
+  bool _hasMore = true;
+  bool _isFetchingMore = false;
+  final ScrollController _scrollController = ScrollController();
+
   @override
   void initState() {
     super.initState();
     _playlistDataSource = InjectionContainer().playlistRemoteDataSource;
-    unawaited(_fetchPlaylists());
+    _scrollController.addListener(_onScroll);
+    unawaited(_fetchPlaylists(isRefresh: true));
   }
 
-  Future<void> _fetchPlaylists() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.position.pixels >=
+            _scrollController.position.maxScrollExtent - 200 &&
+        !_isLoading &&
+        !_isFetchingMore &&
+        _hasMore) {
+      unawaited(_fetchPlaylists());
+    }
+  }
+
+  Future<void> _fetchPlaylists({bool isRefresh = false}) async {
+    if (isRefresh) {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+        _currentPage = 1;
+        _hasMore = true;
+      });
+    } else {
+      setState(() {
+        _isFetchingMore = true;
+        _error = null;
+      });
+    }
 
     try {
-      final playlists = await _playlistDataSource.fetchMyPlaylists();
+      final newPlaylists = await _playlistDataSource.fetchMyPlaylists(
+        page: _currentPage,
+      );
       if (!mounted) return;
+
       setState(() {
-        _playlists = playlists;
+        if (isRefresh) {
+          _playlists = newPlaylists;
+        } else {
+          _playlists = [...?_playlists, ...newPlaylists];
+        }
+
+        if (newPlaylists.length < 50) {
+          _hasMore = false;
+        } else {
+          _currentPage++;
+        }
+
         _isLoading = false;
+        _isFetchingMore = false;
       });
     } on Object catch (e) {
       if (!mounted) return;
       setState(() {
         _error = 'Failed to load playlists: $e';
         _isLoading = false;
+        _isFetchingMore = false;
       });
     }
   }
@@ -576,7 +623,7 @@ class _PlaylistImportResultsState extends State<_PlaylistImportResults> {
             ),
             const SizedBox(height: 8),
             TextButton.icon(
-              onPressed: _fetchPlaylists,
+              onPressed: () => _fetchPlaylists(isRefresh: true),
               icon: const Icon(Icons.refresh_rounded, size: 18),
               label: const Text('Retry'),
             ),
@@ -630,10 +677,18 @@ class _PlaylistImportResultsState extends State<_PlaylistImportResults> {
     }
 
     return ListView.separated(
+      controller: _scrollController,
       padding: EdgeInsets.zero,
-      itemCount: filtered.length,
+      itemCount: filtered.length + (_isFetchingMore ? 1 : 0),
       separatorBuilder: (context, _) => const SizedBox(height: 6),
       itemBuilder: (context, index) {
+        if (index == filtered.length) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Center(child: CircularProgressIndicator()),
+          );
+        }
+
         final playlist = filtered[index];
         final isSelected = widget.selectedPlaylistIds.contains(playlist.id);
 
