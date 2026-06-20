@@ -226,10 +226,11 @@ class _AppState extends State<App> {
         now.difference(lastShownAt) < _rateLimitSnackbarCooldown) {
       return;
     }
-    _lastRateLimitSnackbarAt = now;
 
     final context = rootNavigatorKey.currentContext;
     if (context == null) return;
+
+    _lastRateLimitSnackbarAt = now;
     AppSnackbar.showError(context, message);
   }
 
