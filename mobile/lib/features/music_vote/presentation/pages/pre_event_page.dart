@@ -49,9 +49,21 @@ class PreEventPage extends StatelessWidget {
           final isHost =
               (state.event?.isHost ?? false) || (state.event?.hostId == userId);
           if (isHost) {
-            unawaited(context.push('/music-vote/host/$eventId'));
+            unawaited(
+              context.push('/music-vote/host/$eventId').then((_) {
+                if (context.mounted) {
+                  unawaited(context.read<MusicVoteCubit>().loadRoom(eventId));
+                }
+              }),
+            );
           } else {
-            unawaited(context.push('/music-vote/guest/$eventId'));
+            unawaited(
+              context.push('/music-vote/guest/$eventId').then((_) {
+                if (context.mounted) {
+                  unawaited(context.read<MusicVoteCubit>().loadRoom(eventId));
+                }
+              }),
+            );
           }
         },
         builder: (context, state) {

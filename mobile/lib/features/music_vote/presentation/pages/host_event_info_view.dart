@@ -75,38 +75,39 @@ class HostEventInfoView extends StatelessWidget {
           ),
         ),
         actions: [
-          Center(
-            child: SizedBox(
-              width: 40,
-              height: 40,
-              child: IconButton(
-                onPressed: () async {
-                  final didEdit = await showModalBottomSheet<bool>(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (context) => EditEventSheet(
-                      event: event,
-                      tracks: tracks,
-                    ),
-                  );
-
-                  if (didEdit == true && context.mounted) {
-                    unawaited(
-                      context.read<MusicVoteCubit>().loadRoom(event.id),
+          if (event.status != 'ENDED')
+            Center(
+              child: SizedBox(
+                width: 40,
+                height: 40,
+                child: IconButton(
+                  onPressed: () async {
+                    final didEdit = await showModalBottomSheet<bool>(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (context) => EditEventSheet(
+                        event: event,
+                        tracks: tracks,
+                      ),
                     );
-                  }
-                },
-                icon: const Icon(Icons.edit_rounded, size: 18),
-                style: IconButton.styleFrom(
-                  foregroundColor: colorScheme.onSurface,
-                  backgroundColor: colorScheme.surface,
-                  shape: const CircleBorder(),
-                  padding: EdgeInsets.zero,
+
+                    if (didEdit == true && context.mounted) {
+                      unawaited(
+                        context.read<MusicVoteCubit>().loadRoom(event.id),
+                      );
+                    }
+                  },
+                  icon: const Icon(Icons.edit_rounded, size: 18),
+                  style: IconButton.styleFrom(
+                    foregroundColor: colorScheme.onSurface,
+                    backgroundColor: colorScheme.surface,
+                    shape: const CircleBorder(),
+                    padding: EdgeInsets.zero,
+                  ),
                 ),
               ),
             ),
-          ),
           const SizedBox(width: 12),
           Center(
             child: _StatusBadge(colorScheme: colorScheme, status: event.status),
