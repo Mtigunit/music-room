@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:music_room/core/config/app_config.dart';
 import 'package:music_room/features/search/data/datasources/search_remote_datasource.dart';
 import 'package:music_room/features/search/data/models/search_filter_type.dart';
 import 'package:music_room/features/search/data/models/search_result_models.dart';
@@ -252,6 +253,9 @@ class SearchCubit extends Cubit<SearchState> {
   }
 
   String _buildNetworkErrorMessage(DioException error) {
+    if (error.response?.statusCode == 429) {
+      return AppConfig.rateLimitMessage;
+    }
     if (error.response?.statusCode == 400) {
       return 'Please enter a more specific search query.';
     }

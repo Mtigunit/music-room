@@ -108,6 +108,17 @@ class _PreEventAddTrackSheet extends StatelessWidget {
               },
             );
           }
+          if (state is TrackSearchError) {
+            return Center(
+              child: Text(
+                state.message,
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.error,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            );
+          }
           return const Center(child: Text('Search for tracks'));
         },
       ),

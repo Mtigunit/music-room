@@ -116,6 +116,10 @@ class AppConfig {
   static const String userStorageKey = 'user_profile';
   static const int stalePlaylistThresholdHours = 24;
 
+  // Rate-limit message
+  static const String rateLimitMessage =
+      'Rate limit reached. Please wait a minute before trying again.';
+
   // Debugging
   static const bool isDebug = kDebugMode;
 

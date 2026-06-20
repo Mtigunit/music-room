@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:music_room/core/config/app_config.dart';
 import 'package:music_room/features/events/data/datasources/track_remote_datasource.dart';
 import 'package:music_room/features/events/data/models/track_model.dart';
 
@@ -45,6 +46,10 @@ class TrackSearchCubit extends Cubit<TrackSearchState> {
         emit(TrackSearchLoaded(results));
       } on DioException catch (e) {
         if (isClosed) return;
+        if (e.response?.statusCode == 429) {
+          emit(TrackSearchError(AppConfig.rateLimitMessage));
+          return;
+        }
         emit(TrackSearchError(e.message ?? 'Network error occurred'));
       } on Object catch (e) {
         if (isClosed) return;

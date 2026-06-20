@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:music_room/core/config/app_config.dart';
 import 'package:music_room/core/widgets/app_brand_icon.dart';
 import 'package:music_room/core/widgets/dynamic_search_bottom_sheet.dart';
 import 'package:music_room/features/playlist/data/datasources/playlist_remote_datasource.dart';
@@ -81,15 +82,19 @@ class _PlaylistTrackSearchModalState extends State<PlaylistTrackSearchModal> {
         _results = results;
         _isLoading = false;
       });
-    } on DioException {
+    } on DioException catch (e) {
       if (!mounted) {
         return;
       }
 
+      final message = e.response?.statusCode == 429
+          ? AppConfig.rateLimitMessage
+          : 'Song search failed. Please try again.';
+
       setState(() {
         _results = const <TrackSearchEntity>[];
         _isLoading = false;
-        _errorMessage = 'Song search failed. Please try again.';
+        _errorMessage = message;
       });
     } on Object {
       if (!mounted) {

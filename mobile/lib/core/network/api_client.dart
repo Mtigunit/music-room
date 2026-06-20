@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 import 'package:music_room/core/config/app_config.dart';
-import 'package:music_room/core/network/api_rate_limiter.dart';
 import 'package:music_room/core/services/client_meta_service.dart';
 import 'package:music_room/core/services/token_storage_service.dart';
 
@@ -12,18 +11,15 @@ class ApiClient {
     required Dio dio,
     required TokenStorageService tokenStorage,
     required ClientMetaService clientMetaService,
-    ApiRateLimiter? rateLimiter,
   }) : _dio = dio,
        _clientMetaService = clientMetaService,
-       _tokenStorage = tokenStorage,
-       _rateLimiter = rateLimiter ?? ApiRateLimiter() {
+       _tokenStorage = tokenStorage {
     _setupInterceptors();
   }
 
   final Dio _dio;
   final TokenStorageService _tokenStorage;
   final ClientMetaService _clientMetaService;
-  final ApiRateLimiter _rateLimiter;
 
   /// Expose pre-configured Dio instance for specialized services
   /// like StreamUrlService.
@@ -36,8 +32,12 @@ class ApiClient {
   /// Stream that emits when session expires (401 received)
   Stream<void> get sessionExpired => _sessionExpiredController.stream;
 
-  /// Stream that emits when requests are delayed or the API returns 429.
-  Stream<ApiRateLimitEvent> get rateLimitEvents => _rateLimiter.events;
+  // Stream controller for rate-limit events (HTTP 429)
+  final StreamController<String> _rateLimitController =
+      StreamController<String>.broadcast();
+
+  /// Stream that emits a user-facing message when the backend returns 429.
+  Stream<String> get rateLimitEvents => _rateLimitController.stream;
 
   void _setupInterceptors() {
     _dio.options.baseUrl = AppConfig.apiBaseUrl;
@@ -97,6 +97,11 @@ class ApiClient {
             _emitSessionExpiredSafely();
           }
 
+          // Handle 429 Too Many Requests
+          if (error.response?.statusCode == 429) {
+            _emitRateLimit(error.requestOptions.path);
+          }
+
           if (AppConfig.isDebug) {
             final method = error.requestOptions.method;
             final uri = error.requestOptions.uri;
@@ -119,18 +124,11 @@ class ApiClient {
     String path, {
     Map<String, dynamic>? queryParameters,
     Options? options,
-  }) async {
-    return _rateLimiter.schedule<Response<T>>(
-      request: ApiRequestDescriptor(
-        method: 'GET',
-        path: path,
-        queryParameters: queryParameters,
-      ),
-      execute: () => _dio.get<T>(
-        path,
-        queryParameters: queryParameters,
-        options: options,
-      ),
+  }) {
+    return _dio.get<T>(
+      path,
+      queryParameters: queryParameters,
+      options: options,
     );
   }
 
@@ -140,20 +138,12 @@ class ApiClient {
     dynamic data,
     Map<String, dynamic>? queryParameters,
     Options? options,
-  }) async {
-    return _rateLimiter.schedule<Response<T>>(
-      request: ApiRequestDescriptor(
-        method: 'POST',
-        path: path,
-        queryParameters: queryParameters,
-        data: data,
-      ),
-      execute: () => _dio.post<T>(
-        path,
-        data: data,
-        queryParameters: queryParameters,
-        options: options,
-      ),
+  }) {
+    return _dio.post<T>(
+      path,
+      data: data,
+      queryParameters: queryParameters,
+      options: options,
     );
   }
 
@@ -163,20 +153,12 @@ class ApiClient {
     dynamic data,
     Map<String, dynamic>? queryParameters,
     Options? options,
-  }) async {
-    return _rateLimiter.schedule<Response<T>>(
-      request: ApiRequestDescriptor(
-        method: 'PUT',
-        path: path,
-        queryParameters: queryParameters,
-        data: data,
-      ),
-      execute: () => _dio.put<T>(
-        path,
-        data: data,
-        queryParameters: queryParameters,
-        options: options,
-      ),
+  }) {
+    return _dio.put<T>(
+      path,
+      data: data,
+      queryParameters: queryParameters,
+      options: options,
     );
   }
 
@@ -186,20 +168,12 @@ class ApiClient {
     dynamic data,
     Map<String, dynamic>? queryParameters,
     Options? options,
-  }) async {
-    return _rateLimiter.schedule<Response<T>>(
-      request: ApiRequestDescriptor(
-        method: 'PATCH',
-        path: path,
-        queryParameters: queryParameters,
-        data: data,
-      ),
-      execute: () => _dio.patch<T>(
-        path,
-        data: data,
-        queryParameters: queryParameters,
-        options: options,
-      ),
+  }) {
+    return _dio.patch<T>(
+      path,
+      data: data,
+      queryParameters: queryParameters,
+      options: options,
     );
   }
 
@@ -209,27 +183,19 @@ class ApiClient {
     dynamic data,
     Map<String, dynamic>? queryParameters,
     Options? options,
-  }) async {
-    return _rateLimiter.schedule<Response<T>>(
-      request: ApiRequestDescriptor(
-        method: 'DELETE',
-        path: path,
-        queryParameters: queryParameters,
-        data: data,
-      ),
-      execute: () => _dio.delete<T>(
-        path,
-        data: data,
-        queryParameters: queryParameters,
-        options: options,
-      ),
+  }) {
+    return _dio.delete<T>(
+      path,
+      data: data,
+      queryParameters: queryParameters,
+      options: options,
     );
   }
 
   /// Cleanup resources
   Future<void> dispose() async {
     await _sessionExpiredController.close();
-    _rateLimiter.dispose();
+    await _rateLimitController.close();
   }
 
   void _emitSessionExpiredSafely() {
@@ -238,6 +204,14 @@ class ApiClient {
     }
 
     _sessionExpiredController.add(null);
+  }
+
+  void _emitRateLimit(String requestPath) {
+    if (_rateLimitController.isClosed) {
+      return;
+    }
+
+    _rateLimitController.add(AppConfig.rateLimitMessage);
   }
 
   bool _shouldSkipSessionExpiry(String requestPath) {
