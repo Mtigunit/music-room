@@ -262,6 +262,11 @@ export class EventsService {
     if (!existingEvent) {
       throw new NotFoundException(`Event with ID ${id} not found`);
     }
+    if (existingEvent.status !== EventStatus.UPCOMING) {
+      throw new ForbiddenException(
+        `you cannot update an event that is not in the UPCOMING state`,
+      );
+    }
     if (existingEvent.hostId !== userId) {
       throw new ForbiddenException(
         `You are not authorized to update this event`,

@@ -11,6 +11,7 @@ import { UserRepository } from './user.repository';
 import { Prisma, type User } from '@prisma/client';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import type { UpdateProfileDto } from './dto/update-profile.dto';
+import type { UpdateSubscriptionDto } from './dto/update-subscription.dto';
 import { FollowsService } from '../follows/follows.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AUDIT_LOG_EVENT, AuditAction } from '../audit-log/audit-log.constants';
@@ -369,5 +370,38 @@ export class UsersService {
 
   async incrementTokenVersion(userId: string): Promise<User> {
     return this.userRepository.incrementTokenVersion(userId);
+  }
+
+  async updateSubscription(
+    userId: string,
+    dto: UpdateSubscriptionDto,
+    meta: ClientMetaDto,
+  ): Promise<User> {
+    const user = await this.userRepository.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.subscriptionTier === dto.subscriptionTier) {
+      throw new BadRequestException(`User is already ${dto.subscriptionTier}`);
+    }
+
+    const updatedUser = await this.userRepository.updateSubscriptionTier(
+      userId,
+      dto.subscriptionTier,
+    );
+    if (!updatedUser) {
+      throw new BadRequestException(`User is already ${dto.subscriptionTier}`);
+    }
+
+    this.eventEmitter.emit(
+      AUDIT_LOG_EVENT,
+      createAuditLogEvent(userId, AuditAction.SUBSCRIPTION_UPDATE, meta, {
+        previousTier: user.subscriptionTier,
+        newTier: dto.subscriptionTier,
+      }),
+    );
+
+    return updatedUser;
   }
 }
