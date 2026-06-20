@@ -63,13 +63,7 @@ class HostMusicVotePage extends StatelessWidget {
                       if (context.mounted) {
                         Navigator.of(context, rootNavigator: true).pop();
                         if (context.mounted) {
-                          final currentEventId = eventId?.trim();
-                          if (currentEventId == null ||
-                              currentEventId.isEmpty) {
-                            return;
-                          }
-
-                          context.go('/events/$currentEventId');
+                          context.pop();
                         }
                       }
                     },

@@ -28,6 +28,16 @@ class PreEventPage extends StatelessWidget {
     return null;
   }
 
+  void _pushVotePageAndReload(BuildContext context, String route) {
+    unawaited(
+      context.push(route).then((_) {
+        if (context.mounted) {
+          unawaited(context.read<MusicVoteCubit>().loadRoom(eventId));
+        }
+      }),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final userId = _currentUserId(context);
@@ -49,9 +59,9 @@ class PreEventPage extends StatelessWidget {
           final isHost =
               (state.event?.isHost ?? false) || (state.event?.hostId == userId);
           if (isHost) {
-            unawaited(context.push('/music-vote/host/$eventId'));
+            _pushVotePageAndReload(context, '/music-vote/host/$eventId');
           } else {
-            unawaited(context.push('/music-vote/guest/$eventId'));
+            _pushVotePageAndReload(context, '/music-vote/guest/$eventId');
           }
         },
         builder: (context, state) {
