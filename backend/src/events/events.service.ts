@@ -744,6 +744,9 @@ export class EventsService {
     if (existingLiveEvent.status === EventStatus.LIVE) {
       throw new ForbiddenException('Event is already live');
     }
+    if (existingLiveEvent.status === EventStatus.ENDED) {
+      throw new ForbiddenException('Event is already ended');
+    }
 
     const hostHasOtherLiveEvent = await this.eventsRepository.findHostLiveEvent(
       userId,
