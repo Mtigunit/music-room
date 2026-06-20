@@ -24,6 +24,7 @@ import { EventsRepository } from './events.repository';
 import { PlaybackPlayDto } from './dto/playback-play.dto';
 import { PlaybackPauseDto } from './dto/playback-pause.dto';
 import { PlaybackNextDto } from './dto/playback-next.dto';
+import { EventRoomDto } from './dto/event-room.dto';
 import { WsUser } from '../websockets/decorators/ws-user.decorator';
 import type { SocketUser } from '../websockets/socket-auth.service';
 import { InjectQueue } from '@nestjs/bullmq';
@@ -39,6 +40,16 @@ import { DelegationsRepository } from '../delegations/delegations.repository';
 import { DelegationResponseDto } from '../delegations/dto/delegation-response.dto';
 import { INTERNAL_EVENTS } from './events.constants';
 
+@UsePipes(
+  new ValidationPipe({
+    transform: true,
+    whitelist: true,
+    exceptionFactory: (errors) =>
+      new WsException(
+        errors.map((e) => Object.values(e.constraints ?? {})).flat(),
+      ),
+  }),
+)
 @WebSocketGateway({ path: '/ws', cors: true })
 @UseGuards(WsAuthGuard, WsThrottlerGuard)
 export class EventsGateway implements OnGatewayDisconnect {
@@ -105,11 +116,9 @@ export class EventsGateway implements OnGatewayDisconnect {
   @SubscribeMessage(WS_EVENTS.JOIN)
   async handleEventJoin(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { eventId: string },
+    @MessageBody() payload: EventRoomDto,
     @WsUser() user: SocketUser,
   ) {
-    if (!payload?.eventId) throw new WsException('eventId is required');
-
     const userId = user.id;
     const eventId = payload.eventId;
 
@@ -151,11 +160,9 @@ export class EventsGateway implements OnGatewayDisconnect {
   @SubscribeMessage(WS_EVENTS.HOST_JOIN)
   async handleHostJoin(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { eventId: string },
+    @MessageBody() payload: EventRoomDto,
     @WsUser() user: SocketUser,
   ) {
-    if (!payload?.eventId) throw new WsException('eventId is required');
-
     const eventId = payload.eventId;
     const userId = user.id;
 
@@ -250,11 +257,9 @@ export class EventsGateway implements OnGatewayDisconnect {
   @SubscribeMessage(WS_EVENTS.LEAVE)
   async handleEventLeave(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { eventId: string },
+    @MessageBody() payload: EventRoomDto,
     @WsUser() user: SocketUser,
   ) {
-    if (!payload?.eventId) throw new WsException('eventId is required');
-
     const eventId = payload.eventId;
     const userId = user.id;
 
@@ -283,11 +288,9 @@ export class EventsGateway implements OnGatewayDisconnect {
   @SubscribeMessage(WS_EVENTS.HOST_LEAVE)
   async handleHostLeave(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { eventId: string },
+    @MessageBody() payload: EventRoomDto,
     @WsUser() user: SocketUser,
   ) {
-    if (!payload?.eventId) throw new WsException('eventId is required');
-
     const eventId = payload.eventId;
     const userId = user.id;
 
@@ -353,12 +356,10 @@ export class EventsGateway implements OnGatewayDisconnect {
   @SubscribeMessage(WS_EVENTS.START)
   async handleEventStart(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { eventId: string },
+    @MessageBody() payload: EventRoomDto,
     @WsUser() user: SocketUser,
     @ClientMeta() meta: ClientMetaDto,
   ) {
-    if (!payload?.eventId) throw new WsException('eventId is required');
-
     const eventId = payload.eventId;
     const userId = user.id;
     const socketId = client.id;
@@ -412,12 +413,10 @@ export class EventsGateway implements OnGatewayDisconnect {
   @SubscribeMessage(WS_EVENTS.END)
   async handleEventEnd(
     @ConnectedSocket() client: Socket,
-    @MessageBody() payload: { eventId: string },
+    @MessageBody() payload: EventRoomDto,
     @WsUser() user: SocketUser,
     @ClientMeta() meta: ClientMetaDto,
   ) {
-    if (!payload?.eventId) throw new WsException('eventId is required');
-
     const eventId = payload.eventId;
     const userId = user.id;
     try {
@@ -451,7 +450,6 @@ export class EventsGateway implements OnGatewayDisconnect {
     @WsUser() user: SocketUser,
     @ClientMeta() meta: ClientMetaDto,
   ) {
-    if (!payload?.eventId) throw new WsException('eventId is required');
     try {
       const result = await this.eventsService.play(
         payload.eventId,
@@ -476,7 +474,6 @@ export class EventsGateway implements OnGatewayDisconnect {
     @WsUser() user: SocketUser,
     @ClientMeta() meta: ClientMetaDto,
   ) {
-    if (!payload?.eventId) throw new WsException('eventId is required');
     try {
       const result = await this.eventsService.pause(
         payload.eventId,
@@ -501,7 +498,6 @@ export class EventsGateway implements OnGatewayDisconnect {
     @WsUser() user: SocketUser,
     @ClientMeta() meta: ClientMetaDto,
   ) {
-    if (!payload?.eventId) throw new WsException('eventId is required');
     try {
       const result = await this.eventsService.next(
         payload.eventId,
@@ -573,15 +569,6 @@ export class EventsGateway implements OnGatewayDisconnect {
   }
 
   @SubscribeMessage(WS_EVENTS.DELEGATION_RESPONSE)
-  @UsePipes(
-    new ValidationPipe({
-      whitelist: true,
-      exceptionFactory: (errors) =>
-        new WsException(
-          errors.map((e) => Object.values(e.constraints ?? {})).flat(),
-        ),
-    }),
-  )
   async handleDelegationResponse(
     @MessageBody() payload: DelegationResponseDto,
     @WsUser() user: SocketUser,
