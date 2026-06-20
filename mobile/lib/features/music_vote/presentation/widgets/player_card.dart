@@ -256,6 +256,7 @@ class _PlayerCardState extends State<PlayerCard> {
                                   startPositionMs:
                                       track.pausedPlaybackPositionMs ?? 0,
                                   isMounted: () => mounted,
+                                  preload: widget.isHost,
                                 );
                                 if (canPlay) {
                                   cubit.play();
@@ -276,18 +277,32 @@ class _PlayerCardState extends State<PlayerCard> {
                       onTap: track != null && !isAudioLoading
                           ? () async {
                               final cubit = context.read<MusicVoteCubit>();
+                              final player = context.read<RoomAudioPlayer>();
                               final nextTrack = state.tracks.isNotEmpty
                                   ? state.tracks.first
                                   : null;
 
+                              // Stop current audio immediately to prevent
+                              // overlap between the old and new tracks.
+                              if (widget.isHost) {
+                                // Host stops its own audio player locally.
+                                await player.stopImmediately();
+                              } else {
+                                // Delegated user emits pause so the host
+                                // player stops immediately over the socket
+                                // while the server fetches next track metadata.
+                                cubit.pause();
+                              }
+
                               final canNext =
                                   nextTrack != null &&
                                   await ensureTrackPreloaded(
-                                    player: context.read<RoomAudioPlayer>(),
+                                    player: player,
                                     cubit: cubit,
                                     providerTrackId: nextTrack.providerTrackId,
                                     startPositionMs: 0,
                                     isMounted: () => mounted,
+                                    preload: widget.isHost,
                                   );
                               if (canNext) {
                                 cubit.next();

@@ -176,6 +176,12 @@ class _MusicVoteViewState extends State<MusicVoteView> {
     BuildContext context,
     MusicVoteState state,
   ) async {
+    // ── Audio playback is host-only (FR-E01) ───────────────────────────────
+    // Participants receive all playback state updates (progress, status,
+    // voting) via the socket, but actual audio output must only occur on the
+    // host device. Skip all audio-engine interaction for non-host clients.
+    if (!widget.isHost) return;
+
     final player = context.read<RoomAudioPlayer>();
     _ensurePhaseSubscription(player);
 
@@ -415,7 +421,7 @@ class _LoadedScaffold extends StatelessWidget {
     final isEnded = state.event?.status == 'ENDED';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF6F5FA),
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: Stack(
         children: [
           SafeArea(
@@ -449,9 +455,9 @@ class _LoadedScaffold extends StatelessWidget {
                 SliverToBoxAdapter(
                   child: Container(
                     width: double.infinity,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFF6F5FA),
-                      borderRadius: BorderRadius.vertical(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surface,
+                      borderRadius: const BorderRadius.vertical(
                         top: Radius.circular(28),
                       ),
                     ),
@@ -514,7 +520,7 @@ class _ErrorScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0E0F14),
+      backgroundColor: Theme.of(context).colorScheme.surface,
       body: SafeArea(
         bottom: false,
         child: Column(
@@ -523,9 +529,9 @@ class _ErrorScaffold extends StatelessWidget {
             Expanded(
               child: Container(
                 width: double.infinity,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFF6F5FA),
-                  borderRadius: BorderRadius.vertical(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.surface,
+                  borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(28),
                   ),
                 ),
