@@ -70,7 +70,7 @@ describe('UsersService', () => {
             updateEmailAndIncrementToken: jest.fn(),
             incrementTokenVersion: jest.fn(),
             updateAvatar: jest.fn(),
-            upgradeToPremium: jest.fn(),
+            updateSubscriptionTier: jest.fn(),
           },
         },
         {
@@ -336,43 +336,87 @@ describe('UsersService', () => {
     });
   });
 
-  describe('upgradeSubscription', () => {
+  describe('updateSubscription', () => {
     it('should upgrade a BASIC user to PREMIUM', async () => {
+      const dto = { subscriptionTier: SubscriptionTier.PREMIUM };
       repository.findById.mockResolvedValue(mockUser);
-      repository.upgradeToPremium.mockResolvedValue({
+      repository.updateSubscriptionTier.mockResolvedValue({
         ...mockUser,
         subscriptionTier: SubscriptionTier.PREMIUM,
       });
 
-      const result = await service.upgradeSubscription(mockUser.id, mockMeta);
+      const result = await service.updateSubscription(
+        mockUser.id,
+        dto,
+        mockMeta,
+      );
 
       expect(result.subscriptionTier).toBe(SubscriptionTier.PREMIUM);
-      expect(repository.upgradeToPremium).toHaveBeenCalledWith(mockUser.id);
+      expect(repository.updateSubscriptionTier).toHaveBeenCalledWith(
+        mockUser.id,
+        SubscriptionTier.PREMIUM,
+      );
       expect(eventEmitter.emit).toHaveBeenCalledWith(
         AUDIT_LOG_EVENT,
         expect.any(Object),
       );
     });
 
+    it('should downgrade a PREMIUM user to BASIC', async () => {
+      const dto = { subscriptionTier: SubscriptionTier.BASIC };
+      repository.findById.mockResolvedValue({
+        ...mockUser,
+        subscriptionTier: SubscriptionTier.PREMIUM,
+      });
+      repository.updateSubscriptionTier.mockResolvedValue({
+        ...mockUser,
+        subscriptionTier: SubscriptionTier.BASIC,
+      });
+
+      const result = await service.updateSubscription(
+        mockUser.id,
+        dto,
+        mockMeta,
+      );
+
+      expect(result.subscriptionTier).toBe(SubscriptionTier.BASIC);
+      expect(repository.updateSubscriptionTier).toHaveBeenCalledWith(
+        mockUser.id,
+        SubscriptionTier.BASIC,
+      );
+    });
+
     it('should throw BadRequestException if user is already PREMIUM', async () => {
+      const dto = { subscriptionTier: SubscriptionTier.PREMIUM };
       repository.findById.mockResolvedValue({
         ...mockUser,
         subscriptionTier: SubscriptionTier.PREMIUM,
       });
 
       await expect(
-        service.upgradeSubscription(mockUser.id, mockMeta),
-      ).rejects.toThrow('User is already on the PREMIUM subscription tier');
-      expect(repository.upgradeToPremium).not.toHaveBeenCalled();
+        service.updateSubscription(mockUser.id, dto, mockMeta),
+      ).rejects.toThrow('User is already PREMIUM');
+      expect(repository.updateSubscriptionTier).not.toHaveBeenCalled();
     });
 
-    it('should throw BadRequestException when upgrade is rejected atomically', async () => {
+    it('should throw BadRequestException if user is already BASIC', async () => {
+      const dto = { subscriptionTier: SubscriptionTier.BASIC };
       repository.findById.mockResolvedValue(mockUser);
-      repository.upgradeToPremium.mockResolvedValue(null);
 
       await expect(
-        service.upgradeSubscription(mockUser.id, mockMeta),
-      ).rejects.toThrow('User is already on the PREMIUM subscription tier');
+        service.updateSubscription(mockUser.id, dto, mockMeta),
+      ).rejects.toThrow('User is already BASIC');
+      expect(repository.updateSubscriptionTier).not.toHaveBeenCalled();
+    });
+
+    it('should throw BadRequestException when update is rejected atomically', async () => {
+      const dto = { subscriptionTier: SubscriptionTier.PREMIUM };
+      repository.findById.mockResolvedValue(mockUser);
+      repository.updateSubscriptionTier.mockResolvedValue(null);
+
+      await expect(
+        service.updateSubscription(mockUser.id, dto, mockMeta),
+      ).rejects.toThrow('User is already PREMIUM');
       expect(eventEmitter.emit).not.toHaveBeenCalled();
     });
   });

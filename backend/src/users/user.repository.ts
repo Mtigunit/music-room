@@ -166,14 +166,16 @@ export class UserRepository {
     });
   }
 
-  async upgradeToPremium(userId: string): Promise<User | null> {
+  async updateSubscriptionTier(
+    userId: string,
+    newTier: SubscriptionTier,
+  ): Promise<User | null> {
     try {
       return await this.prisma.user.update({
         where: {
           id: userId,
-          subscriptionTier: SubscriptionTier.BASIC,
         },
-        data: { subscriptionTier: SubscriptionTier.PREMIUM },
+        data: { subscriptionTier: newTier },
       });
     } catch (error) {
       if (

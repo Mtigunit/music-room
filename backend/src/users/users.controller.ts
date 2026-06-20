@@ -44,6 +44,7 @@ import { RequestEmailUpdateDto } from './dto/request-email-update.dto';
 import { VerifyEmailUpdateDto } from './dto/verify-email-update.dto';
 import { UpdateUsernameDto } from './dto/update-username.dto';
 import { UpdatePasswordDto } from './dto/update-password.dto';
+import { UpdateSubscriptionDto } from './dto/update-subscription.dto';
 import { ApiClientMeta } from '../common/decorators/api-client-meta.decorator';
 import { ClientMetaDto } from '../common/dto/client-meta.dto';
 import type { User } from '@prisma/client';
@@ -315,22 +316,25 @@ export class UsersController {
 
   @Patch('me/subscription')
   @ApiClientMeta()
-  @ApiOperation({ summary: 'Upgrade subscription from BASIC to PREMIUM' })
+  @ApiOperation({ summary: 'Update subscription tier (BASIC or PREMIUM)' })
   @ApiResponse({
     status: 200,
-    description: 'Subscription upgraded to PREMIUM successfully.',
+    description: 'Subscription tier updated successfully.',
   })
   @ApiResponse({
     status: 400,
-    description: 'User is already on the PREMIUM subscription tier.',
+    description:
+      'Requested subscription tier matches the current tier (e.g. User is already PREMIUM).',
   })
   @ApiResponse({ status: 404, description: 'User not found.' })
-  async upgradeSubscription(
+  async updateSubscription(
     @Request() req: Express.Request,
+    @Body() dto: UpdateSubscriptionDto,
     @ClientMeta() meta: ClientMetaDto,
   ) {
-    const user = await this.usersService.upgradeSubscription(
+    const user = await this.usersService.updateSubscription(
       req.user!.id,
+      dto,
       meta,
     );
     return this.toSafeUser(user);

@@ -65,7 +65,7 @@ describe('UsersController', () => {
             linkGoogleAccount: jest.fn(),
             unlinkGoogleAccount: jest.fn(),
             changePassword: jest.fn(),
-            upgradeSubscription: jest.fn(),
+            updateSubscription: jest.fn(),
           },
         },
         {
@@ -383,9 +383,9 @@ describe('UsersController', () => {
     });
   });
 
-  // ─── upgradeSubscription ──────────────────────────────
+  // ─── updateSubscription ──────────────────────────────
 
-  describe('upgradeSubscription', () => {
+  describe('updateSubscription', () => {
     const mockMeta: ClientMetaDto = {
       platform: 'jest',
       deviceModel: 'jest',
@@ -393,18 +393,20 @@ describe('UsersController', () => {
       appVersion: 'jest',
     };
 
-    it('should delegate to usersService.upgradeSubscription and return the safe user', async () => {
+    it('should delegate to usersService.updateSubscription and return the safe user', async () => {
+      const dto = { subscriptionTier: SubscriptionTier.PREMIUM };
       const updatedUser = {
         ...mockUser,
         subscriptionTier: SubscriptionTier.PREMIUM,
       };
-      service.upgradeSubscription.mockResolvedValue(updatedUser);
+      service.updateSubscription.mockResolvedValue(updatedUser);
       const req = { user: { id: mockUser.id } } as unknown as Request;
 
-      const result = await controller.upgradeSubscription(req, mockMeta);
+      const result = await controller.updateSubscription(req, dto, mockMeta);
 
-      expect(service.upgradeSubscription).toHaveBeenCalledWith(
+      expect(service.updateSubscription).toHaveBeenCalledWith(
         mockUser.id,
+        dto,
         mockMeta,
       );
       expect(result.subscriptionTier).toBe(SubscriptionTier.PREMIUM);

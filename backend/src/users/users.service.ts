@@ -8,9 +8,10 @@ import {
 } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 import { UserRepository } from './user.repository';
-import { Prisma, SubscriptionTier, type User } from '@prisma/client';
+import { Prisma, type User } from '@prisma/client';
 import { PaginationDto } from '../common/dto/pagination.dto';
 import type { UpdateProfileDto } from './dto/update-profile.dto';
+import type { UpdateSubscriptionDto } from './dto/update-subscription.dto';
 import { FollowsService } from '../follows/follows.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { AUDIT_LOG_EVENT, AuditAction } from '../audit-log/audit-log.constants';
@@ -371,8 +372,9 @@ export class UsersService {
     return this.userRepository.incrementTokenVersion(userId);
   }
 
-  async upgradeSubscription(
+  async updateSubscription(
     userId: string,
+    dto: UpdateSubscriptionDto,
     meta: ClientMetaDto,
   ): Promise<User> {
     const user = await this.userRepository.findById(userId);
@@ -380,24 +382,23 @@ export class UsersService {
       throw new NotFoundException('User not found');
     }
 
-    if (user.subscriptionTier === SubscriptionTier.PREMIUM) {
-      throw new BadRequestException(
-        'User is already on the PREMIUM subscription tier',
-      );
+    if (user.subscriptionTier === dto.subscriptionTier) {
+      throw new BadRequestException(`User is already ${dto.subscriptionTier}`);
     }
 
-    const updatedUser = await this.userRepository.upgradeToPremium(userId);
+    const updatedUser = await this.userRepository.updateSubscriptionTier(
+      userId,
+      dto.subscriptionTier,
+    );
     if (!updatedUser) {
-      throw new BadRequestException(
-        'User is already on the PREMIUM subscription tier',
-      );
+      throw new BadRequestException(`User is already ${dto.subscriptionTier}`);
     }
 
     this.eventEmitter.emit(
       AUDIT_LOG_EVENT,
-      createAuditLogEvent(userId, AuditAction.SUBSCRIPTION_UPGRADE, meta, {
+      createAuditLogEvent(userId, AuditAction.SUBSCRIPTION_UPDATE, meta, {
         previousTier: user.subscriptionTier,
-        newTier: SubscriptionTier.PREMIUM,
+        newTier: dto.subscriptionTier,
       }),
     );
 
