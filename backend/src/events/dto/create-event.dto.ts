@@ -14,6 +14,7 @@ import {
   IsBoolean,
   IsDate,
   MinLength,
+  MaxLength,
   registerDecorator,
   ValidationOptions,
   ValidationArguments,
@@ -182,6 +183,7 @@ export class LicensePolicyDto {
 export class CreateEventDto {
   @ApiProperty()
   @IsString()
+  @MaxLength(100)
   name!: string;
 
   @ApiProperty({ enum: Tags, isArray: true, minItems: 1, maxItems: 3 })
@@ -214,6 +216,7 @@ export class CreateEventDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
+  @MaxLength(1000)
   description?: string;
 
   @ApiPropertyOptional({ type: 'string', format: 'binary' })
