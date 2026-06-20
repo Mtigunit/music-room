@@ -321,7 +321,7 @@ export class EventsService {
     invitedUserId: string,
     meta: ClientMetaDto,
   ) {
-    const event = await this.eventsRepository.findById(eventId);
+    const event = await this.eventsRepository.findByIdWithInvites(eventId);
     if (!event) {
       throw new NotFoundException(`Event with ID ${eventId} not found`);
     }
@@ -332,6 +332,11 @@ export class EventsService {
     }
     if (hostId === invitedUserId) {
       throw new ConflictException('You cannot invite yourself to the event');
+    }
+    if (event.invites.length >= 50) {
+      throw new ConflictException(
+        'Maximum limit of 50 invites reached for this event',
+      );
     }
 
     const userToInvite =

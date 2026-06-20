@@ -224,8 +224,8 @@ describe('EventsService', () => {
       const eventId = 'event-1';
       const userId = 'user-1';
       jest
-        .spyOn(repository, 'findById')
-        .mockResolvedValue({ hostId: userId } as any);
+        .spyOn(repository, 'findByIdWithInvites')
+        .mockResolvedValue({ hostId: userId, invites: [] } as any);
 
       await expect(
         service.inviteUser(eventId, userId, userId, mockMeta),
@@ -237,10 +237,11 @@ describe('EventsService', () => {
       const hostId = 'host-1';
       const invitedUserId = 'user-2';
 
-      jest.spyOn(repository, 'findById').mockResolvedValue({
+      jest.spyOn(repository, 'findByIdWithInvites').mockResolvedValue({
         id: eventId,
         hostId,
         name: 'Launch Party',
+        invites: [],
       } as any);
       jest.spyOn(repository, 'findUserById').mockResolvedValue({
         id: invitedUserId,
