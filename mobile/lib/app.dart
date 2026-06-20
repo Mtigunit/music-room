@@ -36,6 +36,9 @@ class _AppState extends State<App> {
   bool _isLoading = true;
   bool _showOnboarding = false;
 
+  static const Duration _rateLimitSnackbarCooldown = Duration(seconds: 2);
+  DateTime? _lastRateLimitSnackbarAt;
+
   GoRouter _buildRouter() {
     return createRouter(() => _authBloc.state);
   }
@@ -216,6 +219,15 @@ class _AppState extends State<App> {
 
   void _showRateLimitMessage(String message) {
     if (!mounted) return;
+
+    final now = DateTime.now();
+    final lastShownAt = _lastRateLimitSnackbarAt;
+    if (lastShownAt != null &&
+        now.difference(lastShownAt) < _rateLimitSnackbarCooldown) {
+      return;
+    }
+    _lastRateLimitSnackbarAt = now;
+
     final context = rootNavigatorKey.currentContext;
     if (context == null) return;
     AppSnackbar.showError(context, message);
@@ -239,8 +251,6 @@ class _AppState extends State<App> {
 
     if (!isRateLimit) return;
 
-    final context = rootNavigatorKey.currentContext;
-    if (context == null) return;
-    AppSnackbar.showError(context, message);
+    _showRateLimitMessage(message);
   }
 }
