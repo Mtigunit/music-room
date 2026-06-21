@@ -23,6 +23,7 @@ import {
   PolicyType,
   Visibility,
   NotificationType,
+  SubscriptionTier,
 } from '@prisma/client';
 import { TrackSearchResultDto } from '../tracks/dto/track-search-result.dto';
 import { ClientMetaDto } from '../common/dto/client-meta.dto';
@@ -109,6 +110,8 @@ export class EventsService {
     const { playlistIds, tracks } = createEventDto;
 
     if (playlistIds && playlistIds.length > 0) {
+      await this.assertPremiumForPlaylistIds(userId);
+
       const uniquePlaylistIds = Array.from(new Set(playlistIds));
       const playlists = await this.eventsRepository.findPlaylistsByIds(
         uniquePlaylistIds,
@@ -275,6 +278,8 @@ export class EventsService {
 
     const { playlistIds, tracks } = updateEventDto;
     if (playlistIds && playlistIds.length > 0) {
+      await this.assertPremiumForPlaylistIds(userId);
+
       const uniquePlaylistIds = Array.from(new Set(playlistIds));
       const playlists = await this.eventsRepository.findPlaylistsByIds(
         uniquePlaylistIds,
@@ -880,5 +885,18 @@ export class EventsService {
     }
 
     return this.eventsRepository.findInvitedUsers(eventId, pagination);
+  }
+
+  private async assertPremiumForPlaylistIds(userId: string): Promise<void> {
+    const user = await this.eventsRepository.findUserById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    if (user.subscriptionTier === SubscriptionTier.BASIC) {
+      throw new ForbiddenException(
+        'Attaching playlists to events requires a PREMIUM subscription',
+      );
+    }
   }
 }

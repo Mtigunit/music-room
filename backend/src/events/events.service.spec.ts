@@ -4,7 +4,7 @@ import { EventsRepository } from './events.repository';
 import { EventsGateway } from './events.gateway';
 import { YoutubeService } from '../tracks/youtube.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { NotificationType, Visibility } from '@prisma/client';
+import { NotificationType, Visibility, SubscriptionTier } from '@prisma/client';
 import { ForbiddenException, ConflictException } from '@nestjs/common';
 import { RedisService } from '../redis/redis.service';
 import { BULL_QUEUES } from './events.constants';
@@ -129,6 +129,49 @@ describe('EventsService', () => {
         mockTrack,
       ]);
     });
+
+    it('should throw ForbiddenException when a BASIC user attaches playlistIds', async () => {
+      const userId = 'user-1';
+      const dto = {
+        name: 'Test Event',
+        playlistIds: ['playlist-1'],
+      } as any;
+
+      jest.spyOn(repository, 'findUserById').mockResolvedValue({
+        id: userId,
+        subscriptionTier: SubscriptionTier.BASIC,
+      } as any);
+
+      await expect(service.create(userId, dto, mockMeta)).rejects.toThrow(
+        ForbiddenException,
+      );
+      expect(repository.findPlaylistsByIds).not.toHaveBeenCalled();
+      expect(repository.createEvent).not.toHaveBeenCalled();
+    });
+
+    it('should allow a PREMIUM user to attach playlistIds', async () => {
+      const userId = 'user-1';
+      const dto = {
+        name: 'Test Event',
+        playlistIds: ['playlist-1'],
+      } as any;
+
+      jest.spyOn(repository, 'findUserById').mockResolvedValue({
+        id: userId,
+        subscriptionTier: SubscriptionTier.PREMIUM,
+      } as any);
+      jest
+        .spyOn(repository, 'findPlaylistsByIds')
+        .mockResolvedValue([{ id: 'playlist-1' }] as any);
+      jest
+        .spyOn(repository, 'createEvent')
+        .mockResolvedValue({ id: 'event-1' } as any);
+
+      const result = await service.create(userId, dto, mockMeta);
+
+      expect(result.id).toBe('event-1');
+      expect(repository.createEvent).toHaveBeenCalledWith(userId, dto, []);
+    });
   });
 
   describe('findOne', () => {
@@ -216,6 +259,28 @@ describe('EventsService', () => {
       await expect(
         service.update(eventId, userId, {} as any, mockMeta),
       ).rejects.toThrow(ForbiddenException);
+    });
+
+    it('should throw ForbiddenException when a BASIC user attaches playlistIds', async () => {
+      const eventId = 'event-1';
+      const userId = 'user-1';
+      const dto = { playlistIds: ['playlist-1'] } as any;
+
+      jest.spyOn(repository, 'findById').mockResolvedValue({
+        id: eventId,
+        hostId: userId,
+        status: 'UPCOMING',
+      } as any);
+      jest.spyOn(repository, 'findUserById').mockResolvedValue({
+        id: userId,
+        subscriptionTier: SubscriptionTier.BASIC,
+      } as any);
+
+      await expect(
+        service.update(eventId, userId, dto, mockMeta),
+      ).rejects.toThrow(ForbiddenException);
+      expect(repository.findPlaylistsByIds).not.toHaveBeenCalled();
+      expect(repository.updateEvent).not.toHaveBeenCalled();
     });
   });
 
