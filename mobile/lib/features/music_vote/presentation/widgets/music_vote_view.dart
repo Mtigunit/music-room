@@ -100,8 +100,10 @@ class _MusicVoteViewState extends State<MusicVoteView> {
       case AudioPlaybackPhase.paused:
         cubit.setAudioLoading(isLoading: false);
       case AudioPlaybackPhase.idle:
+        cubit.setAudioLoading(isLoading: false);
       case AudioPlaybackPhase.error:
         cubit.setAudioLoading(isLoading: false);
+        cubit.setError('Failed to get track, please try again.');
     }
   }
 

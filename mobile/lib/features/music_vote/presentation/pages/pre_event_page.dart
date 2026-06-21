@@ -29,13 +29,12 @@ class PreEventPage extends StatelessWidget {
   }
 
   void _pushVotePageAndReload(BuildContext context, String route) {
-    unawaited(
-      context.push(route).then((_) {
-        if (context.mounted) {
-          unawaited(context.read<MusicVoteCubit>().loadRoom(eventId));
-        }
-      }),
-    );
+    // Defer to the next frame so any platform views in the current widget tree
+    // (e.g. Google Maps on web) have time to dispose cleanly before the route
+    // transition tears down the page.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (context.mounted) context.go(route);
+    });
   }
 
   @override

@@ -60,7 +60,13 @@ class LiveHeader extends StatelessWidget {
                   padding: EdgeInsets.zero,
                   iconSize: 18,
                   color: Colors.white,
-                  onPressed: () => context.pop(),
+                  onPressed: () {
+                    if (context.canPop()) {
+                      context.pop();
+                    } else {
+                      context.go('/home');
+                    }
+                  },
                 ),
               ),
               Expanded(

@@ -155,7 +155,7 @@ class RoomAudioPlayer {
         return true;
       } on Object catch (e) {
         debugPrint('🎵 [RoomAudioPlayer] Idempotent load/seek error: $e');
-        if (autoPlay && seq == _requestSeq) {
+        if (seq == _requestSeq) {
           _emitPhase(AudioPlaybackPhase.error);
         }
         return false;
@@ -177,7 +177,7 @@ class RoomAudioPlayer {
         '🎵 [RoomAudioPlayer] Stream url resolution returned null for: '
         '$providerTrackId',
       );
-      if (autoPlay && seq == _requestSeq) {
+      if (seq == _requestSeq) {
         _emitPhase(AudioPlaybackPhase.error);
       }
       return false;
@@ -239,7 +239,7 @@ class RoomAudioPlayer {
       return true;
     } on Object catch (e) {
       debugPrint('🎵 [RoomAudioPlayer] Error loading/playing stream URL: $e');
-      if (autoPlay && seq == _requestSeq) {
+      if (seq == _requestSeq) {
         _emitPhase(AudioPlaybackPhase.error);
       }
       return false;
