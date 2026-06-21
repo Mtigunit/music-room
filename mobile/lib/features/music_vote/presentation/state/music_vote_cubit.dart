@@ -1040,10 +1040,20 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
     await _socketDisconnectedSub?.cancel();
     await _delegationAcceptedSub?.cancel();
     await _delegationRemovedSub?.cancel();
-    if (eventId != null && eventId.isNotEmpty && !_suppressLeaveOnClose) {
-      leaveEvent(eventId);
+
+    if (_suppressLeaveOnClose) {
+      // Another cubit for the same event is taking over.
+      // Skip leaveEvent AND _detachSocketListeners — the shared
+      // SocketClient.off(eventName) would remove the NEW cubit's
+      // handlers too because it strips all listeners by name.
+      _socketListenersAttached = false;
+    } else {
+      if (eventId != null && eventId.isNotEmpty) {
+        leaveEvent(eventId);
+      }
+      _detachSocketListeners();
     }
-    _detachSocketListeners();
+
     return super.close();
   }
 
