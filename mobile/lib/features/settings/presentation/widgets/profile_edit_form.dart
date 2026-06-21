@@ -31,6 +31,7 @@ class ProfileEditForm extends StatefulWidget {
     required this.onThemeSelected,
     required this.onDatePicked,
     required this.validateUsername,
+    this.isLocked = false,
     super.key,
   });
 
@@ -50,6 +51,7 @@ class ProfileEditForm extends StatefulWidget {
   final ValueChanged<String> onThemeSelected;
   final Future<void> Function() onDatePicked;
   final String? Function(String?) validateUsername;
+  final bool isLocked;
 
   @override
   State<ProfileEditForm> createState() => _ProfileEditFormState();
@@ -210,11 +212,23 @@ class _ProfileEditFormState extends State<ProfileEditForm> {
               children: [
                 FormToggleRow(
                   title: 'Auto accept invites',
-                  subtitle: widget.autoAcceptInvites
+                  subtitle: widget.isLocked
+                      ? 'Enabled and managed by the application'
+                      : widget.autoAcceptInvites
                       ? 'Automatically accept room and playlist invitations'
                       : 'Review invitations before accepting',
                   value: widget.autoAcceptInvites,
                   onChanged: widget.onAutoAcceptInvitesChanged,
+                  enabled: !widget.isLocked,
+                  leading: widget.isLocked
+                      ? Icon(
+                          Icons.lock_outline,
+                          size: 16,
+                          color: theme.colorScheme.onSurface.withValues(
+                            alpha: 0.45,
+                          ),
+                        )
+                      : null,
                 ),
                 const SizedBox(height: 20),
                 const FormSectionLabel(text: 'FAVORITE GENRES'),

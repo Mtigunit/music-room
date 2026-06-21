@@ -201,6 +201,9 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
     BuildContext context,
     UserProfileEntity currentProfile,
   ) {
+    final isPremium =
+        currentProfile.subscriptionTier.toUpperCase() == 'PREMIUM';
+
     return ProfileEditForm(
       currentProfile: currentProfile,
       usernameController: _usernameController,
@@ -213,11 +216,10 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
       favoriteGenres: _favoriteGenres,
       isSaving: widget.isSaving,
       onSavePressed: _handleProfileSave,
-      onAutoAcceptInvitesChanged: (value) {
-        setState(() {
-          _autoAcceptInvites = value;
-        });
-      },
+      isLocked: !isPremium,
+      onAutoAcceptInvitesChanged: isPremium
+          ? (value) => setState(() => _autoAcceptInvites = value)
+          : (value) {},
       onFavoriteGenreTapped: (displayLabel) {
         final tagValue = TagGenreNormalizer.toValue(displayLabel);
         if (tagValue == null) {
@@ -430,6 +432,11 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
     return value is String ? value : '';
   }
 
+  bool _readBool(Map<String, dynamic>? source, String key) {
+    final value = source?[key];
+    return value == true;
+  }
+
   UserProfileEntity _profileFromState(SettingsState state) =>
       state.dataOrNull?.profile ?? widget.profile;
 
@@ -440,29 +447,6 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
       return TagGenreNormalizer.normalizeValues(rawGenres);
     }
     return const <String>[];
-  }
-
-  bool _readBool(Map<String, dynamic>? source, String key) {
-    final value = source?[key];
-    if (value is bool) {
-      return value;
-    }
-
-    if (value is num) {
-      return value != 0;
-    }
-
-    if (value is String) {
-      final normalized = value.trim().toLowerCase();
-      if (normalized == 'true' || normalized == '1') {
-        return true;
-      }
-      if (normalized == 'false' || normalized == '0') {
-        return false;
-      }
-    }
-
-    return false;
   }
 
   String? _validateUsername(String? value) {

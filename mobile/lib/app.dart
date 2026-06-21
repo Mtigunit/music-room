@@ -17,6 +17,7 @@ import 'package:music_room/features/auth/presentation/pages/post_registration_pr
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
 import 'package:music_room/features/auth/presentation/state/auth_event.dart';
 import 'package:music_room/features/auth/presentation/state/auth_state.dart';
+import 'package:music_room/features/subscription/presentation/state/subscription_cubit.dart';
 import 'package:music_room/routes/route_names.dart';
 import 'package:music_room/routes/router.dart';
 
@@ -29,12 +30,14 @@ class App extends StatefulWidget {
 
 class _AppState extends State<App> {
   late final AuthBloc _authBloc;
+  late final SubscriptionCubit _subscriptionCubit;
   late final ThemePreferenceService _themePreferenceService;
   late final StreamSubscription<String> _rateLimitSubscription;
   StreamSubscription<AuthState>? _authSubscription;
   late final GoRouter _router;
   bool _isLoading = true;
   bool _showOnboarding = false;
+  AuthState? _previousAuthState;
 
   static const Duration _rateLimitSnackbarCooldown = Duration(seconds: 2);
   DateTime? _lastRateLimitSnackbarAt;
@@ -48,6 +51,7 @@ class _AppState extends State<App> {
     super.initState();
     final container = InjectionContainer();
     _authBloc = container.createAuthBloc();
+    _subscriptionCubit = SubscriptionCubit(apiClient: container.apiClient);
     _themePreferenceService = container.themePreferenceService;
     _router = _buildRouter();
 
@@ -62,15 +66,25 @@ class _AppState extends State<App> {
     unawaited(_initializeApp(container));
 
     _authSubscription = _authBloc.stream.listen((state) {
-      if (state is AuthAuthenticated ||
+      final wasAuthenticated = _previousAuthState is AuthAuthenticated;
+      final isAuthenticated = state is AuthAuthenticated;
+      _previousAuthState = state;
+
+      // Only load subscription and restore session on first auth transition.
+      if (isAuthenticated && !wasAuthenticated) {
+        unawaited(_restoreAuthenticatedSession());
+        unawaited(_subscriptionCubit.loadSubscription());
+      }
+
+      if (isAuthenticated ||
           state is LoginSuccess ||
           state is GoogleLoginSuccess ||
           state is RegisterSuccess) {
-        unawaited(_restoreAuthenticatedSession());
         _router.refresh();
       }
 
       if (state is LogoutSuccess) {
+        _subscriptionCubit.reset();
         InjectionContainer().socketClient.disconnect();
         try {
           InjectionContainer().notificationsService.detachSocketListeners();
@@ -138,6 +152,7 @@ class _AppState extends State<App> {
       _handleSocketException,
     );
     unawaited(_authSubscription?.cancel());
+    unawaited(_subscriptionCubit.close());
     unawaited(_authBloc.close());
     super.dispose();
   }
@@ -169,52 +184,17 @@ class _AppState extends State<App> {
 
     return BlocProvider<AuthBloc>.value(
       value: _authBloc,
-      child: AnimatedBuilder(
-        animation: _themePreferenceService,
-        builder: (context, _) {
-          return BlocBuilder<AuthBloc, AuthState>(
-            key: ValueKey(_showOnboarding),
-            builder: (context, authState) {
-              return MaterialApp.router(
-                routerConfig: _router,
-                debugShowCheckedModeBanner: false,
-                theme: AppTheme.lightTheme(),
-                darkTheme: AppTheme.darkTheme(),
-                themeMode: _resolveThemeMode(authState),
-                builder: (context, child) {
-                  if (_showOnboarding) {
-                    return OnboardingPage(
-                      onCompleted: _onOnboardingCompleted,
-                    );
-                  }
-                  if (authState is AuthAuthenticated &&
-                      authState.showOnboarding) {
-                    return PostRegistrationProfilePage(
-                      onCompleted: _onPostRegistrationCompleted,
-                    );
-                  }
-                  return DelegationRequestHost(
-                    child: child ?? const SizedBox.shrink(),
-                  );
-                },
-              );
-            },
-          );
-        },
+      child: BlocProvider<SubscriptionCubit>.value(
+        value: _subscriptionCubit,
+        child: _AppRoot(
+          router: _router,
+          themePreferenceService: _themePreferenceService,
+          showOnboarding: _showOnboarding,
+          onOnboardingCompleted: _onOnboardingCompleted,
+          onPostRegistrationCompleted: _onPostRegistrationCompleted,
+        ),
       ),
     );
-  }
-
-  ThemeMode _resolveThemeMode(AuthState state) {
-    final userId = switch (state) {
-      AuthAuthenticated(:final user) => user.id,
-      LoginSuccess(:final user) => user.id,
-      GoogleLoginSuccess(:final user) => user.id,
-      RegisterSuccess(:final user) => user.id,
-      _ => null,
-    };
-
-    return _themePreferenceService.resolveThemeModeForUser(userId);
   }
 
   void _showRateLimitMessage(String message) {
@@ -253,5 +233,74 @@ class _AppState extends State<App> {
     if (!isRateLimit) return;
 
     _showRateLimitMessage(message);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// _AppRoot – encapsulates theme + auth reactive MaterialApp.router
+// ---------------------------------------------------------------------------
+
+class _AppRoot extends StatelessWidget {
+  const _AppRoot({
+    required this.router,
+    required this.themePreferenceService,
+    required this.showOnboarding,
+    required this.onOnboardingCompleted,
+    required this.onPostRegistrationCompleted,
+  });
+
+  final GoRouter router;
+  final ThemePreferenceService themePreferenceService;
+  final bool showOnboarding;
+  final Future<void> Function() onOnboardingCompleted;
+  final VoidCallback onPostRegistrationCompleted;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: themePreferenceService,
+      builder: (context, _) {
+        return BlocBuilder<AuthBloc, AuthState>(
+          key: ValueKey(showOnboarding),
+          builder: (context, authState) {
+            return MaterialApp.router(
+              routerConfig: router,
+              debugShowCheckedModeBanner: false,
+              theme: AppTheme.lightTheme(),
+              darkTheme: AppTheme.darkTheme(),
+              themeMode: _resolveThemeMode(authState),
+              builder: (context, child) {
+                if (showOnboarding) {
+                  return OnboardingPage(
+                    onCompleted: onOnboardingCompleted,
+                  );
+                }
+                if (authState is AuthAuthenticated &&
+                    authState.showOnboarding) {
+                  return PostRegistrationProfilePage(
+                    onCompleted: onPostRegistrationCompleted,
+                  );
+                }
+                return DelegationRequestHost(
+                  child: child ?? const SizedBox.shrink(),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  ThemeMode _resolveThemeMode(AuthState state) {
+    final userId = switch (state) {
+      AuthAuthenticated(:final user) => user.id,
+      LoginSuccess(:final user) => user.id,
+      GoogleLoginSuccess(:final user) => user.id,
+      RegisterSuccess(:final user) => user.id,
+      _ => null,
+    };
+
+    return themePreferenceService.resolveThemeModeForUser(userId);
   }
 }

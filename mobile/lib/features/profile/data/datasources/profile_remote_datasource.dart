@@ -46,6 +46,8 @@ abstract class IProfileRemoteDataSource {
     required String code,
   });
 
+  Future<UserProfileModel> updateSubscription(String tier);
+
   Future<void> followUser(String userId);
 
   Future<void> unfollowUser(String userId);
@@ -257,6 +259,28 @@ class ProfileRemoteDataSource implements IProfileRemoteDataSource {
     } on Object catch (error) {
       throw DioException(
         requestOptions: RequestOptions(path: AppConfig.myProfileEndpoint),
+        error: error,
+      );
+    }
+  }
+
+  @override
+  Future<UserProfileModel> updateSubscription(String tier) async {
+    try {
+      const endpoint = AppConfig.subscriptionEndpoint;
+      final response = await _apiClient.patch<Map<String, dynamic>>(
+        endpoint,
+        data: <String, dynamic>{'subscriptionTier': tier},
+      );
+
+      return _parseProfileResponse(response, endpoint);
+    } on DioException {
+      rethrow;
+    } on Object catch (error) {
+      throw DioException(
+        requestOptions: RequestOptions(
+          path: AppConfig.subscriptionEndpoint,
+        ),
         error: error,
       );
     }

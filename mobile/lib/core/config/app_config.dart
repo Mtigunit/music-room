@@ -48,6 +48,7 @@ class AppConfig {
   static const String updatePasswordEndpoint = '$myProfileEndpoint/password';
   static const String userDetailEndpoint = 'users';
   static const String linkGoogleAccountEndpoint = 'users/link-google';
+  static const String subscriptionEndpoint = '$myProfileEndpoint/subscription';
 
   static String? get googleWebClientId {
     if (_googleWebClientIdOverride.isNotEmpty) {

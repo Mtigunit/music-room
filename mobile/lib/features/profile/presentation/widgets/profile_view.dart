@@ -18,6 +18,7 @@ import 'package:music_room/features/profile/domain/entities/profile_entity.dart'
 import 'package:music_room/features/profile/presentation/state/profile_bloc.dart';
 import 'package:music_room/features/profile/presentation/state/profile_event.dart';
 import 'package:music_room/features/profile/presentation/widgets/media_card.dart';
+import 'package:music_room/features/profile/presentation/widgets/premium_card.dart';
 import 'package:music_room/routes/route_names.dart';
 
 class ProfileView extends StatefulWidget {
@@ -28,6 +29,8 @@ class ProfileView extends StatefulWidget {
     this.onFollowProfile,
     this.onOpenRoom,
     this.onOpenPlaylist,
+    this.onUpgradeSubscription,
+    this.onDowngradeSubscription,
     this.isBusy = false,
     this.busyLabel,
     super.key,
@@ -39,6 +42,8 @@ class ProfileView extends StatefulWidget {
   final VoidCallback? onFollowProfile;
   final void Function(HostedEventEntity room)? onOpenRoom;
   final void Function(PlaylistEntity playlist)? onOpenPlaylist;
+  final VoidCallback? onUpgradeSubscription;
+  final VoidCallback? onDowngradeSubscription;
   final bool isBusy;
   final String? busyLabel;
 
@@ -96,7 +101,11 @@ class _ProfileViewState extends State<ProfileView> {
               _BioCard(bio: _profile.shortBio!.trim()),
             ],
             const SizedBox(height: 16),
-            _PremiumCard(subscriptionTier: _profile.subscriptionTier),
+            PremiumCard(
+              subscriptionTier: _profile.subscriptionTier,
+              onUpgrade: widget.onUpgradeSubscription,
+              onDowngrade: widget.onDowngradeSubscription,
+            ),
             const SizedBox(height: 16),
             _buildSegmentedControl(),
             const SizedBox(height: 16),
@@ -140,7 +149,11 @@ class _ProfileViewState extends State<ProfileView> {
                         _BioCard(bio: _profile.shortBio!.trim()),
                       ],
                       const SizedBox(height: 16),
-                      _PremiumCard(subscriptionTier: _profile.subscriptionTier),
+                      PremiumCard(
+                        subscriptionTier: _profile.subscriptionTier,
+                        onUpgrade: widget.onUpgradeSubscription,
+                        onDowngrade: widget.onDowngradeSubscription,
+                      ),
                       const SizedBox(height: 16),
                       _buildSegmentedControl(),
                       const SizedBox(height: 16),
@@ -188,8 +201,10 @@ class _ProfileViewState extends State<ProfileView> {
                           _BioCard(bio: _profile.shortBio!.trim()),
                         ],
                         const SizedBox(height: 16),
-                        _PremiumCard(
+                        PremiumCard(
                           subscriptionTier: _profile.subscriptionTier,
+                          onUpgrade: widget.onUpgradeSubscription,
+                          onDowngrade: widget.onDowngradeSubscription,
                         ),
                       ],
                     ),
@@ -845,104 +860,6 @@ class _StatCard extends StatelessWidget {
             label,
             style: theme.textTheme.bodySmall?.copyWith(
               color: colorScheme.onSurface.withValues(alpha: 0.62),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _PremiumCard extends StatelessWidget {
-  const _PremiumCard({required this.subscriptionTier});
-
-  final String subscriptionTier;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final isPremium = subscriptionTier.toUpperCase() != 'BASIC';
-
-    final isLight = theme.brightness == Brightness.light;
-
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: isLight
-              ? [
-                  colorScheme.surface,
-                  colorScheme.primaryContainer.withValues(alpha: 0.72),
-                  colorScheme.secondaryContainer.withValues(alpha: 0.82),
-                ]
-              : [
-                  colorScheme.primaryContainer,
-                  colorScheme.primary.withValues(alpha: 0.42),
-                ],
-        ),
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: colorScheme.onSurface.withValues(alpha: 0.08),
-        ),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              color: colorScheme.onSurface.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(16),
-            ),
-            child: Icon(
-              Icons.workspace_premium_rounded,
-              color: isPremium ? colorScheme.primary : colorScheme.onSurface,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  isPremium ? 'Premium Active' : 'Free Plan',
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w800,
-                    color: colorScheme.onSurface,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  isPremium
-                      ? 'Unlimited rooms · HD audio · No ads'
-                      : 'Upgrade for premium room controls and HD audio.',
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.onSurface.withValues(alpha: 0.72),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Container(
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                colors: isPremium
-                    ? [colorScheme.primary, colorScheme.secondary]
-                    : [colorScheme.surface, colorScheme.surface],
-              ),
-              borderRadius: BorderRadius.circular(999),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-            child: Text(
-              isPremium ? 'Premium' : 'Free',
-              style: theme.textTheme.labelLarge?.copyWith(
-                color: isPremium
-                    ? Colors.white
-                    : colorScheme.onSurface.withValues(alpha: 0.8),
-                fontWeight: FontWeight.w800,
-              ),
             ),
           ),
         ],

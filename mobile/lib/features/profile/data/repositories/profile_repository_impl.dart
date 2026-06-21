@@ -98,6 +98,12 @@ class ProfileRepositoryImpl implements ProfileRepository {
     return loadMyProfilePage();
   }
 
+  @override
+  Future<ProfilePageData> updateSubscription(String tier) async {
+    await _remoteDataSource.updateSubscription(tier);
+    return loadMyProfilePage();
+  }
+
   HostedEventEntity _toHostedEventEntity(MyEventItemModel model) {
     final coverTrim = (model.coverImage ?? '').trim();
     final firstTrackTrim = (model.firstTrack ?? '').trim();
