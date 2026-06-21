@@ -18,4 +18,6 @@ abstract class ProfileRepository {
     Uint8List bytes,
     String fileName,
   );
+
+  Future<ProfilePageData> updateSubscription(String tier);
 }

@@ -16,6 +16,9 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     on<ProfileUnfollowRequested>(_onProfileUnfollowRequested);
     on<ProfileAvatarUploadRequested>(_onProfileAvatarUploadRequested);
     on<ProfileAvatarUploadFailed>(_onProfileAvatarUploadFailed);
+    on<ProfileSubscriptionUpdateRequested>(
+      _onProfileSubscriptionUpdateRequested,
+    );
   }
 
   final ProfileRepository _profileRepository;
@@ -202,6 +205,47 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
         message: message,
       ),
     );
+  }
+
+  Future<void> _onProfileSubscriptionUpdateRequested(
+    ProfileSubscriptionUpdateRequested event,
+    Emitter<ProfileState> emit,
+  ) async {
+    final currentData = _currentLoadedData();
+    if (currentData == null) return;
+
+    final tierLabel = event.tier == 'PREMIUM' ? 'Premium' : 'Basic';
+
+    emit(
+      ProfileMutationInProgress(
+        data: currentData,
+        message: 'Updating to $tierLabel plan...',
+      ),
+    );
+
+    try {
+      final updated = await _profileRepository.updateSubscription(event.tier);
+      emit(
+        ProfileMutationSuccess(
+          data: updated,
+          message: 'Switched to $tierLabel plan.',
+        ),
+      );
+    } on DioException catch (error) {
+      emit(
+        ProfileMutationFailure(
+          data: currentData,
+          message: _buildErrorMessage(error),
+        ),
+      );
+    } on Object {
+      emit(
+        ProfileMutationFailure(
+          data: currentData,
+          message: 'Unable to update subscription. Please try again.',
+        ),
+      );
+    }
   }
 
   ProfilePageData? _currentLoadedData() {

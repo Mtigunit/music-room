@@ -6,6 +6,7 @@ import 'package:music_room/core/widgets/app_brand_icon.dart';
 import 'package:music_room/core/widgets/confirmation_dialog.dart';
 import 'package:music_room/core/widgets/responsive_layout.dart';
 import 'package:music_room/core/widgets/sidebar_constants.dart';
+import 'package:music_room/core/widgets/upgrade_reminder_snackbar.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
 import 'package:music_room/features/auth/presentation/state/auth_event.dart';
@@ -15,6 +16,7 @@ import 'package:music_room/features/music_vote/presentation/pages/my_events_page
 import 'package:music_room/features/playlist/presentation/pages/playlist_page.dart';
 import 'package:music_room/features/profile/presentation/pages/profile_page.dart';
 import 'package:music_room/features/settings/presentation/pages/settings_page.dart';
+import 'package:music_room/features/subscription/presentation/state/subscription_cubit.dart';
 import 'package:music_room/routes/route_names.dart';
 
 // =============================================================================
@@ -234,47 +236,61 @@ class AppScaffoldState extends State<AppScaffold> {
     final colorScheme = Theme.of(context).colorScheme;
     final notificationsService = InjectionContainer().notificationsService;
 
-    return Scaffold(
-      body: _buildBodyContent(),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          border: Border(
-            top: BorderSide(
-              color: colorScheme.onSurface.withValues(
-                alpha: kBottomNavBorderAlpha,
+    return BlocBuilder<SubscriptionCubit, SubscriptionState>(
+      builder: (context, subState) {
+        final isBasic = subState is SubscriptionLoaded && subState.isBasic;
+
+        return Scaffold(
+          body: Stack(
+            children: [
+              _buildBodyContent(),
+              UpgradeReminderSnackbar(
+                visible: isBasic,
+                onUpgrade: () => context.go(RouteNames.profile),
+              ),
+            ],
+          ),
+          bottomNavigationBar: Container(
+            decoration: BoxDecoration(
+              color: Theme.of(context).scaffoldBackgroundColor,
+              border: Border(
+                top: BorderSide(
+                  color: colorScheme.onSurface.withValues(
+                    alpha: kBottomNavBorderAlpha,
+                  ),
+                ),
               ),
             ),
-          ),
-        ),
-        child: BottomNavigationBar(
-          currentIndex: _currentSidebarIndex,
-          onTap: _onNavItemTapped,
-          elevation: 0,
-          backgroundColor: Colors.transparent,
-          type: BottomNavigationBarType.fixed,
-          showSelectedLabels: false,
-          showUnselectedLabels: false,
-          selectedItemColor: colorScheme.primary,
-          unselectedItemColor: colorScheme.onSurface.withValues(
-            alpha: kBottomNavUnselectedAlpha,
-          ),
-          items: [
-            BottomNavigationBarItem(
-              icon: _HomeTabIcon(
-                notificationsService: notificationsService,
-                badgeColor: colorScheme.error,
+            child: BottomNavigationBar(
+              currentIndex: _currentSidebarIndex,
+              onTap: _onNavItemTapped,
+              elevation: 0,
+              backgroundColor: Colors.transparent,
+              type: BottomNavigationBarType.fixed,
+              showSelectedLabels: false,
+              showUnselectedLabels: false,
+              selectedItemColor: colorScheme.primary,
+              unselectedItemColor: colorScheme.onSurface.withValues(
+                alpha: kBottomNavUnselectedAlpha,
               ),
-              label: _navItems[0].label,
+              items: [
+                BottomNavigationBarItem(
+                  icon: _HomeTabIcon(
+                    notificationsService: notificationsService,
+                    badgeColor: colorScheme.error,
+                  ),
+                  label: _navItems[0].label,
+                ),
+                for (final item in _navItems.skip(1))
+                  BottomNavigationBarItem(
+                    icon: Icon(item.icon, size: kBottomNavIconSize),
+                    label: item.label,
+                  ),
+              ],
             ),
-            for (final item in _navItems.skip(1))
-              BottomNavigationBarItem(
-                icon: Icon(item.icon, size: kBottomNavIconSize),
-                label: item.label,
-              ),
-          ],
-        ),
-      ),
+          ),
+        );
+      },
     );
   }
 
@@ -287,22 +303,38 @@ class AppScaffoldState extends State<AppScaffold> {
     final sidebarColors = _SidebarThemeTokens.fromColorScheme(colorScheme);
     final isDarkMode = Theme.of(context).brightness == Brightness.dark;
 
-    return Scaffold(
-      body: Row(
-        children: [
-          _Sidebar(
-            extended: extended,
-            colors: sidebarColors,
-            isDarkMode: isDarkMode,
-            currentIndex: _currentSidebarIndex,
-            navItems: _navItems,
-            onNavItemTap: _onNavItemTapped,
-            onThemeToggle: () => _handleThemeToggle(isDarkMode),
-            onLogoutTap: () => _handleLogout(context),
+    return BlocBuilder<SubscriptionCubit, SubscriptionState>(
+      builder: (context, subState) {
+        final isBasic = subState is SubscriptionLoaded && subState.isBasic;
+
+        return Scaffold(
+          body: Row(
+            children: [
+              _Sidebar(
+                extended: extended,
+                colors: sidebarColors,
+                isDarkMode: isDarkMode,
+                currentIndex: _currentSidebarIndex,
+                navItems: _navItems,
+                onNavItemTap: _onNavItemTapped,
+                onThemeToggle: () => _handleThemeToggle(isDarkMode),
+                onLogoutTap: () => _handleLogout(context),
+              ),
+              Expanded(
+                child: Stack(
+                  children: [
+                    _buildBodyContent(),
+                    UpgradeReminderSnackbar(
+                      visible: isBasic,
+                      onUpgrade: () => context.go(RouteNames.profile),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
-          Expanded(child: _buildBodyContent()),
-        ],
-      ),
+        );
+      },
     );
   }
 

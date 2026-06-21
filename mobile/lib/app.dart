@@ -17,6 +17,7 @@ import 'package:music_room/features/auth/presentation/pages/post_registration_pr
 import 'package:music_room/features/auth/presentation/state/auth_bloc.dart';
 import 'package:music_room/features/auth/presentation/state/auth_event.dart';
 import 'package:music_room/features/auth/presentation/state/auth_state.dart';
+import 'package:music_room/features/subscription/presentation/state/subscription_cubit.dart';
 import 'package:music_room/routes/route_names.dart';
 import 'package:music_room/routes/router.dart';
 
@@ -29,6 +30,7 @@ class App extends StatefulWidget {
 
 class _AppState extends State<App> {
   late final AuthBloc _authBloc;
+  late final SubscriptionCubit _subscriptionCubit;
   late final ThemePreferenceService _themePreferenceService;
   late final StreamSubscription<String> _rateLimitSubscription;
   StreamSubscription<AuthState>? _authSubscription;
@@ -48,6 +50,7 @@ class _AppState extends State<App> {
     super.initState();
     final container = InjectionContainer();
     _authBloc = container.createAuthBloc();
+    _subscriptionCubit = SubscriptionCubit(apiClient: container.apiClient);
     _themePreferenceService = container.themePreferenceService;
     _router = _buildRouter();
 
@@ -67,10 +70,12 @@ class _AppState extends State<App> {
           state is GoogleLoginSuccess ||
           state is RegisterSuccess) {
         unawaited(_restoreAuthenticatedSession());
+        unawaited(_subscriptionCubit.loadSubscription());
         _router.refresh();
       }
 
       if (state is LogoutSuccess) {
+        _subscriptionCubit.reset();
         InjectionContainer().socketClient.disconnect();
         try {
           InjectionContainer().notificationsService.detachSocketListeners();
@@ -138,6 +143,7 @@ class _AppState extends State<App> {
       _handleSocketException,
     );
     unawaited(_authSubscription?.cancel());
+    unawaited(_subscriptionCubit.close());
     unawaited(_authBloc.close());
     super.dispose();
   }
@@ -169,38 +175,41 @@ class _AppState extends State<App> {
 
     return BlocProvider<AuthBloc>.value(
       value: _authBloc,
-      child: AnimatedBuilder(
-        animation: _themePreferenceService,
-        builder: (context, _) {
-          return BlocBuilder<AuthBloc, AuthState>(
-            key: ValueKey(_showOnboarding),
-            builder: (context, authState) {
-              return MaterialApp.router(
-                routerConfig: _router,
-                debugShowCheckedModeBanner: false,
-                theme: AppTheme.lightTheme(),
-                darkTheme: AppTheme.darkTheme(),
-                themeMode: _resolveThemeMode(authState),
-                builder: (context, child) {
-                  if (_showOnboarding) {
-                    return OnboardingPage(
-                      onCompleted: _onOnboardingCompleted,
+      child: BlocProvider<SubscriptionCubit>.value(
+        value: _subscriptionCubit,
+        child: AnimatedBuilder(
+          animation: _themePreferenceService,
+          builder: (context, _) {
+            return BlocBuilder<AuthBloc, AuthState>(
+              key: ValueKey(_showOnboarding),
+              builder: (context, authState) {
+                return MaterialApp.router(
+                  routerConfig: _router,
+                  debugShowCheckedModeBanner: false,
+                  theme: AppTheme.lightTheme(),
+                  darkTheme: AppTheme.darkTheme(),
+                  themeMode: _resolveThemeMode(authState),
+                  builder: (context, child) {
+                    if (_showOnboarding) {
+                      return OnboardingPage(
+                        onCompleted: _onOnboardingCompleted,
+                      );
+                    }
+                    if (authState is AuthAuthenticated &&
+                        authState.showOnboarding) {
+                      return PostRegistrationProfilePage(
+                        onCompleted: _onPostRegistrationCompleted,
+                      );
+                    }
+                    return DelegationRequestHost(
+                      child: child ?? const SizedBox.shrink(),
                     );
-                  }
-                  if (authState is AuthAuthenticated &&
-                      authState.showOnboarding) {
-                    return PostRegistrationProfilePage(
-                      onCompleted: _onPostRegistrationCompleted,
-                    );
-                  }
-                  return DelegationRequestHost(
-                    child: child ?? const SizedBox.shrink(),
-                  );
-                },
-              );
-            },
-          );
-        },
+                  },
+                );
+              },
+            );
+          },
+        ),
       ),
     );
   }

@@ -4,12 +4,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:go_router/go_router.dart';
 import 'package:music_room/core/widgets/app_snackbar.dart';
+import 'package:music_room/core/widgets/confirmation_dialog.dart';
 import 'package:music_room/di/injection_container.dart';
 import 'package:music_room/features/profile/domain/entities/profile_entity.dart';
 import 'package:music_room/features/profile/presentation/state/profile_bloc.dart';
 import 'package:music_room/features/profile/presentation/state/profile_event.dart';
 import 'package:music_room/features/profile/presentation/state/profile_state.dart';
+import 'package:music_room/features/profile/presentation/widgets/mock_payment_modal.dart';
 import 'package:music_room/features/profile/presentation/widgets/profile_view.dart';
+import 'package:music_room/features/subscription/presentation/state/subscription_cubit.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({
@@ -72,6 +75,9 @@ class _ProfilePageBody extends StatelessWidget {
       listener: (context, state) {
         if (state is ProfileMutationSuccess) {
           AppSnackbar.showSuccess(context, state.message);
+          // Sync the global subscription state after a successful mutation.
+          final tier = state.data.profile.subscriptionTier;
+          context.read<SubscriptionCubit>().updateTier(tier);
         }
         if (state is ProfileMutationFailure) {
           AppSnackbar.showError(context, state.message);
@@ -118,6 +124,8 @@ class _ProfilePageBody extends StatelessWidget {
       onFollowProfile: profileData.profile.isSelf
           ? null
           : () => _handleFollowAction(context, profileData.profile),
+      onUpgradeSubscription: () => _handleUpgrade(context),
+      onDowngradeSubscription: () => _handleDowngrade(context),
       onOpenRoom: (room) {
         context.go('/events/${room.id}');
       },
@@ -155,6 +163,32 @@ class _ProfilePageBody extends StatelessWidget {
     }
 
     bloc.add(ProfileFollowRequested(userId: profile.id));
+  }
+
+  Future<void> _handleUpgrade(BuildContext context) async {
+    final confirmed = await showMockPaymentModal(context);
+    if (confirmed == true && context.mounted) {
+      context.read<ProfileBloc>().add(
+        const ProfileSubscriptionUpdateRequested(tier: 'PREMIUM'),
+      );
+    }
+  }
+
+  Future<void> _handleDowngrade(BuildContext context) async {
+    final confirmed = await showAppConfirmationDialog(
+      context: context,
+      title: 'Remove Premium Plan?',
+      message: 'Are you sure you want to downgrade to the Basic plan?',
+      confirmLabel: 'Downgrade',
+      icon: Icons.workspace_premium_rounded,
+      variant: ConfirmationDialogVariant.destructive,
+    );
+
+    if (confirmed == true && context.mounted) {
+      context.read<ProfileBloc>().add(
+        const ProfileSubscriptionUpdateRequested(tier: 'BASIC'),
+      );
+    }
   }
 }
 

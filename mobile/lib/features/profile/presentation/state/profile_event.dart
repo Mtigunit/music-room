@@ -70,3 +70,12 @@ class ProfileAvatarUploadFailed extends ProfileEvent {
   @override
   List<Object?> get props => [exception, stackTrace];
 }
+
+class ProfileSubscriptionUpdateRequested extends ProfileEvent {
+  const ProfileSubscriptionUpdateRequested({required this.tier});
+
+  final String tier;
+
+  @override
+  List<Object?> get props => [tier];
+}
