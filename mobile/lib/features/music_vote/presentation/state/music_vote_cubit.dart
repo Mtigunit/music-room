@@ -158,6 +158,7 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
   final Map<String, String> _pendingVotes = {};
 
   final String? _currentUserId;
+  bool _suppressLeaveOnClose = false;
 
   /// Host-side auto-advance timer: fires `playback:next` when the current
   /// track reaches the end of its duration. Cancelled on pause / next /
@@ -1039,10 +1040,17 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
     await _socketDisconnectedSub?.cancel();
     await _delegationAcceptedSub?.cancel();
     await _delegationRemovedSub?.cancel();
-    if (eventId != null && eventId.isNotEmpty) {
+    if (eventId != null && eventId.isNotEmpty && !_suppressLeaveOnClose) {
       leaveEvent(eventId);
     }
     _detachSocketListeners();
     return super.close();
+  }
+
+  /// Prevents `leaveEvent` from being emitted when this cubit is closed.
+  /// Useful during page transitions where the user is moving to a different
+  /// route for the same active event, to prevent race conditions.
+  void suppressLeaveOnClose() {
+    _suppressLeaveOnClose = true;
   }
 }

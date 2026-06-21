@@ -57,6 +57,13 @@ class PreEventPage extends StatelessWidget {
         listener: (context, state) {
           final isHost =
               (state.event?.isHost ?? false) || (state.event?.hostId == userId);
+
+          // We are transitioning to the live event page which has its
+          // own Cubit. Suppress leaveEvent on this cubit so we don't
+          // accidentally kick the user out of the backend room just as
+          // the new page is joining it.
+          context.read<MusicVoteCubit>().suppressLeaveOnClose();
+
           if (isHost) {
             _pushVotePageAndReload(context, '/music-vote/host/$eventId');
           } else {
