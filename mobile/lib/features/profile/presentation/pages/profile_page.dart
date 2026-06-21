@@ -75,9 +75,11 @@ class _ProfilePageBody extends StatelessWidget {
       listener: (context, state) {
         if (state is ProfileMutationSuccess) {
           AppSnackbar.showSuccess(context, state.message);
-          // Sync the global subscription state after a successful mutation.
-          final tier = state.data.profile.subscriptionTier;
-          context.read<SubscriptionCubit>().updateTier(tier);
+          // Sync the global subscription state only for own-profile mutations.
+          if (userId == null) {
+            final tier = state.data.profile.subscriptionTier;
+            context.read<SubscriptionCubit>().updateTier(tier);
+          }
         }
         if (state is ProfileMutationFailure) {
           AppSnackbar.showError(context, state.message);
@@ -124,8 +126,12 @@ class _ProfilePageBody extends StatelessWidget {
       onFollowProfile: profileData.profile.isSelf
           ? null
           : () => _handleFollowAction(context, profileData.profile),
-      onUpgradeSubscription: () => _handleUpgrade(context),
-      onDowngradeSubscription: () => _handleDowngrade(context),
+      onUpgradeSubscription: profileData.profile.isSelf
+          ? () => _handleUpgrade(context)
+          : null,
+      onDowngradeSubscription: profileData.profile.isSelf
+          ? () => _handleDowngrade(context)
+          : null,
       onOpenRoom: (room) {
         context.go('/events/${room.id}');
       },
@@ -169,7 +175,9 @@ class _ProfilePageBody extends StatelessWidget {
     final confirmed = await showMockPaymentModal(context);
     if (confirmed == true && context.mounted) {
       context.read<ProfileBloc>().add(
-        const ProfileSubscriptionUpdateRequested(tier: 'PREMIUM'),
+        const ProfileSubscriptionUpdateRequested(
+          tier: SubscriptionTier.premium,
+        ),
       );
     }
   }
@@ -186,7 +194,9 @@ class _ProfilePageBody extends StatelessWidget {
 
     if (confirmed == true && context.mounted) {
       context.read<ProfileBloc>().add(
-        const ProfileSubscriptionUpdateRequested(tier: 'BASIC'),
+        const ProfileSubscriptionUpdateRequested(
+          tier: SubscriptionTier.basic,
+        ),
       );
     }
   }

@@ -37,6 +37,7 @@ class _AppState extends State<App> {
   late final GoRouter _router;
   bool _isLoading = true;
   bool _showOnboarding = false;
+  AuthState? _previousAuthState;
 
   static const Duration _rateLimitSnackbarCooldown = Duration(seconds: 2);
   DateTime? _lastRateLimitSnackbarAt;
@@ -65,12 +66,20 @@ class _AppState extends State<App> {
     unawaited(_initializeApp(container));
 
     _authSubscription = _authBloc.stream.listen((state) {
-      if (state is AuthAuthenticated ||
+      final wasAuthenticated = _previousAuthState is AuthAuthenticated;
+      final isAuthenticated = state is AuthAuthenticated;
+      _previousAuthState = state;
+
+      // Only load subscription and restore session on first auth transition.
+      if (isAuthenticated && !wasAuthenticated) {
+        unawaited(_restoreAuthenticatedSession());
+        unawaited(_subscriptionCubit.loadSubscription());
+      }
+
+      if (isAuthenticated ||
           state is LoginSuccess ||
           state is GoogleLoginSuccess ||
           state is RegisterSuccess) {
-        unawaited(_restoreAuthenticatedSession());
-        unawaited(_subscriptionCubit.loadSubscription());
         _router.refresh();
       }
 

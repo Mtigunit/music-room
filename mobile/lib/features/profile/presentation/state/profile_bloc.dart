@@ -214,7 +214,9 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     final currentData = _currentLoadedData();
     if (currentData == null) return;
 
-    final tierLabel = event.tier == 'PREMIUM' ? 'Premium' : 'Basic';
+    final tierLabel = event.tier == SubscriptionTier.premium
+        ? 'Premium'
+        : 'Basic';
 
     emit(
       ProfileMutationInProgress(
@@ -224,7 +226,9 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
     );
 
     try {
-      final updated = await _profileRepository.updateSubscription(event.tier);
+      final updated = await _profileRepository.updateSubscription(
+        event.tier.apiValue,
+      );
       emit(
         ProfileMutationSuccess(
           data: updated,
@@ -235,7 +239,10 @@ class ProfileBloc extends Bloc<ProfileEvent, ProfileState> {
       emit(
         ProfileMutationFailure(
           data: currentData,
-          message: _buildErrorMessage(error),
+          message: _buildErrorMessage(
+            error,
+            fallback: 'Unable to update subscription. Please try again.',
+          ),
         ),
       );
     } on Object {

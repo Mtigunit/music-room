@@ -8,6 +8,23 @@ enum GoogleLinkStatus {
   unlinked,
 }
 
+enum SubscriptionTier {
+  basic,
+  premium;
+
+  /// Parse from the backend string representation, defaulting to [basic].
+  factory SubscriptionTier.fromString(String? value) {
+    if (value == null) return SubscriptionTier.basic;
+    return SubscriptionTier.values.firstWhere(
+      (e) => e.name == value.toLowerCase(),
+      orElse: () => SubscriptionTier.basic,
+    );
+  }
+
+  /// The value sent to the backend API.
+  String get apiValue => name.toUpperCase();
+}
+
 /// Domain entity for user profile
 class UserProfileEntity extends Equatable {
   const UserProfileEntity({

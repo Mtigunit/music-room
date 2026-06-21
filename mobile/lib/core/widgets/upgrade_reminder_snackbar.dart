@@ -28,6 +28,7 @@ class UpgradeReminderSnackbar extends StatefulWidget {
 class _UpgradeReminderSnackbarState extends State<UpgradeReminderSnackbar> {
   bool _dismissed = false;
   bool _loaded = false;
+  bool _loadingDismissed = false;
 
   @override
   void initState() {
@@ -38,13 +39,15 @@ class _UpgradeReminderSnackbarState extends State<UpgradeReminderSnackbar> {
   @override
   void didUpdateWidget(covariant UpgradeReminderSnackbar oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!oldWidget.visible && widget.visible) {
+    if (!oldWidget.visible && widget.visible && !_loadingDismissed) {
       unawaited(_resetDismissed());
     }
   }
 
   Future<void> _loadDismissedState() async {
+    _loadingDismissed = true;
     final prefs = await SharedPreferences.getInstance();
+    _loadingDismissed = false;
     if (!mounted) return;
     setState(() {
       _dismissed = prefs.getBool(_kDismissedKey) ?? false;

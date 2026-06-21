@@ -882,7 +882,7 @@ class _PremiumCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final isPremium = subscriptionTier.toUpperCase() != 'BASIC';
+    final isPremium = subscriptionTier.toUpperCase() == 'PREMIUM';
 
     return Container(
       padding: const EdgeInsets.all(20),

@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:equatable/equatable.dart';
+import 'package:music_room/features/profile/domain/entities/profile_entity.dart';
 
 abstract class ProfileEvent extends Equatable {
   const ProfileEvent();
@@ -74,7 +75,7 @@ class ProfileAvatarUploadFailed extends ProfileEvent {
 class ProfileSubscriptionUpdateRequested extends ProfileEvent {
   const ProfileSubscriptionUpdateRequested({required this.tier});
 
-  final String tier;
+  final SubscriptionTier tier;
 
   @override
   List<Object?> get props => [tier];
