@@ -771,7 +771,7 @@ export class EventsRepository {
             currentTrackId: nextTrack.id,
             currentTrackStartedAt: new Date(),
             pausedPlaybackPositionMs: 0,
-            playbackStatus: PlaybackStatus.PAUSED,
+            playbackStatus: PlaybackStatus.PLAYING,
           },
         });
         return { event: updatedEvent, nextTrackId: nextTrack.id };
