@@ -52,6 +52,7 @@ describe('PlaybackService', () => {
           noWarnings: true,
           preferFreeFormats: true,
           format: 'bestaudio/best',
+          extractorArgs: 'youtube:player_client=android',
         },
       );
     });

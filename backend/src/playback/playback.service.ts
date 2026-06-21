@@ -27,6 +27,8 @@ export class PlaybackService {
         noWarnings: true,
         preferFreeFormats: true,
         format: 'bestaudio/best',
+        // @ts-expect-error youtube-dl-exec types do not include extractorArgs yet
+        extractorArgs: 'youtube:player_client=android',
       });
 
       const timeoutPromise = new Promise<never>((_, reject) => {
