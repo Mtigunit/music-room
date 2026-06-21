@@ -8,6 +8,8 @@ class FormToggleRow extends StatelessWidget {
     required this.subtitle,
     required this.value,
     required this.onChanged,
+    this.enabled = true,
+    this.leading,
     super.key,
   });
 
@@ -15,6 +17,8 @@ class FormToggleRow extends StatelessWidget {
   final String subtitle;
   final bool value;
   final ValueChanged<bool> onChanged;
+  final bool enabled;
+  final Widget? leading;
 
   @override
   Widget build(BuildContext context) {
@@ -36,12 +40,22 @@ class FormToggleRow extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  title,
-                  style: theme.textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: theme.colorScheme.onSurface,
-                  ),
+                Row(
+                  children: [
+                    if (leading != null) ...[
+                      leading!,
+                      const SizedBox(width: 6),
+                    ],
+                    Expanded(
+                      child: Text(
+                        title,
+                        style: theme.textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                          color: theme.colorScheme.onSurface,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -56,14 +70,14 @@ class FormToggleRow extends StatelessWidget {
           const SizedBox(width: 12),
           Switch.adaptive(
             value: value,
-            onChanged: onChanged,
+            onChanged: enabled ? onChanged : null,
             activeThumbColor: theme.colorScheme.onPrimary,
             activeTrackColor: theme.colorScheme.primary,
             inactiveThumbColor: theme.colorScheme.onSurface.withValues(
-              alpha: 0.4,
+              alpha: enabled ? 0.4 : 0.2,
             ),
             inactiveTrackColor: theme.colorScheme.onSurface.withValues(
-              alpha: 0.1,
+              alpha: enabled ? 0.1 : 0.05,
             ),
           ),
         ],

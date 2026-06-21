@@ -75,10 +75,7 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
     _newPasswordController = TextEditingController();
     _confirmPasswordController = TextEditingController();
     _favoriteGenres = _readGenres(widget.profile.preferences).toSet();
-    _autoAcceptInvites = _readBool(
-      widget.profile.preferences,
-      'autoAcceptInvites',
-    );
+    _autoAcceptInvites = true;
   }
 
   @override
@@ -213,11 +210,8 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
       favoriteGenres: _favoriteGenres,
       isSaving: widget.isSaving,
       onSavePressed: _handleProfileSave,
-      onAutoAcceptInvitesChanged: (value) {
-        setState(() {
-          _autoAcceptInvites = value;
-        });
-      },
+      isLocked: true,
+      onAutoAcceptInvitesChanged: (value) {},
       onFavoriteGenreTapped: (displayLabel) {
         final tagValue = TagGenreNormalizer.toValue(displayLabel);
         if (tagValue == null) {
@@ -285,7 +279,7 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
         favoriteGenres: _favoriteGenres.toList(
           growable: false,
         ),
-        autoAcceptInvites: _autoAcceptInvites,
+        autoAcceptInvites: true,
         uiTheme: _themeController.text.isEmpty ? null : _themeController.text,
       ),
     );
@@ -440,29 +434,6 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
       return TagGenreNormalizer.normalizeValues(rawGenres);
     }
     return const <String>[];
-  }
-
-  bool _readBool(Map<String, dynamic>? source, String key) {
-    final value = source?[key];
-    if (value is bool) {
-      return value;
-    }
-
-    if (value is num) {
-      return value != 0;
-    }
-
-    if (value is String) {
-      final normalized = value.trim().toLowerCase();
-      if (normalized == 'true' || normalized == '1') {
-        return true;
-      }
-      if (normalized == 'false' || normalized == '0') {
-        return false;
-      }
-    }
-
-    return false;
   }
 
   String? _validateUsername(String? value) {
