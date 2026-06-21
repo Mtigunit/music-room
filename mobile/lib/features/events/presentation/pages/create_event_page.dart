@@ -469,7 +469,11 @@ class _CreateEventPageState extends State<CreateEventPage> {
                             }
 
                             if (state is CreateEventSuccess) {
-                              context.go('/events/${state.eventId}');
+                              WidgetsBinding.instance.addPostFrameCallback((_) {
+                                if (context.mounted) {
+                                  context.go('/events/${state.eventId}');
+                                }
+                              });
                             }
                           },
                           builder: (context, state) {

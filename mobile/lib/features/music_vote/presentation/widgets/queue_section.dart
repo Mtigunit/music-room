@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:intl/intl.dart';
+
 import 'package:music_room/core/widgets/app_brand_icon.dart';
 import 'package:music_room/core/widgets/dynamic_search_bottom_sheet.dart';
 import 'package:music_room/core/widgets/top_toast.dart';
@@ -632,7 +634,10 @@ class _QueueTrackItemState extends State<QueueTrackItem> {
           else if (!widget.canVote)
             _VoteLockedChip(colorScheme: colorScheme)
           else if (!votingOpen)
-            _VotingClosedChip(colorScheme: colorScheme)
+            _VotingClosedChip(
+              colorScheme: colorScheme,
+              policies: widget.policies,
+            )
           else
             _VoteChip(
               votes: widget.voteCount,
@@ -855,41 +860,71 @@ class _VoteLockedChip extends StatelessWidget {
 /// Shown in place of the vote chip when the event's time window has expired
 /// or hasn't started yet.
 class _VotingClosedChip extends StatelessWidget {
-  const _VotingClosedChip({required this.colorScheme});
+  const _VotingClosedChip({
+    required this.colorScheme,
+    required this.policies,
+  });
 
   final ColorScheme colorScheme;
+  final EventPolicies policies;
+
+  String _getTooltipMessage() {
+    final start = policies.startDate;
+    final end = policies.endDate;
+    final now = DateTime.now();
+
+    if (start != null && now.isBefore(start)) {
+      return 'Voting opens at ${DateFormat.jm().format(start)}';
+    }
+    if (end != null && now.isAfter(end)) {
+      return 'Voting closed at ${DateFormat.jm().format(end)}';
+    }
+    return 'Voting is closed';
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 48,
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      decoration: BoxDecoration(
-        color: colorScheme.onSurface.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: colorScheme.onSurface.withValues(alpha: 0.12),
-          width: 1.5,
-        ),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(
-            Icons.lock_clock_rounded,
-            size: 16,
-            color: colorScheme.onSurface.withValues(alpha: 0.35),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            'Closed',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: colorScheme.onSurface.withValues(alpha: 0.35),
+    final message = _getTooltipMessage();
+
+    return Tooltip(
+      message: message,
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          onTap: () => TopToast.show(context, message),
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            width: 48,
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            decoration: BoxDecoration(
+              color: colorScheme.onSurface.withValues(alpha: 0.06),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: colorScheme.onSurface.withValues(alpha: 0.12),
+                width: 1.5,
+              ),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  Icons.lock_clock_rounded,
+                  size: 16,
+                  color: colorScheme.onSurface.withValues(alpha: 0.35),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  'Closed',
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    color: colorScheme.onSurface.withValues(alpha: 0.35),
+                  ),
+                ),
+              ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
