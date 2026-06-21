@@ -136,7 +136,7 @@ class _PreEventBodyState extends State<_PreEventBody> {
               isDisconnected
                   ? Icons.wifi_off_rounded
                   : Icons.check_circle_rounded,
-              color: isDisconnected ? Colors.orange : Colors.green,
+              color: isDisconnected ? colorScheme.error : colorScheme.primary,
               size: 24,
             ),
             const SizedBox(width: 16),
