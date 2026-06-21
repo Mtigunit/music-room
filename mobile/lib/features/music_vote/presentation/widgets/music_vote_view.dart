@@ -100,8 +100,10 @@ class _MusicVoteViewState extends State<MusicVoteView> {
       case AudioPlaybackPhase.paused:
         cubit.setAudioLoading(isLoading: false);
       case AudioPlaybackPhase.idle:
+        cubit.setAudioLoading(isLoading: false);
       case AudioPlaybackPhase.error:
         cubit.setAudioLoading(isLoading: false);
+        cubit.setError('Failed to get track, please try again.');
     }
   }
 
@@ -235,31 +237,40 @@ class _MusicVoteViewState extends State<MusicVoteView> {
     return RepositoryProvider<RoomAudioPlayer>(
       create: (context) => InjectionContainer().createRoomAudioPlayer(),
       dispose: (player) => player.dispose(),
-      child: BlocListener<MusicVoteCubit, MusicVoteState>(
-        listenWhen: (prev, curr) =>
-            prev.error != curr.error ||
-            prev.successMessage != curr.successMessage ||
-            prev.playbackStatus != curr.playbackStatus ||
-            prev.currentTrack?.id != curr.currentTrack?.id,
-        listener: (context, state) {
-          if (state.error != null && state.event != null) {
-            TopToast.show(context, state.error!);
-            context.read<MusicVoteCubit>().clearError();
-          }
+      child: MultiBlocListener(
+        listeners: [
+          BlocListener<MusicVoteCubit, MusicVoteState>(
+            listenWhen: (prev, curr) =>
+                prev.error != curr.error ||
+                prev.successMessage != curr.successMessage,
+            listener: (context, state) {
+              if (state.error != null && state.event != null) {
+                TopToast.show(context, state.error!);
+                context.read<MusicVoteCubit>().clearError();
+              }
 
-          if (state.successMessage != null && state.event != null) {
-            TopToast.show(context, state.successMessage!, isError: false);
-            context.read<MusicVoteCubit>().clearSuccessMessage();
-          }
+              if (state.successMessage != null && state.event != null) {
+                TopToast.show(context, state.successMessage!, isError: false);
+                context.read<MusicVoteCubit>().clearSuccessMessage();
+              }
+            },
+          ),
+          BlocListener<MusicVoteCubit, MusicVoteState>(
+            listenWhen: (prev, curr) =>
+                prev.playbackStatus != curr.playbackStatus ||
+                prev.currentTrack?.id != curr.currentTrack?.id,
+            listener: (context, state) {
+              final shouldKeepAwake =
+                  state.playbackStatus == 'PLAYING' &&
+                  state.currentTrack != null;
+              unawaited(_setWakeLock(shouldKeepAwake));
 
-          final shouldKeepAwake =
-              state.playbackStatus == 'PLAYING' && state.currentTrack != null;
-          unawaited(_setWakeLock(shouldKeepAwake));
-
-          // Drive the audio player — the real state will propagate back
-          // through the phase stream → _onAudioPhaseChanged → cubit.
-          unawaited(_driveAudioPlayer(context, state));
-        },
+              // Drive the audio player — the real state will propagate back
+              // through the phase stream → _onAudioPhaseChanged → cubit.
+              unawaited(_driveAudioPlayer(context, state));
+            },
+          ),
+        ],
         child: BlocBuilder<MusicVoteCubit, MusicVoteState>(
           builder: (context, state) {
             if (!_audioBootstrapped &&

@@ -819,6 +819,12 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
     return 'A network error occurred.';
   }
 
+  void setError(String message) {
+    if (!isClosed) {
+      emit(state.copyWith(error: message));
+    }
+  }
+
   void clearError() {
     if (!isClosed) {
       emit(state.copyWith(clearError: true));

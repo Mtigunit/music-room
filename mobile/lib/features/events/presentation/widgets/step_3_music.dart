@@ -11,6 +11,8 @@ import 'package:music_room/features/events/data/models/track_model.dart';
 import 'package:music_room/features/events/presentation/state/track_search_cubit.dart';
 import 'package:music_room/features/playlist/data/datasources/playlist_remote_datasource.dart';
 import 'package:music_room/features/playlist/domain/entities/playlist_entity.dart';
+import 'package:music_room/features/profile/presentation/widgets/mock_payment_modal.dart';
+import 'package:music_room/features/subscription/presentation/state/subscription_cubit.dart';
 
 class Step3Music extends StatelessWidget {
   const Step3Music({
@@ -103,6 +105,22 @@ class _Step3MusicBodyState extends State<_Step3MusicBody> {
   }
 
   Future<void> _showImportPlaylistModal(BuildContext context) async {
+    final subState = context.read<SubscriptionCubit>().state;
+    final isPremium = subState is SubscriptionLoaded && subState.isPremium;
+
+    if (!isPremium) {
+      final confirmed = await showMockPaymentModal(context);
+      if (confirmed == true && context.mounted) {
+        context.read<SubscriptionCubit>().updateTier('PREMIUM');
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Upgraded to Premium! You can now import playlists.'),
+          ),
+        );
+      }
+      return;
+    }
+
     setState(() => _playlistSearchQuery = '');
 
     // Capture selected IDs so the modal can work with a local copy.
