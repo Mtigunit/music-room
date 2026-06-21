@@ -167,7 +167,9 @@ class _PreEventBodyState extends State<_PreEventBody> {
         // ── Event ended ──────────────────────────────────
         BlocListener<MusicVoteCubit, MusicVoteState>(
           listenWhen: (prev, curr) =>
-              prev.event?.status != 'ENDED' && curr.event?.status == 'ENDED',
+              prev.event != null &&
+              prev.event!.status != 'ENDED' &&
+              curr.event?.status == 'ENDED',
           listener: (context, state) => _showEndedOverlay(context),
         ),
         // ── Host connection status (guests only) ─────────
@@ -201,15 +203,15 @@ class _PreEventBodyState extends State<_PreEventBody> {
           final event = state.event!;
           final isHost = widget.isHostFn(state, widget.userId);
 
-          // ── LIVE or ENDED → MusicVoteView ───────────
-          if (event.status == 'LIVE' || event.status == 'ENDED') {
+          // ── LIVE → MusicVoteView ───────────
+          if (event.status == 'LIVE') {
             return MusicVoteView(
               eventId: widget.eventId,
               isHost: isHost,
             );
           }
 
-          // ── UPCOMING → info view ────────────────────
+          // ── UPCOMING or ENDED → info view ────────────────────
           if (isHost) {
             return HostEventInfoView(
               event: event,
