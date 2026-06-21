@@ -186,53 +186,15 @@ class _AppState extends State<App> {
       value: _authBloc,
       child: BlocProvider<SubscriptionCubit>.value(
         value: _subscriptionCubit,
-        child: AnimatedBuilder(
-          animation: _themePreferenceService,
-          builder: (context, _) {
-            return BlocBuilder<AuthBloc, AuthState>(
-              key: ValueKey(_showOnboarding),
-              builder: (context, authState) {
-                return MaterialApp.router(
-                  routerConfig: _router,
-                  debugShowCheckedModeBanner: false,
-                  theme: AppTheme.lightTheme(),
-                  darkTheme: AppTheme.darkTheme(),
-                  themeMode: _resolveThemeMode(authState),
-                  builder: (context, child) {
-                    if (_showOnboarding) {
-                      return OnboardingPage(
-                        onCompleted: _onOnboardingCompleted,
-                      );
-                    }
-                    if (authState is AuthAuthenticated &&
-                        authState.showOnboarding) {
-                      return PostRegistrationProfilePage(
-                        onCompleted: _onPostRegistrationCompleted,
-                      );
-                    }
-                    return DelegationRequestHost(
-                      child: child ?? const SizedBox.shrink(),
-                    );
-                  },
-                );
-              },
-            );
-          },
+        child: _AppRoot(
+          router: _router,
+          themePreferenceService: _themePreferenceService,
+          showOnboarding: _showOnboarding,
+          onOnboardingCompleted: _onOnboardingCompleted,
+          onPostRegistrationCompleted: _onPostRegistrationCompleted,
         ),
       ),
     );
-  }
-
-  ThemeMode _resolveThemeMode(AuthState state) {
-    final userId = switch (state) {
-      AuthAuthenticated(:final user) => user.id,
-      LoginSuccess(:final user) => user.id,
-      GoogleLoginSuccess(:final user) => user.id,
-      RegisterSuccess(:final user) => user.id,
-      _ => null,
-    };
-
-    return _themePreferenceService.resolveThemeModeForUser(userId);
   }
 
   void _showRateLimitMessage(String message) {
@@ -271,5 +233,74 @@ class _AppState extends State<App> {
     if (!isRateLimit) return;
 
     _showRateLimitMessage(message);
+  }
+}
+
+// ---------------------------------------------------------------------------
+// _AppRoot – encapsulates theme + auth reactive MaterialApp.router
+// ---------------------------------------------------------------------------
+
+class _AppRoot extends StatelessWidget {
+  const _AppRoot({
+    required this.router,
+    required this.themePreferenceService,
+    required this.showOnboarding,
+    required this.onOnboardingCompleted,
+    required this.onPostRegistrationCompleted,
+  });
+
+  final GoRouter router;
+  final ThemePreferenceService themePreferenceService;
+  final bool showOnboarding;
+  final Future<void> Function() onOnboardingCompleted;
+  final VoidCallback onPostRegistrationCompleted;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: themePreferenceService,
+      builder: (context, _) {
+        return BlocBuilder<AuthBloc, AuthState>(
+          key: ValueKey(showOnboarding),
+          builder: (context, authState) {
+            return MaterialApp.router(
+              routerConfig: router,
+              debugShowCheckedModeBanner: false,
+              theme: AppTheme.lightTheme(),
+              darkTheme: AppTheme.darkTheme(),
+              themeMode: _resolveThemeMode(authState),
+              builder: (context, child) {
+                if (showOnboarding) {
+                  return OnboardingPage(
+                    onCompleted: onOnboardingCompleted,
+                  );
+                }
+                if (authState is AuthAuthenticated &&
+                    authState.showOnboarding) {
+                  return PostRegistrationProfilePage(
+                    onCompleted: onPostRegistrationCompleted,
+                  );
+                }
+                return DelegationRequestHost(
+                  child: child ?? const SizedBox.shrink(),
+                );
+              },
+            );
+          },
+        );
+      },
+    );
+  }
+
+  ThemeMode _resolveThemeMode(AuthState state) {
+    final userId = switch (state) {
+      AuthAuthenticated(:final user) => user.id,
+      LoginSuccess(:final user) => user.id,
+      GoogleLoginSuccess(:final user) => user.id,
+      RegisterSuccess(:final user) => user.id,
+      _ => null,
+    };
+
+    return themePreferenceService.resolveThemeModeForUser(userId);
   }
 }
