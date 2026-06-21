@@ -891,7 +891,7 @@ class _VotingClosedChip extends StatelessWidget {
       child: Material(
         type: MaterialType.transparency,
         child: InkWell(
-          onTap: () => TopToast.show(context, message),
+          onTap: () => TopToast.show(context, message, isError: false),
           borderRadius: BorderRadius.circular(12),
           child: Container(
             width: 48,

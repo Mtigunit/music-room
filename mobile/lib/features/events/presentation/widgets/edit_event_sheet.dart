@@ -44,6 +44,7 @@ class _EditEventSheetState extends State<EditEventSheet> {
 
   late List<TagOption<String>> selectedGenres;
   late List<TrackModel> selectedTracks;
+  List<String> selectedPlaylistIds = [];
 
   late String visibility;
   late String votingRule;
@@ -210,6 +211,7 @@ class _EditEventSheetState extends State<EditEventSheet> {
         coverImage: eventCover,
         selectedTags: selectedGenres,
         selectedTracks: selectedTracks,
+        playlistIds: selectedPlaylistIds,
         visibility: visibility,
         votingRule: votingRule,
         isRestricted: isRestricted,
@@ -230,6 +232,7 @@ class _EditEventSheetState extends State<EditEventSheet> {
       description: eventDescription,
       selectedTags: selectedGenres,
       selectedTracks: selectedTracks,
+      playlistIds: selectedPlaylistIds,
       visibility: visibility,
       votingRule: votingRule,
       isRestricted: isRestricted,
@@ -399,6 +402,7 @@ class _EditEventSheetState extends State<EditEventSheet> {
                       scheduledStartTime: scheduledStartTime,
                       selectedGenres: selectedGenres,
                       selectedTracks: selectedTracks,
+                      selectedPlaylistIds: selectedPlaylistIds,
                       visibility: visibility,
                       votingRule: votingRule,
                       isRestricted: isRestricted,
@@ -420,6 +424,8 @@ class _EditEventSheetState extends State<EditEventSheet> {
                           _setFieldState(() => selectedGenres = val),
                       onTracksChanged: (val) =>
                           _setFieldState(() => selectedTracks = val),
+                      onPlaylistIdsChanged: (val) =>
+                          _setFieldState(() => selectedPlaylistIds = val),
                       onVisibilityChanged: (val) {
                         _setFieldState(() {
                           visibility = val;
@@ -620,6 +626,7 @@ class EditEventPages extends StatelessWidget {
     required this.scheduledStartTime,
     required this.selectedGenres,
     required this.selectedTracks,
+    required this.selectedPlaylistIds,
     required this.visibility,
     required this.votingRule,
     required this.isRestricted,
@@ -635,6 +642,7 @@ class EditEventPages extends StatelessWidget {
     required this.onScheduledStartTimeChanged,
     required this.onGenresChanged,
     required this.onTracksChanged,
+    required this.onPlaylistIdsChanged,
     required this.onVisibilityChanged,
     required this.onVotingRuleChanged,
     required this.onRestrictedChanged,
@@ -667,6 +675,7 @@ class EditEventPages extends StatelessWidget {
   final DateTime scheduledStartTime;
   final List<TagOption<String>> selectedGenres;
   final List<TrackModel> selectedTracks;
+  final List<String> selectedPlaylistIds;
   final String visibility;
   final String votingRule;
   final bool isRestricted;
@@ -683,6 +692,7 @@ class EditEventPages extends StatelessWidget {
   final ValueChanged<DateTime> onScheduledStartTimeChanged;
   final ValueChanged<List<TagOption<String>>> onGenresChanged;
   final ValueChanged<List<TrackModel>> onTracksChanged;
+  final ValueChanged<List<String>> onPlaylistIdsChanged;
   final ValueChanged<String> onVisibilityChanged;
   final ValueChanged<String> onVotingRuleChanged;
   final ValueChanged<bool> onRestrictedChanged;
@@ -733,6 +743,8 @@ class EditEventPages extends StatelessWidget {
         Step3Music(
           selectedTracks: selectedTracks,
           onTracksChanged: onTracksChanged,
+          selectedPlaylistIds: selectedPlaylistIds,
+          onPlaylistIdsChanged: onPlaylistIdsChanged,
           canContinue: step3Valid,
           errorText: validationErrors[CreateEventValidationField.tracks],
           onNext: onNext,
