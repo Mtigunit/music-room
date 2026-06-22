@@ -162,14 +162,26 @@ class _SettingsPageState extends State<SettingsPage> {
               }
 
               return Scaffold(
-                body: SizedBox.expand(
-                  child: SingleChildScrollView(
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(maxWidth: formMaxWidth),
-                        child: _SettingsContent(
-                          isSaving: _isSaving,
-                          onSaveRequested: _handleSaveRequested,
+                body: RefreshIndicator(
+                  onRefresh: () async {
+                    final bloc = context.read<SettingsBloc>();
+                    final future = bloc.stream.firstWhere(
+                      (state) =>
+                          state is SettingsLoaded || state is SettingsError,
+                    );
+                    bloc.add(const SettingsRefreshRequested());
+                    await future;
+                  },
+                  child: SizedBox.expand(
+                    child: SingleChildScrollView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      child: Center(
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(maxWidth: formMaxWidth),
+                          child: _SettingsContent(
+                            isSaving: _isSaving,
+                            onSaveRequested: _handleSaveRequested,
+                          ),
                         ),
                       ),
                     ),
