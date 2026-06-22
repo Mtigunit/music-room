@@ -204,14 +204,18 @@ class _MusicVoteViewState extends State<MusicVoteView> {
           ? DateTime.now().difference(startedAt).inMilliseconds + paused
           : paused;
 
-      // loadTrack internally:
-      //  1. Stops old audio immediately (no overlap).
-      //  2. Emits AudioPlaybackPhase.loading → phase listener sets
-      //     isAudioLoading = true.
-      //  3. Resolves URL + buffers.
-      //  4. Emits AudioPlaybackPhase.playing → phase listener sets
-      //     isAudioLoading = false.
-      unawaited(player.loadTrack(track.providerTrackId, startPositionMs));
+      final wasAlreadyLoaded =
+          player.loadedProviderTrackId == track.providerTrackId;
+
+      final cubit = context.read<MusicVoteCubit>();
+
+      unawaited(
+        player.loadTrack(track.providerTrackId, startPositionMs).then((loaded) {
+          if (loaded && !wasAlreadyLoaded && mounted) {
+            cubit.play();
+          }
+        }),
+      );
       return;
     }
 

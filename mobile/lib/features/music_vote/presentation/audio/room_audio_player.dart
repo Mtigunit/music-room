@@ -144,7 +144,11 @@ class RoomAudioPlayer {
         if (seq != _requestSeq) return false;
 
         if (autoPlay) {
-          await _player.play();
+          unawaited(
+            _player.play().catchError((Object e) {
+              debugPrint('🎵 [RoomAudioPlayer] Play error: $e');
+            }),
+          );
           if (seq != _requestSeq) return false;
           _emitPhase(AudioPlaybackPhase.playing);
         } else {
