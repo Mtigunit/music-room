@@ -1,6 +1,6 @@
-# mobile
+# Music Room
 
-A new Flutter project.
+Collaborative music experiences.
 
 ## Getting Started
 
