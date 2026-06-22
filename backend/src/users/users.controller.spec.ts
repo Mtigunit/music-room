@@ -41,6 +41,7 @@ const mockSafeUser = {
   tokenVersion: mockUser.tokenVersion,
   createdAt: mockUser.createdAt,
   updatedAt: mockUser.updatedAt,
+  hasGoogleLinked: true,
 };
 
 describe('UsersController', () => {
@@ -222,7 +223,7 @@ describe('UsersController', () => {
         mockUser.id,
         mockMeta,
       );
-      expect(result).toEqual(mockSafeUser);
+      expect(result).toEqual({ ...mockSafeUser, hasGoogleLinked: false });
     });
   });
 
@@ -283,6 +284,7 @@ describe('UsersController', () => {
         privateInfo: mockUser.privateInfo,
         preferences: mockUser.preferences,
         email: mockUser.email,
+        hasGoogleLinked: true,
       });
     });
 
