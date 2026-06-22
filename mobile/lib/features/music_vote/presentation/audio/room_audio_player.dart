@@ -118,16 +118,6 @@ class RoomAudioPlayer {
     );
     final seq = ++_requestSeq;
 
-    if (autoPlay) {
-      // ── Immediately stop any in-progress audio ────────────────────────────
-      _emitPhase(AudioPlaybackPhase.loading);
-      try {
-        await _player.stop();
-      } on Object {
-        // Best-effort stop
-      }
-    }
-
     await _initAudioSession();
     if (seq != _requestSeq) {
       debugPrint('🎵 [RoomAudioPlayer] loadTrack aborted: newer request (1)');
@@ -184,6 +174,16 @@ class RoomAudioPlayer {
 
     // Clear stale track id so a failed load doesn't leave a stale reference.
     _loadedProviderTrackId = null;
+
+    if (autoPlay) {
+      // ── Immediately stop any in-progress audio ────────────────────────────
+      _emitPhase(AudioPlaybackPhase.loading);
+      try {
+        await _player.stop();
+      } on Object {
+        // Best-effort stop
+      }
+    }
 
     debugPrint('🎵 [RoomAudioPlayer] Resolving URL for $providerTrackId...');
     final url = await _streamUrlService.resolveAudioStreamUrl(providerTrackId);
