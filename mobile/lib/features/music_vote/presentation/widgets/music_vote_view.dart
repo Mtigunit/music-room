@@ -270,6 +270,17 @@ class _MusicVoteViewState extends State<MusicVoteView> {
               unawaited(_driveAudioPlayer(context, state));
             },
           ),
+          // ── Stop audio when the event ends ─────────────
+          BlocListener<MusicVoteCubit, MusicVoteState>(
+            listenWhen: (prev, curr) =>
+                prev.event?.status != 'ENDED' && curr.event?.status == 'ENDED',
+            listener: (context, state) {
+              if (!widget.isHost) return;
+              final player = context.read<RoomAudioPlayer>();
+              unawaited(player.stop());
+              unawaited(_setWakeLock(false));
+            },
+          ),
         ],
         child: BlocBuilder<MusicVoteCubit, MusicVoteState>(
           builder: (context, state) {
