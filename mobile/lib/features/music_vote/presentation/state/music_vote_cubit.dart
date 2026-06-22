@@ -157,6 +157,8 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
   /// The UI is NOT updated until the server confirms via [track:vote_updated].
   final Map<String, String> _pendingVotes = {};
 
+  bool _isWaitingForNextPlay = false;
+
   final String? _currentUserId;
 
   /// Host-side auto-advance timer: fires `playback:next` when the current
@@ -636,6 +638,14 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
     final sortedTracks = List<EventTrackModel>.from(updatedTracks);
     _sortTracks(sortedTracks);
 
+    if (shouldRemovePrevious && newTrack != null && _isHost) {
+      _isWaitingForNextPlay = true;
+    }
+
+    if (status == 'PLAYING' && !_isHost) {
+      setAudioLoading(isLoading: false);
+    }
+
     if (isClosed) return;
 
     emit(
@@ -977,12 +987,27 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
     if (!_socketClient.isConnected) return;
 
     final currentTrackId = state.currentTrack?.id;
+    _isWaitingForNextPlay = true;
+    if (!_isHost) {
+      setAudioLoading(isLoading: true);
+    }
+
     debugPrint('🚀 [MusicVoteCubit] Emitting: playbackNext for $eventId');
     _socketClient.emit(SocketEvent.playbackNext.value, <String, dynamic>{
       'eventId': eventId,
       if (currentTrackId != null && currentTrackId.isNotEmpty)
         'trackId': currentTrackId,
     });
+  }
+
+  /// Consumes the flag indicating if the client should automatically emit
+  /// `play` after the next track is fully loaded.
+  bool consumeWaitingForNextPlay() {
+    if (_isWaitingForNextPlay) {
+      _isWaitingForNextPlay = false;
+      return true;
+    }
+    return false;
   }
 
   // ---------------------------------------------------------------------------

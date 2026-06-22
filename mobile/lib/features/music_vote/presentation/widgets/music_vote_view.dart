@@ -204,14 +204,12 @@ class _MusicVoteViewState extends State<MusicVoteView> {
           ? DateTime.now().difference(startedAt).inMilliseconds + paused
           : paused;
 
-      final wasAlreadyLoaded =
-          player.loadedProviderTrackId == track.providerTrackId;
-
       final cubit = context.read<MusicVoteCubit>();
+      final isWaitingForNextPlay = cubit.consumeWaitingForNextPlay();
 
       unawaited(
         player.loadTrack(track.providerTrackId, startPositionMs).then((loaded) {
-          if (loaded && !wasAlreadyLoaded && mounted) {
+          if (loaded && mounted && isWaitingForNextPlay) {
             cubit.play();
           }
         }),
@@ -222,16 +220,28 @@ class _MusicVoteViewState extends State<MusicVoteView> {
     // ── PAUSED → preload but do not play ──────────────────────────────────
     if (status == 'PAUSED') {
       final resumePositionMs = track.pausedPlaybackPositionMs ?? 0;
+
+      final cubit = context.read<MusicVoteCubit>();
+      final isWaitingForNextPlay = cubit.consumeWaitingForNextPlay();
+
       // loadTrack with autoPlay: false will resolve the URL, prepare the
       // player, seek to the correct position, and then emit paused.
       // It does NOT emit loading, so the user sees an interactive play button
       // immediately upon entering the room, while buffering happens silently.
+      // However, if we are waiting for a track to auto-play after a skip,
+      // we pass autoPlay: true to show the loading spinner immediately.
       unawaited(
-        player.loadTrack(
-          track.providerTrackId,
-          resumePositionMs,
-          autoPlay: false,
-        ),
+        player
+            .loadTrack(
+              track.providerTrackId,
+              resumePositionMs,
+              autoPlay: isWaitingForNextPlay,
+            )
+            .then((loaded) {
+              if (loaded && mounted && isWaitingForNextPlay) {
+                cubit.play();
+              }
+            }),
       );
     }
   }
