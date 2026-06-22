@@ -149,8 +149,24 @@ class RoomAudioPlayer {
               debugPrint('🎵 [RoomAudioPlayer] Play error: $e');
             }),
           );
-          if (seq != _requestSeq) return false;
-          _emitPhase(AudioPlaybackPhase.playing);
+          try {
+            await _player.playerStateStream
+                .firstWhere(
+                  (s) =>
+                      s.playing &&
+                      (s.processingState == ProcessingState.ready ||
+                          s.processingState == ProcessingState.completed),
+                )
+                .timeout(const Duration(seconds: 15));
+            if (seq != _requestSeq) return false;
+            _emitPhase(AudioPlaybackPhase.playing);
+          } on Object catch (e) {
+            debugPrint('🎵 [RoomAudioPlayer] Play confirm error: $e');
+            if (seq == _requestSeq) {
+              _emitPhase(AudioPlaybackPhase.error);
+            }
+            return false;
+          }
         } else {
           await _player.pause();
           if (seq != _requestSeq) return false;
@@ -209,8 +225,25 @@ class RoomAudioPlayer {
             debugPrint('🎵 [RoomAudioPlayer] Play error: $e');
           }),
         );
-        debugPrint('🎵 [RoomAudioPlayer] Playback requested successfully.');
-        _emitPhase(AudioPlaybackPhase.playing);
+        try {
+          await _player.playerStateStream
+              .firstWhere(
+                (s) =>
+                    s.playing &&
+                    (s.processingState == ProcessingState.ready ||
+                        s.processingState == ProcessingState.completed),
+              )
+              .timeout(const Duration(seconds: 15));
+          if (seq != _requestSeq) return false;
+          debugPrint('🎵 [RoomAudioPlayer] Playback requested successfully.');
+          _emitPhase(AudioPlaybackPhase.playing);
+        } on Object catch (e) {
+          debugPrint('🎵 [RoomAudioPlayer] Play confirm error: $e');
+          if (seq == _requestSeq) {
+            _emitPhase(AudioPlaybackPhase.error);
+          }
+          return false;
+        }
       } else {
         debugPrint('🎵 [RoomAudioPlayer] Track preloaded and paused.');
         double? webOldVol;
