@@ -646,6 +646,11 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
       setAudioLoading(isLoading: false);
     }
 
+    if (newTrack == null) {
+      _isWaitingForNextPlay = false;
+      setAudioLoading(isLoading: false);
+    }
+
     if (isClosed) return;
 
     emit(
