@@ -75,10 +75,7 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
     _newPasswordController = TextEditingController();
     _confirmPasswordController = TextEditingController();
     _favoriteGenres = _readGenres(widget.profile.preferences).toSet();
-    _autoAcceptInvites = _readBool(
-      widget.profile.preferences,
-      'autoAcceptInvites',
-    );
+    _autoAcceptInvites = true;
   }
 
   @override
@@ -201,9 +198,6 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
     BuildContext context,
     UserProfileEntity currentProfile,
   ) {
-    final isPremium =
-        currentProfile.subscriptionTier.toUpperCase() == 'PREMIUM';
-
     return ProfileEditForm(
       currentProfile: currentProfile,
       usernameController: _usernameController,
@@ -216,10 +210,8 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
       favoriteGenres: _favoriteGenres,
       isSaving: widget.isSaving,
       onSavePressed: _handleProfileSave,
-      isLocked: !isPremium,
-      onAutoAcceptInvitesChanged: isPremium
-          ? (value) => setState(() => _autoAcceptInvites = value)
-          : (value) {},
+      isLocked: true,
+      onAutoAcceptInvitesChanged: (value) {},
       onFavoriteGenreTapped: (displayLabel) {
         final tagValue = TagGenreNormalizer.toValue(displayLabel);
         if (tagValue == null) {
@@ -287,7 +279,7 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
         favoriteGenres: _favoriteGenres.toList(
           growable: false,
         ),
-        autoAcceptInvites: _autoAcceptInvites,
+        autoAcceptInvites: true,
         uiTheme: _themeController.text.isEmpty ? null : _themeController.text,
       ),
     );
@@ -430,11 +422,6 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
   String _readString(Map<String, dynamic>? source, String key) {
     final value = source?[key];
     return value is String ? value : '';
-  }
-
-  bool _readBool(Map<String, dynamic>? source, String key) {
-    final value = source?[key];
-    return value == true;
   }
 
   UserProfileEntity _profileFromState(SettingsState state) =>
