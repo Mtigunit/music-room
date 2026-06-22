@@ -2,12 +2,6 @@ import 'package:equatable/equatable.dart';
 import 'package:music_room/features/playlist/domain/entities/playlist_entity.dart';
 import 'package:music_room/features/profile/domain/entities/hosted_event_entity.dart';
 
-enum GoogleLinkStatus {
-  unknown,
-  linked,
-  unlinked,
-}
-
 enum SubscriptionTier {
   basic,
   premium;
@@ -33,6 +27,7 @@ class UserProfileEntity extends Equatable {
     required this.subscriptionTier,
     this.email,
     this.avatarUrl,
+    this.hasGoogleLinked = false,
     this.publicInfo,
     this.friendInfo,
     this.privateInfo,
@@ -40,13 +35,13 @@ class UserProfileEntity extends Equatable {
     this.isFollowing = false,
     this.isFollowedBy = false,
     this.isFriend = false,
-    this.googleLinkStatus = GoogleLinkStatus.unknown,
   });
 
   final String id;
   final String username;
   final String? email;
   final String? avatarUrl;
+  final bool hasGoogleLinked;
   final String subscriptionTier;
   final Map<String, dynamic>? publicInfo;
   final Map<String, dynamic>? friendInfo;
@@ -57,10 +52,11 @@ class UserProfileEntity extends Equatable {
   final bool isFollowing;
   final bool isFollowedBy;
   final bool isFriend;
-  final GoogleLinkStatus googleLinkStatus;
+
+  bool get isGoogleLinked => hasGoogleLinked;
 
   UserProfileEntity copyWith({
-    GoogleLinkStatus? googleLinkStatus,
+    bool? hasGoogleLinked,
   }) {
     return UserProfileEntity(
       id: id,
@@ -68,6 +64,7 @@ class UserProfileEntity extends Equatable {
       subscriptionTier: subscriptionTier,
       email: email,
       avatarUrl: avatarUrl,
+      hasGoogleLinked: hasGoogleLinked ?? this.hasGoogleLinked,
       publicInfo: publicInfo,
       friendInfo: friendInfo,
       privateInfo: privateInfo,
@@ -75,7 +72,6 @@ class UserProfileEntity extends Equatable {
       isFollowing: isFollowing,
       isFollowedBy: isFollowedBy,
       isFriend: isFriend,
-      googleLinkStatus: googleLinkStatus ?? this.googleLinkStatus,
     );
   }
 
@@ -96,6 +92,7 @@ class UserProfileEntity extends Equatable {
     username,
     email,
     avatarUrl,
+    hasGoogleLinked,
     subscriptionTier,
     publicInfo,
     friendInfo,
@@ -104,7 +101,6 @@ class UserProfileEntity extends Equatable {
     isFollowing,
     isFollowedBy,
     isFriend,
-    googleLinkStatus,
   ];
 }
 

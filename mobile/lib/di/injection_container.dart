@@ -7,7 +7,6 @@ import 'package:music_room/core/services/client_meta_service.dart';
 import 'package:music_room/core/services/connectivity_service.dart';
 import 'package:music_room/core/services/delegation_gateway.dart';
 import 'package:music_room/core/services/google_auth_service.dart';
-import 'package:music_room/core/services/google_link_status_service.dart';
 import 'package:music_room/core/services/notifications_service.dart';
 import 'package:music_room/core/services/theme_preference_service.dart';
 import 'package:music_room/core/services/token_storage_service.dart';
@@ -72,7 +71,6 @@ class InjectionContainer {
   late ProfileRepository _profileRepository;
   late SettingsRepository _settingsRepository;
   late ThemePreferenceService _themePreferenceService;
-  late GoogleLinkStatusService _googleLinkStatusService;
   late NotificationsService _notificationsService;
   late DelegationGateway _delegationGateway;
   late IHomeRemoteDataSource _homeRemoteDataSource;
@@ -94,9 +92,6 @@ class InjectionContainer {
       sharedPreferences: sharedPreferences,
     );
     _themePreferenceService = ThemePreferenceService(
-      sharedPreferences: sharedPreferences,
-    );
-    _googleLinkStatusService = GoogleLinkStatusService(
       sharedPreferences: sharedPreferences,
     );
 
@@ -149,7 +144,6 @@ class InjectionContainer {
       playlistRemoteDataSource: _playlistRemoteDataSource,
       themePreferenceService: _themePreferenceService,
       googleAuthService: _googleAuthService,
-      googleLinkStatusService: _googleLinkStatusService,
     );
 
     // Repositories
@@ -198,8 +192,6 @@ class InjectionContainer {
   ProfileRepository get profileRepository => _profileRepository;
   SettingsRepository get settingsRepository => _settingsRepository;
   ThemePreferenceService get themePreferenceService => _themePreferenceService;
-  GoogleLinkStatusService get googleLinkStatusService =>
-      _googleLinkStatusService;
   NotificationsService get notificationsService => _notificationsService;
   DelegationGateway get delegationGateway => _delegationGateway;
   IHomeRemoteDataSource get homeRemoteDataSource => _homeRemoteDataSource;

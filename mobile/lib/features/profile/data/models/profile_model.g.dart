@@ -9,6 +9,7 @@ UserProfileModel _$UserProfileModelFromJson(Map<String, dynamic> json) {
     subscriptionTier: json['subscriptionTier'] as String,
     email: json['email'] as String?,
     avatarUrl: json['avatarUrl'] as String?,
+    hasGoogleLinked: json['hasGoogleLinked'] as bool? ?? false,
     publicInfo: (json['publicInfo'] as Map<String, dynamic>?)
         ?.cast<String, dynamic>(),
     friendInfo: (json['friendInfo'] as Map<String, dynamic>?)
@@ -29,6 +30,7 @@ Map<String, dynamic> _$UserProfileModelToJson(UserProfileModel instance) =>
       'username': instance.username,
       'email': instance.email,
       'avatarUrl': instance.avatarUrl,
+      'hasGoogleLinked': instance.hasGoogleLinked,
       'subscriptionTier': instance.subscriptionTier,
       'publicInfo': instance.publicInfo,
       'friendInfo': instance.friendInfo,
