@@ -7,10 +7,7 @@ services:
     env_file:
       - ./backend/.env
     ports:
-      - "${BACKEND_PORT:-3001}:3000"
-    depends_on:
-      - postgres
-      - redis
+      - "${BACKEND_PORT:-3000}:3000"
     restart: unless-stopped
     volumes:
       - ./backend/uploads:/app/uploads
@@ -25,38 +22,3 @@ services:
     restart: unless-stopped
     depends_on:
       - backend
-
-
-  postgres:
-    image: postgres:15
-    container_name: music_room_db
-    env_file:
-      - ./backend/.env
-    ports:
-      - "${POSTGRES_PORT:-5432}:5432"
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-  redis:
-    image: redis:7
-    container_name: music_room_cache
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
-
-  pgadmin:
-    image: dpage/pgadmin4:8.14
-    container_name: music_room_pgadmin
-    env_file:
-      - ./backend/.env
-    ports:
-      - "${PGADMIN_PORT:-5050}:80"
-    depends_on:
-      - postgres
-    restart: unless-stopped
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-      - ./backend/pgadmin/servers.json:/pgadmin4/servers.json:ro
-
-volumes:
-  postgres_data:
-  pgadmin_data:
