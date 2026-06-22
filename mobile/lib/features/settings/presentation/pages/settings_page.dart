@@ -164,9 +164,13 @@ class _SettingsPageState extends State<SettingsPage> {
               return Scaffold(
                 body: RefreshIndicator(
                   onRefresh: () async {
-                    context.read<SettingsBloc>().add(
-                      const SettingsRefreshRequested(),
+                    final bloc = context.read<SettingsBloc>();
+                    final future = bloc.stream.firstWhere(
+                      (state) =>
+                          state is SettingsLoaded || state is SettingsError,
                     );
+                    bloc.add(const SettingsRefreshRequested());
+                    await future;
                   },
                   child: SizedBox.expand(
                     child: SingleChildScrollView(

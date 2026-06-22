@@ -100,13 +100,14 @@ class _ProfileViewState extends State<ProfileView> {
               const SizedBox(height: 16),
               _BioCard(bio: _profile.shortBio!.trim()),
             ],
-            const SizedBox(height: 16),
-            if (_isOwnProfile)
+            if (_isOwnProfile) ...[
+              const SizedBox(height: 16),
               PremiumCard(
                 subscriptionTier: _profile.subscriptionTier,
                 onUpgrade: widget.onUpgradeSubscription,
                 onDowngrade: widget.onDowngradeSubscription,
               ),
+            ],
             const SizedBox(height: 16),
             _buildSegmentedControl(),
             const SizedBox(height: 16),
@@ -149,13 +150,14 @@ class _ProfileViewState extends State<ProfileView> {
                         const SizedBox(height: 16),
                         _BioCard(bio: _profile.shortBio!.trim()),
                       ],
-                      const SizedBox(height: 16),
-                      if (_isOwnProfile)
+                      if (_isOwnProfile) ...[
+                        const SizedBox(height: 16),
                         PremiumCard(
                           subscriptionTier: _profile.subscriptionTier,
                           onUpgrade: widget.onUpgradeSubscription,
                           onDowngrade: widget.onDowngradeSubscription,
                         ),
+                      ],
                       const SizedBox(height: 16),
                       _buildSegmentedControl(),
                       const SizedBox(height: 16),
@@ -202,13 +204,14 @@ class _ProfileViewState extends State<ProfileView> {
                           const SizedBox(height: 16),
                           _BioCard(bio: _profile.shortBio!.trim()),
                         ],
-                        const SizedBox(height: 16),
-                        if (_isOwnProfile)
+                        if (_isOwnProfile) ...[
+                          const SizedBox(height: 16),
                           PremiumCard(
                             subscriptionTier: _profile.subscriptionTier,
                             onUpgrade: widget.onUpgradeSubscription,
                             onDowngrade: widget.onDowngradeSubscription,
                           ),
+                        ],
                       ],
                     ),
                   ),
