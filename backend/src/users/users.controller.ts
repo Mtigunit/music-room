@@ -64,10 +64,15 @@ export class UsersController {
     private readonly configService: ConfigService,
   ) {}
 
-  private toSafeUser(user: User): Omit<User, 'passwordHash' | 'googleId'> {
+  private toSafeUser(
+    user: User,
+  ): Omit<User, 'passwordHash' | 'googleId'> & { hasGoogleLinked: boolean } {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { passwordHash, googleId, ...safeUser } = user;
-    return safeUser;
+    return {
+      ...safeUser,
+      hasGoogleLinked: !!googleId,
+    };
   }
 
   @Get('me')
@@ -409,6 +414,7 @@ export class UsersController {
       response.privateInfo = user.privateInfo;
       response.preferences = user.preferences;
       response.email = user.email; // Email is private
+      response.hasGoogleLinked = !!user.googleId;
     } else {
       response.isFollowing = isFollowing;
       response.isFollowedBy = isFollowedBy;
