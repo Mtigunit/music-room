@@ -113,9 +113,12 @@ export class EventsGateway implements OnGatewayDisconnect {
     }
   }
 
-  private isHostInRoom(roomName: string, hostSocketId: string): boolean {
-    const room = this.server.sockets.adapter.rooms.get(roomName);
-    return room?.has(hostSocketId) ?? false;
+  private async isHostInRoom(
+    roomName: string,
+    hostSocketId: string,
+  ): Promise<boolean> {
+    const sockets = await this.server.in(roomName).fetchSockets();
+    return sockets.some((socket) => socket.id === hostSocketId);
   }
 
   @SubscribeMessage(WS_EVENTS.JOIN)
@@ -463,7 +466,7 @@ export class EventsGateway implements OnGatewayDisconnect {
 
       if (
         !hostSocketId ||
-        !this.isHostInRoom(`event_${payload.eventId}`, hostSocketId)
+        !(await this.isHostInRoom(`event_${payload.eventId}`, hostSocketId))
       ) {
         throw new WsException(
           'Host is not present — playback control unavailable',
@@ -498,7 +501,7 @@ export class EventsGateway implements OnGatewayDisconnect {
         .get(REDIS_KEYS.HOST_SOCKET(payload.eventId));
       if (
         !hostSocketId ||
-        !this.isHostInRoom(`event_${payload.eventId}`, hostSocketId)
+        !(await this.isHostInRoom(`event_${payload.eventId}`, hostSocketId))
       ) {
         throw new WsException(
           'Host is not present — playback control unavailable',
@@ -533,7 +536,7 @@ export class EventsGateway implements OnGatewayDisconnect {
         .get(REDIS_KEYS.HOST_SOCKET(payload.eventId));
       if (
         !hostSocketId ||
-        !this.isHostInRoom(`event_${payload.eventId}`, hostSocketId)
+        !(await this.isHostInRoom(`event_${payload.eventId}`, hostSocketId))
       ) {
         throw new WsException(
           'Host is not present — playback control unavailable',
