@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:music_room/core/widgets/app_button.dart';
 import 'package:music_room/core/widgets/form_input_decoration.dart';
-import 'package:music_room/features/profile/domain/entities/profile_entity.dart';
 import 'package:music_room/features/settings/presentation/state/settings_bloc.dart';
 import 'package:music_room/features/settings/presentation/state/settings_state.dart';
 import 'package:music_room/features/settings/presentation/widgets/logout_all_button.dart';
@@ -58,6 +57,9 @@ class _ProfileEditSecurityFormState extends State<ProfileEditSecurityForm> {
       key: _formKey,
       child: BlocBuilder<SettingsBloc, SettingsState>(
         buildWhen: (previous, current) =>
+            current is SettingsLoaded ||
+            current is SettingsMutationSuccess ||
+            current is SettingsMutationFailure ||
             current is SettingsPasswordChangeInProgress ||
             current is SettingsPasswordChangeSuccess ||
             current is SettingsPasswordChangeFailure ||
@@ -72,7 +74,7 @@ class _ProfileEditSecurityFormState extends State<ProfileEditSecurityForm> {
           final isGoogleLinkLoading =
               state is SettingsGoogleLinkInProgress ||
               state is SettingsGoogleUnlinkInProgress;
-          final googleLinkStatus = _googleLinkStatusFromState(state);
+          final isGoogleLinked = _isGoogleLinked(state);
 
           return ProfileEditSectionCard(
             title: 'Security',
@@ -136,7 +138,7 @@ class _ProfileEditSecurityFormState extends State<ProfileEditSecurityForm> {
                   ),
                 ),
                 const SizedBox(height: 20),
-                _GoogleLinkStatusCard(status: googleLinkStatus),
+                _GoogleLinkStatusCard(isLinked: isGoogleLinked),
                 const SizedBox(height: 14),
                 SizedBox(
                   width: double.infinity,
@@ -145,7 +147,7 @@ class _ProfileEditSecurityFormState extends State<ProfileEditSecurityForm> {
                         ? null
                         : widget.onGoogleAccountLinkPressed,
                     isLoading: isGoogleLinkLoading,
-                    label: googleLinkStatus == GoogleLinkStatus.linked
+                    label: isGoogleLinked
                         ? 'Remove Google Link'
                         : 'Link Google account',
                     padding: const EdgeInsets.symmetric(vertical: 14),
@@ -200,45 +202,29 @@ class _ProfileEditSecurityFormState extends State<ProfileEditSecurityForm> {
     );
   }
 
-  GoogleLinkStatus _googleLinkStatusFromState(SettingsState state) =>
-      state.dataOrNull?.profile.googleLinkStatus ?? GoogleLinkStatus.unknown;
+  bool _isGoogleLinked(SettingsState state) =>
+      state.dataOrNull?.profile.isGoogleLinked ?? false;
 }
 
 class _GoogleLinkStatusCard extends StatelessWidget {
-  const _GoogleLinkStatusCard({required this.status});
+  const _GoogleLinkStatusCard({required this.isLinked});
 
-  final GoogleLinkStatus status;
+  final bool isLinked;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
 
-    final icon = switch (status) {
-      GoogleLinkStatus.linked => Icons.link_rounded,
-      GoogleLinkStatus.unlinked => Icons.link_off_rounded,
-      GoogleLinkStatus.unknown => Icons.help_outline_rounded,
-    };
+    final icon = isLinked ? Icons.link_rounded : Icons.link_off_rounded;
 
-    final label = switch (status) {
-      GoogleLinkStatus.linked => 'Linked',
-      GoogleLinkStatus.unlinked => 'Not linked',
-      GoogleLinkStatus.unknown => 'Status unavailable',
-    };
+    final label = isLinked ? 'Linked' : 'Not linked';
 
-    final helper = switch (status) {
-      GoogleLinkStatus.linked =>
-        'Your account has an active Google sign-in link.',
-      GoogleLinkStatus.unlinked => 'No Google account is currently linked.',
-      GoogleLinkStatus.unknown =>
-        'This app cannot fetch Google link status from the server.',
-    };
+    final helper = isLinked
+        ? 'Your account has an active Google sign-in link.'
+        : 'No Google account is currently linked.';
 
-    final accent = switch (status) {
-      GoogleLinkStatus.linked => colorScheme.primary,
-      GoogleLinkStatus.unlinked => colorScheme.error,
-      GoogleLinkStatus.unknown => colorScheme.secondary,
-    };
+    final accent = isLinked ? colorScheme.primary : colorScheme.error;
 
     return Container(
       width: double.infinity,

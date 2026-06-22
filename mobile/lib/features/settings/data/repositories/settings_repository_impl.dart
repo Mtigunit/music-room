@@ -1,5 +1,4 @@
 import 'package:music_room/core/services/google_auth_service.dart';
-import 'package:music_room/core/services/google_link_status_service.dart';
 import 'package:music_room/core/services/theme_preference_service.dart';
 import 'package:music_room/features/events/data/datasources/event_remote_datasource.dart';
 import 'package:music_room/features/events/domain/entities/my_event_item_model.dart';
@@ -17,27 +16,22 @@ class SettingsRepositoryImpl implements SettingsRepository {
     required IPlaylistRemoteDataSource playlistRemoteDataSource,
     required ThemePreferenceService themePreferenceService,
     required GoogleAuthService googleAuthService,
-    required GoogleLinkStatusService googleLinkStatusService,
   }) : _remoteDataSource = remoteDataSource,
        _eventRemoteDataSource = eventRemoteDataSource,
        _playlistRemoteDataSource = playlistRemoteDataSource,
        _themePreferenceService = themePreferenceService,
-       _googleAuthService = googleAuthService,
-       _googleLinkStatusService = googleLinkStatusService;
+       _googleAuthService = googleAuthService;
 
   final IProfileRemoteDataSource _remoteDataSource;
   final IEventRemoteDataSource _eventRemoteDataSource;
   final IPlaylistRemoteDataSource _playlistRemoteDataSource;
   final ThemePreferenceService _themePreferenceService;
   final GoogleAuthService _googleAuthService;
-  final GoogleLinkStatusService _googleLinkStatusService;
 
   @override
   Future<ProfilePageData> loadMySettingsPage() async {
     final model = await _remoteDataSource.getMyProfile();
-    final profile = model.toEntity().copyWith(
-      googleLinkStatus: _googleLinkStatusService.resolveStatusForUser(model.id),
-    );
+    final profile = model.toEntity();
 
     final followersCountFuture = _remoteDataSource.getFollowersCount(
       profile.id,
@@ -116,20 +110,12 @@ class SettingsRepositoryImpl implements SettingsRepository {
   Future<ProfilePageData> linkMyGoogleAccount(String userId) async {
     final idToken = await _googleAuthService.fetchIdToken();
     await _remoteDataSource.linkGoogleAccount(idToken: idToken);
-    await _googleLinkStatusService.saveStatusForUser(
-      userId,
-      GoogleLinkStatus.linked,
-    );
     return loadMySettingsPage();
   }
 
   @override
   Future<ProfilePageData> unlinkMyGoogleAccount(String userId) async {
     await _remoteDataSource.unlinkGoogleAccount();
-    await _googleLinkStatusService.saveStatusForUser(
-      userId,
-      GoogleLinkStatus.unlinked,
-    );
     return loadMySettingsPage();
   }
 

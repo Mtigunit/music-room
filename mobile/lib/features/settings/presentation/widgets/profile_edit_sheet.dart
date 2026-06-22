@@ -296,11 +296,9 @@ class _ProfileEditSheetState extends State<ProfileEditSheet> {
 
   Future<void> _handleGoogleAccountLink() async {
     final profileState = context.read<SettingsBloc>().state;
-    final status =
-        profileState.dataOrNull?.profile.googleLinkStatus ??
-        widget.profile.googleLinkStatus;
+    final hasGoogleLinked = _profileFromState(profileState).hasGoogleLinked;
 
-    if (status == GoogleLinkStatus.linked) {
+    if (hasGoogleLinked) {
       await _confirmGoogleUnlink();
       return;
     }

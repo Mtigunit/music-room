@@ -10,6 +10,7 @@ class UserProfileModel {
     required this.subscriptionTier,
     this.email,
     this.avatarUrl,
+    this.hasGoogleLinked = false,
     this.publicInfo,
     this.friendInfo,
     this.privateInfo,
@@ -26,6 +27,7 @@ class UserProfileModel {
   final String username;
   final String? email;
   final String? avatarUrl;
+  final bool hasGoogleLinked;
   final String subscriptionTier;
   final Map<String, dynamic>? publicInfo;
   final Map<String, dynamic>? friendInfo;
@@ -46,6 +48,7 @@ class UserProfileModel {
       username: username,
       email: email,
       avatarUrl: avatarUrl,
+      hasGoogleLinked: hasGoogleLinked,
       subscriptionTier: subscriptionTier,
       publicInfo: publicInfo,
       friendInfo: friendInfo,
