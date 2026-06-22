@@ -113,6 +113,11 @@ export class EventsGateway implements OnGatewayDisconnect {
     }
   }
 
+  private isHostInRoom(roomName: string, hostSocketId: string): boolean {
+    const room = this.server.sockets.adapter.rooms.get(roomName);
+    return room?.has(hostSocketId) ?? false;
+  }
+
   @SubscribeMessage(WS_EVENTS.JOIN)
   async handleEventJoin(
     @ConnectedSocket() client: Socket,
@@ -451,6 +456,19 @@ export class EventsGateway implements OnGatewayDisconnect {
     @ClientMeta() meta: ClientMetaDto,
   ) {
     try {
+      const redisClient = this.redisService.getClient();
+      const hostSocketId = await redisClient.get(
+        REDIS_KEYS.HOST_SOCKET(payload.eventId),
+      );
+
+      if (
+        !hostSocketId ||
+        !this.isHostInRoom(`event_${payload.eventId}`, hostSocketId)
+      ) {
+        throw new WsException(
+          'Host is not present — playback control unavailable',
+        );
+      }
       const result = await this.eventsService.play(
         payload.eventId,
         user.id,
@@ -475,6 +493,17 @@ export class EventsGateway implements OnGatewayDisconnect {
     @ClientMeta() meta: ClientMetaDto,
   ) {
     try {
+      const hostSocketId = await this.redisService
+        .getClient()
+        .get(REDIS_KEYS.HOST_SOCKET(payload.eventId));
+      if (
+        !hostSocketId ||
+        !this.isHostInRoom(`event_${payload.eventId}`, hostSocketId)
+      ) {
+        throw new WsException(
+          'Host is not present — playback control unavailable',
+        );
+      }
       const result = await this.eventsService.pause(
         payload.eventId,
         user.id,
@@ -499,6 +528,17 @@ export class EventsGateway implements OnGatewayDisconnect {
     @ClientMeta() meta: ClientMetaDto,
   ) {
     try {
+      const hostSocketId = await this.redisService
+        .getClient()
+        .get(REDIS_KEYS.HOST_SOCKET(payload.eventId));
+      if (
+        !hostSocketId ||
+        !this.isHostInRoom(`event_${payload.eventId}`, hostSocketId)
+      ) {
+        throw new WsException(
+          'Host is not present — playback control unavailable',
+        );
+      }
       const result = await this.eventsService.next(
         payload.eventId,
         user.id,
