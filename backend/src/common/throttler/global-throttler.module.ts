@@ -19,7 +19,7 @@ import { ThrottlerStorageRedisService } from '@nest-lab/throttler-storage-redis'
                 : configService.get<number>('RATE_LIMIT_DEFAULT_TTL_MS', 60000),
             limit:
               process.env.NODE_ENV === 'test'
-                ? 10000
+                ? 999999
                 : configService.get<number>('RATE_LIMIT_DEFAULT_LIMIT', 100),
           },
         ],
