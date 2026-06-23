@@ -186,6 +186,28 @@ class _PreEventBodyState extends State<_PreEventBody> {
             }
           },
         ),
+        // ── Error Toast ──────────────────────────────────
+        BlocListener<MusicVoteCubit, MusicVoteState>(
+          listenWhen: (prev, curr) =>
+              prev.error != curr.error && curr.error != null,
+          listener: (context, state) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(state.error!),
+                backgroundColor: Theme.of(context).colorScheme.error,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+            if (state.isJoinFailed && context.mounted) {
+              if (context.canPop()) {
+                context.pop();
+              } else {
+                context.go('/home');
+              }
+            }
+            context.read<MusicVoteCubit>().clearError();
+          },
+        ),
       ],
       child: BlocBuilder<MusicVoteCubit, MusicVoteState>(
         builder: (context, state) {
@@ -204,7 +226,7 @@ class _PreEventBodyState extends State<_PreEventBody> {
           final isHost = widget.isHostFn(state, widget.userId);
 
           // ── LIVE → MusicVoteView ───────────
-          if (event.status == 'LIVE') {
+          if (event.status == 'LIVE' && !state.isJoinFailed) {
             return MusicVoteView(
               eventId: widget.eventId,
               isHost: isHost,

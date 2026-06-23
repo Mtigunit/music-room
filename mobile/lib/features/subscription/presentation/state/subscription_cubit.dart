@@ -40,6 +40,25 @@ class SubscriptionCubit extends Cubit<SubscriptionState> {
     emit(SubscriptionLoaded(tier: _normalizeTier(tier)));
   }
 
+  /// Upgrade the subscription tier via the API and update the local state.
+  Future<bool> upgradeTier(String tier) async {
+    final token = ++_loadToken;
+    try {
+      final response = await _apiClient.patch<Map<String, dynamic>>(
+        AppConfig.subscriptionEndpoint,
+        data: {'subscriptionTier': tier},
+      );
+      if (isClosed || token != _loadToken) return false;
+      final body = response.data;
+      final updatedTier = _normalizeTier(body?['subscriptionTier'] as String?);
+      emit(SubscriptionLoaded(tier: updatedTier));
+      return true;
+    } on Object {
+      // Re-throw if error handling is needed by the caller.
+      rethrow;
+    }
+  }
+
   /// Reset to initial state on logout.
   void reset() {
     _loadToken++;

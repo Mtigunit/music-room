@@ -111,12 +111,47 @@ class _Step3MusicBodyState extends State<_Step3MusicBody> {
     if (!isPremium) {
       final confirmed = await showMockPaymentModal(context);
       if (confirmed == true && context.mounted) {
-        context.read<SubscriptionCubit>().updateTier('PREMIUM');
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Upgraded to Premium! You can now import playlists.'),
-          ),
-        );
+        try {
+          final success = await context.read<SubscriptionCubit>().upgradeTier(
+            'PREMIUM',
+          );
+          if (success && context.mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Upgraded to Premium! You can now import playlists.',
+                ),
+              ),
+            );
+          }
+        } on Object catch (_) {
+          if (context.mounted) {
+            final cubit = context.read<SubscriptionCubit>();
+            await cubit.loadSubscription();
+            final updatedState = cubit.state;
+
+            if (context.mounted) {
+              if (updatedState is SubscriptionLoaded &&
+                  updatedState.isPremium) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Upgraded to Premium! You can now import playlists.',
+                    ),
+                  ),
+                );
+              } else {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'Failed to upgrade to Premium. Please try again.',
+                    ),
+                  ),
+                );
+              }
+            }
+          }
+        }
       }
       return;
     }
