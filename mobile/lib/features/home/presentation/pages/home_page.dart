@@ -204,11 +204,7 @@ class _HomePageState extends State<HomePage> {
 
     if (!context.mounted) return;
 
-    if (currentUserId == event.hostId) {
-      unawaited(context.push('/music-vote/host/${event.id}'));
-    } else {
-      unawaited(context.push('/music-vote/guest/${event.id}'));
-    }
+    unawaited(context.push('/events/${event.id}'));
   }
 
   String? _currentUserId(BuildContext context) {

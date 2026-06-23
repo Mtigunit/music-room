@@ -23,6 +23,7 @@ class MusicVoteState {
     this.isStartingEvent = false,
     this.isEndingEvent = false,
     this.isAudioLoading = false,
+    this.isJoinFailed = false,
     this.error,
     this.successMessage,
     this.event,
@@ -42,6 +43,7 @@ class MusicVoteState {
   /// The UI must NOT start the progress ticker or show "playing" controls
   /// until this is `false`.
   final bool isAudioLoading;
+  final bool isJoinFailed;
   final String? error;
   final String? successMessage;
   final EventDetailModel? event;
@@ -62,6 +64,7 @@ class MusicVoteState {
     bool? isStartingEvent,
     bool? isEndingEvent,
     bool? isAudioLoading,
+    bool? isJoinFailed,
     String? error,
     String? successMessage,
     EventDetailModel? event,
@@ -80,6 +83,7 @@ class MusicVoteState {
       isStartingEvent: isStartingEvent ?? this.isStartingEvent,
       isEndingEvent: isEndingEvent ?? this.isEndingEvent,
       isAudioLoading: isAudioLoading ?? this.isAudioLoading,
+      isJoinFailed: isJoinFailed ?? this.isJoinFailed,
       error: clearError ? null : (error ?? this.error),
       successMessage: clearSuccessMessage
           ? null
@@ -220,9 +224,10 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
 
       emit(
         state.copyWith(
-          isLoading: false,
+          isLoading: event.status == 'LIVE',
           event: event,
           tracks: tracks,
+          isJoinFailed: false,
           // Seed playback state from the REST response so the PlayerCard
           // shows the correct track immediately on join / re-join, before
           // the first playback:status socket event arrives.
@@ -745,6 +750,7 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
 
     emit(
       state.copyWith(
+        isLoading: false,
         event: updated,
         isStartingEvent:
             status != 'LIVE' && status != 'ENDED' && state.isStartingEvent,
@@ -942,7 +948,20 @@ class MusicVoteCubit extends Cubit<MusicVoteState> {
       errorMessage = 'Something went wrong on our end. Please try again.';
     }
 
-    emit(state.copyWith(error: errorMessage));
+    final isJoinError =
+        errorMessage.contains('another device') ||
+        errorMessage.contains('must use host_join') ||
+        errorMessage.contains('already ended');
+
+    emit(
+      state.copyWith(
+        isLoading: false,
+        error: errorMessage,
+        isStartingEvent: false,
+        isEndingEvent: false,
+        isJoinFailed: isJoinError || state.isJoinFailed,
+      ),
+    );
   }
 
   // ---------------------------------------------------------------------------
